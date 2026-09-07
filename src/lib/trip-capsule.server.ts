@@ -100,8 +100,39 @@ const IMPLICIT_CLASSIFICATION: Record<string, { formality: number; dayEvening: s
  *  days, since the dress_code vocabulary has no entry for either. */
 const SWIM_KEYWORDS = ["pool", "piscina", "swim", "nuot", "beach", "spiagg", "mare", "sea", "snorkel", "lido", "water park", "acquapark"];
 const SPORT_KEYWORDS = ["yoga", "gym", "palestra", "run", "corsa", "hike", "trek", "workout", "fitness", "pilates", "bike", "cycl", "tennis", "padel", "climb"];
+// A concert/DJ set is a physically demanding activity, not an elegant
+// evening: 6-8 hours standing, dancing, in a crowd, often outdoors and
+// still hot when it starts. Treated as its own activity kind so the
+// footwear and aesthetic rules below can key off it without touching
+// dinners, work or anything else.
+//
+// LIMIT, stated plainly: this is keyword matching, and an activity named
+// only after the performer ("David Guetta", "Katy Perry") matches
+// nothing here — no keyword list can contain every artist alive. Venue
+// and event-format words are included precisely because a calendar entry
+// usually carries one even when the artist's name is the title
+// ("Beyoncé — San Siro", "Coldplay Live 2026"). When nothing matches,
+// the activity is simply treated as an ordinary evening, exactly as
+// before this feature existed — the failure is a missed improvement,
+// never a wrong outfit. Setting the activity's dress code to Sport, or
+// naming it with any of these words, forces correct recognition.
+const CONCERT_KEYWORDS = [
+  // Italiano
+  "concerto", "concerti", "festival", "rave", "discoteca", "dj ",
+  // English — "live" and "show" alone are too generic ("live meeting",
+  // "trade show"), so only their unambiguous compound forms appear here.
+  "concert", "dj set", "djset", "dj-set", "live music", "live show", "gig", "after party", "afterparty", "club night",
+  // Español
+  "concierto", "conciertos",
+  // Français
+  "concert de", "boîte de nuit",
+  // Deutsch
+  "konzert", "musikfestival",
+  // Luoghi ed etichette che compaiono nei titoli reali di calendario
+  "arena", "stadio", "stadium", "forum", "san siro", "olimpico", "coachella", "tomorrowland", "primavera sound", "lollapalooza", "glastonbury",
+];
 
-type ActivityKind = "swim" | "sport" | null;
+type ActivityKind = "swim" | "sport" | "concert" | null;
 
 /** Swim wins over sport when both read (a "pool workout" still needs a
  *  swimsuit); dress_code "Sport" only ever implies sport. */
@@ -191,10 +222,14 @@ export function changeAssumedPossible(req: Requirement, allRequirements: Require
   return !hasSameSegmentCompetingActivity;
 }
 
-function activityKind(req: Requirement): ActivityKind {
+export function activityKind(req: Requirement): ActivityKind {
   const text = `${req.label ?? ""}`.toLowerCase();
   if (SWIM_KEYWORDS.some((k) => text.includes(k))) return "swim";
   if (SPORT_KEYWORDS.some((k) => text.includes(k)) || req.dressCode === "Sport") return "sport";
+  // Checked after swim/sport (a "beach festival" is still a beach day
+  // first) but before returning null — this is what stops a concert
+  // being read as an ordinary evening.
+  if (CONCERT_KEYWORDS.some((k) => text.includes(k))) return "concert";
   return null;
 }
 
@@ -349,6 +384,47 @@ function versatility(it: PoolItem, req?: Requirement, temperature?: number | nul
     // reasoning (real temperature over calendar-bucket season).
     const calendarSeason = seasonForDate(req.date);
     if (climateSuitability(it, temperature ?? null, calendarSeason) === "possible") score -= 3;
+
+    // Concert/DJ set: a temperature PREFERENCE engine, not a second list
+    // of prohibitions (heels are the only hard exclusion, handled by
+    // applyConcertFootwearFilter). These scores move what wins, they
+    // never remove an option — a boot at 30°C stays available if it's
+    // genuinely the best or only fit for the look.
+    if (activityKind(req) === "concert" && temperature != null) {
+      const shoeText = `${it.subcategory ?? ""} ${it.style ?? ""}`;
+      const isBoot = SHOE_ROLE.has(it.category ?? "") && /boot|stival/i.test(shoeText);
+      const isLightShoe = SHOE_ROLE.has(it.category ?? "") && /sneaker|sandal|sandalo|flat|espadrille|trainer/i.test(shoeText);
+      const bodyText = `${it.category ?? ""} ${it.subcategory ?? ""} ${it.style ?? ""}`;
+      const isHeavyBottom = BOTTOM_ROLE.has(it.category ?? "") && /jeans|denim|trouser|pantalone|cargo|wool|lana|leather|pelle/i.test(bodyText);
+      const isLightBottom = BOTTOM_ROLE.has(it.category ?? "") && /short|skirt|gonna|mini/i.test(bodyText);
+      const isLightTop = TOP_ROLE.has(it.category ?? "") && /crop|tank|canotta|t-shirt|tshirt|mesh|top|bodysuit|body/i.test(bodyText);
+      const isWarmLayer = /blazer|jacket|giacca|coat|cappotto|sweater|maglione|cardigan|felpa|hoodie|knit/i.test(bodyText);
+
+      if (temperature >= 30) {
+        if (isBoot) score -= 4;
+        if (isLightShoe) score += 3;
+        if (isHeavyBottom) score -= 4;
+        if (isLightBottom) score += 4;
+        if (isLightTop) score += 3;
+        if (isWarmLayer) score -= 5;
+      } else if (temperature >= 25) {
+        if (isBoot) score -= 2;
+        if (isLightShoe) score += 2;
+        if (isHeavyBottom) score -= 2;
+        if (isLightBottom) score += 3;
+        if (isLightTop) score += 2;
+        if (isWarmLayer) score -= 4;
+      } else if (temperature >= 20) {
+        // 20-25°C: boots are a perfectly good option here, no penalty.
+        if (isLightBottom) score += 1;
+        if (isWarmLayer) score -= 1;
+      } else {
+        // Below 20°C boots become genuinely competitive against open shoes.
+        if (isBoot) score += 2;
+        if (isLightShoe) score -= 1;
+      }
+    }
+
 
     // A transport leg (train, flight, ferry) is a practicality context,
     // not a styling one — a skirt or dress isn't WRONG on a train the way
@@ -772,9 +848,36 @@ export function isTravelSuitable(it: PoolItem, temperature: number | null): bool
   return true;
 }
 
+/** Footwear for a concert/DJ set: hours standing, dancing, in a crowd.
+ *  Heels are the ONLY hard exclusion — that's a physical incompatibility
+ *  with the activity, not a weather question, so no temperature or style
+ *  argument overrides it. Boots are deliberately NOT excluded here: at
+ *  30°C they're a poor thermal choice, but "not ideal" and "not allowed"
+ *  are different things, and conflating them is how a filter turns into a
+ *  wall of prohibitions. Their temperature preference lives in
+ *  versatility() as a score penalty instead. */
+export function isConcertFootwearSuitable(it: PoolItem): boolean {
+  if (!SHOE_ROLE.has(it.category ?? "")) return true;
+  const text = `${it.subcategory ?? ""} ${it.style ?? ""}`;
+  return !/heel|tacco|pump|stiletto|slingback/i.test(text);
+}
+
+/** Hard filter for a concert's candidate pool — heels only. Same
+ *  per-category fallback shape as the travel filter: if heels are the
+ *  only shoes owned, they stay rather than leaving the outfit barefoot. */
+export function applyConcertFootwearFilter(candidates: PoolItem[], isConcert: boolean): PoolItem[] {
+  if (!isConcert) return candidates;
+  const shoes = candidates.filter((it) => SHOE_ROLE.has(it.category ?? ""));
+  const suitable = shoes.filter(isConcertFootwearSuitable);
+  if (shoes.length === 0 || suitable.length === 0) return candidates;
+  const rejected = new Set(shoes.filter((it) => !suitable.includes(it)).map((it) => it.id));
+  return candidates.filter((it) => !rejected.has(it.id));
+}
+
 /** True when an already-composed outfit could be worn as-is for travel —
  *  used to decide whether a transport activity needs its own separate
  *  look at all, or can simply reuse the day's other outfit. */
+
 export function outfitIsTravelSuitable(itemIds: string[], catalog: PoolItem[], temperature: number | null): boolean {
   return itemIds.every((id) => {
     const it = catalog.find((c) => c.id === id);
@@ -1138,6 +1241,14 @@ export async function generateTripCapsuleCore({ data, context }: {
         tempByActivity.get(req.activityId) ?? null,
       );
 
+      // Concert/DJ set footwear: heels never, boots only below 25°C.
+      // Keyed strictly on activityKind === "concert", so dinners, work
+      // and every other occasion are untouched by this.
+      candidatePool = applyConcertFootwearFilter(
+        candidatePool,
+        activityKind(req) === "concert",
+      );
+
       // Boots at a warm-weather dinner: a hard exclusion, not just a
       // reserved elegant slot. Reserving the best elegant shoe in the
       // capsule doesn't stop the AI picking a boot that's also in there
@@ -1248,7 +1359,16 @@ export async function generateTripCapsuleCore({ data, context }: {
         supabase, userId,
         temperature,
         condition,
-        occasion: occasionText(req),
+        // A concert/DJ set is a party context, not a formal evening one.
+        // Said explicitly because "Evening" alone reads as "dress up" to
+        // the model, which is the opposite of what's wanted: crop tops,
+        // minis, shorts, mesh and bold pieces are all correct here. The
+        // hard constraints (footwear, weather) are enforced in code
+        // above — this line only widens what's stylistically allowed,
+        // it can't let anything unsafe through.
+        occasion: activityKind(req) === "concert"
+          ? `${occasionText(req)} — a concert/DJ set: hours on your feet, dancing, in a crowd, often outdoors. Dress for a party or festival, NOT for a formal dinner: crop tops, fitted or cut-out tops, mini skirts, short shorts, bodysuits, mesh, metallic or leather details and bold accessories are all appropriate. Comfort and freedom of movement matter more than formality.`
+          : occasionText(req),
         dressRules,
         gender: profile?.gender ?? null,
         styleBoldness: profile?.style_boldness ?? null,
