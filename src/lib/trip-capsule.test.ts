@@ -11,7 +11,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildCapsule, type PoolItem, type Requirement, climateSuitability, isSweatConsumable, applyHardDressCodeFilter, isTransportActivity, applyTransportPracticalityFilter, isAccommodationActivity, changeAssumedPossible, isTravelSuitable, outfitIsTravelSuitable } from "./trip-capsule.server";
+import { buildCapsule, type PoolItem, type Requirement, climateSuitability, isSweatConsumable, applyHardDressCodeFilter, isTransportActivity, applyTransportPracticalityFilter, isAccommodationActivity, changeAssumedPossible, isTravelSuitable, outfitIsTravelSuitable, isConcertFootwearSuitable, applyConcertFootwearFilter, activityKind } from "./trip-capsule.server";
 
 function item(overrides: Partial<PoolItem> & { id: string }): PoolItem {
   return {
@@ -974,4 +974,70 @@ test("REGRESSIONE — con una cena al caldo, uno stivaletto già in capsule non 
 
   const capsule = buildCapsule(pool, requirements, seasonByDate, ["boot"], tempByActivity);
   assert.ok(capsule.has("sandal"), "il sandalo deve essere riservato per la cena anche se lo stivaletto era già in capsule");
+});
+
+// ---------------------------------------------------------------------------
+// CONCERTI / DJ SET — tacchi unica esclusione rigida, resto è preferenza
+// ---------------------------------------------------------------------------
+
+test("Concerto: i tacchi sono l'UNICA esclusione rigida", () => {
+  assert.equal(isConcertFootwearSuitable(item({ id: "h", category: "Shoes", subcategory: "Pumps" })), false);
+  assert.equal(isConcertFootwearSuitable(item({ id: "s", category: "Shoes", subcategory: "Stiletto Sandals" })), false);
+  assert.equal(isConcertFootwearSuitable(item({ id: "sn", category: "Shoes", subcategory: "Sneakers" })), true);
+  assert.equal(isConcertFootwearSuitable(item({ id: "sa", category: "Shoes", subcategory: "Sandals" })), true);
+});
+
+test("TEST D — a 30°C lo stivaletto NON è vietato al concerto, solo penalizzato", () => {
+  const boot = item({ id: "boot", category: "Shoes", subcategory: "Ankle Boots" });
+  assert.equal(isConcertFootwearSuitable(boot), true, "lo stivaletto resta un'opzione tecnicamente valida");
+  const candidates: PoolItem[] = [boot, item({ id: "sneaker", category: "Shoes", subcategory: "Sneakers" })];
+  const filtered = applyConcertFootwearFilter(candidates, true);
+  assert.ok(filtered.some((it) => it.id === "boot"), "non deve essere rimosso dal pool: è una penalizzazione, non un divieto");
+});
+
+test("Se i tacchi sono l'unica scarpa posseduta, restano (mai outfit scalzo)", () => {
+  const candidates: PoolItem[] = [item({ id: "heel", category: "Shoes", subcategory: "Pumps" })];
+  const filtered = applyConcertFootwearFilter(candidates, true);
+  assert.equal(filtered.length, 1);
+});
+
+test("TEST C — una CENA non eredita le regole del concerto: il tacco resta disponibile a 30°C", () => {
+  const candidates: PoolItem[] = [
+    item({ id: "heel", category: "Shoes", subcategory: "Heeled Sandals", formality: 4 }),
+    item({ id: "sneaker", category: "Shoes", subcategory: "Sneakers", formality: 2 }),
+  ];
+  // isConcert = false: il ramo concerto non viene eseguito affatto.
+  const filtered = applyConcertFootwearFilter(candidates, false);
+  assert.ok(filtered.some((it) => it.id === "heel"), "il sandalo con tacco deve restare proponibile per una cena");
+  assert.equal(filtered.length, 2, "nessun filtro applicato fuori dal contesto concerto");
+});
+
+test("TEST B — concerto a 15°C: stivaletti ammessi, tacchi comunque no", () => {
+  const boot = item({ id: "boot", category: "Shoes", subcategory: "Ankle Boots" });
+  const heel = item({ id: "heel", category: "Shoes", subcategory: "Pumps" });
+  assert.equal(isConcertFootwearSuitable(boot), true);
+  assert.equal(isConcertFootwearSuitable(heel), false, "il freddo non riabilita mai il tacco");
+});
+
+test("TEST A — concerto e treno lo stesso giorno non si contaminano", () => {
+  // Il treno esclude la minigonna; il concerto no.
+  const mini = item({ id: "mini", category: "Bottoms", subcategory: "Skirt" });
+  assert.equal(isTravelSuitable(mini, 30), false, "in treno la gonna corta resta esclusa");
+  assert.equal(isConcertFootwearSuitable(mini), true, "il filtro concerto riguarda solo le calzature, non tocca la gonna");
+  // E il filtro concerto non tocca i capi non-scarpa.
+  const filtered = applyConcertFootwearFilter([mini], true);
+  assert.ok(filtered.some((it) => it.id === "mini"), "al concerto la minigonna è perfettamente appropriata");
+});
+
+test("Riconoscimento concerto: multilingua e nomi di locale, senza falsi positivi", () => {
+  const isConcert = (label: string) =>
+    activityKind({ activityId: "x", date: "2026-09-06", daySegment: "evening", dressCode: null, label });
+  // Devono essere riconosciuti
+  for (const label of ["Concerto David Guetta", "Beyoncé — San Siro", "DJ Set Marco Carola", "Concierto de Rosalía", "Konzert Berlin", "Ultra Music Festival", "Coldplay Stadio Olimpico"]) {
+    assert.equal(isConcert(label), "concert", `doveva essere riconosciuto: ${label}`);
+  }
+  // NON devono essere riconosciuti — falsi positivi trovati e corretti
+  for (const label of ["Cena El Porteño", "Serata relax in hotel", "Live meeting con il team", "Riunione di lavoro", "Visita Duomo"]) {
+    assert.notEqual(isConcert(label), "concert", `falso positivo: ${label}`);
+  }
 });
