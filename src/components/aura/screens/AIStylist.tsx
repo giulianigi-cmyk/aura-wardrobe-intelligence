@@ -676,6 +676,11 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
                           )}
                         </div>
                       </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openAvatarTryOn(o.item_ids); }}
+                        aria-label={t("avatar.tryOnCta")}
+                        className="absolute top-2 left-2 h-8 w-8 rounded-full bg-background/80 backdrop-blur flex items-center justify-center active:scale-90 shadow-soft"
+                      ><Sparkles size={14} /></button>
                       {outfitTab === "saved" && (
                                               <>
                           <button
