@@ -817,21 +817,21 @@ export type Database = {
           id: string
           outfit_id: string
           shared_by: string
-          shared_with: string
+          shared_with: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           outfit_id: string
           shared_by: string
-          shared_with: string
+          shared_with?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           outfit_id?: string
           shared_by?: string
-          shared_with?: string
+          shared_with?: string | null
         }
         Relationships: [
           {
@@ -1974,6 +1974,153 @@ export type Database = {
           name?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      valuation_category_profiles: {
+        Row: {
+          category: string
+          default_iconicity: string | null
+          evidence_floor: string
+          floor: number
+          id: string
+          notes: string | null
+          subcategory: string | null
+          tau_years: number
+          wear_expected_life_wears: number
+          wear_max_penalty: number
+        }
+        Insert: {
+          category: string
+          default_iconicity?: string | null
+          evidence_floor: string
+          floor: number
+          id?: string
+          notes?: string | null
+          subcategory?: string | null
+          tau_years: number
+          wear_expected_life_wears: number
+          wear_max_penalty: number
+        }
+        Update: {
+          category?: string
+          default_iconicity?: string | null
+          evidence_floor?: string
+          floor?: number
+          id?: string
+          notes?: string | null
+          subcategory?: string | null
+          tau_years?: number
+          wear_expected_life_wears?: number
+          wear_max_penalty?: number
+        }
+        Relationships: []
+      }
+      valuation_brand_modifiers: {
+        Row: {
+          brand: string
+          category: string
+          evidence: string
+          id: string
+          modifier: number
+          notes: string | null
+          subcategory: string | null
+        }
+        Insert: {
+          brand: string
+          category: string
+          evidence: string
+          id?: string
+          modifier: number
+          notes?: string | null
+          subcategory?: string | null
+        }
+        Update: {
+          brand?: string
+          category?: string
+          evidence?: string
+          id?: string
+          modifier?: number
+          notes?: string | null
+          subcategory?: string | null
+        }
+        Relationships: []
+      }
+      valuation_material_modifiers: {
+        Row: {
+          material: string
+          modifier: number
+        }
+        Insert: {
+          material: string
+          modifier: number
+        }
+        Update: {
+          material?: string
+          modifier?: number
+        }
+        Relationships: []
+      }
+      valuation_model_profiles: {
+        Row: {
+          brand: string
+          category: string
+          ceiling: number
+          evidence_tier: string
+          floor: number
+          id: string
+          model: string
+          notes: string
+          subcategory: string | null
+          tau_years: number
+          wear_expected_life_wears: number
+          wear_max_penalty: number
+        }
+        Insert: {
+          brand: string
+          category: string
+          ceiling: number
+          evidence_tier: string
+          floor: number
+          id?: string
+          model: string
+          notes: string
+          subcategory?: string | null
+          tau_years: number
+          wear_expected_life_wears: number
+          wear_max_penalty: number
+        }
+        Update: {
+          brand?: string
+          category?: string
+          ceiling?: number
+          evidence_tier?: string
+          floor?: number
+          id?: string
+          model?: string
+          notes?: string
+          subcategory?: string | null
+          tau_years?: number
+          wear_expected_life_wears?: number
+          wear_max_penalty?: number
+        }
+        Relationships: []
+      }
+      valuation_size_modifiers: {
+        Row: {
+          category: string
+          modifier: number
+          size_class: string
+        }
+        Insert: {
+          category: string
+          modifier: number
+          size_class: string
+        }
+        Update: {
+          category?: string
+          modifier?: number
+          size_class?: string
         }
         Relationships: []
       }
