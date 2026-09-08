@@ -254,7 +254,7 @@ function Inner() {
                     {screen === "batch-review" && reviewScanId && <BatchReview go={go} scanId={reviewScanId} />}
           {screen === "trips" && <Trips go={go} openTrip={(id) => { setActiveTripId(id); setTripFocusActivityId(null); setScreen("trip-detail"); }} />}
           {screen === "trip-create" && <TripCreate go={go} onCreated={(id) => { setActiveTripId(id); setScreen("trip-detail"); }} />}
-          {screen === "trip-detail" && activeTripId && <TripDetail go={go} tripId={activeTripId} focusActivityId={tripFocusActivityId} openBuilder={openBuilder} />}
+          {screen === "trip-detail" && activeTripId && <TripDetail go={go} tripId={activeTripId} focusActivityId={tripFocusActivityId} openBuilder={openBuilder} openAvatarTryOn={openAvatarTryOn} />}
           {screen === "essential-presets" && <EssentialPresets go={go} />}
           {screen === "planner" && <Planner go={go} openStylistChat={openStylistChat} focus={plannerFocus} />}
           {screen === "shop" && <Shop go={go} />}
@@ -284,7 +284,7 @@ function Inner() {
           {screen === "chat-thread" && activeConversationId && (
             <ChatThread go={go} conversationId={activeConversationId} onBack={() => setScreen("chats")} />
           )}
-          {screen === "builder" && <OutfitBuilder go={go} init={builderInit} />}
+          {screen === "builder" && <OutfitBuilder go={go} init={builderInit} openAvatarTryOn={openAvatarTryOn} />}
           {screen === "color-analysis" && <PersonalColorAnalysis go={go} />}
           {screen === "avatar" && <Avatar go={go} />}
           {screen === "avatar-tryon" && <AvatarTryOn go={go} itemIds={avatarTryOnItemIds} />}
