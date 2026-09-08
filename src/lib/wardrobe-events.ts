@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { submitOutfitFeedback } from "./outfit-feedback.functions";
 
 /**
  * Open vocabulary, matching the DB column (plain text, no CHECK constraint —
@@ -140,6 +141,23 @@ export async function confirmOutfitPlanWorn(
     notes: plan.notes,
   });
   if (eventErr) console.error("[AURA wardrobe-events] log failed", eventErr);
+
+  // A plan the person actually wore is real, direct evidence they liked
+  // this combination — the strongest signal short of them saying so —
+  // and, because it's tagged with the plan's own occasion, this is also
+  // the first real source of occasion-SCOPED learning (until now nothing
+  // ever sent an occasion, so every learned preference was general-only).
+  // One shared write path (see this function's own doc comment above)
+  // means both the Calendar and the Stylist tab's "worn" confirmation
+  // feed the same signal, never drifting apart.
+  void submitOutfitFeedback({
+    data: {
+      itemIds: finalItemIds,
+      feedbackType: "worn",
+      outfitId: null,
+      context: plan.occasion ? { occasion: plan.occasion } : null,
+    },
+  }).catch((e) => console.error("[AURA wardrobe-events] style-memory feedback failed", e));
 
   return { error: null };
 
