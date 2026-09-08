@@ -205,9 +205,35 @@ export async function autoSampleFromCanvas(canvas: HTMLCanvasElement): Promise<A
 /** Used by the AURA Avatar upload flow (checkFullBodyPhoto in
  *  avatar-body-check.ts is its full-body counterpart) — a narrow "is
  *  there a detectable face here at all" check, reusing the same
- *  landmarker this file already loads for color sampling. */
+ *  landmarker this file already loads for color sampling.
+ *
+ *  Runs detection twice: once on the full frame, and once on just the
+ *  top ~40% cropped out and upscaled. A full-body avatar photo is
+ *  exactly the case face detectors are weakest on — the face is a small
+ *  fraction of a tall frame, at whatever resolution the phone captured
+ *  the *whole body* at, not the face specifically. Cropping to roughly
+ *  where a head sits in a vertical full-body shot and enlarging it
+ *  gives the model a much bigger, more legible face to work with,
+ *  without needing the person to take a second, different photo. */
 export async function checkFacePhoto(source: HTMLImageElement | HTMLCanvasElement): Promise<boolean> {
   const landmarker = await getFaceLandmarker();
-  const result = landmarker.detect(source);
-  return (result.faceLandmarks?.[0]?.length ?? 0) > 0;
+
+  const direct = landmarker.detect(source);
+  if ((direct.faceLandmarks?.[0]?.length ?? 0) > 0) return true;
+
+  const width = "naturalWidth" in source ? source.naturalWidth : source.width;
+  const height = "naturalHeight" in source ? source.naturalHeight : source.height;
+  if (!width || !height) return false;
+
+  const cropHeight = Math.round(height * 0.4);
+  const canvas = document.createElement("canvas");
+  const SCALE = 2; // upscale the crop so the face isn't just "present" but legibly large
+  canvas.width = width * SCALE;
+  canvas.height = cropHeight * SCALE;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return false;
+  ctx.drawImage(source, 0, 0, width, cropHeight, 0, 0, canvas.width, canvas.height);
+
+  const cropped = landmarker.detect(canvas);
+  return (cropped.faceLandmarks?.[0]?.length ?? 0) > 0;
 }
