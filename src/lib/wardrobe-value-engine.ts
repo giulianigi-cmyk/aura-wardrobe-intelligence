@@ -30,7 +30,7 @@ export type Iconicity = "iconic" | "timeless" | "classic" | "seasonal" | "trend_
 export type Confidence = "low" | "medium" | "high";
 export type Evidence = "derived" | "assumption";
 export type EvidenceTier = "market_evidence" | "calibration";
-export type CurrentRetailSource = "user" | "ai_lookup_verified" | "ai_lookup_unverified" | "product_link";
+export type CurrentRetailSource = "user" | "ai_lookup_verified" | "ai_lookup_unverified" | "product_link" | "import";
 
 export type ValuationLevel =
   | "model_market_evidence"
