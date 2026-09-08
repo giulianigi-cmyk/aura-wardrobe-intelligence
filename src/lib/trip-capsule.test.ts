@@ -17,6 +17,7 @@ function item(overrides: Partial<PoolItem> & { id: string }): PoolItem {
   return {
     category: "Tops", subcategory: null, colors: null, style: null, season: null,
     brand: null, material: null, locationId: null, formality: 2, dayEvening: "day",
+    sleeveLength: null,
     ...overrides,
   };
 }
