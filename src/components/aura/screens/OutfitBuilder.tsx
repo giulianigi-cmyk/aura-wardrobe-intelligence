@@ -76,7 +76,7 @@ function autoPlace(items: WardrobeItem[], signed: Record<string, string>): Place
   return placed;
 }
 
-export function OutfitBuilder({ go, init }: { go: (s: Screen) => void; init?: BuilderInit }) {
+export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) => void; init?: BuilderInit; openAvatarTryOn: (itemIds?: string[]) => void }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { latitude, longitude, city } = useLocation();
@@ -789,6 +789,14 @@ export function OutfitBuilder({ go, init }: { go: (s: Screen) => void; init?: Bu
           {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
           {t("outfitBuilder.saveOutfit")}
         </button>
+        {placed.length > 0 && (
+          <button
+            onClick={() => openAvatarTryOn(placed.map((p) => p.itemId))}
+            className="w-full h-12 rounded-full border border-foreground/15 bg-secondary/40 text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-2"
+          >
+            <Sparkles size={12} /> {t("avatar.tryOnCta")}
+          </button>
+        )}
                {shareState && (
           <button
             onClick={() => setShareOpen(true)}
