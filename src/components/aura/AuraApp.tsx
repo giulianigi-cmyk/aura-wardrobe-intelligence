@@ -39,6 +39,8 @@ import { Chats } from "./screens/Chats";
 import { ChatThread } from "./screens/ChatThread";
 import { OutfitBuilder } from "./screens/OutfitBuilder";
 import { PersonalColorAnalysis } from "./screens/PersonalColorAnalysis";
+import { Avatar } from "./screens/Avatar";
+import { AvatarTryOn } from "./screens/AvatarTryOn";
 import { UserProfile } from "./screens/UserProfile";
 
 import { TabBar } from "./TabBar";
@@ -55,7 +57,8 @@ export type Screen =
       | "trips" | "trip-create" | "trip-detail" | "essential-presets"
             | "chats" | "chat-thread" | "user-profile"
       | "settings" | "settings-personal" | "settings-sizes" | "settings-style-prefs" | "settings-language"
-      | "settings-wardrobe-locations" | "settings-dress-preferences" | "settings-notifications" | "settings-calendar" | "settings-privacy";
+      | "settings-wardrobe-locations" | "settings-dress-preferences" | "settings-notifications" | "settings-calendar" | "settings-privacy"
+      | "avatar" | "avatar-tryon";
 
 
 
@@ -92,6 +95,7 @@ function Inner() {
   const [wardrobeGapFilter, setWardrobeGapFilter] = useState<"price" | "purchase_date" | null>(null);
   const [plannerFocus, setPlannerFocus] = useState<{ date: string; planId: string | null } | null>(null);
   const [tripFocusActivityId, setTripFocusActivityId] = useState<string | null>(null);
+  const [avatarTryOnItemIds, setAvatarTryOnItemIds] = useState<string[] | undefined>(undefined);
   const [onboarded, setOnboarded] = useState<boolean>(() =>
     typeof window !== "undefined" && localStorage.getItem("aura.onboarded") === "1"
   );
@@ -102,6 +106,7 @@ function Inner() {
       setBuilderInit(null);
     }
     if (s !== "stylist-chat") setStylistChatInit(null);
+    if (s !== "avatar-tryon") setAvatarTryOnItemIds(undefined);
     setScreen(s);
   };
 
@@ -118,6 +123,14 @@ function Inner() {
   const openStylistChat = (init: NonNullable<StylistChatInit>) => {
     setStylistChatInit(init);
     setScreen("stylist-chat");
+  };
+
+  /** itemIds omitted → the standalone "choose pieces yourself" entry point;
+   *  passed → skips straight to generating for an outfit already chosen
+   *  elsewhere (AIStylist, SavedOutfits, TripDetail, OutfitBuilder). */
+  const openAvatarTryOn = (itemIds?: string[]) => {
+    setAvatarTryOnItemIds(itemIds);
+    setScreen("avatar-tryon");
   };
 
   const openConversation = useCallback((id: string) => {
@@ -234,7 +247,7 @@ function Inner() {
                     {screen === "wardrobe" && <Wardrobe go={go} gapFilter={wardrobeGapFilter} onClearGapFilter={() => setWardrobeGapFilter(null)} />}
 
           {screen === "add" && <AddItem onClose={() => go("wardrobe")} />}
-          {screen === "ai" && <AIStylist go={go} openBuilder={openBuilder} />}
+          {screen === "ai" && <AIStylist go={go} openBuilder={openBuilder} openAvatarTryOn={openAvatarTryOn} />}
           {screen === "stylist-chat" && <StylistChat go={go} openBuilder={openBuilder} initialMessage={stylistChatInit} />}
           {screen === "outfit-scan" && <OutfitScan go={go} />}
           {screen === "batch-scan" && <BatchScan go={go} openReview={openBatchReview} />}
@@ -261,7 +274,7 @@ function Inner() {
 
                     {screen === "insights" && <Insights go={go} openWardrobeGap={(f) => { setWardrobeGapFilter(f); go("wardrobe"); }} />}
 
-                        {screen === "saved-outfits" && <AIStylist go={go} openBuilder={openBuilder} />}
+                        {screen === "saved-outfits" && <AIStylist go={go} openBuilder={openBuilder} openAvatarTryOn={openAvatarTryOn} />}
           {screen === "notifications" && (
             <Notifications go={go} openThread={openConversation} openPlanner={openPlanner} openTripActivity={openTripActivity} />
           )}
@@ -273,6 +286,8 @@ function Inner() {
           )}
           {screen === "builder" && <OutfitBuilder go={go} init={builderInit} />}
           {screen === "color-analysis" && <PersonalColorAnalysis go={go} />}
+          {screen === "avatar" && <Avatar go={go} />}
+          {screen === "avatar-tryon" && <AvatarTryOn go={go} itemIds={avatarTryOnItemIds} />}
           {screen === "user-profile" && (
             activeUserId
               ? <UserProfile userId={activeUserId} go={go} onBack={() => setScreen(userProfileBack)} />
