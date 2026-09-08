@@ -22,6 +22,7 @@ const CONTEXT_AXES = ["occasion", "season", "weather", "time_of_day"] as const;
 
 function extractCandidates(item: {
   category: string | null;
+  subcategory: string | null;
   brand: string | null;
   colors: string[];
   material: string[];
@@ -31,6 +32,7 @@ function extractCandidates(item: {
 
   if (weight > 0) {
     if (item.category) out.push({ memory_type: "category", value: item.category.toLowerCase() });
+    if (item.subcategory) out.push({ memory_type: "subcategory", value: item.subcategory.toLowerCase() });
     if (item.brand) out.push({ memory_type: "brand", value: item.brand.toLowerCase() });
     for (const m of item.material ?? []) out.push({ memory_type: "material", value: m.toLowerCase() });
     if (item.style) out.push({ memory_type: "style_archetype", value: item.style.toLowerCase() });
@@ -62,7 +64,7 @@ export async function runStyleMemoryAggregator(limit = 200) {
   const allItemIds = [...new Set(feedback.flatMap((f) => f.item_ids ?? []))];
   const { data: items, error: iErr } = await supabaseAdmin
     .from("wardrobe_items")
-    .select("id, category, brand, colors, material, style")
+    .select("id, category, subcategory, brand, colors, material, style")
     .in("id", allItemIds.length ? allItemIds : ["00000000-0000-0000-0000-000000000000"]);
   if (iErr) throw new Error(`wardrobe_items fetch failed: ${iErr.message}`);
   const itemMap = new Map((items ?? []).map((it) => [it.id, it]));
