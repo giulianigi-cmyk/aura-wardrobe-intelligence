@@ -4,6 +4,7 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { anyItemViolatesWeather } from "./outfit-weather-rules";
+import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 
 const ItemSchema = z.object({
   id: z.string(),
@@ -74,6 +75,22 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       .select("gender").eq("id", context.userId).maybeSingle();
     const gender = (profileRow as { gender?: string | null } | null)?.gender ?? null;
 
+    // Soft personalization: read-only, never blocks generation if it
+    // fails or comes back empty (a person with no history yet, or a
+    // transient read error, should see exactly the same quality of
+    // suggestion as always — this only ever adds a nudge on top).
+    let styleMemorySection: string[] = [];
+    try {
+      const { data: memoryRows } = await context.supabase
+        .from("user_style_memory_active")
+        .select("memory_type, value, context_axis, context_value, effective_confidence, evidence_count")
+        .order("effective_confidence", { ascending: false })
+        .limit(100);
+      styleMemorySection = buildStyleMemoryPromptSection(memoryRows ?? [], ["Work", "Weekend", "Evening"]);
+    } catch (e) {
+      console.error("[AURA suggest-daily-looks] style memory read failed, continuing without it", e);
+    }
+
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
     const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
@@ -105,6 +122,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
 
     const system = [
       ...(data.dressRules ? [data.dressRules, ""] : []),
+      ...styleMemorySection,
       "You are a personal stylist. Compose REAL outfits using ONLY items from the",
       "user's own wardrobe catalog below. Never invent an item id.",
       "",
@@ -414,7 +432,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
           })).text;
           const retryParsed = parseAiJson(retryText, RetryOutputSchema);
           for (const l of retryParsed.curated) {
-            if (missingOccasions.includes(l.occasion) && isValidCuratedLook(l, seenSoFar)) {
+            if ((missingOccasions as string[]).includes(l.occasion) && isValidCuratedLook(l, seenSoFar)) {
               clean.curated.push(l);
               seenSoFar.push(l.item_ids);
             }
