@@ -453,3 +453,4 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       return { ok: false as const, error: err instanceof Error ? err.message : "Generation failed" };
     }
   });
+ 
