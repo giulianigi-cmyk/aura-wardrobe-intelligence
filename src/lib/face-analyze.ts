@@ -201,3 +201,13 @@ export async function autoSampleFromCanvas(canvas: HTMLCanvasElement): Promise<A
     eye: eyeAvg ? toHex(eyeAvg[0], eyeAvg[1], eyeAvg[2]) : toHex(skinAvg[0] * 0.5, skinAvg[1] * 0.5, skinAvg[2] * 0.5),
   };
 }
+
+/** Used by the AURA Avatar upload flow (checkFullBodyPhoto in
+ *  avatar-body-check.ts is its full-body counterpart) — a narrow "is
+ *  there a detectable face here at all" check, reusing the same
+ *  landmarker this file already loads for color sampling. */
+export async function checkFacePhoto(source: HTMLImageElement | HTMLCanvasElement): Promise<boolean> {
+  const landmarker = await getFaceLandmarker();
+  const result = landmarker.detect(source);
+  return (result.faceLandmarks?.[0]?.length ?? 0) > 0;
+}
