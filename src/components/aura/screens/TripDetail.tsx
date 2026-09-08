@@ -32,7 +32,7 @@ function fmtDate(d: string) {
   return new Date(`${d}T00:00:00`).toLocaleDateString(i18n.language, { month: "short", day: "numeric", year: "numeric" });
 }
 
-type OutfitPlan = { id: string; date: string; day_segment: string | null; item_ids: string[]; occasion: string | null; trip_activity_id: string | null; weather_temp: number | null; weather_condition: string | null; weather_estimated: boolean | null };
+type OutfitPlan = { id: string; date: string; day_segment: string | null; item_ids: string[]; occasion: string | null; trip_activity_id: string | null; weather_temp: number | null; weather_condition: string | null; weather_estimated: boolean | null; status: string | null };
 
 export function TripDetail({ go, tripId, focusActivityId = null, openBuilder }: {
   go: (s: Screen) => void;
