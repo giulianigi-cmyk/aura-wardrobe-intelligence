@@ -34,7 +34,7 @@ function fmtDate(d: string) {
 
 type OutfitPlan = { id: string; date: string; day_segment: string | null; item_ids: string[]; occasion: string | null; trip_activity_id: string | null; weather_temp: number | null; weather_condition: string | null; weather_estimated: boolean | null; status: string | null };
 
-export function TripDetail({ go, tripId, focusActivityId = null, openBuilder }: {
+export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, openAvatarTryOn }: {
   go: (s: Screen) => void;
   tripId: string;
   /** Set when arriving from a weather_change notification: that activity's
@@ -46,6 +46,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder }: 
    *  saved outfit. Trip outfits never had this before: item thumbnails
    *  only, no way to turn one into an actual shareable image. */
   openBuilder: (init: BuilderInit) => void;
+  openAvatarTryOn: (itemIds?: string[]) => void;
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -1162,23 +1163,29 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder }: 
                       </div>
                     )}
                     {op ? (
-                      <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
-                        {op.item_ids.map((id) => {
-                          const it = wardrobeItems.find((w) => w.id === id);
-                          const src = it ? thumbSrc(it, wardrobeSigned) : "";
-                          return (
-                            <button
-                              key={id}
-                              onClick={() => it && setPreviewItem(it)}
-                              aria-label={t("tripDetail.viewPieceAria")}
-                              className="h-14 w-14 shrink-0 rounded-lg overflow-hidden border border-border/60 active:scale-95 transition"
-                              style={{ background: "#FFFFFF" }}
-                            >
-                              {src ? <img src={src} className="h-full w-full object-contain p-1" alt="" loading="lazy" /> : null}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <>
+                        <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+                          {op.item_ids.map((id) => {
+                            const it = wardrobeItems.find((w) => w.id === id);
+                            const src = it ? thumbSrc(it, wardrobeSigned) : "";
+                            return (
+                              <button
+                                key={id}
+                                onClick={() => it && setPreviewItem(it)}
+                                aria-label={t("tripDetail.viewPieceAria")}
+                                className="h-14 w-14 shrink-0 rounded-lg overflow-hidden border border-border/60 active:scale-95 transition"
+                                style={{ background: "#FFFFFF" }}
+                              >
+                                {src ? <img src={src} className="h-full w-full object-contain p-1" alt="" loading="lazy" /> : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <button
+                          onClick={() => openAvatarTryOn(op.item_ids)}
+                          className="mt-2 h-9 px-4 rounded-full border border-foreground/15 bg-secondary/40 inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.25em] active:scale-[0.98] transition"
+                        ><Sparkles size={12} /> {t("avatar.tryOnCta")}</button>
+                      </>
                     ) : (
                       <p className="text-[11px] text-muted-foreground">{t("tripDetail.noOutfitYet")}</p>
                     )}
