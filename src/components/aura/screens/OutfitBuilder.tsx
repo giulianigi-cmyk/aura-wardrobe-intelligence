@@ -26,6 +26,7 @@ import {
 import { suggestOutfitAI } from "@/lib/ai-suggest-outfit.functions";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { logWardrobeEvent } from "@/lib/wardrobe-events";
+import { submitOutfitFeedback } from "@/lib/outfit-feedback.functions";
 import { resolvePlanSlot } from "@/lib/outfit-plan-slot";
 import i18n from "@/i18n/config";
 
@@ -482,6 +483,19 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         : await supabase.from("outfits").insert({ user_id: user.id, ...payload }).select("id").single();
       if (error) throw error;
       setSavedOutfitId((savedRow as { id: string } | null)?.id ?? init?.outfitId ?? null);
+
+      // A person building and saving an outfit BY HAND chose every one of
+      // these pieces on purpose — a strong positive signal for the exact
+      // combination, not something to wait on an AI suggestion to learn
+      // from. Never blocks the save itself if it fails.
+      void submitOutfitFeedback({
+        data: {
+          itemIds: placed.map((p) => p.itemId),
+          feedbackType: "saved",
+          outfitId: (savedRow as { id: string } | null)?.id ?? init?.outfitId ?? null,
+          context: occasion ? { occasion } : null,
+        },
+      }).catch((e) => console.error("[AURA outfit-builder] style-memory feedback failed", e));
 
       const signedUrl = (await supabase.storage.from("outfits")
         .createSignedUrl(path, 60 * 60 * 24 * 7)).data?.signedUrl ?? null;
