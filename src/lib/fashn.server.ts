@@ -25,8 +25,16 @@
 // storage immediately after — see avatar-tryon.functions.ts — so the
 // shorter window costs nothing functionally.
 //
-// FASHN's own /v1/run + /v1/status/:id is a submit-then-poll pattern,
-// not a single blocking call — see pollPrediction() below.
+// FASHN's own /v1/run + /v1/status/:id is a submit-then-poll pattern.
+// This client exposes that same shape directly (submit once, check once
+// per call) instead of blocking inside one function until done — a
+// single HTTP request that stays open for up to 90s of internal polling
+// is exactly what caused "Load failed" in production: something in the
+// path (Cloudflare's edge, the mobile connection, an intermediate proxy)
+// closes long-idle connections before FASHN finishes. Many short
+// round-trips are far more reliable than one long one. The polling loop
+// now lives in the client (AvatarTryOn.tsx), calling checkFashnStatus
+// every ~2s — see avatar-tryon.functions.ts for how each step is wired.
 
 const FASHN_BASE_URL = "https://api.fashn.ai/v1";
 
@@ -40,17 +48,24 @@ type FashnStatus =
   | { id: string; status: "completed"; output: string[]; error: null }
   | { id: string; status: "failed"; output: null; error: { name: string; message: string } };
 
-export type FashnTryOnResult =
-  | { ok: true; imageDataUrl: string }
+export type FashnSubmitResult =
+  | { ok: true; predictionId: string }
   | { ok: false; error: string };
 
-/** One garment onto one person image. Callers chain this for multi-item outfits
- *  (see avatar-tryon.functions.ts), feeding each result back in as the next modelImage. */
-export async function runFashnTryOn(
+export type FashnCheckResult =
+  | { ok: true; done: false }
+  | { ok: true; done: true; imageDataUrl: string }
+  | { ok: false; error: string };
+
+/** Submits one garment onto one person image and returns immediately with
+ *  a prediction id — does not wait for the result. Callers chain this for
+ *  multi-item outfits (see avatar-tryon.functions.ts), feeding each
+ *  finished result back in as the next modelImage. */
+export async function submitFashnRun(
   modelImage: string,
   garmentImage: string,
   options?: { prompt?: string; qualityOverride?: boolean },
-): Promise<FashnTryOnResult> {
+): Promise<FashnSubmitResult> {
   const key = process.env.FASHN_API_KEY;
   if (!key) return { ok: false, error: "Missing FASHN_API_KEY" };
 
@@ -85,39 +100,37 @@ export async function runFashnTryOn(
     if (runData.error || !runData.id) {
       return { ok: false, error: runData.error ?? "FASHN did not return a prediction id" };
     }
-
-    return await pollPrediction(runData.id, key);
+    return { ok: true, predictionId: runData.id };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FASHN request failed" };
   }
 }
 
-/** Polls every 2s. tryon-max is documented at ~10-55s depending on mode/resolution,
- *  so 45 attempts (~90s) leaves headroom before giving up as a genuine failure. */
-async function pollPrediction(id: string, apiKey: string): Promise<FashnTryOnResult> {
-  const MAX_ATTEMPTS = 45;
-  const POLL_INTERVAL_MS = 2000;
+/** A single status check — no internal waiting or looping. The caller
+ *  (avatar-tryon.functions.ts, driven by the client's poll loop) calls
+ *  this once every ~2s until done is true or ok is false. */
+export async function checkFashnStatus(predictionId: string): Promise<FashnCheckResult> {
+  const key = process.env.FASHN_API_KEY;
+  if (!key) return { ok: false, error: "Missing FASHN_API_KEY" };
 
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-
-    const statusRes = await fetch(`${FASHN_BASE_URL}/status/${id}`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
+  try {
+    const statusRes = await fetch(`${FASHN_BASE_URL}/status/${predictionId}`, {
+      headers: { Authorization: `Bearer ${key}` },
     });
-    if (!statusRes.ok) continue; // transient — keep polling until MAX_ATTEMPTS
+    if (!statusRes.ok) return { ok: true, done: false }; // transient — client keeps polling
 
     const status = (await statusRes.json()) as FashnStatus;
 
     if (status.status === "completed") {
       const imageDataUrl = status.output?.[0];
       if (!imageDataUrl) return { ok: false, error: "FASHN completed but returned no image" };
-      return { ok: true, imageDataUrl };
+      return { ok: true, done: true, imageDataUrl };
     }
     if (status.status === "failed") {
       return { ok: false, error: status.error?.message ?? "FASHN generation failed" };
     }
-    // starting / in_queue / processing — loop again
+    return { ok: true, done: false }; // starting / in_queue / processing
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "FASHN status check failed" };
   }
-
-  return { ok: false, error: "FASHN generation timed out" };
 }
