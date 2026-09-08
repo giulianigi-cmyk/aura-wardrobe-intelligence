@@ -114,7 +114,7 @@ export async function detectOutfitItems(imageDataUrl: string): Promise<DetectOut
   try {
     let text: string;
     try {
-      text = (await generateText({ model, messages: buildMessages() })).text;
+      text = (await generateText({ model, abortSignal: AbortSignal.timeout(25_000), messages: buildMessages() })).text;
     } catch (err) {
       console.error("[AURA analyze-outfit] first call failed", err);
       text = "";
@@ -126,6 +126,7 @@ export async function detectOutfitItems(imageDataUrl: string): Promise<DetectOut
     } catch {
       const r2 = await generateText({
         model,
+        abortSignal: AbortSignal.timeout(25_000),
         messages: [
           ...buildMessages(),
           { role: "assistant", content: text || "(no response)" },
