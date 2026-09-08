@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -6,7 +6,7 @@ import { ArrowLeft, Loader2, Sparkles, RefreshCcw, Check, Calendar as CalendarIc
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { resolveWardrobeUrls } from "@/lib/wardrobe-image";
-import { tryOnOutfitOnAvatar } from "@/lib/avatar-tryon.functions";
+import { prepareAvatarTryOn, startTryOnStep, checkTryOnStep, finalizeAvatarTryOn } from "@/lib/avatar-tryon.functions";
 import { saveOutfitPlan } from "@/lib/outfit-plan.functions";
 import type { Screen } from "../AuraApp";
 
@@ -15,6 +15,13 @@ type WardrobeItem = { id: string; category: string | null; subcategory: string |
 type Stage = "pick" | "generating" | "result" | "error";
 type View = "person" | "items";
 
+const POLL_INTERVAL_MS = 2000;
+const MAX_POLL_ATTEMPTS = 45; // ~90s per item, matches FASHN's own documented worst case
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /** itemIds: pass when arriving from an outfit already picked elsewhere
  *  (AIStylist, SavedOutfits, TripDetail, OutfitBuilder) — the picker step
  *  is skipped and generation starts immediately. Leave undefined to open
@@ -22,12 +29,16 @@ type View = "person" | "items";
 export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) => void; itemIds?: string[] }) {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const runTryOn = useServerFn(tryOnOutfitOnAvatar);
+  const prepare = useServerFn(prepareAvatarTryOn);
+  const startStep = useServerFn(startTryOnStep);
+  const checkStep = useServerFn(checkTryOnStep);
+  const finalize = useServerFn(finalizeAvatarTryOn);
   const savePlan = useServerFn(saveOutfitPlan);
 
   const [stage, setStage] = useState<Stage>(initialItemIds?.length ? "generating" : "pick");
   const [view, setView] = useState<View>("person");
   const [regenerating, setRegenerating] = useState(false);
+  const [progress, setProgress] = useState<{ step: number; total: number } | null>(null);
 
   const [wardrobe, setWardrobe] = useState<WardrobeItem[]>([]);
   const [wardrobeUrls, setWardrobeUrls] = useState<Record<string, string>>({});
@@ -41,6 +52,12 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
   const [showCalendarPicker, setShowCalendarPicker] = useState(false);
   const [calendarDate, setCalendarDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [savingCalendar, setSavingCalendar] = useState(false);
+
+  // Bumped on every "Generate"/"Regenerate" press so a stale poll loop
+  // from a previous, abandoned attempt can tell it's no longer current
+  // and stop touching state — otherwise a slow leftover poll from a
+  // cancelled run could overwrite a newer one's result.
+  const runToken = useRef(0);
 
   useEffect(() => {
     if (!user) return;
@@ -57,23 +74,74 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
     })();
   }, [user]);
 
+  /** Runs one chained garment step to completion: submit, then poll every
+   *  ~2s until FASHN reports done or failed. Never a single long-held
+   *  request — see avatar-tryon.functions.ts for why that mattered. */
+  const runOneStep = async (modelImageDataUrl: string, itemId: string): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string }> => {
+    const started = await startStep({ data: { modelImageDataUrl, itemId } });
+    if (!started.ok) return { ok: false, error: started.error };
+
+    for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+      await sleep(POLL_INTERVAL_MS);
+      const status = await checkStep({ data: { predictionId: started.predictionId } });
+      if (!status.ok) return { ok: false, error: status.error };
+      if (status.done) return { ok: true, imageDataUrl: status.imageDataUrl };
+      // not done yet — keep polling
+    }
+    return { ok: false, error: t("avatar.errorTitle") };
+  };
+
   const generate = async (itemIds: string[], forceRegenerate = false) => {
+    const myRun = ++runToken.current;
     setStage("generating");
     setErrorMessage(null);
+    setProgress(null);
     try {
-      const res = await runTryOn({ data: { itemIds, forceRegenerate } });
-      if (!res.ok) {
-        setErrorMessage(res.message);
+      const prepared = await prepare({ data: { itemIds, forceRegenerate } });
+      if (myRun !== runToken.current) return; // superseded by a newer attempt
+      if (!prepared.ok) {
+        setErrorMessage(prepared.message);
         setStage("error");
         return;
       }
-      setResultUrl(res.imageUrl);
+      if (prepared.cached) {
+        setResultUrl(prepared.imageUrl);
+        setSaved(false);
+        setStage("result");
+        return;
+      }
+
+      let currentModelImage = prepared.avatarImageDataUrl;
+      const total = prepared.orderedItemIds.length;
+      for (let i = 0; i < total; i++) {
+        setProgress({ step: i + 1, total });
+        const stepResult = await runOneStep(currentModelImage, prepared.orderedItemIds[i]);
+        if (myRun !== runToken.current) return; // superseded
+        if (!stepResult.ok) {
+          setErrorMessage(stepResult.error);
+          setStage("error");
+          return;
+        }
+        currentModelImage = stepResult.imageDataUrl;
+      }
+
+      const final = await finalize({ data: { itemIds, finalImageDataUrl: currentModelImage } });
+      if (myRun !== runToken.current) return; // superseded
+      if (!final.ok) {
+        setErrorMessage(final.error);
+        setStage("error");
+        return;
+      }
+      setResultUrl(final.imageUrl);
       setSaved(false);
       setStage("result");
     } catch (e) {
+      if (myRun !== runToken.current) return;
       console.error("[AURA avatar-tryon] generate failed", e);
       setErrorMessage(e instanceof Error ? e.message : t("avatar.errorTitle"));
       setStage("error");
+    } finally {
+      if (myRun === runToken.current) setProgress(null);
     }
   };
 
@@ -173,7 +241,9 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
       {stage === "generating" && (
         <div className="px-6 mt-16 flex flex-col items-center text-center animate-fade-up">
           <Loader2 size={28} className="animate-spin" />
-          <p className="mt-4 text-xs text-muted-foreground leading-relaxed max-w-[220px]">{t("avatar.generating")}</p>
+          <p className="mt-4 text-xs text-muted-foreground leading-relaxed max-w-[220px]">
+            {progress && progress.total > 1 ? `${t("avatar.generating")} (${progress.step}/${progress.total})` : t("avatar.generating")}
+          </p>
         </div>
       )}
 
