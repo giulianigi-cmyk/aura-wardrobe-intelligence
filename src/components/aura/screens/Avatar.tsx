@@ -6,11 +6,10 @@ import { ArrowLeft, Camera, Check, Loader2, Sparkles, Trash2 } from "lucide-reac
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { getAvatarStatus, saveAvatarPhoto, deleteAvatar } from "@/lib/avatar.functions";
-import { checkFacePhoto } from "@/lib/face-analyze";
 import { checkFullBodyPhoto } from "@/lib/avatar-body-check";
 import type { Screen } from "../AuraApp";
 
-type CheckStage = "idle" | "checking" | "ready" | "no_face" | "no_body";
+type CheckStage = "idle" | "checking" | "ready" | "no_body";
 
 function readFileAsImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -70,11 +69,16 @@ export function Avatar({ go }: { go: (s: Screen) => void }) {
     setCheckStage("checking");
     try {
       const img = await readFileAsImage(f);
-      const [hasFace, bodyResult] = await Promise.all([
-        checkFacePhoto(img),
-        checkFullBodyPhoto(img),
-      ]);
-      if (!hasFace) { setCheckStage("no_face"); return; }
+      // Face detection was tried here and dropped: a full-body mirror
+      // selfie — the exact photo this screen asks for — routinely has
+      // the phone covering the nose/mouth, which genuinely defeats any
+      // face landmark detector, no amount of cropping fixes a face
+      // that's physically half-occluded. It also wasn't needed: FASHN
+      // itself only needs a clear view of the body, not an unoccluded
+      // face, confirmed by hand against this exact kind of photo before
+      // removing the check. Full-body presence is still verified below —
+      // that one FASHN genuinely depends on.
+      const bodyResult = await checkFullBodyPhoto(img);
       if (!bodyResult.ok) { setCheckStage("no_body"); return; }
       setCheckStage("ready");
     } catch (e) {
@@ -129,7 +133,6 @@ export function Avatar({ go }: { go: (s: Screen) => void }) {
 
   const checkMessage =
     checkStage === "checking" ? t("avatar.checkingPhoto") :
-    checkStage === "no_face" ? t("avatar.noFaceDetected") :
     checkStage === "no_body" ? t("avatar.noBodyDetected") :
     null;
 
