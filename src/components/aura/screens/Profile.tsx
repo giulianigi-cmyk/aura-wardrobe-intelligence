@@ -379,6 +379,20 @@ export function Profile({ go: _go, openConversation, openUserProfile }: { go: (s
             </p>
           </button>
 
+          {/* AURA Avatar */}
+          <button
+            onClick={() => _go("avatar")}
+            className="mx-6 mt-4 w-[calc(100%-3rem)] text-left rounded-3xl gradient-warm border border-border/60 p-6 shadow-soft animate-fade-up active:scale-[0.99] transition"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("avatar.setupEyebrow")}</p>
+                <h2 className="font-serif text-3xl italic mt-1">{t("avatar.title")}</h2>
+              </div>
+              <ChevronRight size={16} className="text-muted-foreground shrink-0" />
+            </div>
+          </button>
+
                     <WeatherPanel />
 
 
