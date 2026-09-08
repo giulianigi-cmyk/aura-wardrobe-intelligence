@@ -21,20 +21,22 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  const message = error instanceof Error ? error.message : String(error);
+  const stack = error instanceof Error ? error.stack : undefined;
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-6 text-center">
       <div>
         <p className="font-serif text-3xl">Something slipped</p>
-        <p className="mt-3 text-xs text-muted-foreground break-words max-w-sm mx-auto">{error.message}</p>
+        <p className="mt-3 text-xs text-muted-foreground break-words max-w-sm mx-auto">{message}</p>
         {/* TEMPORARY diagnostic: shows exactly which file/line threw this,
          *  instead of just the bare message — remove once the root cause
          *  behind the sizeEquivalences crash is confirmed and fixed. */}
-        {error.stack && (
+        {stack && (
           <pre className="mt-4 max-w-sm mx-auto text-left text-[10px] leading-snug text-muted-foreground/80 whitespace-pre-wrap break-words bg-secondary/40 rounded-xl p-3">
-            {error.stack}
+            {stack}
           </pre>
         )}
         <button
