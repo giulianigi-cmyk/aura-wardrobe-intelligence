@@ -49,7 +49,7 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
  *  tables, this is an interface consolidating data that already existed
  *  across three separate screens.
  */
-export function AIStylist({ go, openBuilder }: { go: (s: Screen) => void; openBuilder: (init: BuilderInit) => void }) {
+export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen) => void; openBuilder: (init: BuilderInit) => void; openAvatarTryOn: (itemIds?: string[]) => void }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { latitude, longitude } = useLocation();
@@ -516,6 +516,10 @@ export function AIStylist({ go, openBuilder }: { go: (s: Screen) => void; openBu
                     {Math.round(tp.weather_temp)}°{tp.weather_condition ? ` · ${tp.weather_condition}` : ""}
                   </p>
                 )}
+                <button
+                  onClick={() => openAvatarTryOn(getWornIds(tp))}
+                  className="mt-3 w-full h-10 rounded-full border border-foreground/15 bg-secondary/40 flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.25em] active:scale-[0.98] transition"
+                ><Sparkles size={13} /> {t("avatar.tryOnCta")}</button>
                 {tp.status !== "worn" && (
                   <button
                     onClick={() => void confirmWorn(tp)}
