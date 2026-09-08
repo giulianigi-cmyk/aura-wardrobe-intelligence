@@ -5,6 +5,7 @@ import { getTripWeatherMap, weatherKey } from "./trip-weather.server";
 import { describeWeather } from "./weather";
 import { computeCapsuleSeedAndExclusions } from "./trip-capsule-persistence";
 import { violatesWeatherRule, HEAVY_SIGNAL, LIGHT_SIGNAL, MILD_WARM_THRESHOLD_C, MILD_COOL_THRESHOLD_C, type WeatherCheckableItem } from "./outfit-weather-rules";
+import type { StyleMemoryRow } from "./style-memory-prompt";
 
 function daysBetween(a: string, b: string): number {
   return (Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 86_400_000;
@@ -359,8 +360,68 @@ export type Requirement = {
   label: string | null;
 };
 
-function versatility(it: PoolItem, req?: Requirement, temperature?: number | null): number {
+const MIN_MEMORY_EVIDENCE = 2;
+const MIN_MEMORY_CONFIDENCE = 0.15;
+
+/** Loose match between a learned occasion label and this requirement —
+ *  free-text occasion labels (typed in OutfitBuilder, a trip activity's
+ *  own name) never line up exactly, so this checks the normalized
+ *  activityKind first (most reliable), then falls back to substring
+ *  matches against the raw label/dress code. */
+function occasionMatchesRequirement(contextValue: string, req: Requirement): boolean {
+  const v = contextValue.toLowerCase();
+  const kind = activityKind(req);
+  if (kind && kind === v) return true;
+  const label = (req.label ?? "").toLowerCase();
+  const dressCode = (req.dressCode ?? "").toLowerCase();
+  return (!!label && (label.includes(v) || v.includes(label))) || (!!dressCode && dressCode === v);
+}
+
+/** Same idea as style-memory-prompt.ts's buildStyleMemoryPromptSection,
+ *  but as a direct numeric score adjustment instead of prompt text —
+ *  Trip Capsule ranks items with plain arithmetic (versatility() below),
+ *  it never hands the final pick to an AI call the way the daily-looks
+ *  engine does, so there's no prompt to inject this into. Scaled to sit
+ *  in the same rough magnitude as the other rules in versatility()
+ *  (single-digit bumps), and occasion-scoped memory always outweighs
+ *  general memory for the same item — this is what lets a person's
+ *  repeated choice of ankle boots specifically for concerts win out over
+ *  a general "avoids boots in warm weather" tendency. */
+function styleMemoryBonus(it: PoolItem, req: Requirement | undefined, memory: StyleMemoryRow[]): number {
+  if (memory.length === 0) return 0;
+
+  const candidateValues: { type: string; value: string }[] = [
+    { type: "category", value: it.category ?? "" },
+    { type: "subcategory", value: it.subcategory ?? "" },
+    { type: "brand", value: it.brand ?? "" },
+    ...(it.material ?? []).map((m) => ({ type: "material", value: m })),
+    { type: "style_archetype", value: it.style?.[0] ?? "" },
+    ...(it.colors ?? []).flatMap((c) => [
+      { type: "color_preferred", value: c },
+      { type: "color_avoided", value: c },
+    ]),
+  ].filter((c) => c.value);
+
+  let bonus = 0;
+  for (const cand of candidateValues) {
+    for (const row of memory) {
+      if (row.memory_type !== cand.type || row.value?.toLowerCase() !== cand.value.toLowerCase()) continue;
+      if ((row.evidence_count ?? 0) < MIN_MEMORY_EVIDENCE) continue;
+      const confidence = row.effective_confidence ?? 0;
+      if (Math.abs(confidence) < MIN_MEMORY_CONFIDENCE) continue;
+
+      const isOccasionScoped = req && row.context_axis === "occasion" && !!row.context_value && occasionMatchesRequirement(row.context_value, req);
+      if (row.context_axis && !isOccasionScoped) continue; // scoped to a different occasion — not relevant here
+      const magnitude = isOccasionScoped ? 5 : 2.5; // occasion-specific evidence speaks louder than a general tendency
+      bonus += confidence * magnitude;
+    }
+  }
+  return bonus;
+}
+
+function versatility(it: PoolItem, req?: Requirement, temperature?: number | null, styleMemory: StyleMemoryRow[] = []): number {
   let score = 0;
+  score += styleMemoryBonus(it, req, styleMemory);
   const colors = (it.colors ?? []).map((c) => c.toLowerCase());
   if (colors.some((c) => NEUTRAL_COLORS.some((n) => c.includes(n)))) score += 2;
   if (it.formality === 2 || it.formality === 3) score += 2;
@@ -521,6 +582,7 @@ export function buildCapsule(
   seasonByDate: Map<string, string>,
   existingCapsuleSeed: string[] = [],
   tempByActivity: Map<string, number | null> = new Map(),
+  styleMemory: StyleMemoryRow[] = [],
 ): Set<string> {
   // Items already chosen for OTHER activities of this same trip in a
   // previous, separate generation call (days already planned, and
@@ -641,7 +703,7 @@ export function buildCapsule(
       // regenerating now has a real chance of surfacing something else.
       const candidates = eligible
         .filter((it) => role.has(it.category ?? "") && !capsule.has(it.id))
-        .map((it) => ({ it, score: versatility(it, req, tempByActivity.get(req.activityId) ?? null) + REWEARABILITY[it.category ?? ""] * 0.3 + Math.random() * 2.5 }))
+        .map((it) => ({ it, score: versatility(it, req, tempByActivity.get(req.activityId) ?? null, styleMemory) + REWEARABILITY[it.category ?? ""] * 0.3 + Math.random() * 2.5 }))
         .sort((a, b) => b.score - a.score)
         .map((x) => x.it);
       candidates.slice(0, need).forEach((it) => capsule.add(it.id));
@@ -692,7 +754,7 @@ export function buildCapsule(
       // rule already applied to the normal weather filter elsewhere.
       const climateOk = formalShoes.filter((it) => climateSuitability(it, repTemp, repSeason) !== "inappropriate");
       const bestElegantShoe = (climateOk.length > 0 ? climateOk : formalShoes)
-        .sort((a, b) => versatility(b, repReq, repTemp) - versatility(a, repReq, repTemp))[0];
+        .sort((a, b) => versatility(b, repReq, repTemp, styleMemory) - versatility(a, repReq, repTemp, styleMemory))[0];
       if (bestElegantShoe) capsule.add(bestElegantShoe.id);
     }
   }
@@ -725,7 +787,7 @@ export function buildCapsule(
       if (missing <= 0) continue;
       const best = pool
         .filter((it) => role.has(it.category ?? "") && !capsule.has(it.id) && isTravelSuitable(it, repTemp))
-        .sort((a, b) => versatility(b, repReq, repTemp) - versatility(a, repReq, repTemp))
+        .sort((a, b) => versatility(b, repReq, repTemp, styleMemory) - versatility(a, repReq, repTemp, styleMemory))
         .slice(0, missing);
       best.forEach((it) => capsule.add(it.id));
     }
@@ -929,6 +991,23 @@ export async function generateTripCapsuleCore({ data, context }: {
   context: { supabase: any; userId: string };
 }) {
     const { supabase, userId } = context;
+
+    // Soft personalization: read-only, never blocks generation on failure
+    // or an empty result — a person with no history yet, or a transient
+    // read error, gets exactly the same quality capsule as always, this
+    // only ever adds a nudge on top (see styleMemoryBonus in versatility()).
+    let styleMemory: StyleMemoryRow[] = [];
+    try {
+      const { data: memoryRows } = await supabase
+        .from("user_style_memory_active")
+        .select("memory_type, value, context_axis, context_value, effective_confidence, evidence_count")
+        .eq("user_id", userId)
+        .order("effective_confidence", { ascending: false })
+        .limit(200);
+      styleMemory = (memoryRows ?? []) as StyleMemoryRow[];
+    } catch (e) {
+      console.error("[AURA trip-capsule] style memory read failed, continuing without it", e);
+    }
 
     const { data: tripRow } = await (supabase.from("trips" as never) as any)
       .select("id, laundry_available").eq("id", data.tripId).eq("user_id", userId).maybeSingle();
@@ -1176,7 +1255,7 @@ export async function generateTripCapsuleCore({ data, context }: {
     // exclusions above still apply either way.
     const existingCapsuleSeed: string[] = isRegeneratingExistingLook ? [] : persistedSeedIds;
 
-    const capsule = buildCapsule(pool, capped, seasonByDate, existingCapsuleSeed, tempByActivity);
+    const capsule = buildCapsule(pool, capped, seasonByDate, existingCapsuleSeed, tempByActivity, styleMemory);
 
     const created: { date: string; daySegment: string }[] = [];
     const failed: { date: string; daySegment: string; reason: string }[] = [];
@@ -1285,14 +1364,17 @@ export async function generateTripCapsuleCore({ data, context }: {
           usedOutfitDates[i] === req.date && outfitIsTravelSuitable(ids, pool, tempByActivity.get(req.activityId) ?? null),
         );
         if (sameDayTravelReady) {
-          const slot = resolvePlanSlot({ date: req.date, daySegment: req.daySegment, tripActivityId: req.activityId, tripId: data.tripId });
+          const slot = resolvePlanSlot({ tripActivityId: req.activityId });
           await (supabase.from("outfit_plans" as never) as any).upsert({
-            ...slot,
             user_id: userId,
+            trip_id: data.tripId,
+            trip_activity_id: req.activityId,
+            date: req.date,
+            day_segment: req.daySegment,
             item_ids: sameDayTravelReady,
             occasion: occasionText(req),
             status: "planned",
-          }, { onConflict: "trip_activity_id" });
+          }, { onConflict: slot.onConflict });
           created.push({ date: req.date, daySegment: req.daySegment });
           continue;
         }
