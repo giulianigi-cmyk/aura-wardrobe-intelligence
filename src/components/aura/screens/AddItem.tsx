@@ -350,7 +350,10 @@ export function AddItem({ onClose }: { onClose: () => void }) {
         setDetectedProductCode(result.detectedProductCode ?? "");
         setDetectedManufacturer(result.detectedManufacturer ?? "");
       })
-      .catch(e => console.warn("[AURA] AI analysis failed", e));
+      .catch(e => {
+        console.warn("[AURA] AI analysis failed", e);
+        toast.error(t("addItem.toastAnalysisFailed"));
+      });
     setStage((s) => (s === "analyze" ? "idle" : s));
   };
 
