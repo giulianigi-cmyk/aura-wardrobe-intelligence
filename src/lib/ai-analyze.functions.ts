@@ -51,6 +51,11 @@ const OutputSchema = z.object({
 
 export type WardrobeAnalysis = ReturnType<typeof buildFallback>;
 
+/** Marks "the call to Gemini itself failed" as distinct from "Gemini
+ *  responded but the content couldn't be parsed" — see the outer catch
+ *  in analyzeWardrobeImageCore for why that distinction matters. */
+class AiCallFailedError extends Error {}
+
 function buildFallback() {
   return {
     category: "", subcategory: "", colors: [] as string[], styles: [] as string[], occasions: [] as string[],
@@ -113,8 +118,14 @@ export async function analyzeWardrobeImageCore(imageDataUrl: string): Promise<Wa
   ].join(" ");
 
   try {
+    // 25s timeout on every Gemini call: without one, a slow/degraded AI
+    // Gateway response hangs the request until Cloudflare Workers kills
+    // the whole invocation on its own execution-time limit — which never
+    // reaches the catch blocks below, leaving a batch-scan job stuck at
+    // "processing" forever instead of correctly failing and retrying.
     const call = () => generateText({
       model,
+      abortSignal: AbortSignal.timeout(25_000),
       messages: [
         {
           role: "user",
@@ -126,12 +137,23 @@ export async function analyzeWardrobeImageCore(imageDataUrl: string): Promise<Wa
       ],
     });
 
+    // A genuine call failure (timeout, quota, gateway outage) is a
+    // different problem than the model responding with malformed JSON —
+    // conflating the two used to mean any outage silently produced an
+    // empty-but-"successful" result (buildFallback()) with no visible
+    // error anywhere. Give the call one retry (transient blips happen),
+    // then let a persistent failure propagate as a real thrown error
+    // instead of masquerading as "AI found nothing here."
     let text: string;
     try {
       text = (await call()).text;
     } catch (err) {
-      console.error("[AURA analyze] first call failed", err);
-      text = "";
+      console.error("[AURA analyze] first call failed, retrying once", err);
+      try {
+        text = (await call()).text;
+      } catch (err2) {
+        throw new AiCallFailedError(err2 instanceof Error ? err2.message : "AI call failed");
+      }
     }
 
     let output: z.infer<typeof OutputSchema>;
@@ -140,6 +162,7 @@ export async function analyzeWardrobeImageCore(imageDataUrl: string): Promise<Wa
     } catch {
       const r2 = await generateText({
         model,
+        abortSignal: AbortSignal.timeout(25_000),
         messages: [
           {
             role: "user",
@@ -201,7 +224,20 @@ export async function analyzeWardrobeImageCore(imageDataUrl: string): Promise<Wa
       detectedManufacturer: output.detectedManufacturer?.trim() ?? "",
     };
   } catch (err) {
-    console.error("[AURA analyze] failed", err);
+    if (err instanceof AiCallFailedError) {
+      // The call itself failed twice (timeout, quota, gateway outage) —
+      // this is a real problem, not "the model looked and found nothing."
+      // Let it propagate: analyzeWardrobeImage below turns this into a
+      // rejected call the client can show an actual error for, and
+      // batch-scan.server.ts's per-job catch turns it into a requeue/
+      // failed status with the real message, instead of every job
+      // silently completing as "done" with empty fields.
+      throw err;
+    }
+    // Model responded (so the service itself is up) but never produced
+    // parseable JSON even after being asked to fix it — a genuine "this
+    // photo couldn't be read" case, not an infrastructure failure.
+    console.error("[AURA analyze] model did not return usable JSON", err);
     return buildFallback();
   }
 }
