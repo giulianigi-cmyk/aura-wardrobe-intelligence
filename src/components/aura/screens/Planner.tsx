@@ -108,11 +108,13 @@ export function Planner({ go, openStylistChat, focus }: {
         .select("id, title, start_time, end_time, location, all_day, removed_from_source")
         .eq("user_id", user.id)
         .eq("dismissed_by_user", false)
+        .eq("permanently_deleted_by_user", false)
         .order("start_time"),
       (supabase.from("calendar_events_cache" as never) as any)
         .select("id, title, start_time, end_time, location, all_day, removed_from_source")
         .eq("user_id", user.id)
         .eq("dismissed_by_user", true)
+        .eq("permanently_deleted_by_user", false)
         .order("start_time"),
     ]);
     const list = (it ?? []) as WardrobeItem[];
@@ -144,6 +146,23 @@ export function Planner({ go, openStylistChat, focus }: {
       toast.error(t("planner.couldntRecoverEvent"));
     }
     void reload();
+  };
+
+  /** Distinct from dismissEvent above: dismissing just hides it in the
+   *  active list (still recoverable); this removes it for good. A plain
+   *  DELETE on the row would get undone by the next calendar sync, which
+   *  re-upserts on connection_id+external_event_id every time — so this
+   *  sets a flag instead, one the sync functions never touch (same
+   *  reasoning already applied to dismissed_by_user), and the fetch
+   *  above filters it out of both lists permanently. */
+  const deleteEventPermanently = async (eventId: string) => {
+    setDismissedEvents((prev) => prev.filter((e) => e.id !== eventId));
+    const { error } = await (supabase.from("calendar_events_cache" as never) as any)
+      .update({ permanently_deleted_by_user: true }).eq("id", eventId);
+    if (error) {
+      toast.error(t("planner.couldntDeleteEvent"));
+      void reload();
+    }
   };
 
   useEffect(() => { void reload(); }, [reload]);
@@ -366,10 +385,17 @@ export function Planner({ go, openStylistChat, focus }: {
                       {new Date(e.start_time).toLocaleDateString(i18n.language, { day: "numeric", month: "short" })}
                     </p>
                   </div>
-                  <button
-                    onClick={() => void recoverEvent(e.id)}
-                    className="shrink-0 h-8 px-3 rounded-full border border-border text-[9px] uppercase tracking-[0.2em]"
-                  >{t("planner.recoverEvent")}</button>
+                  <div className="shrink-0 flex items-center gap-1.5">
+                    <button
+                      onClick={() => void recoverEvent(e.id)}
+                      className="h-8 px-3 rounded-full border border-border text-[9px] uppercase tracking-[0.2em]"
+                    >{t("planner.recoverEvent")}</button>
+                    <button
+                      onClick={() => void deleteEventPermanently(e.id)}
+                      aria-label={t("planner.deleteEventAria")}
+                      className="h-8 w-8 rounded-full border border-border flex items-center justify-center text-muted-foreground"
+                    ><Trash2 size={12} /></button>
+                  </div>
                 </div>
               ))}
             </div>
