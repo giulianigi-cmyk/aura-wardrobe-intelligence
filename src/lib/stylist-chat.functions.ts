@@ -59,6 +59,18 @@ const OutputSchema = z.object({
   item_ids: z.array(z.string()),
   choices: z.array(z.string()).max(4).optional(),
   eventDate: z.string().nullable().optional(),
+  // Classified using the model's own world knowledge, not keyword
+  // matching — this is what recognizes "David Guetta" as a concert, or a
+  // venue address as a stadium, when the activity name alone gives no
+  // literal keyword to match. Kept as its own field (not folded into
+  // `reply`) so the caller can act on it deterministically — see
+  // giveFeedback in StylistChat.tsx, which uses this to tag learned
+  // preferences with the right occasion instead of leaving them
+  // unscoped. Falls back to the deterministic keyword check in
+  // activity-kind.ts when the model leaves this null (e.g. it forgot,
+  // or genuinely can't tell) — never a hard dependency on the AI getting
+  // this right.
+  activityKind: z.enum(["swim", "sport", "concert", "elegant_dinner", "business_dinner"]).nullable().optional(),
 });
 
 
@@ -225,6 +237,7 @@ export const stylistChat = createServerFn({ method: "POST" })
           "Never mention this context back to the user unprompted — it's background reasoning, not a topic.",
         ].filter(Boolean).join("\n")
       ] : []),
+      "ACTIVITY KIND CLASSIFICATION: fill the `activityKind` output field using your own real-world knowledge, not just keyword spotting — this is precisely for cases a keyword list can't catch, like an event named only after a performer ('David Guetta', 'Beyoncé') or an address that is itself a known arena/stadium/venue even with no other context. Use 'concert' for a concert, festival, DJ set or club night; 'sport' for a workout/sport activity; 'swim' for a pool/beach/swim day; 'business_dinner' for a work/client/colleagues dinner specifically (not just any dinner); 'elegant_dinner' for a romantic, social or otherwise dressy dinner, gala, or similarly elegant evening event. Leave it null for anything else (casual/everyday, work during the day, travel, or when genuinely unclear) — never guess one of these just to fill the field.",
       "DRESS CODE CHECK: when the user mentions a specific dinner, party, work event, gala, wedding or similarly formal-sounding occasion, FIRST try to work out the likely dress code yourself from context, before considering asking anything — the event's name or description, a brand mentioned (e.g. a jewelry, fashion or luxury brand strongly implies a dressy cocktail-type event), words like 'cena'/'dinner', 'matrimonio'/'wedding', 'riunione'/'meeting', 'festa'/'party' in ANY language, the time of day, or the location. If you can make a reasonable read, propose a COMPLETE outfit directly in that same reply — no separate question turn — and briefly name the assumption you made in one clause (e.g. 'Since this sounds like an evening event, I'd go with...'). Only ask a clarifying question when the occasion is genuinely ambiguous and nothing above gives you a reasonable read (e.g. just 'Event', a person's name with zero other context, or an emoji) — and even then, keep it to ONE short question, written in the user's own language, along the lines of: 'Do you know if there's a specific dress code (e.g. business formal, cocktail, black tie), or should I go for versatile elegance?' with a 'choices' array like [\"No dress code\", \"Business casual\", \"Business formal\", \"Cocktail\", \"Black tie\", \"Not sure\"], returning an empty item_ids array for that turn. Skip this entirely for casual/everyday occasions, and never ask twice about the same occasion in one conversation. If the user picks the 'not sure' option (or says they don't know), do NOT ask a follow-up question — decide yourself using the USER CONTEXT above (industry, usual work dress code, personal formality) and propose a versatile, safely-elegant outfit right away, briefly noting in your reply that you went with something adaptable since the dress code wasn't specified.",
       "WEDDING GUEST ETIQUETTE: if the user is attending a wedding as a guest (not the couple themselves), avoid recommending white, ivory or cream (reserved for the bride) and avoid an all-red look; avoid all-black unless it's explicitly an evening wedding. This is a social norm, not a hard rule like the dressing rules above — but treat it seriously.",
       "KEEP-THIS-PIECE REQUESTS: if the person explicitly says to keep a specific piece from your last suggestion (e.g. 'I want to use this dress but with a bolder accessory', 'keep the dress, change the shoes') — that piece's item_id is a HARD constraint for this turn, not a preference to weigh against other options. Re-read your own previous message to find the exact item_id for the piece they mean, and always include that exact item_id again in this reply's item_ids. Only change the category(ies) they actually asked to change; never swap out the piece they explicitly said to keep, even if a different piece would otherwise look better.",
@@ -456,6 +469,7 @@ export const stylistChat = createServerFn({ method: "POST" })
         choices: (parsed.choices ?? []).slice(0, 4),
         actions: data.feedbackContext === "liked" ? SAVE_ACTIONS : [],
         eventDate: parsed.eventDate && /^\d{4}-\d{2}-\d{2}$/.test(parsed.eventDate) ? parsed.eventDate : null,
+        activityKind: parsed.activityKind ?? null,
       };
 
     } catch (err) {
