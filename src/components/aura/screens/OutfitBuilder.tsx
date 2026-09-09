@@ -27,6 +27,7 @@ import { suggestOutfitAI } from "@/lib/ai-suggest-outfit.functions";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { logWardrobeEvent } from "@/lib/wardrobe-events";
 import { submitOutfitFeedback } from "@/lib/outfit-feedback.functions";
+import { normalizeOccasionForFeedback } from "@/lib/activity-kind";
 import { resolvePlanSlot } from "@/lib/outfit-plan-slot";
 import i18n from "@/i18n/config";
 
@@ -493,7 +494,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
           itemIds: placed.map((p) => p.itemId),
           feedbackType: "saved",
           outfitId: (savedRow as { id: string } | null)?.id ?? init?.outfitId ?? null,
-          context: occasion ? { occasion } : null,
+          context: (() => { const o = normalizeOccasionForFeedback(occasion); return o ? { occasion: o } : null; })(),
         },
       }).catch((e) => console.error("[AURA outfit-builder] style-memory feedback failed", e));
 
