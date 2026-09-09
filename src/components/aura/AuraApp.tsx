@@ -70,6 +70,12 @@ export type BuilderInit = {
   occasion?: string;
   notes?: string;
   outfitId?: string;
+  /** From Insights' "hasn't been worn in a while" flow: OutfitBuilder
+   *  auto-triggers AI Suggest on mount with this item pinned as
+   *  mandatory, instead of waiting for a manual tap — the whole point is
+   *  a ready-made idea the moment the person lands here, not one more
+   *  step before they see anything. */
+  anchorItemId?: string;
 } | null;
 
 export type StylistChatInit = {
@@ -272,7 +278,7 @@ function Inner() {
           {screen === "settings-calendar" && <SettingsCalendar go={go} />}
           {screen === "settings-privacy" && <PrivacySettings go={go} />}
 
-                    {screen === "insights" && <Insights go={go} openWardrobeGap={(f) => { setWardrobeGapFilter(f); go("wardrobe"); }} />}
+                    {screen === "insights" && <Insights go={go} openWardrobeGap={(f) => { setWardrobeGapFilter(f); go("wardrobe"); }} openBuilder={openBuilder} />}
 
                         {screen === "saved-outfits" && <AIStylist go={go} openBuilder={openBuilder} openAvatarTryOn={openAvatarTryOn} />}
           {screen === "notifications" && (
