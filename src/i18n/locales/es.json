@@ -752,7 +752,9 @@
     "couldntRecoverEvent": "No se pudo recuperar el evento",
     "recoverEvent": "Recuperar",
     "dismissedEventsCount": "{{count}} eventos descartados",
-    "removedFromCalendar": "· eliminado del calendario"
+    "removedFromCalendar": "· eliminado del calendario",
+    "couldntDeleteEvent": "No se pudo eliminar ese evento",
+    "deleteEventAria": "Eliminar definitivamente"
   },
   "aiStylist": {
     "notEnoughActivePieces_one": "Tienes {{count}} prenda en tu armario activo. Añade al menos 3 (o restaura una archivada) para generar un outfit con IA.",
