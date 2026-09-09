@@ -106,6 +106,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
   const [addingToCalendar, setAddingToCalendar] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiExplanation, setAiExplanation] = useState<string>("");
+  const [anchorItemId, setAnchorItemId] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const zSeqRef = useRef(1);
@@ -137,6 +138,14 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         if (init.name) setName(init.name);
         if (init.occasion) setOccasion(init.occasion);
         if (init.notes) setNotes(init.notes);
+      }
+      // From Insights' "hasn't been worn in a while" flow: no items to
+      // place yet, just an item that must anchor a fresh AI suggestion —
+      // handled by the effect further below, once `items` state has
+      // actually caught up (setItems above is async; calling aiSuggest
+      // here would still see the empty array from before this render).
+      if (init?.anchorItemId && !initAppliedRef.current) {
+        setAnchorItemId(init.anchorItemId);
       }
     })();
   }, [user, init]);
@@ -266,7 +275,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
   const onPointerUp = () => { dragRef.current = null; };
 
   // AI Suggest: call Lovable AI Gateway (google/gemini-2.5-flash) for a coherent outfit.
-  const aiSuggest = useCallback(async () => {
+  const aiSuggest = useCallback(async (anchorId?: string | null) => {
     if (!items.length) { toast.error(t("outfitBuilder.addWardrobeItemsFirst")); return; }
     setAiBusy(true);
     setAiExplanation("");
@@ -279,6 +288,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
           temperature: weather?.current.temperature ?? null,
           condition: desc,
           occasion: occasion || null,
+          mustIncludeItemId: anchorId ?? anchorItemId ?? null,
           items: items.map((it) => ({
             id: it.id,
             category: it.category,
@@ -348,7 +358,15 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
     } finally {
       setAiBusy(false);
     }
-  }, [items, weather, occasion, signed]);
+  }, [items, weather, occasion, signed, anchorItemId]);
+
+  const anchorAppliedRef = useRef(false);
+  useEffect(() => {
+    if (anchorItemId && items.length && !anchorAppliedRef.current) {
+      anchorAppliedRef.current = true;
+      void aiSuggest(anchorItemId);
+    }
+  }, [anchorItemId, items, aiSuggest]);
 
   // Export & save ---------------------------------------------------------
 
@@ -613,7 +631,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
             </div>
           </div>
           <button
-            onClick={aiSuggest}
+            onClick={() => void aiSuggest()}
             disabled={aiBusy || loading}
             className="h-9 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-95 inline-flex items-center gap-1.5 disabled:opacity-50"
           >
