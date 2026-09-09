@@ -735,16 +735,28 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter }: {
           {(() => {
             const hasPending = migrating || unclassifiedCount > 0;
             return (
+              // Fixed h-12 w-12 in BOTH states, on purpose: this button
+              // used to grow (icon-only -> icon+text) the moment
+              // unclassifiedCount arrived from the async items fetch,
+              // right after this screen first renders. That resize
+              // shifted the "+" button next to it a few pixels to the
+              // right at exactly the moment a person might already be
+              // tapping where "+" used to be — reported as "+ needs
+              // several taps," though the button itself was never
+              // actually unresponsive, it had just moved out from under
+              // the tap. A small corner badge conveys the same "N items
+              // need updating" information without ever changing this
+              // button's footprint, so neither it nor "+" ever move.
               <button
                 onClick={() => void runLegacyMigration()}
                 disabled={migrating}
-                aria-label={t("wardrobe.updateCompatibilityAria")}
-                className={`h-12 rounded-full border border-border flex items-center gap-1.5 active:scale-90 transition disabled:opacity-50 shrink-0 ${hasPending ? "pl-3.5 pr-4" : "w-12 justify-center"}`}
+                aria-label={hasPending ? t("wardrobe.updateCount", { count: unclassifiedCount }) : t("wardrobe.updateCompatibilityAria")}
+                className="relative h-12 w-12 rounded-full border border-border flex items-center justify-center active:scale-90 transition disabled:opacity-50 shrink-0"
               >
                 {migrating ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
-                {hasPending && (
-                  <span className="text-[10px] uppercase tracking-[0.2em] whitespace-nowrap">
-                    {migrating ? t("wardrobe.updating") : t("wardrobe.updateCount", { count: unclassifiedCount })}
+                {hasPending && !migrating && (
+                  <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-foreground text-background text-[9px] font-medium flex items-center justify-center">
+                    {unclassifiedCount > 99 ? "99+" : unclassifiedCount}
                   </span>
                 )}
               </button>
