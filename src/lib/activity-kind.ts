@@ -110,3 +110,17 @@ export function businessDinnerAdjustment(item: { length?: string | null; colors?
   if (item.colors?.some((c) => CONSERVATIVE_COLORS.some((cc) => c.toLowerCase().includes(cc)))) score += 1.5;
   return score;
 }
+
+/** Normalizes an occasion label before it's stored as feedback context —
+ *  every writer (OutfitBuilder's save, the calendar/Stylist "confirm
+ *  worn" path, the chat) should go through this, so "Business Dinner"
+ *  (a dropdown value) and "cena di lavoro" (free text) both end up
+ *  tagged the same way and a learned preference is actually found again
+ *  later. Falls back to the raw label, lowercased, for occasions outside
+ *  the five recognized kinds (e.g. "Work", "Evening") — those remain
+ *  their own valid occasion tags, just not ones this module classifies. */
+export function normalizeOccasionForFeedback(rawLabel: string | null | undefined): string | null {
+  if (!rawLabel?.trim()) return null;
+  const kind = detectActivityKind({ label: rawLabel, dressCode: null, minFormality: null });
+  return kind ?? rawLabel.trim().toLowerCase();
+}
