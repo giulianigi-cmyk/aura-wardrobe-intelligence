@@ -30,7 +30,7 @@ import { submitOutfitFeedback } from "@/lib/outfit-feedback.functions";
 import { resolvePlanSlot } from "@/lib/outfit-plan-slot";
 import i18n from "@/i18n/config";
 
-const OCCASIONS = ["Work", "Evening", "Weekend", "Formal", "Travel", "Sport", "Everyday"];
+const OCCASIONS = ["Work", "Evening", "Weekend", "Formal", "Travel", "Sport", "Everyday", "Concert", "Business Dinner"];
 
 type Ratio = "1:1" | "9:16";
 type Placed = {
