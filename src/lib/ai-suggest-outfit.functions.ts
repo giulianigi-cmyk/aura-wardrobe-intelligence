@@ -48,6 +48,7 @@ const InputSchema = z.object({
   dressRules: z.string().nullable().optional(),
   items: z.array(ItemSchema).min(1),
   avoidItemIds: z.array(z.string()).optional(),
+  mustIncludeItemId: z.string().nullable().optional(),
 });
 
 const OutputSchema = z.object({
@@ -107,6 +108,16 @@ export async function suggestOutfitCore(params: {
    * the look rather than preserve summer pieces at any cost.
    */
   baseItemIds?: string[];
+  /**
+   * A single specific item that MUST appear in the result — used by the
+   * "you haven't worn this in a while" flow in Insights.tsx to build a
+   * fresh outfit around one forgotten piece, giving it a genuine chance
+   * before suggesting it be sold or gifted. Deliberately distinct from
+   * baseItemIds above: that one means "adapt this existing outfit,
+   * keeping most of it"; this one means "design a new outfit from
+   * scratch, but this one piece is non-negotiable."
+   */
+  mustIncludeItemId?: string | null;
   /**
    * A ready-made, deterministically-computed sentence about how this
    * segment's temperature compares to its trip-day counterpart (e.g.
@@ -328,6 +339,11 @@ export async function suggestOutfitCore(params: {
     ...(params.baseItemIds?.length
       ? [
           `This person already planned an outfit made of these items: ${JSON.stringify(params.baseItemIds)}. The weather changed. ADAPT that outfit: keep every piece that still works and replace ONLY the pieces the new weather makes unsuitable, staying on the same occasion, formality and style. Do not redesign the look from scratch. If the temperature change is so large that most pieces no longer make sense, you may rebuild more of it — but always keep as much of the original outfit as the new weather allows.`,
+        ]
+      : []),
+    ...(params.mustIncludeItemId
+      ? [
+          `MANDATORY ITEM: item id "${params.mustIncludeItemId}" MUST be included in item_ids — this is not optional and not subject to the usual fit/formality/color reasoning above being used to exclude it. Instead, use that reasoning to build the strongest possible outfit AROUND it: choose every other piece specifically to complement this one's category, color, formality and style. If this piece is, on its own, a poor match for the requested occasion or weather, still include it and do your best to make the overall look work as well as it can — never drop it and never substitute a different piece in its place.`,
         ]
       : []),
     "Explanation: 1-2 short sentences (max 200 chars) on why these pieces work.",
@@ -650,6 +666,7 @@ export const suggestOutfitAI = createServerFn({ method: "POST" })
       dressRules: data.dressRules ?? null,
       gender: profile?.gender ?? null,
       styleBoldness: profile?.style_boldness ?? null,
+      mustIncludeItemId: data.mustIncludeItemId ?? null,
       items: data.items,
       avoidItemIds: data.avoidItemIds,
     });
