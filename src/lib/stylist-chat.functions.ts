@@ -294,25 +294,19 @@ export const stylistChat = createServerFn({ method: "POST" })
           });
           parsed = parseAiJson(r2.text, OutputSchema);
                 } catch (finalErr) {
-          const looksLikeUnparsedJson = /^\s*\{[\s\S]*"reply"[\s\S]*\}\s*$/.test(text.trim());
-          if (looksLikeUnparsedJson) {
-            console.error("[AURA stylist-chat] both parse attempts failed on JSON-shaped text — showing fallback instead of leaking raw JSON. Raw text:", text, finalErr);
-            parsed = { reply: "Sorry, something went wrong on my end — could you try asking that again?", item_ids: [] };
-          } else {
-            // TEMP DIAGNOSTIC (2026-08-18): surface the real error inline
-            // instead of the generic "didn't quite catch that" — remove
-            // this branch once the root cause is found and fixed.
-            const diagBits = [
-              firstCallError ? `first call: ${firstCallError}` : null,
-              finalErr instanceof Error ? `retry: ${finalErr.message}` : `retry: ${String(finalErr)}`,
-            ].filter(Boolean).join(" | ");
-            parsed = {
-              reply: diagBits
-                ? `⚠️ DEBUG — AI call failed: ${diagBits}`
-                : (text.trim() || "Sorry, I didn't quite catch that — could you rephrase?"),
-              item_ids: [],
-            };
-          }
+          // Both the original call and the retry-with-correction failed
+          // to produce parseable JSON. This used to leak the raw parser
+          // error into the chat as "⚠️ DEBUG — AI call failed: ..." while
+          // root-causing an earlier issue; that diagnostic was never
+          // meant to stay and a real person should never see a raw
+          // parser error as a chat reply. Same clean fallback either way
+          // now — still logged server-side for whoever needs to
+          // investigate a real recurrence.
+          console.error(
+            "[AURA stylist-chat] both parse attempts failed",
+            { firstCallError, finalErr: finalErr instanceof Error ? finalErr.message : String(finalErr), rawText: text },
+          );
+          parsed = { reply: "Sorry, something went wrong on my end — could you try asking that again?", item_ids: [] };
         }
 
       }
