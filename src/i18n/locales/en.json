@@ -1355,7 +1355,17 @@
     "addPurchaseDateHint": "Add a purchase date to your pieces to see this.",
     "currentRetailValue": "Current retail value",
     "currentRetailBasedOn": "Based on {{count}} pieces with a known retail price",
-    "estimatedBasedOnRange": "Estimated across {{count}} pieces, each with its own range and confidence"
+    "estimatedBasedOnRange": "Estimated across {{count}} pieces, each with its own range and confidence",
+    "forgottenTitle": "{{count}} pieces you've forgotten about",
+    "forgottenHint": "Not worn in over a year — give it one more chance, or let it go.",
+    "forgottenGenericItem": "This piece",
+    "forgottenTryOutfit": "Try in an outfit",
+    "forgottenSellGift": "Sell or gift",
+    "lifecycleSheetTitle": "What would you like to do?",
+    "lifecycleSheetHint": "This removes the piece from your active wardrobe — it won't be suggested again.",
+    "markSold": "Mark as sold",
+    "markDonated": "Mark as donated",
+    "cancel": "Cancel"
   },
   "dressPrefs": {
     "dressPreferences": "Dress preferences",
