@@ -14,6 +14,7 @@ import { describeWeather } from "@/lib/weather";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 import { stylistChat } from "@/lib/stylist-chat.functions";
 import { submitOutfitFeedback } from "@/lib/outfit-feedback.functions";
+import { detectActivityKind } from "@/lib/activity-kind";
 import { saveOutfitPlan } from "@/lib/outfit-plan.functions";
 import { transcribeVoice } from "@/lib/voice-transcribe.functions";
 import { synthesizeVoice } from "@/lib/voice-synthesize.functions";
@@ -30,6 +31,13 @@ type ChatMsg = {
   actions?: { type: ActionType; label: string }[];
   uiOnly?: boolean;
   eventDate?: string | null;
+  /** AI-classified via stylist-chat.functions.ts's own world knowledge
+   *  (recognizes "David Guetta" as a concert, a venue address as a
+   *  stadium — things no keyword list could). Read by giveFeedback below
+   *  to tag learned preferences with the right occasion; falls back to
+   *  the deterministic keyword check on the triggering message when the
+   *  model left this null. */
+  activityKind?: string | null;
 };
 
 
@@ -231,6 +239,7 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
           choices: res.choices,
           actions: res.actions,
           eventDate: (res as { eventDate?: string | null }).eventDate ?? eventDateRef.current,
+          activityKind: (res as { activityKind?: string | null }).activityKind ?? null,
         },
       ]);
 
@@ -340,10 +349,32 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
     );
   };
 
+  /** Occasion context for the learned-preference feedback below — prefers
+   *  the AI's own classification (activityKind, set when this message
+   *  arrived; see stylist-chat.functions.ts for why that's more reliable
+   *  than keywords alone), and falls back to the deterministic keyword
+   *  check against the user message that triggered this suggestion when
+   *  the model left it null. Normalized to the same "concert" /
+   *  "business_dinner" form the rest of AURA uses (OutfitBuilder, Trip
+   *  Capsule) — never the raw AI string or a free-text label — so a
+   *  preference learned here is actually found again later; a mismatched
+   *  label would silently never match. */
+  const occasionContextFor = (index: number): { occasion: string } | null => {
+    const aiKind = messages[index]?.activityKind;
+    if (aiKind) return { occasion: aiKind };
+    for (let i = index - 1; i >= 0; i--) {
+      if (messages[i].role === "user" && !messages[i].uiOnly) {
+        const detected = detectActivityKind({ label: messages[i].content, dressCode: null, minFormality: null });
+        return detected ? { occasion: detected } : null;
+      }
+    }
+    return null;
+  };
+
   const giveFeedback = (index: number, itemIds: string[], feedbackType: FeedbackType) => {
     if (uiState[index]?.feedback || busy) return;
     patchUi(index, { feedback: feedbackType });
-    void submitOutfitFeedback({ data: { itemIds, feedbackType } }).catch((e) =>
+    void submitOutfitFeedback({ data: { itemIds, feedbackType, context: occasionContextFor(index) } }).catch((e) =>
       console.error("[AURA outfit-feedback]", e)
     );
 
