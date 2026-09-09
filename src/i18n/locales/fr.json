@@ -1338,7 +1338,17 @@
     "addPurchaseDateHint": "Ajoutez une date d'achat à vos pièces pour le voir ici.",
     "currentRetailValue": "Valeur retail actuelle",
     "currentRetailBasedOn": "Basé sur {{count}} pièces avec un prix retail connu",
-    "estimatedBasedOnRange": "Estimé sur {{count}} pièces, chacune avec sa fourchette et sa confiance"
+    "estimatedBasedOnRange": "Estimé sur {{count}} pièces, chacune avec sa fourchette et sa confiance",
+    "forgottenTitle": "{{count}} pièces que vous avez oubliées",
+    "forgottenHint": "Pas portée depuis plus d'un an — donnez-lui une dernière chance, ou laissez-la partir.",
+    "forgottenGenericItem": "Cette pièce",
+    "forgottenTryOutfit": "Essayer dans une tenue",
+    "forgottenSellGift": "Vendre ou donner",
+    "lifecycleSheetTitle": "Que souhaitez-vous faire ?",
+    "lifecycleSheetHint": "Cela retire la pièce de votre garde-robe active — elle ne sera plus suggérée.",
+    "markSold": "Marquer comme vendue",
+    "markDonated": "Marquer comme donnée",
+    "cancel": "Annuler"
   },
   "dressPrefs": {
     "dressPreferences": "Préférences vestimentaires",
