@@ -318,7 +318,6 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
       const placedNext: Placed[] = [];
       picks.forEach((it: WardrobeItem, i: number) => {
         const path = toStoragePath(it.image_url);
-        const path = toStoragePath(it.image_url);
         const url = path ? signed[path] : "";
         if (!url) return;
         const b = bucketOf(it);
@@ -638,7 +637,6 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
               className={`px-3 py-1.5 rounded-full text-[10px] uppercase tracking-[0.25em] ${
                 ratio === r ? "bg-foreground text-background" : "text-foreground/70"
               }`}
-            >{r === "1:1" ? t("outfitBuilder.feed11") : t("outfitBuilder.story916")}</button>
             >{r === "1:1" ? t("outfitBuilder.feed11") : t("outfitBuilder.story916")}</button>
           ))}
         </div>
