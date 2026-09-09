@@ -163,3 +163,33 @@ export async function confirmOutfitPlanWorn(
   return { error: null };
 
 }
+
+/** Used by the "hasn't been worn in a while" flow in Insights.tsx —
+ *  "sell it" and "gift it" both end the item's active life in the same
+ *  way (it stops being a candidate for suggestions), so both go through
+ *  this one function, differing only in eventType. Archiving is what
+ *  actually removes it from every "archived = false" query in the app,
+ *  including the detection query that surfaced it here in the first
+ *  place — there's no separate "already suggested" flag to maintain,
+ *  the item just naturally stops qualifying once archived. */
+export async function markItemLifecycleStatus(
+  userId: string,
+  itemId: string,
+  status: Extract<WardrobeEventType, "sold" | "donated">,
+): Promise<{ error: string | null }> {
+  const { error: archiveErr } = await (supabase.from("wardrobe_items" as never) as any)
+    .update({ archived: true })
+    .eq("id", itemId)
+    .eq("user_id", userId);
+  if (archiveErr) return { error: archiveErr.message };
+
+  const { error: eventErr } = await logWardrobeEvent({
+    userId,
+    eventType: status,
+    date: new Date().toISOString().slice(0, 10),
+    itemIds: [itemId],
+  });
+  if (eventErr) console.error("[AURA wardrobe-events] log failed", eventErr);
+
+  return { error: null };
+}
