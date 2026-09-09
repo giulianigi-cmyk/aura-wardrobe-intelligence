@@ -1,13 +1,14 @@
-import { ArrowLeft, Sparkles, BarChart3, PiggyBank, TrendingDown, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Sparkles, BarChart3, PiggyBank, TrendingDown, Eye, EyeOff, Clock3, Tag } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Screen } from "../AuraApp";
+import type { Screen, BuilderInit } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 import { convertCurrency, RATES_AS_OF } from "@/lib/currency-rates";
 import { Loader2 } from "lucide-react";
+import { markItemLifecycleStatus } from "@/lib/wardrobe-events";
 import i18n from "@/i18n/config";
 import {
   aggregateWardrobeValuation,
@@ -21,10 +22,12 @@ const currencySymbol: Record<string, string> = { EUR: "€", USD: "$", GBP: "£"
 const fmt = (n: number, currency: string) => `${currencySymbol[currency] ?? currency}${Math.round(n).toLocaleString(i18n.language)}`;
 const fmtRange = (low: number, high: number, currency: string) => `${fmt(low, currency)}–${fmt(high, currency)}`;
 
-export function Insights({ go, openWardrobeGap }: { go: (s: Screen) => void; openWardrobeGap: (filter: "price" | "purchase_date") => void }) {
+export function Insights({ go, openWardrobeGap, openBuilder }: { go: (s: Screen) => void; openWardrobeGap: (filter: "price" | "purchase_date") => void; openBuilder: (init: BuilderInit) => void }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [items, setItems] = useState<WardrobeItem[]>([]);
+  const [lifecycleSheetItem, setLifecycleSheetItem] = useState<WardrobeItem | null>(null);
+  const [lifecycleBusy, setLifecycleBusy] = useState(false);
   const [showValues, setShowValues] = useState(() => {
     try { return localStorage.getItem("aura-hide-values") !== "1"; } catch { return true; }
   });
@@ -126,18 +129,51 @@ export function Insights({ go, openWardrobeGap }: { go: (s: Screen) => void; ope
     const missingPriceCount = items.filter((it) => it.price == null || it.price <= 0).length;
     const missingPurchaseDateCount = items.filter((it) => !(it as unknown as { purchase_date?: string | null }).purchase_date).length;
 
+    // "Hasn't been worn in a while": either never worn and owned for
+    // 365+ days, or worn before but not in the last 365 days. Nothing
+    // else to exclude beyond the items list itself already being
+    // archived=false-filtered upstream — an item marked sold/donated
+    // gets archived (see markItemLifecycleStatus in wardrobe-events.ts)
+    // and simply stops appearing here on its own, no separate
+    // "already suggested" flag needed.
+    const oneYearAgoMs = Date.now() - 365 * 24 * 60 * 60 * 1000;
+    const forgottenItems = items.filter((it) => {
+      if (it.last_worn) return new Date(it.last_worn).getTime() < oneYearAgoMs;
+      const acquired = it.purchase_date ?? it.created_at;
+      return !!acquired && new Date(acquired).getTime() < oneYearAgoMs;
+    });
+
     return {
       totalValue, primaryCurrency, convertedCount, pricedCount: priced.length,
       neverWornCount, neverWornPct, avgCpw, bestValue, categoryRows, topCategory,
       estimatedValueLow, estimatedValueHigh, estimatedValueCount, estimatedValueExcluded,
       totalCurrentRetail, currentRetailCount,
-      missingPriceCount, missingPurchaseDateCount,
+      missingPriceCount, missingPurchaseDateCount, forgottenItems,
     };
   }, [items, valuationConfig]);
 
   const thumb = (it: WardrobeItem) => {
     const path = toStoragePath(it.image_url);
     return path ? signed[path] : null;
+  };
+
+  const markLifecycle = async (status: "sold" | "donated") => {
+    if (!user || !lifecycleSheetItem) return;
+    setLifecycleBusy(true);
+    try {
+      const { error } = await markItemLifecycleStatus(user.id, lifecycleSheetItem.id, status);
+      if (error) throw new Error(error);
+      // Optimistic: archived items no longer belong in this screen's
+      // list at all — no need to wait for a refetch, and this also
+      // makes the item disappear from `stats.forgottenItems` on the
+      // very next render since it's derived from `items`.
+      setItems((prev) => prev.filter((i) => i.id !== lifecycleSheetItem.id));
+      setLifecycleSheetItem(null);
+    } catch (e) {
+      console.error("[AURA insights] lifecycle update failed", e);
+    } finally {
+      setLifecycleBusy(false);
+    }
   };
 
   if (loading) {
@@ -311,6 +347,61 @@ export function Insights({ go, openWardrobeGap }: { go: (s: Screen) => void; ope
             ))}
           </div>
         </section>
+      )}
+
+      {stats.forgottenItems.length > 0 && (
+        <section className="mx-6 mt-6 animate-fade-up">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Clock3 size={12} className="text-muted-foreground" />
+            <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("insights.forgottenTitle", { count: stats.forgottenItems.length })}</p>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed mb-3">{t("insights.forgottenHint")}</p>
+          <div className="space-y-3">
+            {stats.forgottenItems.slice(0, 8).map((item) => (
+              <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-border/60 p-3">
+                <div className="h-16 w-16 shrink-0 rounded-xl overflow-hidden" style={{ background: "#FFFFFF" }}>
+                  {thumb(item) ? <img src={thumb(item)!} alt="" className="h-full w-full object-contain p-1" loading="lazy" /> : null}
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                  <p className="text-xs truncate">{item.brand || item.category || t("insights.forgottenGenericItem")}</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openBuilder({ itemIds: [], anchorItemId: item.id })}
+                      className="h-8 px-3 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] active:scale-95 inline-flex items-center gap-1.5"
+                    ><Sparkles size={11} /> {t("insights.forgottenTryOutfit")}</button>
+                    <button
+                      onClick={() => setLifecycleSheetItem(item)}
+                      className="h-8 px-3 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] active:scale-95 inline-flex items-center gap-1.5"
+                    ><Tag size={11} /> {t("insights.forgottenSellGift")}</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {lifecycleSheetItem && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => setLifecycleSheetItem(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full bg-card rounded-t-3xl border-t border-border p-5 space-y-3">
+            <p className="font-serif italic text-lg">{t("insights.lifecycleSheetTitle")}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{t("insights.lifecycleSheetHint")}</p>
+            <button
+              onClick={() => void markLifecycle("sold")}
+              disabled={lifecycleBusy}
+              className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-60 inline-flex items-center justify-center gap-2"
+            >{lifecycleBusy && <Loader2 size={12} className="animate-spin" />} {t("insights.markSold")}</button>
+            <button
+              onClick={() => void markLifecycle("donated")}
+              disabled={lifecycleBusy}
+              className="w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-60 inline-flex items-center justify-center gap-2"
+            >{lifecycleBusy && <Loader2 size={12} className="animate-spin" />} {t("insights.markDonated")}</button>
+            <button
+              onClick={() => setLifecycleSheetItem(null)}
+              className="w-full h-11 rounded-full text-[10px] uppercase tracking-[0.3em] text-muted-foreground"
+            >{t("insights.cancel")}</button>
+          </div>
+        </div>
       )}
 
       {stats.currentRetailCount > 0 && (
