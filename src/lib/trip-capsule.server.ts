@@ -6,6 +6,10 @@ import { describeWeather } from "./weather";
 import { computeCapsuleSeedAndExclusions } from "./trip-capsule-persistence";
 import { violatesWeatherRule, HEAVY_SIGNAL, LIGHT_SIGNAL, MILD_WARM_THRESHOLD_C, MILD_COOL_THRESHOLD_C, type WeatherCheckableItem } from "./outfit-weather-rules";
 import type { StyleMemoryRow } from "./style-memory-prompt";
+import {
+  detectActivityKind, hasEleganceSignal as sharedHasEleganceSignal, businessDinnerAdjustment,
+  type ActivityKind,
+} from "./activity-kind";
 
 function daysBetween(a: string, b: string): number {
   return (Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 86_400_000;
@@ -48,7 +52,6 @@ const HEAVY_MATERIAL_TEMP_THRESHOLD = 23;
  *  shoe" — a resort dinner or a wedding guest activity, not just any
  *  logged activity. Deliberately narrow: owning a heel doesn't mean one
  *  has to be packed, only that there's a genuine occasion for it. */
-const ELEGANT_KEYWORDS = ["dinner", "cena", "restaurant", "ristorante", "gala", "wedding", "matrimonio", "cocktail", "resort", "exclusive", "esclusiv", "fine dining", "black tie"];
 
 const NEUTRAL_COLORS = ["black", "white", "grey", "gray", "navy", "beige", "brown", "cream", "ivory", "tan"];
 
@@ -98,43 +101,10 @@ const IMPLICIT_CLASSIFICATION: Record<string, { formality: number; dayEvening: s
 };
 
 /** Free-text activity names are the only signal for pool/beach or sport
- *  days, since the dress_code vocabulary has no entry for either. */
-const SWIM_KEYWORDS = ["pool", "piscina", "swim", "nuot", "beach", "spiagg", "mare", "sea", "snorkel", "lido", "water park", "acquapark"];
-const SPORT_KEYWORDS = ["yoga", "gym", "palestra", "run", "corsa", "hike", "trek", "workout", "fitness", "pilates", "bike", "cycl", "tennis", "padel", "climb"];
-// A concert/DJ set is a physically demanding activity, not an elegant
-// evening: 6-8 hours standing, dancing, in a crowd, often outdoors and
-// still hot when it starts. Treated as its own activity kind so the
-// footwear and aesthetic rules below can key off it without touching
-// dinners, work or anything else.
-//
-// LIMIT, stated plainly: this is keyword matching, and an activity named
-// only after the performer ("David Guetta", "Katy Perry") matches
-// nothing here — no keyword list can contain every artist alive. Venue
-// and event-format words are included precisely because a calendar entry
-// usually carries one even when the artist's name is the title
-// ("Beyoncé — San Siro", "Coldplay Live 2026"). When nothing matches,
-// the activity is simply treated as an ordinary evening, exactly as
-// before this feature existed — the failure is a missed improvement,
-// never a wrong outfit. Setting the activity's dress code to Sport, or
-// naming it with any of these words, forces correct recognition.
-const CONCERT_KEYWORDS = [
-  // Italiano
-  "concerto", "concerti", "festival", "rave", "discoteca", "dj ",
-  // English — "live" and "show" alone are too generic ("live meeting",
-  // "trade show"), so only their unambiguous compound forms appear here.
-  "concert", "dj set", "djset", "dj-set", "live music", "live show", "gig", "after party", "afterparty", "club night",
-  // Español
-  "concierto", "conciertos",
-  // Français
-  "concert de", "boîte de nuit",
-  // Deutsch
-  "konzert", "musikfestival",
-  // Luoghi ed etichette che compaiono nei titoli reali di calendario
-  "arena", "stadio", "stadium", "forum", "san siro", "olimpico", "coachella", "tomorrowland", "primavera sound", "lollapalooza", "glastonbury",
-];
-
-type ActivityKind = "swim" | "sport" | "concert" | null;
-
+ *  days, since the dress_code vocabulary has no entry for either.
+ *  Keyword lists themselves now live in activity-kind.ts, shared with
+ *  the general outfit engine — concert detection used to work only
+ *  inside a planned trip; this is what fixed that. */
 /** Swim wins over sport when both read (a "pool workout" still needs a
  *  swimsuit); dress_code "Sport" only ever implies sport. */
 const TRANSPORT_KEYWORDS = [
@@ -224,27 +194,27 @@ export function changeAssumedPossible(req: Requirement, allRequirements: Require
 }
 
 export function activityKind(req: Requirement): ActivityKind {
-  const text = `${req.label ?? ""}`.toLowerCase();
-  if (SWIM_KEYWORDS.some((k) => text.includes(k))) return "swim";
-  if (SPORT_KEYWORDS.some((k) => text.includes(k)) || req.dressCode === "Sport") return "sport";
-  // Checked after swim/sport (a "beach festival" is still a beach day
-  // first) but before returning null — this is what stops a concert
-  // being read as an ordinary evening.
-  if (CONCERT_KEYWORDS.some((k) => text.includes(k))) return "concert";
-  return null;
+  return detectActivityKind({
+    label: req.label,
+    dressCode: req.dressCode,
+    minFormality: req.dressCode ? (FORMALITY_RANGE[req.dressCode] ?? DEFAULT_FORMALITY_RANGE)[1] : null,
+  });
 }
 
 /** True only when this specific requirement gives a genuine reason to
  *  need an elegant piece — an explicit high-formality dress code, or the
  *  activity's own wording (a resort dinner, a wedding). Owning a heel
- *  doesn't create the need; a requirement like this does. */
+ *  doesn't create the need; a requirement like this does. Thin wrapper
+ *  over activity-kind.ts's shared version — kept as its own local name
+ *  since every call site in this file already expects it, and trip-
+ *  capsule.server.ts is the one place that knows how to turn ITS OWN
+ *  dress-code vocabulary into a minFormality number. */
 function hasEleganceSignal(req: Requirement): boolean {
-  if (req.dressCode) {
-    const [, max] = FORMALITY_RANGE[req.dressCode] ?? DEFAULT_FORMALITY_RANGE;
-    if (max >= 4) return true;
-  }
-  const text = `${req.label ?? ""} ${req.dressCode ?? ""}`.toLowerCase();
-  return ELEGANT_KEYWORDS.some((k) => text.includes(k));
+  return sharedHasEleganceSignal({
+    label: req.label,
+    dressCode: req.dressCode,
+    minFormality: req.dressCode ? (FORMALITY_RANGE[req.dressCode] ?? DEFAULT_FORMALITY_RANGE)[1] : null,
+  });
 }
 
 /** The activity name must survive into the AI prompt even when a dress
@@ -422,6 +392,12 @@ function styleMemoryBonus(it: PoolItem, req: Requirement | undefined, memory: St
 function versatility(it: PoolItem, req?: Requirement, temperature?: number | null, styleMemory: StyleMemoryRow[] = []): number {
   let score = 0;
   score += styleMemoryBonus(it, req, styleMemory);
+  if (req && activityKind(req) === "business_dinner") {
+    // length isn't tracked on PoolItem today, so only the color half of
+    // businessDinnerAdjustment applies here — see that function's own
+    // comment for why this stays a soft nudge either way.
+    score += businessDinnerAdjustment({ colors: it.colors });
+  }
   const colors = (it.colors ?? []).map((c) => c.toLowerCase());
   if (colors.some((c) => NEUTRAL_COLORS.some((n) => c.includes(n)))) score += 2;
   if (it.formality === 2 || it.formality === 3) score += 2;
