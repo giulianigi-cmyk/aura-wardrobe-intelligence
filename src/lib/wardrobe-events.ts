@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { submitOutfitFeedback } from "./outfit-feedback.functions";
+import { normalizeOccasionForFeedback } from "./activity-kind";
 
 /**
  * Open vocabulary, matching the DB column (plain text, no CHECK constraint —
@@ -155,7 +156,7 @@ export async function confirmOutfitPlanWorn(
       itemIds: finalItemIds,
       feedbackType: "worn",
       outfitId: null,
-      context: plan.occasion ? { occasion: plan.occasion } : null,
+      context: (() => { const o = normalizeOccasionForFeedback(plan.occasion); return o ? { occasion: o } : null; })(),
     },
   }).catch((e) => console.error("[AURA wardrobe-events] style-memory feedback failed", e));
 
