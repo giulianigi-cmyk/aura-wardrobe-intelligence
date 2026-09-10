@@ -5,7 +5,7 @@ import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { isItemAtAnyLocation } from "./wardrobe-location";
 import { isItemAllowedByDressPreferences, hasAnyPreference, type DressPreferences } from "./dress-preferences";
-import { anyItemViolatesWeather, violatesSleeveClimate } from "./outfit-weather-rules";
+import { anyItemViolatesWeather, violatesSleeveClimate, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
 import { detectActivityKind } from "./activity-kind";
 
 const ItemSchema = z.object({
@@ -321,6 +321,7 @@ export async function suggestOutfitCore(params: {
     "If the occasion mentions a pool, swimming, the beach or the sea (pool, piscina, swim, beach, spiaggia, mare, snorkeling): the outfit MUST be built around a Swimwear item — a one-piece swimsuit, or a bikini top AND bikini bottom together — instead of the usual top + bottom. Add a cover-up, a light top/shorts or a dress only as a layer over it, plus sandals/flats and sunglasses if available — never a bag. Never return a city outfit for a swim occasion, and never pair a bikini top with trousers or a skirt.",
     "If the occasion is Sport or mentions yoga, gym, running, hiking, training, pilates, tennis or cycling: the outfit MUST be built from Activewear pieces (sports bra / training top + leggings, bike shorts or running shorts) with sneakers or the appropriate sport shoe. Exclude denim, tailoring, dresses, heels and anything delicate, and honour the specific activity named — hiking wants covered, sturdy shoes, yoga wants soft stretch pieces.",
     "If the occasion is Travel (a flight, a transfer, a long drive): prioritise comfort and layers — soft, non-restrictive pieces, closed comfortable shoes (sneakers or flats, no heels), and one light layer that can go on and off.",
+    BLAZER_WARMTH_PROMPT_RULE,
     ...(detectActivityKind({ label: params.occasion, dressCode: null, minFormality: null }) === "concert"
       ? ["If the occasion is a concert, festival, DJ set or club night: NEVER include heels (pumps, stilettos, high sandals) — this is a physically demanding activity (hours standing, dancing, often outdoors), not an elegant sit-down evening. Sneakers, flat boots, or a low ankle boot are the right footwear; an ankle boot is fine in cool weather but should be avoided if it's genuinely hot instead. Build the rest of the outfit for a stylish-but-comfortable going-out look, not a black-tie dinner."]
       : []),
