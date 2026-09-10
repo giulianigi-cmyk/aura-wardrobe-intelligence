@@ -788,7 +788,11 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter }: {
         </div>
       )}
 
-      <div className="px-6 -mt-1 flex justify-end">
+      <div className="px-6 -mt-1 flex items-center justify-between">
+        <button
+          onClick={() => go("log-wear")}
+          className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
+        >📸 {t("wardrobe.logWearLink")}</button>
         <button
           onClick={() => void tidyAllPhotos()}
           disabled={tidying || items.length === 0}
