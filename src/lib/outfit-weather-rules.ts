@@ -34,6 +34,28 @@ export const HEAVY_SIGNAL =
   /coat|cappotto|piumino|parka|overcoat|puffer|shearling|montone|wool|lana|maglione|sweater|sweatshirt|felpa|hoodie|felted|fleece|boots?\b|stivali|tweed|corduroy|velluto a coste|flannel|flanella|cashmere|cachemire/i;
 export const LIGHT_SIGNAL = /tank|canotta|sandal|sandalo|shorts?\b|infradito|flip.?flop|sleeveless|senza maniche/i;
 
+// A blazer/structured jacket is lighter than a real coat — HEAVY_SIGNAL
+// above deliberately doesn't catch it, a coat at 26°C is a different
+// problem than a blazer at 22°C. But nothing else caught it either: a
+// blazer read as fine at any temperature below HOT_THRESHOLD_C, which is
+// how "a blouse + blazer" kept getting proposed for a 22°C day and
+// reading as overdressed. This is prompt guidance, not a hard
+// catalog-level exclusion like violatesWeatherRule below — whether a
+// jacket is "too much" depends on what's under it (a blazer over a tank
+// reads differently than over a blouse), which is a compositional
+// judgment about the whole outfit, not a fact about the jacket item
+// alone. Shared here so ai-suggest-outfit.functions.ts,
+// suggest-daily-looks.functions.ts and stylist-chat.functions.ts all
+// give the model the exact same wording — this file's own header
+// explains what happened last time the same rule lived in more than
+// one place and drifted.
+export const BLAZER_WARMTH_THRESHOLD_C = 20;
+export const BLAZER_WARMTH_PROMPT_RULE =
+  "JACKET/BLAZER WARMTH: a blazer, suit jacket, or other structured jacket (a full coat is a separate matter, already excluded above 26°C) reads as overdressed and too warm once it's " +
+  "20\u00b0C or warmer \u2014 don't propose one purely to satisfy formality once the weather is that mild. If formality genuinely still calls for a jacket/blazer at 20\u00b0C or above, pair it with the LIGHTEST base layer available " +
+  "(a t-shirt or tank top) rather than a blouse or long-sleeve shirt \u2014 a blazer over a blouse is two real layers plus the jacket, which is too warm for that temperature even though each piece alone looks fine on paper. " +
+  "Below 20\u00b0C, a blazer or jacket over a blouse or shirt is completely normal.";
+
 export interface WeatherCheckableItem {
   category?: string | null;
   subcategory?: string | null;
