@@ -47,6 +47,7 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
 
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
 
   const [saved, setSaved] = useState(false);
   const [showCalendarPicker, setShowCalendarPicker] = useState(false);
@@ -95,12 +96,19 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
     const myRun = ++runToken.current;
     setStage("generating");
     setErrorMessage(null);
+    setErrorCode(null);
     setProgress(null);
     try {
       const prepared = await prepare({ data: { itemIds, forceRegenerate } });
       if (myRun !== runToken.current) return; // superseded by a newer attempt
       if (!prepared.ok) {
-        setErrorMessage(prepared.message);
+        // "no_avatar" specifically means retrying can never succeed —
+        // there is nothing to generate against until a photo exists.
+        // The error screen below branches on this to send the person to
+        // set one up instead of offering a Retry button that would just
+        // fail identically forever.
+        setErrorMessage(prepared.error === "no_avatar" ? t("avatar.noAvatarYetBody") : prepared.message);
+        setErrorCode(prepared.error);
         setStage("error");
         return;
       }
@@ -247,7 +255,18 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
         </div>
       )}
 
-      {stage === "error" && (
+      {stage === "error" && errorCode === "no_avatar" && (
+        <div className="px-6 mt-16 flex flex-col items-center text-center animate-fade-up">
+          <p className="font-serif text-xl italic">{t("avatar.noAvatarYetTitle")}</p>
+          <p className="mt-2 text-xs text-muted-foreground leading-relaxed max-w-[260px]">{errorMessage}</p>
+          <button
+            onClick={() => go("avatar")}
+            className="mt-6 h-12 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98]"
+          >{t("avatar.setUpNow")}</button>
+        </div>
+      )}
+
+      {stage === "error" && errorCode !== "no_avatar" && (
         <div className="px-6 mt-16 flex flex-col items-center text-center animate-fade-up">
           <p className="font-serif text-xl italic">{t("avatar.errorTitle")}</p>
           <p className="mt-2 text-xs text-muted-foreground leading-relaxed max-w-[260px]">{errorMessage}</p>
