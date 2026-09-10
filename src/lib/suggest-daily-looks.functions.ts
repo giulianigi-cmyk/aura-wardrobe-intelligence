@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
 import { z } from "zod";
 import { parseAiJson } from "./ai-json";
-import { anyItemViolatesWeather } from "./outfit-weather-rules";
+import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 
 const ItemSchema = z.object({
@@ -123,6 +123,8 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     const system = [
       ...(data.dressRules ? [data.dressRules, ""] : []),
       ...styleMemorySection,
+      BLAZER_WARMTH_PROMPT_RULE,
+      "",
       "You are a personal stylist. Compose REAL outfits using ONLY items from the",
       "user's own wardrobe catalog below. Never invent an item id.",
       "",
@@ -405,6 +407,47 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
         return { ok: false as const, error: "Couldn't compose a valid look from your wardrobe." };
       }
 
+      // Guards against the explanation text describing a piece that
+      // isn't actually in the final item_ids — either because sanitize
+      // just filtered it out, or because the model wrote about a piece
+      // in prose without ever having put a matching id in item_ids to
+      // begin with (a real, observed failure mode: "featuring a minimal
+      // tank" in the sentence while the returned ids were only trousers,
+      // sandals and a bag). Gets ONE targeted retry to actually complete
+      // the look, the same idea as the missing-occasions retry just
+      // below, scoped to this one specific gap instead. Falls back to a
+      // sentence making no specific claims only if that retry also
+      // doesn't produce a complete look — an honest generic sentence
+      // beats one confidently wrong about what's shown.
+      const hasTorsoCoverage = (ids: string[]) => ids.some((id) => {
+        const item = catalog.find((c) => c.id === id);
+        return item?.category === "Tops" || item?.category === "Dresses" || item?.category === "Jumpsuits";
+      });
+      if (!hasTorsoCoverage(clean.today.item_ids)) {
+        try {
+          const missingPieceRetrySystem = [
+            system,
+            "",
+            `IMPORTANT — this is a retry. The "today" look you just proposed has no top, dress, or jumpsuit in it — only these pieces survived: ${JSON.stringify(clean.today.item_ids)}. Propose a corrected, COMPLETE "today" look for the same weather and occasion, following every rule above, that actually includes a proper top (or a dress/jumpsuit instead of separate top+bottom). Reuse the pieces above where they still make sense; replace or drop anything that doesn't once a top is added.`,
+          ].join("\n");
+          const TodayRetrySchema = z.object({ today: LookSchema });
+          const retryText = (await generateText({
+            model,
+            system: missingPieceRetrySystem,
+            messages: [{ role: "user", content: userContent }],
+          })).text;
+          const retryParsed = parseAiJson(retryText, TodayRetrySchema);
+          if (isValidCuratedLook(retryParsed.today, []) && hasTorsoCoverage(retryParsed.today.item_ids)) {
+            clean.today = retryParsed.today;
+          } else {
+            clean.today = { ...clean.today, explanation: "A pared-back edit from your closet, put together for today's weather." };
+          }
+        } catch (err) {
+          console.error("[AURA daily-looks] today-completion retry failed", err);
+          clean.today = { ...clean.today, explanation: "A pared-back edit from your closet, put together for today's weather." };
+        }
+      }
+
       // Retry once for any required occasion that didn't survive sanitize
       // — either the model skipped it or a hard filter rejected it. Gives
       // the wardrobe a second, more targeted shot before settling for a
@@ -453,4 +496,3 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       return { ok: false as const, error: err instanceof Error ? err.message : "Generation failed" };
     }
   });
- 
