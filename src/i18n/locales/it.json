@@ -398,7 +398,8 @@
       "large": "Large",
       "jumbo": "Jumbo"
     },
-    "marketPremiumNote": "Stima sopra il prezzo retail — supportata da dati di mercato specifici per questo modello, non un calcolo generico."
+    "marketPremiumNote": "Stima sopra il prezzo retail — supportata da dati di mercato specifici per questo modello, non un calcolo generico.",
+    "logWearLink": "Cosa ho indossato?"
   },
   "addItem": {
     "toastSelectImage": "Seleziona un'immagine",
@@ -1715,5 +1716,29 @@
     "noAvatarYetBody": "Crea il tuo avatar una volta sola, poi prova qualsiasi outfit su te stesso.",
     "setUpNow": "Configuralo",
     "biometricConsentRequired": "Conferma il consenso qui sopra prima di continuare."
+  },
+  "logWear": {
+    "title": "Cosa ho indossato?",
+    "uploadHint": "Carica una foto del tuo outfit — AURA troverà i capi corrispondenti nel tuo guardaroba.",
+    "choosePhoto": "Scegli foto",
+    "processing": "Analizzo il tuo outfit...",
+    "errorTitle": "Qualcosa è andato storto",
+    "genericError": "Riprova.",
+    "noOutfitDetected": "Non riesco a riconoscere un outfit in questa foto — prova con una foto a figura intera più chiara.",
+    "tryAgain": "Riprova",
+    "itemsFound": "Capi trovati",
+    "thisIsIt": "È questo",
+    "thinkItsThis": "Credo sia questo",
+    "unrecognized": "Non riconosciuto",
+    "changeItem": "Cambia capo",
+    "confirmAria": "Conferma questo capo",
+    "wornOnLabel": "Indossato il",
+    "occasionLabel": "Occasione (facoltativo)",
+    "occasionPlaceholder": "es. Lavoro, Cena...",
+    "confirmButton_one": "Registra {{count}} capo come indossato",
+    "confirmButton_other": "Registra {{count}} capi come indossati",
+    "doneTitle": "Registrato",
+    "doneBody": "La tua cronologia di utilizzo e il costo a uso sono stati aggiornati.",
+    "backToCloset": "Torna al guardaroba"
   }
 }
