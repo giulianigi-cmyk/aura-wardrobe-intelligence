@@ -57,3 +57,27 @@ export function findBestMatch(
   const verdict: DedupeVerdict = bestScore >= 0.9 ? "certain" : bestScore >= 0.6 ? "maybe" : "new";
   return { verdict, score: bestScore, match: verdict === "new" ? null : best };
 }
+
+/** Same scoring as findBestMatch above (scoreMatch is untouched), but
+ *  returns the top N candidates instead of just the best one — added
+ *  for the "maybe, but let me pick a different one" step in wear
+ *  confirmation, where showing only the single top guess isn't enough;
+ *  the person needs real alternatives from their own wardrobe, not a
+ *  manual search through 300+ items. Never used by the existing
+ *  duplicate-on-import flow (OutfitScan.tsx/BatchReview.tsx keep using
+ *  findBestMatch exactly as before), so nothing there changes behavior. */
+export function findTopMatches(
+  detected: { category: string; subcategory?: string; colors: string[]; brand?: string | null },
+  wardrobe: WardrobeItem[],
+  n = 3,
+): { item: WardrobeItem; score: number; verdict: DedupeVerdict }[] {
+  return wardrobe
+    .map((item) => ({ item, score: scoreMatch(detected, item) }))
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, n)
+    .map(({ item, score }) => ({
+      item, score,
+      verdict: (score >= 0.9 ? "certain" : score >= 0.6 ? "maybe" : "new") as DedupeVerdict,
+    }));
+}
