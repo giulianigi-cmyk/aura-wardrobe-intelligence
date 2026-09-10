@@ -41,6 +41,7 @@ import { OutfitBuilder } from "./screens/OutfitBuilder";
 import { PersonalColorAnalysis } from "./screens/PersonalColorAnalysis";
 import { Avatar } from "./screens/Avatar";
 import { AvatarTryOn } from "./screens/AvatarTryOn";
+import { LogWear } from "./screens/LogWear";
 import { UserProfile } from "./screens/UserProfile";
 
 import { TabBar } from "./TabBar";
@@ -58,7 +59,7 @@ export type Screen =
             | "chats" | "chat-thread" | "user-profile"
       | "settings" | "settings-personal" | "settings-sizes" | "settings-style-prefs" | "settings-language"
       | "settings-wardrobe-locations" | "settings-dress-preferences" | "settings-notifications" | "settings-calendar" | "settings-privacy"
-      | "avatar" | "avatar-tryon";
+      | "avatar" | "avatar-tryon" | "log-wear";
 
 
 
@@ -294,6 +295,7 @@ function Inner() {
           {screen === "color-analysis" && <PersonalColorAnalysis go={go} />}
           {screen === "avatar" && <Avatar go={go} />}
           {screen === "avatar-tryon" && <AvatarTryOn go={go} itemIds={avatarTryOnItemIds} />}
+          {screen === "log-wear" && <LogWear go={go} />}
           {screen === "user-profile" && (
             activeUserId
               ? <UserProfile userId={activeUserId} go={go} onBack={() => setScreen(userProfileBack)} />
