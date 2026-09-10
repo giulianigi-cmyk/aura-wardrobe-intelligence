@@ -1006,7 +1006,7 @@ export function AddItem({ onClose }: { onClose: () => void }) {
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
-                className="shrink-0 rounded-full border border-border bg-card px-3.5 py-2 text-xs"
+                className="shrink-0 appearance-none leading-tight rounded-full border border-border bg-card px-3.5 py-2 text-xs"
               >
                 <option value="">{t("addItem.categoryLabel")}</option>
                 {filterOptions.categories.map((c) => (
@@ -1016,7 +1016,7 @@ export function AddItem({ onClose }: { onClose: () => void }) {
               <select
                 value={filterColor}
                 onChange={(e) => setFilterColor(e.target.value)}
-                className="shrink-0 rounded-full border border-border bg-card px-3.5 py-2 text-xs"
+                className="shrink-0 appearance-none leading-tight rounded-full border border-border bg-card px-3.5 py-2 text-xs"
               >
                 <option value="">{t("addItem.colorLabel")}</option>
                 {filterOptions.colors.map((c) => (
@@ -1026,7 +1026,7 @@ export function AddItem({ onClose }: { onClose: () => void }) {
               <select
                 value={filterMaterial}
                 onChange={(e) => setFilterMaterial(e.target.value)}
-                className="shrink-0 rounded-full border border-border bg-card px-3.5 py-2 text-xs"
+                className="shrink-0 appearance-none leading-tight rounded-full border border-border bg-card px-3.5 py-2 text-xs"
               >
                 <option value="">{t("addItem.materialLabel")}</option>
                 {filterOptions.materials.map((m) => (
@@ -1036,7 +1036,7 @@ export function AddItem({ onClose }: { onClose: () => void }) {
               <select
                 value={filterBrand}
                 onChange={(e) => setFilterBrand(e.target.value)}
-                className="shrink-0 rounded-full border border-border bg-card px-3.5 py-2 text-xs"
+                className="shrink-0 appearance-none leading-tight rounded-full border border-border bg-card px-3.5 py-2 text-xs"
               >
                 <option value="">{t("addItem.brandLabel")}</option>
                 {filterOptions.brands.map((b) => (
@@ -1046,7 +1046,7 @@ export function AddItem({ onClose }: { onClose: () => void }) {
               <select
                 value={filterSeason}
                 onChange={(e) => setFilterSeason(e.target.value)}
-                className="shrink-0 rounded-full border border-border bg-card px-3.5 py-2 text-xs"
+                className="shrink-0 appearance-none leading-tight rounded-full border border-border bg-card px-3.5 py-2 text-xs"
               >
                 <option value="">{t("addItem.seasonLabel")}</option>
                 {filterOptions.seasons.map((s) => (
