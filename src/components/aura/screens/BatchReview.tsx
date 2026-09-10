@@ -564,7 +564,7 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
             const sourceLabel = source ? [source.colors[0], source.subcategory || source.category].filter(Boolean).join(" ") || t("batchReview.thisPiece") : t("batchReview.thisPiece");
             return (
               <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => setCopyFromId(null)}>
-                <div onClick={(e) => e.stopPropagation()} className="w-full max-h-[80vh] bg-card rounded-t-3xl border-t border-border p-5 flex flex-col">
+                <div onClick={(e) => e.stopPropagation()} className="w-full max-h-[85dvh] bg-card rounded-t-3xl border-t border-border p-5 flex flex-col">
                   <div className="flex items-center justify-between shrink-0">
                     <p className="font-serif italic text-lg">{t("batchReview.copyDetailsToWhich")}</p>
                     <button onClick={() => setCopyFromId(null)} aria-label={t("batchReview.closeAria")} className="h-8 w-8 rounded-full bg-secondary/60 flex items-center justify-center active:scale-90"><X size={14} /></button>
