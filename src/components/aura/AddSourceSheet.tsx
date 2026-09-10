@@ -20,9 +20,26 @@ export function AddSourceSheet({
 }) {
   const { t } = useTranslation();
   const [level, setLevel] = useState<1 | 2>(1);
+  // Guards against a real mobile Safari quirk: the sheet's backdrop
+  // renders at the exact screen position the "+" button was just
+  // tapped. Touch devices dispatch the actual "click" event a beat
+  // after the physical touch, targeting whatever now occupies that
+  // spot — if the backdrop has already mounted there by the time that
+  // delayed click fires, it lands on the backdrop's own onClick and
+  // closes the sheet in the same gesture that opened it. Reported as
+  // "the + button needs 3 taps" — the tap was never actually missed,
+  // the sheet was opening and immediately closing itself. Ignoring
+  // close attempts for this brief window is the standard fix for this
+  // class of bug.
+  const [canClose, setCanClose] = useState(false);
 
   useEffect(() => {
-    if (open) setLevel(1);
+    if (open) {
+      setLevel(1);
+      setCanClose(false);
+      const timer = setTimeout(() => setCanClose(true), 350);
+      return () => clearTimeout(timer);
+    }
   }, [open]);
 
   if (!open) return null;
@@ -30,7 +47,7 @@ export function AddSourceSheet({
   return (
     <div
       className="fixed inset-0 z-[60] bg-background/80 backdrop-blur flex items-end"
-      onClick={onClose}
+      onClick={() => { if (canClose) onClose(); }}
       role="dialog"
       aria-modal="true"
       aria-label={t("addSourceSheet.addPiecesAria")}
