@@ -398,7 +398,8 @@
       "large": "Large",
       "jumbo": "Jumbo"
     },
-    "marketPremiumNote": "Estimate above retail price — backed by market data specific to this model, not a generic calculation."
+    "marketPremiumNote": "Estimate above retail price — backed by market data specific to this model, not a generic calculation.",
+    "logWearLink": "What did I wear?"
   },
   "addItem": {
     "toastSelectImage": "Please select an image",
@@ -1717,5 +1718,29 @@
     "noAvatarYetBody": "Create your avatar once, then try on any outfit on yourself.",
     "setUpNow": "Set it up",
     "biometricConsentRequired": "Please confirm the consent above before continuing."
+  },
+  "logWear": {
+    "title": "What did I wear?",
+    "uploadHint": "Upload a photo of your outfit — AURA will find the matching pieces in your closet.",
+    "choosePhoto": "Choose photo",
+    "processing": "Looking at your outfit...",
+    "errorTitle": "Something went wrong",
+    "genericError": "Please try again.",
+    "noOutfitDetected": "We couldn't spot an outfit in this photo — try a clearer, full-body shot.",
+    "tryAgain": "Try again",
+    "itemsFound": "Pieces found",
+    "thisIsIt": "This is it",
+    "thinkItsThis": "I think it's this",
+    "unrecognized": "Not recognized",
+    "changeItem": "Change item",
+    "confirmAria": "Confirm this item",
+    "wornOnLabel": "Worn on",
+    "occasionLabel": "Occasion (optional)",
+    "occasionPlaceholder": "e.g. Work, Dinner...",
+    "confirmButton_one": "Log {{count}} item as worn",
+    "confirmButton_other": "Log {{count}} items as worn",
+    "doneTitle": "Logged",
+    "doneBody": "Your wear history and cost-per-wear just updated.",
+    "backToCloset": "Back to closet"
   }
 }
