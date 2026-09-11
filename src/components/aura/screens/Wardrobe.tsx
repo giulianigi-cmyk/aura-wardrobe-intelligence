@@ -764,6 +764,14 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter }: {
           })()}
 
           <button
+            onClick={() => go("log-wear")}
+            aria-label={t("wardrobe.logWearLink")}
+            className="h-12 w-12 rounded-full border border-border flex items-center justify-center active:scale-90 transition shrink-0"
+          >
+            <span style={{ fontSize: 16 }}>📸</span>
+          </button>
+
+          <button
             onClick={() => setAddSheetOpen(true)}
             aria-label={t("wardrobe.addPiecesAria")}
             className="h-12 w-12 rounded-full bg-foreground text-background flex items-center justify-center active:scale-90 transition shadow-luxe"
@@ -788,11 +796,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter }: {
         </div>
       )}
 
-      <div className="px-6 -mt-1 flex items-center justify-between">
-        <button
-          onClick={() => go("log-wear")}
-          className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
-        >📸 {t("wardrobe.logWearLink")}</button>
+      <div className="px-6 -mt-1 flex justify-end">
         <button
           onClick={() => void tidyAllPhotos()}
           disabled={tidying || items.length === 0}
