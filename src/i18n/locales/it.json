@@ -1740,6 +1740,7 @@
     "confirmButton_other": "Registra {{count}} capi come indossati",
     "doneTitle": "Registrato",
     "doneBody": "La tua cronologia di utilizzo e il costo a uso sono stati aggiornati.",
-    "backToCloset": "Torna al guardaroba"
+    "backToCloset": "Torna al guardaroba",
+    "openOnCanvas": "Apri sulla tela"
   }
 }
