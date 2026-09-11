@@ -755,7 +755,8 @@
     "dismissedEventsCount": "{{count}} dismissed events",
     "removedFromCalendar": "· removed from calendar",
     "couldntDeleteEvent": "Couldn't delete that event",
-    "deleteEventAria": "Delete permanently"
+    "deleteEventAria": "Delete permanently",
+    "openOnCanvasAria": "Open on canvas"
   },
   "aiStylist": {
     "notEnoughActivePieces_one": "You have {{count}} piece in your active wardrobe — add at least 3 (or restore an archived one) to generate an AI outfit.",
