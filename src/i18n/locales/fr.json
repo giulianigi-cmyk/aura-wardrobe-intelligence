@@ -1281,7 +1281,8 @@
     "confirmButton_other": "Enregistrer {{count}} pièces comme portées",
     "doneTitle": "Enregistré",
     "doneBody": "Votre historique de port et coût par port viennent d'être mis à jour.",
-    "backToCloset": "Retour au dressing"
+    "backToCloset": "Retour au dressing",
+    "openOnCanvas": "Ouvrir sur la toile"
   },
   "dressPrefs": {
     "dressPreferences": "Préférences vestimentaires",
