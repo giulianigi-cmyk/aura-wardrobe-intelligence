@@ -1742,6 +1742,7 @@
     "confirmButton_other": "Registrar {{count}} prendas como usadas",
     "doneTitle": "Registrado",
     "doneBody": "Tu historial de uso y coste por uso se acaban de actualizar.",
-    "backToCloset": "Volver al armario"
+    "backToCloset": "Volver al armario",
+    "openOnCanvas": "Abrir en el lienzo"
   }
 }
