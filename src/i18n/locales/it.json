@@ -753,7 +753,8 @@
     "couldntRecoverEvent": "Non sono riuscito a recuperare l'evento",
     "recoverEvent": "Recupera",
     "dismissedEventsCount": "{{count}} eventi scartati",
-    "removedFromCalendar": "· rimosso dal calendario"
+    "removedFromCalendar": "· rimosso dal calendario",
+    "openOnCanvasAria": "Apri sulla tela"
   },
   "aiStylist": {
     "notEnoughActivePieces_one": "Hai {{count}} capo nel guardaroba attivo. Aggiungine almeno 3 (o ripristina uno archiviato) per generare un outfit AI.",
