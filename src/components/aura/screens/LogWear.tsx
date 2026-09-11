@@ -47,7 +47,7 @@ function fileToDataUrl(file: File): Promise<string> {
 
 type Selection = { chosenItemId: string | null; confirmed: boolean; candidateIndex: number };
 
-export function LogWear({ go }: { go: (s: Screen) => void }) {
+export function LogWear({ go, openBuilder }: { go: (s: Screen) => void; openBuilder: (init: { itemIds: string[]; occasion?: string } | null) => void }) {
   const { t } = useTranslation();
   const start = useServerFn(startOutfitPhotoDetection);
   const confirm = useServerFn(confirmWearEvent);
@@ -282,8 +282,12 @@ export function LogWear({ go }: { go: (s: Screen) => void }) {
           <p className="font-serif text-xl italic">{t("logWear.doneTitle")}</p>
           <p className="mt-2 text-xs text-muted-foreground leading-relaxed max-w-[260px]">{t("logWear.doneBody")}</p>
           <button
-            onClick={() => go("wardrobe")}
+            onClick={() => openBuilder({ itemIds: confirmedItemIds, occasion: occasion.trim() || undefined })}
             className="mt-6 h-12 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98]"
+          >{t("logWear.openOnCanvas")}</button>
+          <button
+            onClick={() => go("wardrobe")}
+            className="mt-3 h-12 px-6 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] active:scale-[0.98]"
           >{t("logWear.backToCloset")}</button>
         </div>
       )}
