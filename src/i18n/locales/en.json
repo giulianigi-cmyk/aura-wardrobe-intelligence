@@ -1742,6 +1742,7 @@
     "confirmButton_other": "Log {{count}} items as worn",
     "doneTitle": "Logged",
     "doneBody": "Your wear history and cost-per-wear just updated.",
-    "backToCloset": "Back to closet"
+    "backToCloset": "Back to closet",
+    "openOnCanvas": "Open on canvas"
   }
 }
