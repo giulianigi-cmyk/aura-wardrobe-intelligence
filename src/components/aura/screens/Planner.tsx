@@ -73,9 +73,10 @@ function itemMatchesKeywords(it: WardrobeItem, keywords: string[], materials: st
 const DOW = ["M", "T", "W", "T", "F", "S", "S"];
 const getLocalizedDow = (t: (k: string) => string) => (t("planner.dowLetters") as string).split(",");
 
-export function Planner({ go, openStylistChat, focus }: {
+export function Planner({ go, openStylistChat, openBuilder, focus }: {
   go: (s: Screen) => void;
   openStylistChat: (init: NonNullable<StylistChatInit>) => void;
+  openBuilder: (init: { itemIds: string[]; occasion?: string } | null) => void;
   /** Deep-link target from a weather_change notification. */
   focus?: { date: string; planId?: string | null } | null;
 }) {
@@ -409,6 +410,7 @@ export function Planner({ go, openStylistChat, focus }: {
           plans={selectedPlans}
           calendarEvents={eventsByDate[selectedDate] ?? []}
           openStylistChat={openStylistChat}
+          openBuilder={openBuilder}
           items={items}
           signed={signed}
           weather={dailyByDate[selectedDate] ?? null}
@@ -432,13 +434,14 @@ type Slot = { type: "general" } | { type: "event"; event: ImportedEvent };
 const slotKey = (s: Slot) => (s.type === "general" ? "general" : `event:${s.event.id}`);
 
 function DayDetail({
-  date, plans, calendarEvents, openStylistChat, items, signed, weather, currentTempC,
+  date, plans, calendarEvents, openStylistChat, openBuilder, items, signed, weather, currentTempC,
   proposals, onProposalResolved, onClose, onSaved, onDismissEvent,
 }: {
   date: string;
   plans: OutfitPlan[];
   calendarEvents: ImportedEvent[];
   openStylistChat: (init: NonNullable<StylistChatInit>) => void;
+  openBuilder: (init: { itemIds: string[]; occasion?: string } | null) => void;
   items: WardrobeItem[];
   signed: Record<string, string>;
   weather: DailyForecast | null;
@@ -744,10 +747,10 @@ function DayDetail({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 animate-fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 animate-fade-in pb-20" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md h-[92vh] bg-background rounded-t-3xl flex flex-col animate-fade-up"
+        className="w-full max-w-md max-h-[80dvh] bg-background rounded-t-3xl flex flex-col animate-fade-up"
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-border/60">
           <div className="flex items-center gap-2">
@@ -934,6 +937,11 @@ function DayDetail({
                     </button>
                   )}
 
+                  <button
+                    onClick={() => openBuilder({ itemIds: plan.item_ids, occasion: plan.occasion ?? undefined })}
+                    className="h-11 w-11 rounded-full border border-border flex items-center justify-center"
+                    aria-label={t("planner.openOnCanvasAria")}
+                  ><Sparkles size={15} /></button>
                   <button
                     onClick={() => setEditing(true)}
                     className="flex-1 h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em]"
