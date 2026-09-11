@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Camera, Images, Plus, Sparkles } from "lucide-react";
+import { Images, Plus } from "lucide-react";
 
-export type AddSourceChoice = "add" | "outfit-scan" | "batch-scan";
+export type AddSourceChoice = "add" | "batch-scan";
 
 /**
  * Unified entry point for adding pieces to the closet.
- * Level 1: single piece vs. multi-photo scan.
- * Level 2 (scan): the two existing scan flows.
+ * "Scan one outfit" (outfit-scan) used to live here as a second-level
+ * option, but it sat confusingly between the two multi-photo choices
+ * and its own flow didn't lead anywhere reliable — removed rather than
+ * fixed in place, since a single flat choice between "one piece" and
+ * "many at once" is clearer than a two-level menu for two options.
  */
 export function AddSourceSheet({
   open,
@@ -19,7 +22,6 @@ export function AddSourceSheet({
   onChoose: (choice: AddSourceChoice) => void;
 }) {
   const { t } = useTranslation();
-  const [level, setLevel] = useState<1 | 2>(1);
   // Guards against a real mobile Safari quirk: the sheet's backdrop
   // renders at the exact screen position the "+" button was just
   // tapped. Touch devices dispatch the actual "click" event a beat
@@ -35,7 +37,6 @@ export function AddSourceSheet({
 
   useEffect(() => {
     if (open) {
-      setLevel(1);
       setCanClose(false);
       const timer = setTimeout(() => setCanClose(true), 350);
       return () => clearTimeout(timer);
@@ -56,68 +57,28 @@ export function AddSourceSheet({
         onClick={(e) => e.stopPropagation()}
         className="w-full bg-card rounded-t-3xl border-t border-border p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] space-y-2"
       >
-        <div className="flex items-center gap-2 mb-1">
-          {level === 2 && (
-            <button
-              onClick={() => setLevel(1)}
-              aria-label={t("addSourceSheet.backAria")}
-              className="h-8 w-8 rounded-full border border-border flex items-center justify-center active:scale-90"
-            >
-              <ArrowLeft size={14} />
-            </button>
-          )}
-          <p className="font-serif italic text-lg">
-            {level === 1 ? t("addSourceSheet.addToYourCloset") : t("addSourceSheet.scanSeveralPieces")}
-          </p>
-        </div>
+        <p className="font-serif italic text-lg mb-1">{t("addSourceSheet.addToYourCloset")}</p>
 
-        {level === 1 ? (
-          <>
-            <button
-              onClick={() => onChoose("add")}
-              className="w-full flex items-center gap-3 rounded-2xl border border-border p-4 text-left active:scale-[0.98] transition"
-            >
-              <Plus size={18} />
-              <div>
-                <p className="text-sm font-medium">{t("addSourceSheet.addOnePiece")}</p>
-                <p className="text-xs text-muted-foreground">{t("addSourceSheet.addOnePieceHint")}</p>
-              </div>
-            </button>
-            <button
-              onClick={() => setLevel(2)}
-              className="w-full flex items-center gap-3 rounded-2xl border border-border p-4 text-left active:scale-[0.98] transition"
-            >
-              <Sparkles size={18} />
-              <div>
-                <p className="text-sm font-medium">{t("addSourceSheet.scanSeveralPieces")}</p>
-                <p className="text-xs text-muted-foreground">{t("addSourceSheet.scanSeveralPiecesHint")}</p>
-              </div>
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              onClick={() => onChoose("outfit-scan")}
-              className="w-full flex items-center gap-3 rounded-2xl border border-border p-4 text-left active:scale-[0.98] transition"
-            >
-              <Camera size={18} />
-              <div>
-                <p className="text-sm font-medium">{t("addSourceSheet.scanOneOutfit")}</p>
-                <p className="text-xs text-muted-foreground">{t("addSourceSheet.scanOneOutfitHint")}</p>
-              </div>
-            </button>
-            <button
-              onClick={() => onChoose("batch-scan")}
-              className="w-full flex items-center gap-3 rounded-2xl border border-border p-4 text-left active:scale-[0.98] transition"
-            >
-              <Images size={18} />
-              <div>
-                <p className="text-sm font-medium">{t("addSourceSheet.batchScanPhotos")}</p>
-                <p className="text-xs text-muted-foreground">{t("addSourceSheet.batchScanPhotosHint")}</p>
-              </div>
-            </button>
-          </>
-        )}
+        <button
+          onClick={() => onChoose("add")}
+          className="w-full flex items-center gap-3 rounded-2xl border border-border p-4 text-left active:scale-[0.98] transition"
+        >
+          <Plus size={18} />
+          <div>
+            <p className="text-sm font-medium">{t("addSourceSheet.addOnePiece")}</p>
+            <p className="text-xs text-muted-foreground">{t("addSourceSheet.addOnePieceHint")}</p>
+          </div>
+        </button>
+        <button
+          onClick={() => onChoose("batch-scan")}
+          className="w-full flex items-center gap-3 rounded-2xl border border-border p-4 text-left active:scale-[0.98] transition"
+        >
+          <Images size={18} />
+          <div>
+            <p className="text-sm font-medium">{t("addSourceSheet.batchScanPhotos")}</p>
+            <p className="text-xs text-muted-foreground">{t("addSourceSheet.batchScanPhotosHint")}</p>
+          </div>
+        </button>
       </div>
     </div>
   );
