@@ -231,6 +231,12 @@ export function AddItem({ onClose }: { onClose: () => void }) {
   const [filterMaterial, setFilterMaterial] = useState("");
   const [filterBrand, setFilterBrand] = useState("");
   const [filterSeason, setFilterSeason] = useState("");
+  // Custom picker, not a native <select> — iOS Safari's own text
+  // rendering inside a styled select proved unreliable (line-height and
+  // padding weren't respected consistently, clipping the label
+  // regardless of two separate CSS attempts to fix it). A button that
+  // opens a plain bottom sheet is fully within our own control instead.
+  const [openFilterKey, setOpenFilterKey] = useState<"category" | "color" | "material" | "brand" | "season" | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   const [brand, setBrand] = useState("");
@@ -1003,56 +1009,21 @@ export function AddItem({ onClose }: { onClose: () => void }) {
 
           {(sharedResults.length > 0 || libraryResults.length > 0) && (
             <div className="mt-2 flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="shrink-0 appearance-none leading-tight rounded-full border border-border bg-card px-3.5 py-2 text-xs min-w-[92px] text-center"
-              >
-                <option value="">{t("addItem.categoryLabel")}</option>
-                {filterOptions.categories.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-              <select
-                value={filterColor}
-                onChange={(e) => setFilterColor(e.target.value)}
-                className="shrink-0 appearance-none leading-tight rounded-full border border-border bg-card px-3.5 py-2 text-xs min-w-[92px] text-center"
-              >
-                <option value="">{t("addItem.colorLabel")}</option>
-                {filterOptions.colors.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-              <select
-                value={filterMaterial}
-                onChange={(e) => setFilterMaterial(e.target.value)}
-                className="shrink-0 appearance-none leading-tight rounded-full border border-border bg-card px-3.5 py-2 text-xs min-w-[92px] text-center"
-              >
-                <option value="">{t("addItem.materialLabel")}</option>
-                {filterOptions.materials.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-              <select
-                value={filterBrand}
-                onChange={(e) => setFilterBrand(e.target.value)}
-                className="shrink-0 appearance-none leading-tight rounded-full border border-border bg-card px-3.5 py-2 text-xs min-w-[92px] text-center"
-              >
-                <option value="">{t("addItem.brandLabel")}</option>
-                {filterOptions.brands.map((b) => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-              <select
-                value={filterSeason}
-                onChange={(e) => setFilterSeason(e.target.value)}
-                className="shrink-0 appearance-none leading-tight rounded-full border border-border bg-card px-3.5 py-2 text-xs min-w-[92px] text-center"
-              >
-                <option value="">{t("addItem.seasonLabel")}</option>
-                {filterOptions.seasons.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
+              {([
+                ["category", t("addItem.categoryLabel"), filterCategory, filterOptions.categories] as const,
+                ["color", t("addItem.colorLabel"), filterColor, filterOptions.colors] as const,
+                ["material", t("addItem.materialLabel"), filterMaterial, filterOptions.materials] as const,
+                ["brand", t("addItem.brandLabel"), filterBrand, filterOptions.brands] as const,
+                ["season", t("addItem.seasonLabel"), filterSeason, filterOptions.seasons] as const,
+              ]).map(([key, label, value, options]) => (
+                <button
+                  key={key}
+                  onClick={() => setOpenFilterKey(key)}
+                  className={`shrink-0 rounded-full border px-3.5 py-2 text-xs whitespace-nowrap ${value ? "border-foreground bg-foreground text-background" : "border-border bg-card"}`}
+                >
+                  {value || label}
+                </button>
+              ))}
               {(filterCategory || filterColor || filterMaterial || filterBrand || filterSeason) && (
                 <button
                   onClick={() => { setFilterCategory(""); setFilterColor(""); setFilterMaterial(""); setFilterBrand(""); setFilterSeason(""); }}
@@ -1063,6 +1034,46 @@ export function AddItem({ onClose }: { onClose: () => void }) {
               )}
             </div>
           )}
+
+          {openFilterKey && (() => {
+            const setterByKey = {
+              category: setFilterCategory, color: setFilterColor, material: setFilterMaterial,
+              brand: setFilterBrand, season: setFilterSeason,
+            } as const;
+            const optionsByKey = {
+              category: filterOptions.categories, color: filterOptions.colors, material: filterOptions.materials,
+              brand: filterOptions.brands, season: filterOptions.seasons,
+            } as const;
+            const labelByKey = {
+              category: t("addItem.categoryLabel"), color: t("addItem.colorLabel"), material: t("addItem.materialLabel"),
+              brand: t("addItem.brandLabel"), season: t("addItem.seasonLabel"),
+            } as const;
+            const setter = setterByKey[openFilterKey];
+            const currentValueByKey = {
+              category: filterCategory, color: filterColor, material: filterMaterial,
+              brand: filterBrand, season: filterSeason,
+            } as const;
+            return (
+              <div className="fixed inset-0 z-[70] bg-background/80 backdrop-blur flex items-end" onClick={() => setOpenFilterKey(null)}>
+                <div onClick={(e) => e.stopPropagation()} className="w-full max-h-[70dvh] bg-card rounded-t-3xl border-t border-border p-5 flex flex-col">
+                  <p className="font-serif italic text-lg shrink-0">{labelByKey[openFilterKey]}</p>
+                  <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-1">
+                    <button
+                      onClick={() => { setter(""); setOpenFilterKey(null); }}
+                      className={`w-full text-left rounded-xl px-4 py-3 text-sm ${!currentValueByKey[openFilterKey] ? "bg-secondary/60" : ""}`}
+                    >{t("addItem.allCategory")}</button>
+                    {optionsByKey[openFilterKey].map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => { setter(opt); setOpenFilterKey(null); }}
+                        className={`w-full text-left rounded-xl px-4 py-3 text-sm ${currentValueByKey[openFilterKey] === opt ? "bg-secondary/60" : "hover:bg-secondary/40"}`}
+                      >{opt}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {filteredShared.length > 0 && (
             <>
