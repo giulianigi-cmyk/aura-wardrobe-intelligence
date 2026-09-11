@@ -755,7 +755,8 @@
     "dismissedEventsCount": "{{count}} événements ignorés",
     "removedFromCalendar": "· retiré du calendrier",
     "couldntDeleteEvent": "Impossible de supprimer cet événement",
-    "deleteEventAria": "Supprimer définitivement"
+    "deleteEventAria": "Supprimer définitivement",
+    "openOnCanvasAria": "Ouvrir sur la toile"
   },
   "aiStylist": {
     "notEnoughActivePieces_one": "Vous avez {{count}} pièce dans votre garde-robe active — ajoutez-en au moins 3 (ou restaurez-en une archivée) pour générer une tenue avec l'IA.",
