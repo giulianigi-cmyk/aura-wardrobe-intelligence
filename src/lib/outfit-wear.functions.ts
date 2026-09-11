@@ -162,9 +162,13 @@ export const confirmWearEvent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ConfirmInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: eventId, error } = await supabaseAdmin.rpc("confirm_wear_event", {
+    // context.supabase, not supabaseAdmin — the RPC's own auth.uid()
+    // check needs the actual signed-in user's session, which only the
+    // request-scoped client carries. The admin client uses the service
+    // role key with no user attached, so auth.uid() inside the function
+    // came back null every time, failing with exactly the error
+    // reported: "confirm_wear_event requires an authenticated user."
+    const { data: eventId, error } = await context.supabase.rpc("confirm_wear_event", {
       _item_ids: data.itemIds,
       _worn_at: data.wornAt,
       _occasion: data.occasion ?? null,
@@ -195,10 +199,11 @@ const CorrectInput = z.object({
 export const correctWearEventItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => CorrectInput.parse(input))
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { error } = await supabaseAdmin.rpc("correct_wear_event_item", {
+  .handler(async ({ data, context }) => {
+    // Same fix as confirmWearEvent above — context.supabase, not
+    // supabaseAdmin, so the RPC's auth.uid() check actually sees the
+    // signed-in user.
+    const { error } = await context.supabase.rpc("correct_wear_event_item", {
       _event_id: data.eventId,
       _remove_item_id: data.removeItemId,
       _replacement_item_id: data.replacementItemId ?? null,
