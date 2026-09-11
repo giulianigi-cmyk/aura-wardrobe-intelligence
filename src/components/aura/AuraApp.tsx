@@ -295,7 +295,7 @@ function Inner() {
           {screen === "color-analysis" && <PersonalColorAnalysis go={go} />}
           {screen === "avatar" && <Avatar go={go} />}
           {screen === "avatar-tryon" && <AvatarTryOn go={go} itemIds={avatarTryOnItemIds} />}
-          {screen === "log-wear" && <LogWear go={go} />}
+          {screen === "log-wear" && <LogWear go={go} openBuilder={openBuilder} />}
           {screen === "user-profile" && (
             activeUserId
               ? <UserProfile userId={activeUserId} go={go} onBack={() => setScreen(userProfileBack)} />
