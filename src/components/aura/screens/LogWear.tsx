@@ -161,7 +161,6 @@ export function LogWear({ go }: { go: (s: Screen) => void }) {
             <input
               type="file"
               accept="image/*"
-              capture="environment"
               className="hidden"
               onChange={(e) => void onPickPhoto(e.target.files?.[0] ?? null)}
             />
