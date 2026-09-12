@@ -31,6 +31,7 @@ export function TripCreate({ go, onCreated }: { go: (s: Screen) => void; onCreat
   const [startDate, setStartDate] = useState(todayIso());
   const [endDate, setEndDate] = useState(todayIso());
   const [laundryAvailable, setLaundryAvailable] = useState(false);
+  const [culturalMode, setCulturalMode] = useState(false);
 
   const [locations, setLocations] = useState<WardrobeLocation[]>([]);
   const [selectedLocationIds, setSelectedLocationIds] = useState<string[]>([]);
@@ -98,6 +99,7 @@ export function TripCreate({ go, onCreated }: { go: (s: Screen) => void; onCreat
           name: name.trim() || null,
           tripType,
           laundryAvailable,
+          culturalMode,
           sourceLocationIds,
           destinations: [{ destinationName: destinationName.trim(), latitude: destinationLat, longitude: destinationLon, startDate, endDate }],
         },
@@ -231,6 +233,28 @@ export function TripCreate({ go, onCreated }: { go: (s: Screen) => void; onCreat
             <p className="mt-1.5 text-[11px] text-muted-foreground">
               {laundryAvailable ? t("tripCreate.laundryYesHint") : t("tripCreate.laundryNoHint")}
             </p>
+          </div>
+
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">{t("tripCreate.culturalMode")}</p>
+            {/* Never inferred from destination or nationality — always
+             *  this explicit choice, asked once per trip. YES lets
+             *  local customs act as a soft ranking signal later; NO
+             *  means general cultural norms are never applied as a
+             *  preference (a venue's own genuine requirement — e.g. a
+             *  mosque's dress code — is a separate, always-respected
+             *  rule regardless of this toggle). */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCulturalMode(true)}
+                className={`flex-1 h-11 rounded-full border text-xs uppercase tracking-widest ${culturalMode ? "bg-foreground text-background border-foreground" : "border-border"}`}
+              >{t("tripCreate.yes")}</button>
+              <button
+                onClick={() => setCulturalMode(false)}
+                className={`flex-1 h-11 rounded-full border text-xs uppercase tracking-widest ${!culturalMode ? "bg-foreground text-background border-foreground" : "border-border"}`}
+              >{t("tripCreate.no")}</button>
+            </div>
+            <p className="mt-1.5 text-[11px] text-muted-foreground">{t("tripCreate.culturalModeHint")}</p>
           </div>
 
           {presets.length > 0 && (
