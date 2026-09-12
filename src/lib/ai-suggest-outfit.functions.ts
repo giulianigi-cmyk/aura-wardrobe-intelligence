@@ -6,7 +6,7 @@ import { parseAiJson } from "./ai-json";
 import { isItemAtAnyLocation } from "./wardrobe-location";
 import { isItemAllowedByDressPreferences, hasAnyPreference, type DressPreferences } from "./dress-preferences";
 import { anyItemViolatesWeather, violatesSleeveClimate, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
-import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE } from "./outfit-styling-rules";
+import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
 
 const ItemSchema = z.object({
@@ -325,6 +325,7 @@ export async function suggestOutfitCore(params: {
     BLAZER_WARMTH_PROMPT_RULE,
     BELT_BODYCON_PROMPT_RULE,
     ACCESSORY_OCCASION_PROMPT_RULE,
+    OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
     ...(detectActivityKind({ label: params.occasion, dressCode: null, minFormality: null }) === "concert"
       ? ["If the occasion is a concert, festival, DJ set or club night: NEVER include heels (pumps, stilettos, high sandals) — this is a physically demanding activity (hours standing, dancing, often outdoors), not an elegant sit-down evening. Sneakers, flat boots, or a low ankle boot are the right footwear; an ankle boot is fine in cool weather but should be avoided if it's genuinely hot instead. Build the rest of the outfit for a stylish-but-comfortable going-out look, not a black-tie dinner."]
       : []),
