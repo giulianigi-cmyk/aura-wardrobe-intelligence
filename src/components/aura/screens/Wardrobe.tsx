@@ -585,6 +585,63 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter }: {
           .select("*").eq("user_id", user.id).order("created_at", { ascending: false });
         setItems((data ?? []) as WardrobeItem[]);
       }
+
+      // Second pass, same button: fills in visual embeddings for pieces
+      // that don't have one yet — every piece added before this feature
+      // existed, plus anything the earlier fire-and-forget attempt in
+      // AddItem.tsx's save() failed on. Runs client-side (free, see the
+      // cost discussion behind this feature), one item at a time, so it
+      // never blocks the UI thread for long stretches.
+      const embedToastId = "backfill-visual-embeddings";
+      try {
+        const { data: allIds } = await supabase.from("wardrobe_items")
+          .select("id, image_url").eq("user_id", user.id).eq("archived", false);
+        const { data: embedded } = await (supabase.from("visual_embeddings" as never) as any)
+          .select("wardrobe_item_id").eq("user_id", user.id).eq("is_active", true);
+        const embeddedIds = new Set(((embedded ?? []) as { wardrobe_item_id: string }[]).map((r) => r.wardrobe_item_id));
+        const missing = ((allIds ?? []) as { id: string; image_url: string | null }[]).filter((it) => !embeddedIds.has(it.id) && it.image_url);
+
+        if (missing.length) {
+          const { computeGarmentEmbedding, EMBEDDING_MODEL_VERSION } = await import("@/lib/visual-embedding");
+          let done = 0;
+          toast.loading(t("wardrobe.toastComputingVisualFingerprints", { done, total: missing.length }), { id: embedToastId });
+          for (const it of missing) {
+            try {
+              const path = toStoragePath(it.image_url);
+              if (!path) continue;
+              const { data: urlData } = await supabase.storage.from("wardrobe").createSignedUrl(path, 300);
+              if (!urlData?.signedUrl) continue;
+              // Fetched and inlined as a data URL — the embedding model
+              // needs pixel data it can decode locally, not a remote URL
+              // it would have to fetch itself (and couldn't, cross-origin).
+              const resp = await fetch(urlData.signedUrl);
+              const blob = await resp.blob();
+              const dataUrl: string = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result));
+                reader.onerror = () => reject(reader.error);
+                reader.readAsDataURL(blob);
+              });
+              const embedding = await computeGarmentEmbedding(dataUrl);
+              await supabase.from("visual_embeddings" as never).insert({
+                wardrobe_item_id: it.id,
+                user_id: user.id,
+                embedding: `[${embedding.join(",")}]`,
+                model_version: EMBEDDING_MODEL_VERSION,
+              } as never);
+            } catch (e) {
+              console.error("[AURA wardrobe] visual embedding backfill failed for item", it.id, e);
+            }
+            done++;
+            if (done % 5 === 0 || done === missing.length) {
+              toast.loading(t("wardrobe.toastComputingVisualFingerprints", { done, total: missing.length }), { id: embedToastId });
+            }
+          }
+          toast.success(t("wardrobe.toastVisualFingerprintsDone", { count: missing.length }), { id: embedToastId });
+        }
+      } catch (e) {
+        console.error("[AURA wardrobe] visual embedding backfill pass failed", e);
+      }
     } catch (e) {
       console.error("[AURA wardrobe] update failed", e);
       toast.error(t("wardrobe.toastUpdateFailed"), { id: toastId });
