@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      avatar_tryon_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          id: string
+          item_ids: string[]
+          result_image_path: string
+          user_id: string
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          id?: string
+          item_ids: string[]
+          result_image_path: string
+          user_id: string
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          id?: string
+          item_ids?: string[]
+          result_image_path?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       batch_scans: {
         Row: {
           created_at: string
@@ -88,12 +115,16 @@ export type Database = {
           all_day: boolean
           connection_id: string
           description: string | null
+          dismissed_by_user: boolean
           end_time: string | null
           external_event_id: string
           id: string
           imported_at: string
           location: string | null
+          permanently_deleted_by_user: boolean
           raw: Json | null
+          removed_detected_at: string | null
+          removed_from_source: boolean
           start_time: string
           title: string | null
           user_id: string
@@ -102,12 +133,16 @@ export type Database = {
           all_day?: boolean
           connection_id: string
           description?: string | null
+          dismissed_by_user?: boolean
           end_time?: string | null
           external_event_id: string
           id?: string
           imported_at?: string
           location?: string | null
+          permanently_deleted_by_user?: boolean
           raw?: Json | null
+          removed_detected_at?: string | null
+          removed_from_source?: boolean
           start_time: string
           title?: string | null
           user_id: string
@@ -116,12 +151,16 @@ export type Database = {
           all_day?: boolean
           connection_id?: string
           description?: string | null
+          dismissed_by_user?: boolean
           end_time?: string | null
           external_event_id?: string
           id?: string
           imported_at?: string
           location?: string | null
+          permanently_deleted_by_user?: boolean
           raw?: Json | null
+          removed_detected_at?: string | null
+          removed_from_source?: boolean
           start_time?: string
           title?: string | null
           user_id?: string
@@ -690,6 +729,59 @@ export type Database = {
           },
         ]
       }
+      outfit_photo_detections: {
+        Row: {
+          candidates: Json
+          confirmed_at: string | null
+          created_at: string
+          detections: Json
+          id: string
+          photo_hash: string
+          photo_path: string | null
+          status: string
+          target_person: string
+          user_id: string
+          wardrobe_event_id: string | null
+          worn_at: string | null
+        }
+        Insert: {
+          candidates?: Json
+          confirmed_at?: string | null
+          created_at?: string
+          detections?: Json
+          id?: string
+          photo_hash: string
+          photo_path?: string | null
+          status?: string
+          target_person?: string
+          user_id: string
+          wardrobe_event_id?: string | null
+          worn_at?: string | null
+        }
+        Update: {
+          candidates?: Json
+          confirmed_at?: string | null
+          created_at?: string
+          detections?: Json
+          id?: string
+          photo_hash?: string
+          photo_path?: string | null
+          status?: string
+          target_person?: string
+          user_id?: string
+          wardrobe_event_id?: string | null
+          worn_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outfit_photo_detections_wardrobe_event_id_fkey"
+            columns: ["wardrobe_event_id"]
+            isOneToOne: false
+            referencedRelation: "wardrobe_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       outfit_plans: {
         Row: {
           calendar_event_id: string | null
@@ -980,6 +1072,7 @@ export type Database = {
           value: string | null
           work_days: string[]
           work_dress_code: string | null
+          work_dress_preferences: Json | null
           work_end_time: string
           work_start_time: string
         }
@@ -1017,6 +1110,7 @@ export type Database = {
           value?: string | null
           work_days?: string[]
           work_dress_code?: string | null
+          work_dress_preferences?: Json | null
           work_end_time?: string
           work_start_time?: string
         }
@@ -1054,6 +1148,7 @@ export type Database = {
           value?: string | null
           work_days?: string[]
           work_dress_code?: string | null
+          work_dress_preferences?: Json | null
           work_end_time?: string
           work_start_time?: string
         }
@@ -1368,41 +1463,102 @@ export type Database = {
           },
         ]
       }
+      trip_capsule_items: {
+        Row: {
+          added_at: string
+          id: string
+          removed_by_user: boolean
+          source: string
+          trip_id: string
+          wardrobe_item_id: string
+        }
+        Insert: {
+          added_at?: string
+          id?: string
+          removed_by_user?: boolean
+          source?: string
+          trip_id: string
+          wardrobe_item_id: string
+        }
+        Update: {
+          added_at?: string
+          id?: string
+          removed_by_user?: boolean
+          source?: string
+          trip_id?: string
+          wardrobe_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_capsule_items_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_capsule_items_wardrobe_item_id_fkey"
+            columns: ["wardrobe_item_id"]
+            isOneToOne: false
+            referencedRelation: "wardrobe_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_day_activities: {
         Row: {
           activity_date: string
           activity_type: string
+          calendar_event_id: string | null
           created_at: string
           day_segment: string | null
           destination_id: string | null
           dress_code: string | null
+          end_time: string | null
           id: string
+          location: string | null
           notes: string | null
+          start_time: string | null
           trip_id: string
         }
         Insert: {
           activity_date: string
           activity_type: string
+          calendar_event_id?: string | null
           created_at?: string
           day_segment?: string | null
           destination_id?: string | null
           dress_code?: string | null
+          end_time?: string | null
           id?: string
+          location?: string | null
           notes?: string | null
+          start_time?: string | null
           trip_id: string
         }
         Update: {
           activity_date?: string
           activity_type?: string
+          calendar_event_id?: string | null
           created_at?: string
           day_segment?: string | null
           destination_id?: string | null
           dress_code?: string | null
+          end_time?: string | null
           id?: string
+          location?: string | null
           notes?: string | null
+          start_time?: string | null
           trip_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "trip_day_activities_calendar_event_id_fkey"
+            columns: ["calendar_event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_events_cache"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "trip_day_activities_destination_id_fkey"
             columns: ["destination_id"]
@@ -1589,6 +1745,7 @@ export type Database = {
       trips: {
         Row: {
           created_at: string
+          cultural_mode: boolean | null
           id: string
           laundry_available: boolean
           name: string | null
@@ -1599,6 +1756,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          cultural_mode?: boolean | null
           id?: string
           laundry_available?: boolean
           name?: string | null
@@ -1609,11 +1767,51 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          cultural_mode?: boolean | null
           id?: string
           laundry_available?: boolean
           name?: string | null
           status?: string
           trip_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_avatar: {
+        Row: {
+          avatar_image_path: string | null
+          biometric_consent_given_at: string | null
+          biometric_consent_version: string | null
+          created_at: string
+          generation_error: string | null
+          generation_status: string
+          id: string
+          photo_path: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_image_path?: string | null
+          biometric_consent_given_at?: string | null
+          biometric_consent_version?: string | null
+          created_at?: string
+          generation_error?: string | null
+          generation_status?: string
+          id?: string
+          photo_path?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_image_path?: string | null
+          biometric_consent_given_at?: string | null
+          biometric_consent_version?: string | null
+          created_at?: string
+          generation_error?: string | null
+          generation_status?: string
+          id?: string
+          photo_path?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1703,6 +1901,191 @@ export type Database = {
         }
         Relationships: []
       }
+      valuation_brand_modifiers: {
+        Row: {
+          brand: string
+          category: string
+          evidence: string
+          id: string
+          modifier: number
+          notes: string | null
+          subcategory: string | null
+        }
+        Insert: {
+          brand: string
+          category: string
+          evidence?: string
+          id?: string
+          modifier: number
+          notes?: string | null
+          subcategory?: string | null
+        }
+        Update: {
+          brand?: string
+          category?: string
+          evidence?: string
+          id?: string
+          modifier?: number
+          notes?: string | null
+          subcategory?: string | null
+        }
+        Relationships: []
+      }
+      valuation_category_profiles: {
+        Row: {
+          category: string
+          default_iconicity: string | null
+          evidence_floor: string
+          floor: number
+          id: string
+          notes: string | null
+          subcategory: string | null
+          tau_years: number
+          wear_expected_life_wears: number
+          wear_max_penalty: number
+        }
+        Insert: {
+          category: string
+          default_iconicity?: string | null
+          evidence_floor: string
+          floor: number
+          id?: string
+          notes?: string | null
+          subcategory?: string | null
+          tau_years: number
+          wear_expected_life_wears: number
+          wear_max_penalty: number
+        }
+        Update: {
+          category?: string
+          default_iconicity?: string | null
+          evidence_floor?: string
+          floor?: number
+          id?: string
+          notes?: string | null
+          subcategory?: string | null
+          tau_years?: number
+          wear_expected_life_wears?: number
+          wear_max_penalty?: number
+        }
+        Relationships: []
+      }
+      valuation_material_modifiers: {
+        Row: {
+          material: string
+          modifier: number
+        }
+        Insert: {
+          material: string
+          modifier: number
+        }
+        Update: {
+          material?: string
+          modifier?: number
+        }
+        Relationships: []
+      }
+      valuation_model_profiles: {
+        Row: {
+          brand: string
+          category: string
+          ceiling: number
+          evidence_tier: string
+          floor: number
+          id: string
+          model: string
+          notes: string
+          subcategory: string | null
+          tau_years: number
+          wear_expected_life_wears: number
+          wear_max_penalty: number
+        }
+        Insert: {
+          brand: string
+          category: string
+          ceiling?: number
+          evidence_tier: string
+          floor: number
+          id?: string
+          model: string
+          notes: string
+          subcategory?: string | null
+          tau_years: number
+          wear_expected_life_wears: number
+          wear_max_penalty: number
+        }
+        Update: {
+          brand?: string
+          category?: string
+          ceiling?: number
+          evidence_tier?: string
+          floor?: number
+          id?: string
+          model?: string
+          notes?: string
+          subcategory?: string | null
+          tau_years?: number
+          wear_expected_life_wears?: number
+          wear_max_penalty?: number
+        }
+        Relationships: []
+      }
+      valuation_size_modifiers: {
+        Row: {
+          category: string
+          modifier: number
+          size_class: string
+        }
+        Insert: {
+          category: string
+          modifier: number
+          size_class: string
+        }
+        Update: {
+          category?: string
+          modifier?: number
+          size_class?: string
+        }
+        Relationships: []
+      }
+      visual_embeddings: {
+        Row: {
+          created_at: string
+          embedding: string
+          id: string
+          is_active: boolean
+          model_version: string
+          user_id: string
+          wardrobe_item_id: string
+        }
+        Insert: {
+          created_at?: string
+          embedding: string
+          id?: string
+          is_active?: boolean
+          model_version?: string
+          user_id: string
+          wardrobe_item_id: string
+        }
+        Update: {
+          created_at?: string
+          embedding?: string
+          id?: string
+          is_active?: boolean
+          model_version?: string
+          user_id?: string
+          wardrobe_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visual_embeddings_wardrobe_item_id_fkey"
+            columns: ["wardrobe_item_id"]
+            isOneToOne: false
+            referencedRelation: "wardrobe_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wardrobe_event_items: {
         Row: {
           event_id: string
@@ -1749,6 +2132,7 @@ export type Database = {
           outfit_id: string | null
           outfit_plan_id: string | null
           repeated_from_event_id: string | null
+          source_photo_detection_id: string | null
           temperature: number | null
           user_id: string
           weather_snapshot: Json | null
@@ -1768,6 +2152,7 @@ export type Database = {
           outfit_id?: string | null
           outfit_plan_id?: string | null
           repeated_from_event_id?: string | null
+          source_photo_detection_id?: string | null
           temperature?: number | null
           user_id: string
           weather_snapshot?: Json | null
@@ -1787,6 +2172,7 @@ export type Database = {
           outfit_id?: string | null
           outfit_plan_id?: string | null
           repeated_from_event_id?: string | null
+          source_photo_detection_id?: string | null
           temperature?: number | null
           user_id?: string
           weather_snapshot?: Json | null
@@ -1813,12 +2199,101 @@ export type Database = {
             referencedRelation: "wardrobe_events"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "wardrobe_events_source_photo_detection_id_fkey"
+            columns: ["source_photo_detection_id"]
+            isOneToOne: false
+            referencedRelation: "outfit_photo_detections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wardrobe_item_valuations: {
+        Row: {
+          anchor_type: string | null
+          anchor_value: number | null
+          breakdown: Json | null
+          calendar_age_years: number | null
+          computed_at: string
+          cost_per_wear: number | null
+          data_confidence: string | null
+          engine_version: string
+          id: string
+          is_active: boolean
+          level: string
+          market_curve_value: number | null
+          market_premium: boolean
+          market_value_factor: number | null
+          resale_high: number | null
+          resale_low: number | null
+          retention_factor: number | null
+          user_id: string
+          valuation_confidence: string | null
+          wardrobe_item_id: string
+          wear_condition_factor: number | null
+        }
+        Insert: {
+          anchor_type?: string | null
+          anchor_value?: number | null
+          breakdown?: Json | null
+          calendar_age_years?: number | null
+          computed_at?: string
+          cost_per_wear?: number | null
+          data_confidence?: string | null
+          engine_version?: string
+          id?: string
+          is_active?: boolean
+          level: string
+          market_curve_value?: number | null
+          market_premium?: boolean
+          market_value_factor?: number | null
+          resale_high?: number | null
+          resale_low?: number | null
+          retention_factor?: number | null
+          user_id: string
+          valuation_confidence?: string | null
+          wardrobe_item_id: string
+          wear_condition_factor?: number | null
+        }
+        Update: {
+          anchor_type?: string | null
+          anchor_value?: number | null
+          breakdown?: Json | null
+          calendar_age_years?: number | null
+          computed_at?: string
+          cost_per_wear?: number | null
+          data_confidence?: string | null
+          engine_version?: string
+          id?: string
+          is_active?: boolean
+          level?: string
+          market_curve_value?: number | null
+          market_premium?: boolean
+          market_value_factor?: number | null
+          resale_high?: number | null
+          resale_low?: number | null
+          retention_factor?: number | null
+          user_id?: string
+          valuation_confidence?: string | null
+          wardrobe_item_id?: string
+          wear_condition_factor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wardrobe_item_valuations_wardrobe_item_id_fkey"
+            columns: ["wardrobe_item_id"]
+            isOneToOne: false
+            referencedRelation: "wardrobe_items"
+            referencedColumns: ["id"]
+          },
         ]
       }
       wardrobe_items: {
         Row: {
+          active_loan_id: string | null
           archived: boolean
           attrs_backfilled_at: string | null
+          bag_size_class: string | null
           brand: string | null
           category: string | null
           closure: string | null
@@ -1826,17 +2301,24 @@ export type Database = {
           colors: string[]
           created_at: string
           currency: string | null
+          current_retail_price: number | null
+          current_retail_source: string | null
+          current_retail_updated_at: string | null
           day_evening: string | null
           fit: string | null
           formality: number | null
           gender: string | null
           heel_height: string | null
+          historical_retail_price: number | null
+          historical_retail_source: string | null
+          iconicity: string | null
           id: string
           image_url: string
           last_worn: string | null
           length: string | null
           location_id: string | null
           material: string[]
+          model: string | null
           occasion: string | null
           price: number | null
           product_id: string | null
@@ -1855,8 +2337,10 @@ export type Database = {
           worn_count: number
         }
         Insert: {
+          active_loan_id?: string | null
           archived?: boolean
           attrs_backfilled_at?: string | null
+          bag_size_class?: string | null
           brand?: string | null
           category?: string | null
           closure?: string | null
@@ -1864,17 +2348,24 @@ export type Database = {
           colors?: string[]
           created_at?: string
           currency?: string | null
+          current_retail_price?: number | null
+          current_retail_source?: string | null
+          current_retail_updated_at?: string | null
           day_evening?: string | null
           fit?: string | null
           formality?: number | null
           gender?: string | null
           heel_height?: string | null
+          historical_retail_price?: number | null
+          historical_retail_source?: string | null
+          iconicity?: string | null
           id?: string
           image_url: string
           last_worn?: string | null
           length?: string | null
           location_id?: string | null
           material?: string[]
+          model?: string | null
           occasion?: string | null
           price?: number | null
           product_id?: string | null
@@ -1893,8 +2384,10 @@ export type Database = {
           worn_count?: number
         }
         Update: {
+          active_loan_id?: string | null
           archived?: boolean
           attrs_backfilled_at?: string | null
+          bag_size_class?: string | null
           brand?: string | null
           category?: string | null
           closure?: string | null
@@ -1902,17 +2395,24 @@ export type Database = {
           colors?: string[]
           created_at?: string
           currency?: string | null
+          current_retail_price?: number | null
+          current_retail_source?: string | null
+          current_retail_updated_at?: string | null
           day_evening?: string | null
           fit?: string | null
           formality?: number | null
           gender?: string | null
           heel_height?: string | null
+          historical_retail_price?: number | null
+          historical_retail_source?: string | null
+          iconicity?: string | null
           id?: string
           image_url?: string
           last_worn?: string | null
           length?: string | null
           location_id?: string | null
           material?: string[]
+          model?: string | null
           occasion?: string | null
           price?: number | null
           product_id?: string | null
@@ -1932,6 +2432,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "wardrobe_items_active_loan_id_fkey"
+            columns: ["active_loan_id"]
+            isOneToOne: false
+            referencedRelation: "wardrobe_loans"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "wardrobe_items_location_id_fkey"
             columns: ["location_id"]
             isOneToOne: false
@@ -1943,6 +2450,57 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wardrobe_loans: {
+        Row: {
+          borrower_name: string
+          created_at: string
+          id: string
+          item_id: string
+          loaned_at: string
+          returned_at: string | null
+          returned_to_location_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          borrower_name: string
+          created_at?: string
+          id?: string
+          item_id: string
+          loaned_at?: string
+          returned_at?: string | null
+          returned_to_location_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          borrower_name?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          loaned_at?: string
+          returned_at?: string | null
+          returned_to_location_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wardrobe_loans_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "wardrobe_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wardrobe_loans_returned_to_location_id_fkey"
+            columns: ["returned_to_location_id"]
+            isOneToOne: false
+            referencedRelation: "wardrobe_locations"
             referencedColumns: ["id"]
           },
         ]
@@ -1974,153 +2532,6 @@ export type Database = {
           name?: string
           updated_at?: string
           user_id?: string
-        }
-        Relationships: []
-      }
-      valuation_category_profiles: {
-        Row: {
-          category: string
-          default_iconicity: string | null
-          evidence_floor: string
-          floor: number
-          id: string
-          notes: string | null
-          subcategory: string | null
-          tau_years: number
-          wear_expected_life_wears: number
-          wear_max_penalty: number
-        }
-        Insert: {
-          category: string
-          default_iconicity?: string | null
-          evidence_floor: string
-          floor: number
-          id?: string
-          notes?: string | null
-          subcategory?: string | null
-          tau_years: number
-          wear_expected_life_wears: number
-          wear_max_penalty: number
-        }
-        Update: {
-          category?: string
-          default_iconicity?: string | null
-          evidence_floor?: string
-          floor?: number
-          id?: string
-          notes?: string | null
-          subcategory?: string | null
-          tau_years?: number
-          wear_expected_life_wears?: number
-          wear_max_penalty?: number
-        }
-        Relationships: []
-      }
-      valuation_brand_modifiers: {
-        Row: {
-          brand: string
-          category: string
-          evidence: string
-          id: string
-          modifier: number
-          notes: string | null
-          subcategory: string | null
-        }
-        Insert: {
-          brand: string
-          category: string
-          evidence: string
-          id?: string
-          modifier: number
-          notes?: string | null
-          subcategory?: string | null
-        }
-        Update: {
-          brand?: string
-          category?: string
-          evidence?: string
-          id?: string
-          modifier?: number
-          notes?: string | null
-          subcategory?: string | null
-        }
-        Relationships: []
-      }
-      valuation_material_modifiers: {
-        Row: {
-          material: string
-          modifier: number
-        }
-        Insert: {
-          material: string
-          modifier: number
-        }
-        Update: {
-          material?: string
-          modifier?: number
-        }
-        Relationships: []
-      }
-      valuation_model_profiles: {
-        Row: {
-          brand: string
-          category: string
-          ceiling: number
-          evidence_tier: string
-          floor: number
-          id: string
-          model: string
-          notes: string
-          subcategory: string | null
-          tau_years: number
-          wear_expected_life_wears: number
-          wear_max_penalty: number
-        }
-        Insert: {
-          brand: string
-          category: string
-          ceiling: number
-          evidence_tier: string
-          floor: number
-          id?: string
-          model: string
-          notes: string
-          subcategory?: string | null
-          tau_years: number
-          wear_expected_life_wears: number
-          wear_max_penalty: number
-        }
-        Update: {
-          brand?: string
-          category?: string
-          ceiling?: number
-          evidence_tier?: string
-          floor?: number
-          id?: string
-          model?: string
-          notes?: string
-          subcategory?: string | null
-          tau_years?: number
-          wear_expected_life_wears?: number
-          wear_max_penalty?: number
-        }
-        Relationships: []
-      }
-      valuation_size_modifiers: {
-        Row: {
-          category: string
-          modifier: number
-          size_class: string
-        }
-        Insert: {
-          category: string
-          modifier: number
-          size_class: string
-        }
-        Update: {
-          category?: string
-          modifier?: number
-          size_class?: string
         }
         Relationships: []
       }
@@ -2242,6 +2653,26 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      confirm_wear_event: {
+        Args: {
+          _item_ids: string[]
+          _occasion?: string
+          _outfit_plan_id?: string
+          _source_photo_detection_id?: string
+          _temperature?: number
+          _weather_snapshot?: Json
+          _worn_at: string
+        }
+        Returns: string
+      }
+      correct_wear_event_item: {
+        Args: {
+          _event_id: string
+          _remove_item_id: string
+          _replacement_item_id?: string
+        }
+        Returns: undefined
+      }
       create_group_conversation: {
         Args: { _members: string[] }
         Returns: string
@@ -2250,6 +2681,13 @@ export type Database = {
       effective_style_confidence: {
         Args: { _confidence: number; _last_seen: string }
         Returns: number
+      }
+      find_visually_similar_items: {
+        Args: { _limit?: number; _query_embedding: string }
+        Returns: {
+          visual_similarity: number
+          wardrobe_item_id: string
+        }[]
       }
       get_conversation_messages: {
         Args: { _conversation_id: string; _limit?: number }
@@ -2446,12 +2884,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2475,11 +2913,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2500,11 +2938,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2525,11 +2963,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2542,11 +2980,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
