@@ -1062,7 +1062,7 @@ export function AddItem({ onClose, initialGarment }: {
                     <button
                       onClick={() => { setter(""); setOpenFilterKey(null); }}
                       className={`w-full text-left rounded-xl px-4 py-3 text-sm ${!currentValueByKey[openFilterKey] ? "bg-secondary/60" : ""}`}
-                    >{t("addItem.allCategory")}</button>
+                    >{t("wardrobe.allCategory")}</button>
                     {optionsByKey[openFilterKey].map((opt) => (
                       <button
                         key={opt}
