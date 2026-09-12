@@ -1181,7 +1181,9 @@
     "laundryNoHint": "Un ensemble frais pour chaque jour du voyage.",
     "applyEssentialsList": "Appliquer une liste d'essentiels",
     "setUpEssentialsListHint": "Configurez une liste d'essentiels (documents, chargeur…) à réutiliser à chaque voyage",
-    "createTrip": "Créer le voyage"
+    "createTrip": "Créer le voyage",
+    "culturalMode": "Sensibilité culturelle locale",
+    "culturalModeHint": "Si oui, AURA laisse les coutumes locales influencer légèrement le classement des tenues pendant ce voyage — jamais une règle figée, et toute exigence réelle d'un lieu (ex. le code vestimentaire d'une mosquée) reste toujours respectée, quel que soit ce choix."
   },
   "outfitScan": {
     "lookingAtOutfit": "Analyse de votre tenue…",
