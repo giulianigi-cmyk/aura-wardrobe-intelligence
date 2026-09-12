@@ -185,7 +185,15 @@ function materialOf(it: ProductLibraryItem | SharedLibraryItem): string | null {
   return m ?? null;
 }
 
-export function AddItem({ onClose }: { onClose: () => void }) {
+export function AddItem({ onClose, initialGarment }: {
+  onClose: () => void;
+  /** Set only when arriving here from LogWear's "add to wardrobe" on an
+   *  outfit-photo detection that had no wardrobe match — a cropped
+   *  photo of just that garment plus whatever the detector already
+   *  knew, so the person doesn't retype attributes AURA already
+   *  extracted once. */
+  initialGarment?: { photoDataUrl: string; category?: string; colors?: string[]; materials?: string[] } | null;
+}) {
   const { t } = useTranslation();
   const { loading: authLoading } = useAuth();
   const analyze = useServerFn(analyzeWardrobeImage);
@@ -362,6 +370,26 @@ export function AddItem({ onClose }: { onClose: () => void }) {
       });
     setStage((s) => (s === "analyze" ? "idle" : s));
   };
+
+  // Runs once, only when arriving here with a garment already cropped
+  // out of an outfit photo (see initialGarment above) — converts the
+  // data URL back into a File so it can go through the exact same
+  // pipeline as a normal camera capture, pre-filled with what the
+  // detector already knew instead of starting blank.
+  useEffect(() => {
+    if (!initialGarment) return;
+    void (async () => {
+      const blob = await (await fetch(initialGarment.photoDataUrl)).blob();
+      const file = new File([blob], "outfit-garment.jpg", { type: blob.type || "image/jpeg" });
+      await runPipeline(file, {
+        source: "photo",
+        category: initialGarment.category,
+        colors: initialGarment.colors,
+        materials: initialGarment.materials,
+      });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onPick = async (f: File | null) => {
     if (!f) return;
@@ -898,7 +926,7 @@ export function AddItem({ onClose }: { onClose: () => void }) {
           </div>
 
                     <button
-            onClick={() => setStep("library")}
+            onClick={() => { (document.activeElement as HTMLElement | null)?.blur(); setStep("library"); }}
             className="mb-3 w-full h-14 rounded-full border border-foreground/15 bg-secondary/40 flex items-center justify-center gap-2 active:scale-[0.98] transition"
           >
             <Search size={16} />
@@ -922,7 +950,7 @@ export function AddItem({ onClose }: { onClose: () => void }) {
               <span className="text-[10px] uppercase tracking-widest">{t("addItem.chooseFile")}</span>
             </button>
             <button
-              onClick={() => setStep("url")}
+              onClick={() => { (document.activeElement as HTMLElement | null)?.blur(); setStep("url"); }}
               className="rounded-2xl border border-border bg-card py-4 flex flex-col items-center gap-1.5 active:scale-95 transition"
             >
               <LinkIcon size={16} />
@@ -969,7 +997,7 @@ export function AddItem({ onClose }: { onClose: () => void }) {
             {t("addItem.searchButton")}
           </button>
           <button
-            onClick={() => setStep("capture")}
+            onClick={() => { (document.activeElement as HTMLElement | null)?.blur(); setStep("capture"); }}
             className="mt-3 w-full h-10 rounded-full border border-border text-xs uppercase tracking-[0.3em]"
           >
             {t("addItem.back")}
@@ -1164,7 +1192,7 @@ export function AddItem({ onClose }: { onClose: () => void }) {
               {t("addItem.importProduct")}
             </button>
             <button
-              onClick={() => setStep("capture")}
+              onClick={() => { (document.activeElement as HTMLElement | null)?.blur(); setStep("capture"); }}
               className="mt-3 w-full h-10 rounded-full border border-border text-xs uppercase tracking-[0.3em]"
             >
               {t("addItem.back")}
