@@ -127,6 +127,16 @@ function Inner() {
     setScreen("builder");
   };
 
+  const [addItemInitialGarment, setAddItemInitialGarment] = useState<{ photoDataUrl: string; category?: string; colors?: string[]; materials?: string[] } | null>(null);
+  /** From LogWear: a detection with no wardrobe match, cropped to just
+   *  that garment — hands it straight to "add a piece" instead of a
+   *  blank form, so buy-it-online or add-it-here doesn't mean retyping
+   *  what AURA already saw. */
+  const openAddItemWithGarment = (garment: { photoDataUrl: string; category?: string; colors?: string[]; materials?: string[] }) => {
+    setAddItemInitialGarment(garment);
+    setScreen("add");
+  };
+
   const openStylistChat = (init: NonNullable<StylistChatInit>) => {
     setStylistChatInit(init);
     setScreen("stylist-chat");
@@ -253,7 +263,12 @@ function Inner() {
           {screen === "home" && <Home go={go} />}
                     {screen === "wardrobe" && <Wardrobe go={go} gapFilter={wardrobeGapFilter} onClearGapFilter={() => setWardrobeGapFilter(null)} />}
 
-          {screen === "add" && <AddItem onClose={() => go("wardrobe")} />}
+          {screen === "add" && (
+            <AddItem
+              onClose={() => { setAddItemInitialGarment(null); go("wardrobe"); }}
+              initialGarment={addItemInitialGarment}
+            />
+          )}
           {screen === "ai" && <AIStylist go={go} openBuilder={openBuilder} openAvatarTryOn={openAvatarTryOn} />}
           {screen === "stylist-chat" && <StylistChat go={go} openBuilder={openBuilder} initialMessage={stylistChatInit} />}
           {screen === "outfit-scan" && <OutfitScan go={go} />}
@@ -295,7 +310,7 @@ function Inner() {
           {screen === "color-analysis" && <PersonalColorAnalysis go={go} />}
           {screen === "avatar" && <Avatar go={go} />}
           {screen === "avatar-tryon" && <AvatarTryOn go={go} itemIds={avatarTryOnItemIds} />}
-          {screen === "log-wear" && <LogWear go={go} openBuilder={openBuilder} />}
+          {screen === "log-wear" && <LogWear go={go} openBuilder={openBuilder} openAddItemWithGarment={openAddItemWithGarment} />}
           {screen === "user-profile" && (
             activeUserId
               ? <UserProfile userId={activeUserId} go={go} onBack={() => setScreen(userProfileBack)} />
