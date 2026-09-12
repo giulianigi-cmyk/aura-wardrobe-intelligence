@@ -163,6 +163,63 @@ async function enrichWithCandidatePhotos(supabaseAdmin: any, row: any) {
   return { ...row, photoUrl, itemPhotos };
 }
 
+const RefineVisualInput = z.object({
+  photoDetectionId: z.string().uuid(),
+  detections: z.array(z.object({
+    detectionId: z.string(),
+    category: z.string(),
+    embedding: z.array(z.number()).length(768),
+  })),
+});
+
+/** Second pass, called from the client after it has cropped each
+ *  detected garment out of the photo and computed its visual embedding
+ *  (both happen in the browser — see visual-embedding.ts and the
+ *  client/server cost split behind this feature). The model itself
+ *  never runs here; this only does the nearest-neighbor search via
+ *  pgvector, which needs to happen server-side because it has to see
+ *  every wardrobe item's stored embedding, not just the ones already
+ *  sitting in the browser's memory.
+ *
+ *  Returns per-detection visual candidates ALONGSIDE the existing
+ *  attribute-based ones — additive, not a replacement. The client
+ *  blends the two; scoreMatch()/findTopMatches() in outfit-dedupe.ts
+ *  are untouched by this function. */
+export const refineDetectionWithVisualSimilarity = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => RefineVisualInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const results: { detectionId: string; wardrobeItemId: string; visualSimilarity: number }[] = [];
+
+    for (const d of data.detections) {
+      const { data: matches, error } = await context.supabase.rpc("find_visually_similar_items", {
+        _query_embedding: `[${d.embedding.join(",")}]`,
+        _limit: 5,
+      });
+      if (error) {
+        console.error("[AURA visual-match] pgvector search failed for detection", d.detectionId, error);
+        continue;
+      }
+      const matchedIds = ((matches ?? []) as { wardrobe_item_id: string; visual_similarity: number }[]).map((m) => m.wardrobe_item_id);
+      if (!matchedIds.length) continue;
+
+      // A strong visual match on the wrong category is almost certainly
+      // noise (a shoe's leather texture resembling a bag's, say) — the
+      // category the detector already assigned is a cheap, reliable
+      // filter before trusting the visual score at all.
+      const { data: categoryRows } = await (context.supabase.from("wardrobe_items" as never) as any)
+        .select("id, category").in("id", matchedIds);
+      const categoryById = new Map(((categoryRows ?? []) as { id: string; category: string }[]).map((r) => [r.id, r.category]));
+
+      for (const m of (matches ?? []) as { wardrobe_item_id: string; visual_similarity: number }[]) {
+        if (categoryById.get(m.wardrobe_item_id) !== d.category) continue;
+        results.push({ detectionId: d.detectionId, wardrobeItemId: m.wardrobe_item_id, visualSimilarity: m.visual_similarity });
+      }
+    }
+
+    return { ok: true as const, visualCandidates: results };
+  });
+
 const ConfirmInput = z.object({
   photoDetectionId: z.string().uuid().nullable().optional(),
   itemIds: z.array(z.string().uuid()).min(1),
