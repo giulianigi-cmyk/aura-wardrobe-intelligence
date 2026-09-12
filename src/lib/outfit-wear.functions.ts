@@ -284,9 +284,23 @@ export const correctWearEventItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => CorrectInput.parse(input))
   .handler(async ({ data, context }) => {
-    // Same fix as confirmWearEvent above — context.supabase, not
-    // supabaseAdmin, so the RPC's auth.uid() check actually sees the
-    // signed-in user.
+    // Verify the wear event and both item ids belong to the caller
+    // before the RPC touches anything (the SQL function checks too).
+    const { data: ev, error: evErr } = await (context.supabase.from("wardrobe_events" as never) as any)
+      .select("id").eq("id", data.eventId).eq("user_id", context.userId).maybeSingle();
+    if (evErr) return { ok: false as const, error: evErr.message };
+    if (!ev) return { ok: false as const, error: "Event not found or does not belong to the current user" };
+
+    const itemIds = [data.removeItemId, ...(data.replacementItemId ? [data.replacementItemId] : [])];
+    const { data: ownedItems, error: ownErr } = await (context.supabase.from("wardrobe_items" as never) as any)
+      .select("id").eq("user_id", context.userId).in("id", itemIds);
+    if (ownErr) return { ok: false as const, error: ownErr.message };
+    if ((ownedItems ?? []).length !== new Set(itemIds).size) {
+      return { ok: false as const, error: "One or more items do not belong to the current user" };
+    }
+
+    // context.supabase, not supabaseAdmin, so the RPC's auth.uid() check
+    // actually sees the signed-in user.
     const { error } = await context.supabase.rpc("correct_wear_event_item", {
       _event_id: data.eventId,
       _remove_item_id: data.removeItemId,
