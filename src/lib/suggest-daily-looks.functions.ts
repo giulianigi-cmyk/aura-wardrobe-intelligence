@@ -467,8 +467,15 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
           "",
           `IMPORTANT — this is a retry. Produce ONLY curated looks for these missing occasions: ${missingOccasions.join(", ")}. Do not repeat "today" or any curated look already produced.`,
         ].join("\n");
+        // No .max() here on purpose — it used to reject the ENTIRE retry
+        // the moment the model returned even one look more than strictly
+        // missing (a "too_big" schema failure), discarding valid looks
+        // along with it. The loop below already filters to only the
+        // occasions actually missing and only valid looks, so an extra
+        // look from the model is simply ignored there instead of being
+        // treated as a reason to throw everything away.
         const RetryOutputSchema = z.object({
-          curated: z.array(LookSchema).min(1).max(missingOccasions.length),
+          curated: z.array(LookSchema).min(1),
         });
 
         try {
