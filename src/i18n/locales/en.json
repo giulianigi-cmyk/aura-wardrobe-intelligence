@@ -1745,6 +1745,11 @@
     "doneTitle": "Logged",
     "doneBody": "Your wear history and cost-per-wear just updated.",
     "backToCloset": "Back to closet",
-    "openOnCanvas": "Open on canvas"
+    "openOnCanvas": "Open on canvas",
+    "searchWardrobe": "Search wardrobe",
+    "viewPhotoAria": "View photo",
+    "closeAria": "Close",
+    "searchPlaceholder": "Search by brand, color, category…",
+    "addToWardrobe": "Add to wardrobe"
   }
 }
