@@ -1745,6 +1745,11 @@
     "doneTitle": "Registrado",
     "doneBody": "Tu historial de uso y coste por uso se acaban de actualizar.",
     "backToCloset": "Volver al armario",
-    "openOnCanvas": "Abrir en el lienzo"
+    "openOnCanvas": "Abrir en el lienzo",
+    "searchWardrobe": "Buscar en el armario",
+    "viewPhotoAria": "Ver foto",
+    "closeAria": "Cerrar",
+    "searchPlaceholder": "Buscar por marca, color, categoría…",
+    "addToWardrobe": "Añadir al armario"
   }
 }
