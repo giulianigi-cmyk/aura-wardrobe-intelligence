@@ -19,7 +19,7 @@ import type { WardrobeItem } from "@/lib/aura-types";
 import type { Screen } from "../AuraApp";
 
 type Verdict = "certain" | "maybe" | "new";
-type Candidate = { wardrobeItemId: string; matchScore: number; verdict: Verdict };
+type Candidate = { detectionId: string; wardrobeItemId: string; matchScore: number; verdict: Verdict };
 type Detection = {
   detectionId: string;
   category: string;

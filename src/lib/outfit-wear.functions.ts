@@ -31,9 +31,9 @@ type Detection = {
   bbox: { x: number; y: number; width: number; height: number };
   description: string;
   detectionConfidence: number;
-  sleeveLength: string;
-  length: string;
-  fit: string;
+  sleeveLength?: string;
+  length?: string;
+  fit?: string;
 };
 
 const StartInput = z.object({

@@ -16,7 +16,7 @@ export async function removeBackgroundClient(
     // reasons. Trades processing time for accuracy; there's no
     // configuration that guarantees a clean hole every time, this only
     // improves the odds.
-    const blob = await removeBackground(imageDataUrl, { model: "large" });
+    const blob = await removeBackground(imageDataUrl, { model: "isnet" });
     const dataUrl: string = await new Promise((resolve, reject) => {
       const r = new FileReader();
       r.onload = () => resolve(r.result as string);
