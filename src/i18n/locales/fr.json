@@ -399,7 +399,9 @@
       "jumbo": "Jumbo"
     },
     "marketPremiumNote": "Estimation supérieure au prix de vente — basée sur des données de marché spécifiques à ce modèle, pas un calcul générique.",
-    "logWearLink": "Qu'ai-je porté ?"
+    "logWearLink": "Qu'ai-je porté ?",
+    "toastComputingVisualFingerprints": "Calcul des empreintes visuelles — {{done}}/{{total}}…",
+    "toastVisualFingerprintsDone": "Empreintes visuelles prêtes pour {{count}} pièces"
   },
   "addItem": {
     "toastSelectImage": "Veuillez sélectionner une image",
