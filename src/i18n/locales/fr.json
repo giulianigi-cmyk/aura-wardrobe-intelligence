@@ -1284,7 +1284,12 @@
     "doneTitle": "Enregistré",
     "doneBody": "Votre historique de port et coût par port viennent d'être mis à jour.",
     "backToCloset": "Retour au dressing",
-    "openOnCanvas": "Ouvrir sur la toile"
+    "openOnCanvas": "Ouvrir sur la toile",
+    "searchWardrobe": "Chercher dans le dressing",
+    "viewPhotoAria": "Voir la photo",
+    "closeAria": "Fermer",
+    "searchPlaceholder": "Rechercher par marque, couleur, catégorie…",
+    "addToWardrobe": "Ajouter au dressing"
   },
   "dressPrefs": {
     "dressPreferences": "Préférences vestimentaires",
