@@ -14,7 +14,7 @@ import { ArrowLeft, Loader2, Check, HelpCircle, Plus, ChevronDown, ChevronUp, Se
 import { startOutfitPhotoDetection, confirmWearEvent } from "@/lib/outfit-wear.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
+import { resolveWardrobeUrls, thumbSrc } from "@/lib/wardrobe-image";
 import type { WardrobeItem } from "@/lib/aura-types";
 import type { Screen } from "../AuraApp";
 
@@ -109,6 +109,7 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
   const [zoomedPhoto, setZoomedPhoto] = useState<string | null>(null);
   const [searchingForDetectionId, setSearchingForDetectionId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchColumns, setSearchColumns] = useState<2 | 3>(3);
   const [wardrobe, setWardrobe] = useState<WardrobeItem[]>([]);
   const [wardrobeUrls, setWardrobeUrls] = useState<Record<string, string>>({});
   const [croppingDetectionId, setCroppingDetectionId] = useState<string | null>(null);
@@ -133,6 +134,13 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
 
   const candidatesByDetection = useMemo(() => {
     const map: Record<string, Candidate[]> = {};
+    // Never hidden by verdict — the match score is attribute-based, not
+    // visual, so a genuinely correct item can easily score as low as
+    // 40-50% (no detected brand, no material overlap) while a real
+    // mismatch can occasionally do the same. Hiding low scores outright
+    // was tried and reverted: it hid correct matches at least as often
+    // as it hid wrong ones. What actually matters is never treating a
+    // low score as settled — see the "certain"-only auto-confirm below.
     for (const c of result?.candidates ?? []) {
       (map[c.detectionId] ??= []).push(c);
     }
@@ -159,7 +167,15 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
 
       const initial: Record<string, Selection> = {};
       for (const d of det.detections) {
-        const cands = (det.candidates as Candidate[]).filter((c) => c.detectionId === d.detectionId).sort((a, b) => b.matchScore - a.matchScore);
+        // Every positive-score candidate stays visible — see the note on
+        // candidatesByDetection above for why a low score alone was
+        // dropped as an exclusion signal. Only a "certain" (>=90%) match
+        // gets pre-confirmed automatically; anything else — including a
+        // correct item that only scored 50% — is shown for the person to
+        // look at and confirm themselves, never silently hidden.
+        const cands = (det.candidates as Candidate[])
+          .filter((c) => c.detectionId === d.detectionId)
+          .sort((a, b) => b.matchScore - a.matchScore);
         const top = cands[0];
         if (top?.verdict === "certain") {
           initial[d.detectionId] = { chosenItemId: top.wardrobeItemId, confirmed: true, candidateIndex: 0 };
@@ -193,8 +209,7 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
   };
 
   const pickManualItem = (detectionId: string, item: WardrobeItem) => {
-    const path = toStoragePath(item.image_url);
-    const photo = path ? wardrobeUrls[path] : null;
+    const photo = thumbSrc(item, wardrobeUrls) || null;
     setSelections((prev) => ({
       ...prev,
       [detectionId]: {
@@ -401,18 +416,41 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
                   <button onClick={() => setSearchingForDetectionId(null)} className="h-10 w-10 rounded-full border border-border flex items-center justify-center">
                     <X size={15} />
                   </button>
-                  <input
-                    autoFocus
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={t("logWear.searchPlaceholder")}
-                    className="flex-1 bg-secondary/60 rounded-full px-4 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
-                  />
+                  <div className="flex-1 rounded-full bg-secondary/60 flex items-center px-4 py-2.5">
+                    <Search size={14} className="text-muted-foreground shrink-0" />
+                    <input
+                      autoFocus
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder={t("logWear.searchPlaceholder")}
+                      className="flex-1 ml-2 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                    />
+                  </div>
                 </div>
-                <div className="mt-4 flex-1 min-h-0 overflow-y-auto grid grid-cols-3 gap-2">
+                <div className="mt-4 flex items-center justify-between shrink-0">
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+                    {t("logWear.itemsFound")} · {filteredWardrobe.length}
+                  </p>
+                  <div className="flex items-center gap-1 rounded-full border border-border p-0.5">
+                    <button
+                      onClick={() => setSearchColumns(2)}
+                      className={`rounded-full px-2.5 py-1 text-[10px] ${searchColumns === 2 ? "bg-foreground text-background" : "text-muted-foreground"}`}
+                    >2</button>
+                    <button
+                      onClick={() => setSearchColumns(3)}
+                      className={`rounded-full px-2.5 py-1 text-[10px] ${searchColumns === 3 ? "bg-foreground text-background" : "text-muted-foreground"}`}
+                    >3</button>
+                  </div>
+                </div>
+                <div className={`mt-3 flex-1 min-h-0 overflow-y-auto grid gap-2 ${searchColumns === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
                   {filteredWardrobe.map((item) => {
-                    const path = toStoragePath(item.image_url);
-                    const src = path ? wardrobeUrls[path] : null;
+                    // Same helper Wardrobe.tsx's own grid uses — a manual
+                    // path lookup here previously ignored thumbnail_path
+                    // entirely, and for a wardrobe where most pieces only
+                    // had a thumbnail signed (not the full image under
+                    // that exact key), the grid rendered as a wall of
+                    // empty bordered squares instead of photos.
+                    const src = thumbSrc(item, wardrobeUrls);
                     return (
                       <button
                         key={item.id}
