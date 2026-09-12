@@ -4,7 +4,7 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
-import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE } from "./outfit-styling-rules";
+import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE } from "./outfit-styling-rules";
 import { isItemAllowedByDressPreferences, coversLegs, coversArms, type DressPreferences } from "./dress-preferences";
 import { isItemAtLocation } from "./wardrobe-location";
 const ItemSchema = z.object({
@@ -244,6 +244,7 @@ export const stylistChat = createServerFn({ method: "POST" })
       BLAZER_WARMTH_PROMPT_RULE,
       BELT_BODYCON_PROMPT_RULE,
       ACCESSORY_OCCASION_PROMPT_RULE,
+    OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
       "WEDDING GUEST ETIQUETTE: if the user is attending a wedding as a guest (not the couple themselves), avoid recommending white, ivory or cream (reserved for the bride) and avoid an all-red look; avoid all-black unless it's explicitly an evening wedding. This is a social norm, not a hard rule like the dressing rules above — but treat it seriously.",
       "KEEP-THIS-PIECE REQUESTS: if the person explicitly says to keep a specific piece from your last suggestion (e.g. 'I want to use this dress but with a bolder accessory', 'keep the dress, change the shoes') — that piece's item_id is a HARD constraint for this turn, not a preference to weigh against other options. Re-read your own previous message to find the exact item_id for the piece they mean, and always include that exact item_id again in this reply's item_ids. Only change the category(ies) they actually asked to change; never swap out the piece they explicitly said to keep, even if a different piece would otherwise look better.",
       ...(data.styleBoldness ? [`BOLDNESS: the person has already told you, in their profile, that they generally like a '${data.styleBoldness}' level of boldness (Classic = safe, harmonious pairings; Balanced = some experimentation without overdoing it; Creative = enjoys unexpected combinations; Bold = wants to be pushed outside their comfort zone). Apply this directly for occasions that aren't strictly formal (weekend, casual work, casual dinners) — do NOT ask the boldness question below, it's already answered. Still let the occasion itself win when it calls for something classic (e.g. a black-tie event stays classic regardless of this preference) — this shapes color/styling choices within what's already appropriate, never overrides YOU/CONTEXT/WEATHER/COHERENCE above it in the hierarchy.`] : []),
