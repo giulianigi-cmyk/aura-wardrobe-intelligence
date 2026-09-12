@@ -817,6 +817,28 @@ export function AddItem({ onClose, initialGarment }: {
       if (insErr) throw insErr;
       toast.success(t("addItem.toastAddedToCloset"));
       void syncMySharedLibrary().catch(() => {});
+      // Fire-and-forget, same as syncMySharedLibrary above — the wardrobe
+      // save itself is already done and confirmed to the person; a
+      // visual embedding is a background enhancement to future
+      // matching, not something worth making them wait for or fail the
+      // save over. Model runs client-side (free, see the cost
+      // discussion behind this feature), so this is CPU time, not money.
+      void (async () => {
+        try {
+          const { computeGarmentEmbedding, EMBEDDING_MODEL_VERSION } = await import("@/lib/visual-embedding");
+          const embeddingDataUrl = await readFileAsDataUrl(trimmedFile);
+          const embedding = await computeGarmentEmbedding(embeddingDataUrl);
+          const itemId = (inserted as { id: string }).id;
+          await supabase.from("visual_embeddings" as never).insert({
+            wardrobe_item_id: itemId,
+            user_id: uid,
+            embedding: `[${embedding.join(",")}]`,
+            model_version: EMBEDDING_MODEL_VERSION,
+          } as never);
+        } catch (e) {
+          console.error("[AURA add-item] visual embedding failed — attribute matching still works without it", e);
+        }
+      })();
       window.dispatchEvent(new CustomEvent("aura:wardrobe-item-created", { detail: inserted }));
       onClose();
     } catch (e: unknown) {
