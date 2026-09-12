@@ -91,6 +91,14 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
   const [placed, setPlaced] = useState<Placed[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerSheetCanClose, setPickerSheetCanClose] = useState(false);
+  useEffect(() => {
+    if (pickerOpen) {
+      setPickerSheetCanClose(false);
+      const timer = setTimeout(() => setPickerSheetCanClose(true), 350);
+      return () => clearTimeout(timer);
+    }
+  }, [pickerOpen]);
   const [occasion, setOccasion] = useState<string>("");
   const [name, setName] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
@@ -100,8 +108,34 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
     | { blob: Blob; dataUrl: string; signedUrl: string | null }
   >(null);
     const [shareOpen, setShareOpen] = useState(false);
+    const [shareSheetCanClose, setShareSheetCanClose] = useState(false);
+    useEffect(() => {
+      if (shareOpen) {
+        setShareSheetCanClose(false);
+        const timer = setTimeout(() => setShareSheetCanClose(true), 350);
+        return () => clearTimeout(timer);
+      }
+    }, [shareOpen]);
   const [savedOutfitId, setSavedOutfitId] = useState<string | null>(init?.outfitId ?? null);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  // Guards against the same mobile Safari quirk fixed earlier in
+  // AddSourceSheet.tsx: this sheet's backdrop renders at the exact
+  // screen position the "Add to Calendar" button was just tapped.
+  // Touch devices dispatch the real "click" a beat after the physical
+  // touch, landing on whatever now occupies that spot — if the backdrop
+  // has already mounted there, it closes the sheet in the same gesture
+  // that opened it, before the date or Save button inside was ever
+  // touched. That's consistent with the report: no success or error
+  // toast at all, because the save button never actually got pressed.
+  const [calendarSheetCanClose, setCalendarSheetCanClose] = useState(false);
+
+  useEffect(() => {
+    if (calendarOpen) {
+      setCalendarSheetCanClose(false);
+      const timer = setTimeout(() => setCalendarSheetCanClose(true), 350);
+      return () => clearTimeout(timer);
+    }
+  }, [calendarOpen]);
   const [calendarDate, setCalendarDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [addingToCalendar, setAddingToCalendar] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
@@ -849,7 +883,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
       </div>
 
       {calendarOpen && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => setCalendarOpen(false)}>
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => { if (calendarSheetCanClose) setCalendarOpen(false); }}>
           <div onClick={(e) => e.stopPropagation()} className="w-full bg-card rounded-t-3xl border-t border-border p-5 space-y-3">
             <p className="font-serif italic text-lg">{t("outfitBuilder.addToCalendar")}</p>
             <input
@@ -875,7 +909,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
           location chips only help find pieces; the whole wardrobe stays
           selectable). */}
       {pickerOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center" onClick={() => setPickerOpen(false)}>
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center" onClick={() => { if (pickerSheetCanClose) setPickerOpen(false); }}>
           <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md h-[88vh] bg-background rounded-t-3xl flex flex-col animate-fade-up">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border/60">
               <div>
@@ -919,7 +953,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
 
       {/* Share sheet */}
      {shareOpen && shareState && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => setShareOpen(false)}>
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => { if (shareSheetCanClose) setShareOpen(false); }}>
           <div onClick={(e) => e.stopPropagation()} className="w-full bg-card rounded-t-3xl border-t border-border p-5">
             <div className="flex items-center justify-between mb-3">
               <p className="font-serif italic text-lg">{t("outfitBuilder.shareYourLook")}</p>
