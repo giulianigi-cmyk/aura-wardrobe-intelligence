@@ -1642,7 +1642,9 @@
     "laundryNoHint": "A fresh set for every day of the trip.",
     "applyEssentialsList": "Apply an essentials list",
     "setUpEssentialsListHint": "Set up an essentials list (documents, charger…) to reuse on every trip",
-    "createTrip": "Create trip"
+    "createTrip": "Create trip",
+    "culturalMode": "Local cultural sensitivity",
+    "culturalModeHint": "If yes, AURA lets local customs gently influence outfit ranking during this trip — never a rule you can't change your mind about, and any venue's own genuine requirement (e.g. a mosque's dress code) is always respected regardless of this setting."
   },
   "outfitScan": {
     "lookingAtOutfit": "Looking at your outfit…",
