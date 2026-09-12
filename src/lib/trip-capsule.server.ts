@@ -1406,11 +1406,19 @@ export async function generateTripCapsuleCore({ data, context }: {
       // preference, not a violation (a sleeveless dress is still valid for
       // a warm evening) — so this is a system-prompt Default rule
       // (relativeWarmthHint), not a hard exclusion like violatesWeather.
+      //
+      // Threshold lowered from 4°C to 2°C, and the wording made
+      // considerably firmer than "prefer" — a 4°C gate meant this hint
+      // silently never fired on plenty of real day/evening pairs, and
+      // even when it did fire, "prefer" alone wasn't stopping the model
+      // from picking a heavier layered look (e.g. a cardigan) for Day
+      // and a plain lighter top for the same evening, exactly backwards
+      // from how evenings actually run.
       let relativeWarmthHint: string | null = null;
-      if (dayWeather && Math.abs(dayWeather.tempMax - dayWeather.tempMin) >= 4) {
+      if (dayWeather && Math.abs(dayWeather.tempMax - dayWeather.tempMin) >= 2) {
         relativeWarmthHint = req.daySegment === "evening"
-          ? `this evening (~${Math.round(dayWeather.tempMin)}°C) is cooler than today's daytime (~${Math.round(dayWeather.tempMax)}°C) — between similarly-styled tops (e.g. a short-sleeve vs a long-sleeve piece), prefer the warmer one for this look.`
-          : `today's daytime (~${Math.round(dayWeather.tempMax)}°C) is warmer than tonight (~${Math.round(dayWeather.tempMin)}°C) — between similarly-styled tops, prefer the lighter one for this look.`;
+          ? `This evening (~${Math.round(dayWeather.tempMin)}°C) is cooler than today's daytime (~${Math.round(dayWeather.tempMax)}°C). The evening look should read AT LEAST as warm as the day look for this same day/trip — a heavier layer (cardigan, jacket, long sleeve) for Day and something lighter for Evening is backwards and must not happen. Between similarly-styled tops, choose the warmer one for this evening look.`
+          : `Today's daytime (~${Math.round(dayWeather.tempMax)}°C) is warmer than tonight (~${Math.round(dayWeather.tempMin)}°C). Between similarly-styled tops, prefer the lighter one for this daytime look — don't make the day outfit warmer/more layered than what's planned for the same evening.`;
       }
 
       const result = await suggestOutfitCore({
