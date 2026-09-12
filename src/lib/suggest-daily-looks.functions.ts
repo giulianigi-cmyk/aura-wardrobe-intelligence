@@ -4,7 +4,7 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
-import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE } from "./outfit-styling-rules";
+import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE } from "./outfit-styling-rules";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 
 const ItemSchema = z.object({
@@ -127,6 +127,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       BLAZER_WARMTH_PROMPT_RULE,
       BELT_BODYCON_PROMPT_RULE,
       ACCESSORY_OCCASION_PROMPT_RULE,
+    OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
       "",
       "You are a personal stylist. Compose REAL outfits using ONLY items from the",
       "user's own wardrobe catalog below. Never invent an item id.",
