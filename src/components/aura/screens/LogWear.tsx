@@ -165,7 +165,7 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
         if (existing) {
           existing.matchScore = Math.max(existing.matchScore, visualSimilarity);
         } else if (visualSimilarity >= 0.6) {
-          list.push({ wardrobeItemId, matchScore: visualSimilarity, verdict: "maybe" });
+          list.push({ detectionId, wardrobeItemId, matchScore: visualSimilarity, verdict: "maybe" });
         }
         if (existing) {
           existing.verdict = existing.matchScore >= 0.9 ? "certain" : existing.matchScore >= 0.6 ? "maybe" : "new";

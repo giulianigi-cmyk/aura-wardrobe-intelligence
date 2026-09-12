@@ -243,8 +243,8 @@ export const confirmWearEvent = createServerFn({ method: "POST" })
     const { data: eventId, error } = await context.supabase.rpc("confirm_wear_event", {
       _item_ids: data.itemIds,
       _worn_at: data.wornAt,
-      _occasion: data.occasion ?? null,
-      _source_photo_detection_id: data.photoDetectionId ?? null,
+      _occasion: data.occasion ?? undefined,
+      _source_photo_detection_id: data.photoDetectionId ?? undefined,
     });
     if (error) return { ok: false as const, error: error.message };
 
@@ -278,7 +278,7 @@ export const correctWearEventItem = createServerFn({ method: "POST" })
     const { error } = await context.supabase.rpc("correct_wear_event_item", {
       _event_id: data.eventId,
       _remove_item_id: data.removeItemId,
-      _replacement_item_id: data.replacementItemId ?? null,
+      _replacement_item_id: data.replacementItemId ?? undefined,
     });
     if (error) return { ok: false as const, error: error.message };
     return { ok: true as const };
