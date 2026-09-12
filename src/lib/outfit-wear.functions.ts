@@ -234,12 +234,24 @@ export const confirmWearEvent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ConfirmInput.parse(input))
   .handler(async ({ data, context }) => {
+    // Defense in depth: the SQL function already scopes to auth.uid(),
+    // but every client-supplied id is verified as the caller's here too,
+    // the same pattern the rest of the codebase uses.
+    const { data: ownedItems, error: ownErr } = await (context.supabase.from("wardrobe_items" as never) as any)
+      .select("id").eq("user_id", context.userId).in("id", data.itemIds);
+    if (ownErr) return { ok: false as const, error: ownErr.message };
+    if ((ownedItems ?? []).length !== new Set(data.itemIds).size) {
+      return { ok: false as const, error: "One or more items do not belong to the current user" };
+    }
+    if (data.photoDetectionId) {
+      const { data: det } = await (context.supabase.from("outfit_photo_detections" as never) as any)
+        .select("id").eq("id", data.photoDetectionId).eq("user_id", context.userId).maybeSingle();
+      if (!det) return { ok: false as const, error: "Detection not found" };
+    }
+
     // context.supabase, not supabaseAdmin — the RPC's own auth.uid()
     // check needs the actual signed-in user's session, which only the
-    // request-scoped client carries. The admin client uses the service
-    // role key with no user attached, so auth.uid() inside the function
-    // came back null every time, failing with exactly the error
-    // reported: "confirm_wear_event requires an authenticated user."
+    // request-scoped client carries.
     const { data: eventId, error } = await context.supabase.rpc("confirm_wear_event", {
       _item_ids: data.itemIds,
       _worn_at: data.wornAt,
