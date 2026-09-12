@@ -6,17 +6,30 @@
 // C ever becomes a Wear Event — see confirmWearEvent in
 // outfit-wear.functions.ts, which is the one and only place that
 // happens.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Check, HelpCircle, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Loader2, Check, HelpCircle, Plus, ChevronDown, ChevronUp, Search, X, ShoppingBag } from "lucide-react";
 import { startOutfitPhotoDetection, confirmWearEvent } from "@/lib/outfit-wear.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
+import type { WardrobeItem } from "@/lib/aura-types";
 import type { Screen } from "../AuraApp";
 
 type Verdict = "certain" | "maybe" | "new";
 type Candidate = { wardrobeItemId: string; matchScore: number; verdict: Verdict };
-type Detection = { detectionId: string; category: string; subcategory: string; colors: string[]; description: string; detectionConfidence: number };
+type Detection = {
+  detectionId: string;
+  category: string;
+  subcategory: string;
+  colors: string[];
+  materials: string[];
+  description: string;
+  detectionConfidence: number;
+  bbox: { x: number; y: number; width: number; height: number };
+};
 type DetectionResult = {
   id: string;
   photoUrl: string | null;
@@ -26,10 +39,6 @@ type DetectionResult = {
   status: "pending" | "confirmed" | "dismissed";
 };
 
-/** SHA-256 of the raw file — computed once, client-side, purely so the
- *  server can recognize "this exact photo was already uploaded" without
- *  ever needing to re-run detection on a duplicate (see the unique
- *  index on outfit_photo_detections in the migration). */
 async function hashFile(file: File): Promise<string> {
   const buf = await file.arrayBuffer();
   const digest = await crypto.subtle.digest("SHA-256", buf);
@@ -45,10 +54,48 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-type Selection = { chosenItemId: string | null; confirmed: boolean; candidateIndex: number };
+/** Crops just one detected garment out of the full outfit photo, using
+ *  the detector's own bounding box (fractions of the image, same
+ *  convention as ItemCropAdjuster elsewhere in the app) — so "add this
+ *  to my wardrobe" hands AddItem a photo of the actual piece, not the
+ *  whole outfit shot with three other garments in frame. */
+function cropToGarment(photoUrl: string, bbox: { x: number; y: number; width: number; height: number }): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const sx = bbox.x * img.naturalWidth;
+      const sy = bbox.y * img.naturalHeight;
+      const sw = bbox.width * img.naturalWidth;
+      const sh = bbox.height * img.naturalHeight;
+      canvas.width = sw;
+      canvas.height = sh;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("no canvas context")); return; }
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+      resolve(canvas.toDataURL("image/jpeg", 0.92));
+    };
+    img.onerror = () => reject(new Error("image load failed"));
+    img.src = photoUrl;
+  });
+}
 
-export function LogWear({ go, openBuilder }: { go: (s: Screen) => void; openBuilder: (init: { itemIds: string[]; occasion?: string } | null) => void }) {
+type Selection = {
+  chosenItemId: string | null;
+  confirmed: boolean;
+  candidateIndex: number;
+  manualPhoto?: string | null;
+  manualLabel?: string | null;
+};
+
+export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
+  go: (s: Screen) => void;
+  openBuilder: (init: { itemIds: string[]; occasion?: string } | null) => void;
+  openAddItemWithGarment: (garment: { photoDataUrl: string; category?: string; colors?: string[]; materials?: string[] }) => void;
+}) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const start = useServerFn(startOutfitPhotoDetection);
   const confirm = useServerFn(confirmWearEvent);
 
@@ -59,6 +106,30 @@ export function LogWear({ go, openBuilder }: { go: (s: Screen) => void; openBuil
   const [wornAt, setWornAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [occasion, setOccasion] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [zoomedPhoto, setZoomedPhoto] = useState<string | null>(null);
+  const [searchingForDetectionId, setSearchingForDetectionId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [wardrobe, setWardrobe] = useState<WardrobeItem[]>([]);
+  const [wardrobeUrls, setWardrobeUrls] = useState<Record<string, string>>({});
+  const [croppingDetectionId, setCroppingDetectionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (searchingForDetectionId === null || wardrobe.length || !user) return;
+    void (async () => {
+      const { data } = await (supabase.from("wardrobe_items" as never) as any)
+        .select("*").eq("user_id", user.id).eq("archived", false);
+      const items = (data ?? []) as WardrobeItem[];
+      setWardrobe(items);
+      setWardrobeUrls(await resolveWardrobeUrls(items));
+    })();
+  }, [searchingForDetectionId, wardrobe.length, user]);
+
+  const filteredWardrobe = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return wardrobe;
+    return wardrobe.filter((it) =>
+      [it.brand, it.category, it.subcategory, it.color, ...(it.colors ?? [])].some((f) => f?.toLowerCase().includes(q)));
+  }, [wardrobe, searchQuery]);
 
   const candidatesByDetection = useMemo(() => {
     const map: Record<string, Candidate[]> = {};
@@ -119,6 +190,37 @@ export function LogWear({ go, openBuilder }: { go: (s: Screen) => void; openBuil
 
   const toggleConfirmed = (detectionId: string) => {
     setSelections((prev) => ({ ...prev, [detectionId]: { ...prev[detectionId], confirmed: !prev[detectionId].confirmed } }));
+  };
+
+  const pickManualItem = (detectionId: string, item: WardrobeItem) => {
+    const path = toStoragePath(item.image_url);
+    const photo = path ? wardrobeUrls[path] : null;
+    setSelections((prev) => ({
+      ...prev,
+      [detectionId]: {
+        chosenItemId: item.id,
+        confirmed: true,
+        candidateIndex: -1,
+        manualPhoto: photo,
+        manualLabel: [item.brand, item.colors?.[0] ?? item.color, item.category].filter(Boolean).join(" "),
+      },
+    }));
+    setSearchingForDetectionId(null);
+    setSearchQuery("");
+  };
+
+  const addDetectionToWardrobe = async (d: Detection) => {
+    if (!result?.photoUrl) return;
+    setCroppingDetectionId(d.detectionId);
+    try {
+      const cropped = await cropToGarment(result.photoUrl, d.bbox);
+      openAddItemWithGarment({ photoDataUrl: cropped, category: d.category, colors: d.colors, materials: d.materials });
+    } catch (e) {
+      console.error("[AURA log-wear] crop failed", e);
+      toast.error(t("logWear.genericError"));
+    } finally {
+      setCroppingDetectionId(null);
+    }
   };
 
   const confirmedItemIds = Object.values(selections)
@@ -198,18 +300,35 @@ export function LogWear({ go, openBuilder }: { go: (s: Screen) => void; openBuil
             {result.detections.map((d) => {
               const sel = selections[d.detectionId];
               const cands = candidatesByDetection[d.detectionId] ?? [];
-              const current = cands[sel?.candidateIndex ?? 0];
-              const photo = sel?.chosenItemId ? result.itemPhotos[sel.chosenItemId] : null;
+              const current = sel?.candidateIndex != null && sel.candidateIndex >= 0 ? cands[sel.candidateIndex] : undefined;
+              const photo = sel?.manualPhoto ?? (sel?.chosenItemId ? result.itemPhotos[sel.chosenItemId] : null);
+              const isManual = Boolean(sel?.manualLabel);
 
-              if (!current) {
+              if (!current && !isManual) {
                 return (
-                  <div key={d.detectionId} className="flex items-center gap-3 rounded-2xl border border-border/60 p-3 opacity-70">
-                    <div className="h-14 w-14 shrink-0 rounded-xl bg-secondary/50 flex items-center justify-center">
-                      <HelpCircle size={18} className="text-muted-foreground" />
+                  <div key={d.detectionId} className="rounded-2xl border border-border/60 p-3 opacity-90">
+                    <div className="flex items-center gap-3">
+                      <div className="h-14 w-14 shrink-0 rounded-xl bg-secondary/50 flex items-center justify-center">
+                        <HelpCircle size={18} className="text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs">{t("logWear.unrecognized")}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{d.description}</p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs">{t("logWear.unrecognized")}</p>
-                      <p className="text-[11px] text-muted-foreground truncate">{d.description}</p>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        onClick={() => setSearchingForDetectionId(d.detectionId)}
+                        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5"
+                      ><Search size={11} /> {t("logWear.searchWardrobe")}</button>
+                      <button
+                        onClick={() => void addDetectionToWardrobe(d)}
+                        disabled={croppingDetectionId === d.detectionId}
+                        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      >
+                        {croppingDetectionId === d.detectionId ? <Loader2 size={11} className="animate-spin" /> : <ShoppingBag size={11} />}
+                        {t("logWear.addToWardrobe")}
+                      </button>
                     </div>
                   </div>
                 );
@@ -218,13 +337,19 @@ export function LogWear({ go, openBuilder }: { go: (s: Screen) => void; openBuil
               return (
                 <div key={d.detectionId} className={`rounded-2xl border p-3 ${sel.confirmed ? "border-foreground" : "border-border/60"}`}>
                   <div className="flex items-center gap-3">
-                    <div className="h-14 w-14 shrink-0 rounded-xl overflow-hidden" style={{ background: "#FFFFFF" }}>
+                    <button
+                      onClick={() => photo && setZoomedPhoto(photo)}
+                      className="h-14 w-14 shrink-0 rounded-xl overflow-hidden active:scale-95 transition"
+                      style={{ background: "#FFFFFF" }}
+                      aria-label={t("logWear.viewPhotoAria")}
+                    >
                       {photo ? <img src={photo} alt="" className="h-full w-full object-contain p-1" /> : null}
-                    </div>
+                    </button>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs">
-                        {current.verdict === "certain" ? t("logWear.thisIsIt") : t("logWear.thinkItsThis")}
-                        {" — "}{Math.round(current.matchScore * 100)}%
+                        {isManual ? sel.manualLabel : (
+                          <>{current!.verdict === "certain" ? t("logWear.thisIsIt") : t("logWear.thinkItsThis")}{" — "}{Math.round(current!.matchScore * 100)}%</>
+                        )}
                       </p>
                       <p className="text-[11px] text-muted-foreground truncate">{d.description}</p>
                     </div>
@@ -234,17 +359,78 @@ export function LogWear({ go, openBuilder }: { go: (s: Screen) => void; openBuil
                       aria-label={t("logWear.confirmAria")}
                     ><Check size={14} /></button>
                   </div>
-                  {cands.length > 1 && (
-                    <div className="mt-2 flex items-center justify-center gap-3">
-                      <button onClick={() => cycleCandidate(d.detectionId, -1)} className="h-7 w-7 rounded-full border border-border flex items-center justify-center"><ChevronUp size={12} /></button>
-                      <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{t("logWear.changeItem")}</span>
-                      <button onClick={() => cycleCandidate(d.detectionId, 1)} className="h-7 w-7 rounded-full border border-border flex items-center justify-center"><ChevronDown size={12} /></button>
-                    </div>
-                  )}
+                  <div className="mt-2 flex items-center justify-center gap-2">
+                    {cands.length > 1 && !isManual && (
+                      <>
+                        <button onClick={() => cycleCandidate(d.detectionId, -1)} className="h-7 w-7 rounded-full border border-border flex items-center justify-center"><ChevronUp size={12} /></button>
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{t("logWear.changeItem")}</span>
+                        <button onClick={() => cycleCandidate(d.detectionId, 1)} className="h-7 w-7 rounded-full border border-border flex items-center justify-center"><ChevronDown size={12} /></button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => setSearchingForDetectionId(d.detectionId)}
+                      className="h-7 px-3 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center gap-1.5"
+                    ><Search size={10} /> {t("logWear.searchWardrobe")}</button>
+                  </div>
                 </div>
               );
             })}
           </div>
+
+          {zoomedPhoto && (
+            <div
+              className="fixed inset-0 z-[80] bg-black/85 flex items-center justify-center p-8"
+              onClick={() => setZoomedPhoto(null)}
+            >
+              <img src={zoomedPhoto} alt="" className="max-h-full max-w-full object-contain rounded-2xl" style={{ background: "#FFFFFF" }} />
+              <button
+                onClick={() => setZoomedPhoto(null)}
+                className="absolute top-6 right-6 h-10 w-10 rounded-full bg-background/90 flex items-center justify-center"
+                aria-label={t("logWear.closeAria")}
+              ><X size={16} /></button>
+            </div>
+          )}
+
+          {searchingForDetectionId && (
+            <div
+              className="fixed inset-0 z-[80] bg-background/90 backdrop-blur flex flex-col"
+              onClick={() => setSearchingForDetectionId(null)}
+            >
+              <div onClick={(e) => e.stopPropagation()} className="flex flex-col h-full pt-14 px-6 pb-6">
+                <div className="flex items-center gap-3 shrink-0">
+                  <button onClick={() => setSearchingForDetectionId(null)} className="h-10 w-10 rounded-full border border-border flex items-center justify-center">
+                    <X size={15} />
+                  </button>
+                  <input
+                    autoFocus
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={t("logWear.searchPlaceholder")}
+                    className="flex-1 bg-secondary/60 rounded-full px-4 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
+                  />
+                </div>
+                <div className="mt-4 flex-1 min-h-0 overflow-y-auto grid grid-cols-3 gap-2">
+                  {filteredWardrobe.map((item) => {
+                    const path = toStoragePath(item.image_url);
+                    const src = path ? wardrobeUrls[path] : null;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => pickManualItem(searchingForDetectionId, item)}
+                        className="aspect-square rounded-xl overflow-hidden border border-border/50 active:scale-95 transition"
+                        style={{ background: "#FFFFFF" }}
+                      >
+                        {src ? <img src={src} alt="" className="h-full w-full object-contain p-1" /> : null}
+                      </button>
+                    );
+                  })}
+                  {!wardrobe.length && (
+                    <div className="col-span-3 flex justify-center pt-10"><Loader2 className="animate-spin text-muted-foreground" /></div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="mt-6">
             <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("logWear.wornOnLabel")}</p>
