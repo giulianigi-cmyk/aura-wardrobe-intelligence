@@ -12,6 +12,7 @@ export type Trip = {
   name: string | null;
   trip_type: TripType;
   laundry_available: boolean;
+  cultural_mode: boolean | null;
   status: "planning" | "confirmed" | "completed";
   created_at: string;
   updated_at: string;
@@ -40,6 +41,7 @@ const CreateTripSchema = z.object({
   name: z.string().trim().max(100).nullable().optional(),
   tripType: z.enum(["work", "leisure", "mixed"]),
   laundryAvailable: z.boolean(),
+  culturalMode: z.boolean(),
   sourceLocationIds: z.array(z.string().uuid()),
   destinations: z.array(DestinationInput).min(1),
 });
@@ -60,6 +62,7 @@ export const createTrip = createServerFn({ method: "POST" })
       name: data.name?.trim() || fallbackName,
       trip_type: data.tripType,
       laundry_available: data.laundryAvailable,
+      cultural_mode: data.culturalMode,
       status: "planning",
     } as never).select("*").single();
     if (tripErr || !trip) throw new Error(tripErr?.message ?? "Couldn't create trip");
