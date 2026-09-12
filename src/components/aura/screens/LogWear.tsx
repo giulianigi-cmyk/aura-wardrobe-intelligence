@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2, Check, HelpCircle, Plus, ChevronDown, ChevronUp, Search, X, ShoppingBag } from "lucide-react";
-import { startOutfitPhotoDetection, confirmWearEvent } from "@/lib/outfit-wear.functions";
+import { startOutfitPhotoDetection, confirmWearEvent, refineDetectionWithVisualSimilarity } from "@/lib/outfit-wear.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { resolveWardrobeUrls, thumbSrc } from "@/lib/wardrobe-image";
@@ -98,6 +98,7 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
   const { user } = useAuth();
   const start = useServerFn(startOutfitPhotoDetection);
   const confirm = useServerFn(confirmWearEvent);
+  const refineVisual = useServerFn(refineDetectionWithVisualSimilarity);
 
   const [stage, setStage] = useState<"upload" | "processing" | "confirm" | "done" | "error">("upload");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -113,6 +114,12 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
   const [wardrobe, setWardrobe] = useState<WardrobeItem[]>([]);
   const [wardrobeUrls, setWardrobeUrls] = useState<Record<string, string>>({});
   const [croppingDetectionId, setCroppingDetectionId] = useState<string | null>(null);
+  // detectionId -> wardrobeItemId -> visual similarity (0-1). Populated
+  // in the background after the initial attribute-based match, once
+  // each detected garment has been cropped and embedded client-side.
+  // Never overwrites the attribute-based candidates outright — see
+  // candidatesByDetection below for how the two get blended.
+  const [visualBoosts, setVisualBoosts] = useState<Record<string, Record<string, number>>>({});
 
   useEffect(() => {
     if (searchingForDetectionId === null || wardrobe.length || !user) return;
@@ -142,7 +149,28 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
     // as it hid wrong ones. What actually matters is never treating a
     // low score as settled — see the "certain"-only auto-confirm below.
     for (const c of result?.candidates ?? []) {
-      (map[c.detectionId] ??= []).push(c);
+      (map[c.detectionId] ??= []).push({ ...c });
+    }
+    // Blend in visual similarity, once it's arrived (it's computed in
+    // the background, after the attribute-based candidates are already
+    // shown — see refineWithVisualSimilarity below). Additive, never
+    // replacing: an item's score only ever goes UP from a strong visual
+    // match, and a visually-similar item the attribute pass missed
+    // entirely gets added as a new candidate rather than staying
+    // invisible.
+    for (const [detectionId, itemScores] of Object.entries(visualBoosts)) {
+      const list = (map[detectionId] ??= []);
+      for (const [wardrobeItemId, visualSimilarity] of Object.entries(itemScores)) {
+        const existing = list.find((c) => c.wardrobeItemId === wardrobeItemId);
+        if (existing) {
+          existing.matchScore = Math.max(existing.matchScore, visualSimilarity);
+        } else if (visualSimilarity >= 0.6) {
+          list.push({ wardrobeItemId, matchScore: visualSimilarity, verdict: "maybe" });
+        }
+        if (existing) {
+          existing.verdict = existing.matchScore >= 0.9 ? "certain" : existing.matchScore >= 0.6 ? "maybe" : "new";
+        }
+      }
     }
     for (const list of Object.values(map)) list.sort((a, b) => b.matchScore - a.matchScore);
     return map;
@@ -187,10 +215,45 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
       }
       setSelections(initial);
       setStage("confirm");
+      void runVisualRefinement(det);
     } catch (e) {
       console.error("[AURA log-wear] detection failed", e);
       setErrorMessage(e instanceof Error ? e.message : t("logWear.genericError"));
       setStage("error");
+    }
+  };
+
+  /** Runs after the attribute-based match is already on screen — crops
+   *  each detected garment (same bbox-based crop used for "add to
+   *  wardrobe"), computes its visual fingerprint client-side (free, see
+   *  the cost comparison behind this feature), and asks the server to
+   *  find visually similar wardrobe items via pgvector. Silently does
+   *  nothing on failure: attribute matching already gave the person
+   *  something usable, this is strictly an enhancement on top of it. */
+  const runVisualRefinement = async (det: DetectionResult) => {
+    if (!det.photoUrl) return;
+    try {
+      const { computeGarmentEmbedding } = await import("@/lib/visual-embedding");
+      const embedded: { detectionId: string; category: string; embedding: number[] }[] = [];
+      for (const d of det.detections) {
+        try {
+          const cropped = await cropToGarment(det.photoUrl, d.bbox);
+          const embedding = await computeGarmentEmbedding(cropped);
+          embedded.push({ detectionId: d.detectionId, category: d.category, embedding });
+        } catch (e) {
+          console.error("[AURA log-wear] embedding failed for detection", d.detectionId, e);
+        }
+      }
+      if (!embedded.length) return;
+      const res = await refineVisual({ data: { photoDetectionId: det.id, detections: embedded } });
+      if (!res.ok) return;
+      const boosts: Record<string, Record<string, number>> = {};
+      for (const c of res.visualCandidates) {
+        (boosts[c.detectionId] ??= {})[c.wardrobeItemId] = c.visualSimilarity;
+      }
+      setVisualBoosts(boosts);
+    } catch (e) {
+      console.error("[AURA log-wear] visual refinement failed", e);
     }
   };
 
