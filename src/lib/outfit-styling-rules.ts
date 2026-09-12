@@ -26,3 +26,14 @@ export const BELT_BODYCON_PROMPT_RULE =
 export const ACCESSORY_OCCASION_PROMPT_RULE =
   "ACCESSORY OCCASION MATCHING: a bag, pair of shoes, or other accessory's own occasion tags are just as binding as they are for a top, bottom, or dress — never propose one tagged only for Weekend/Travel/Sport for a Work/Evening/Formal look, or vice-versa, purely because it 'still looks fine' physically. " +
   "If nothing in the wardrobe has a bag tagged for the occasion at hand, say so rather than reaching for the closest large or casual bag anyway — a missing piece is more honest than a wrong one.";
+
+/** An open-front cardigan, wrap top, duster, or open knit is a LAYER,
+ *  not a complete top on its own — worn alone it leaves the torso
+ *  genuinely exposed (unlike a buttoned cardigan or a blazer over
+ *  nothing, which at least closes), not a styling choice some people
+ *  happen to prefer. This showed up as a real outfit: a wrap-front
+ *  cardigan proposed with jeans and shoes and nothing at all worn
+ *  underneath it. */
+export const OPEN_LAYER_NEEDS_BASE_PROMPT_RULE =
+  "OPEN LAYER RULE: an open-front cardigan, wrap top, duster, or any other knit/cover-up that doesn't close over the chest must ALWAYS be paired with a base layer underneath — a tank, cami, t-shirt, blouse, or long-sleeve top, chosen for the temperature and season (light tank/cami in heat, long sleeve or a fitted knit in cold). " +
+  "Never propose that kind of open layer as the only top in the outfit. If the wardrobe has no suitable base layer available, don't use that open piece at all rather than leaving it worn alone.";
