@@ -195,10 +195,30 @@ export function AddItem({ onClose, initialGarment }: {
   initialGarment?: { photoDataUrl: string; category?: string; colors?: string[]; materials?: string[] } | null;
 }) {
   const { t } = useTranslation();
-  const { loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const analyze = useServerFn(analyzeWardrobeImage);
   const fetchLocations = useServerFn(listLocations);
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
+  const [existingBrands, setExistingBrands] = useState<string[]>([]);
+  const [brandFieldFocused, setBrandFieldFocused] = useState(false);
+
+  // Loaded once, on mount — the whole point is offering the exact
+  // spelling already used elsewhere in the wardrobe (accents, spacing,
+  // "&" vs "and"), so a typo or a different-but-plausible spelling
+  // doesn't silently create a second, unmatchable version of a brand
+  // that already exists. A short list per person, cheap to fetch upfront
+  // rather than re-querying on every keystroke.
+  useEffect(() => {
+    if (!user) return;
+    void (async () => {
+      const { data } = await (supabase.from("wardrobe_items" as never) as any)
+        .select("brand").eq("user_id", user.id).not("brand", "is", null);
+      const brands = Array.from(new Set(((data ?? []) as { brand: string | null }[])
+        .map((r) => r.brand?.trim())
+        .filter((b): b is string => Boolean(b))));
+      setExistingBrands(brands.sort((a, b) => a.localeCompare(b)));
+    })();
+  }, [user]);
   
   const importUrl = useServerFn(importProductFromUrl);
   const downloadImage = useServerFn(downloadImportImage);
@@ -273,16 +293,8 @@ export function AddItem({ onClose, initialGarment }: {
   const [purchaseDate, setPurchaseDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [composition, setComposition] = useState<CompositionEntry[]>([]);
   const [currentRetailPrice, setCurrentRetailPrice] = useState("");
-  // True only while the current value still matches what the URL import
-  // found, untouched by the person — flips to false the moment they edit
-  // it, so we know whether to tag current_retail_source as 'import' or
-  // 'user' at save time.
   const [currentRetailFromImport, setCurrentRetailFromImport] = useState(false);
   const [historicalRetailPrice, setHistoricalRetailPrice] = useState("");
-  // Same idea: true only while it still matches the pre-discount price the
-  // import deduced from the product page — an estimate, never a certain
-  // fact, so it gets tagged historical_retail_source = 'import_estimate'
-  // instead of 'user' at save time, and shown with an "estimated" hint.
   const [historicalRetailFromImport, setHistoricalRetailFromImport] = useState(false);
   const [model, setModel] = useState("");
   const [bagSizeClass, setBagSizeClass] = useState("");
@@ -332,13 +344,6 @@ export function AddItem({ onClose, initialGarment }: {
 
     const dataUrl = await readFileAsDataUrl(compressedFile);
 
-    // Background removal does NOT run here anymore. It used to fire the
-    // moment a photo was captured/picked — before the person had even
-    // decided this was the photo they wanted to keep — burning a WASM
-    // pass (and, on multi-candidate URL imports, one pass per candidate
-    // never used) for nothing. It now runs once, in save(), right before
-    // upload — same principle as batch scan, where background removal is
-    // an explicit step, never automatic on capture.
     setStage("analyze");
     const fromLibrary = opts?.source === "library";
     await analyze({ data: { imageDataUrl: dataUrl } })
@@ -371,11 +376,6 @@ export function AddItem({ onClose, initialGarment }: {
     setStage((s) => (s === "analyze" ? "idle" : s));
   };
 
-  // Runs once, only when arriving here with a garment already cropped
-  // out of an outfit photo (see initialGarment above) — converts the
-  // data URL back into a File so it can go through the exact same
-  // pipeline as a normal camera capture, pre-filled with what the
-  // detector already knew instead of starting blank.
   useEffect(() => {
     if (!initialGarment) return;
     void (async () => {
@@ -444,12 +444,6 @@ export function AddItem({ onClose, initialGarment }: {
     }
   };
 
-  // Auto-detect a link already on the clipboard the moment this step
-  // opens — best-effort only. Most browsers require a user gesture to
-  // read the clipboard, so this silently does nothing on platforms that
-  // block it (notably iOS Safari); the explicit "Paste" button below is
-  // what makes this actually work everywhere, since a direct tap is a
-  // real user gesture. Never overwrites something already typed.
   useEffect(() => {
     if (step !== "url") return;
     if (urlInput.trim()) return;
@@ -479,13 +473,6 @@ export function AddItem({ onClose, initialGarment }: {
     }
   };
 
-  /** Ricerca testuale — nessun upload, nessuna chiamata di rete: apre
-   *  Google con una query costruita dai dati più specifici disponibili.
-   *  Il codice prodotto letto dall'etichetta (se presente) è il termine più
-   *  affidabile — vince su categoria/colore. Il brand, se non visibile come
-   *  logo, può comunque venire dal nome del produttore stampato
-   *  sull'etichetta (es. "Tessilform S.p.A." per Patrizia Pepe) — non è lo
-   *  stesso concetto, ma è meglio di nessun termine identificativo. */
   const handleSearchGoogle = () => {
     const query = buildProductSearchQuery({
       productCode: detectedProductCode,
@@ -498,11 +485,6 @@ export function AddItem({ onClose, initialGarment }: {
     window.open(buildGoogleSearchUrl(query), "_blank", "noopener,noreferrer");
   };
 
-  /** Ricerca per immagine (Google Lens) — richiede un URL pubblico
-   *  raggiungibile da Google, quindi la foto corrente va prima caricata su
-   *  uno storage path temporaneo e firmata con un signed URL a breve
-   *  scadenza (mai il path permanente, per non lasciare in giro link
-   *  validi a lungo termine a una foto privata dell'utente). */
   const handleSearchByPhoto = async () => {
     if (!file) { toast.error(t("addItem.toastTakePhotoFirst")); return; }
     setSearchingByPhoto(true);
@@ -518,9 +500,6 @@ export function AddItem({ onClose, initialGarment }: {
       });
       if (upErr) throw upErr;
 
-      // 10 minuti: il tempo che serve a Google per recuperare l'immagine,
-      // non un secondo di più — è la stessa logica di breve scadenza già
-      // usata altrove nel progetto per i link di condivisione temporanei.
       const { data: signed, error: signErr } = await supabase.storage
         .from("wardrobe")
         .createSignedUrl(tmpPath, 600);
@@ -563,10 +542,6 @@ export function AddItem({ onClose, initialGarment }: {
     }
   };
 
-  /** Importa un capo dalla libreria condivisa: crea una riga INDIPENDENTE nel
-   *  guardaroba dell'importatore. Copia solo i campi prodotto; i campi
-   *  personali (worn_count, last_worn, purchase_date, location_id) restano ai
-   *  default. Price/size arrivano pre-compilati ma restano editabili. */
   const handleSelectShared = async (s: SharedLibraryItem) => {
     if (libraryLoadingId) return;
     if (!s.signed_url) { toast.error(t("addItem.toastNoPhotoAvailable")); return; }
@@ -597,11 +572,6 @@ export function AddItem({ onClose, initialGarment }: {
     }
   };
 
-  // Load a default browsable set the moment this screen opens, before
-  // the person has typed anything — previously the screen stayed
-  // completely empty (no results, no usable filters) until a search was
-  // run, which made "show me everything" impossible without knowing
-  // what to type first.
   useEffect(() => {
     if (step !== "library") return;
     if (libraryQuery.trim()) return;
@@ -632,12 +602,6 @@ export function AddItem({ onClose, initialGarment }: {
     }
   };
 
-  // Reload the current view — re-runs the active search if one is typed,
-  // otherwise re-fetches the default browsable set. Same "refresh" idea
-  // as the wand in the Wardrobe screen, but there's nothing to
-  // re-classify with AI here (this is the shared product catalog, not
-  // personal wardrobe items) — it just pulls a fresh copy of the list,
-  // useful if new products were added since the screen opened.
   const refreshLibrary = async () => {
     setLibrarySearching(true);
     try {
@@ -741,10 +705,6 @@ export function AddItem({ onClose, initialGarment }: {
     if (!file) return;
     setSaving(true); setErr(null);
     try {
-      // Background removal runs here — right before upload, once, on the
-      // photo the person actually decided to keep — not the moment it was
-      // captured/picked. Skip it if it already ran (e.g. a retry after a
-      // failed save shouldn't burn a second WASM pass on the same file).
       let fileToSave = file;
       if (!transparent) {
         setStage("bgremove");
@@ -789,9 +749,6 @@ export function AddItem({ onClose, initialGarment }: {
       });
       if (upErr) throw upErr;
 
-      // A separate, much smaller copy just for grid views — the closet
-      // grid was loading dozens of full-size images at once, which is
-      // the actual bottleneck; the detail view still uses the full file.
       let thumbnailPath: string | null = null;
       try {
         const thumbFile = await compressImageForUpload(trimmedFile, 400, 0.75);
@@ -852,12 +809,6 @@ export function AddItem({ onClose, initialGarment }: {
       let { data: inserted, error: insErr } = await supabase
         .from("wardrobe_items").insert(fullPayload).select("*").single();
       if (insErr && /column .* does not exist|composition/i.test(String(insErr.message))) {
-        // Root cause: only `composition` is a recently-added column that can
-        // lag behind in Supabase's schema cache right after a migration.
-        // Drop ONLY that field and retry — every other extended attribute
-        // (purchase_date included) must still be saved. Falling back to the
-        // bare `payload` here used to silently drop purchase_date on every
-        // import that included a composition reading — that was the bug.
         console.warn("[AURA wardrobe] composition column not in cache yet — retrying without it only", insErr.message);
         const { composition: _composition, ...payloadWithoutComposition } = fullPayload as typeof fullPayload & { composition?: unknown };
         ({ data: inserted, error: insErr } = await supabase
@@ -1282,7 +1233,35 @@ export function AddItem({ onClose, initialGarment }: {
           </div>
 
           <div className="mt-5 space-y-4">
-            <Field label={t("addItem.brandLabel")} value={brand} onChange={setBrand} placeholder={stage === "analyze" ? t("addItem.detecting") : t("addItem.leaveEmptyIfNoLogo")} />
+            <div className="border-b border-border/60 pb-3 relative">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("addItem.brandLabel")}</p>
+              <input
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+                onFocus={() => setBrandFieldFocused(true)}
+                onBlur={() => setTimeout(() => setBrandFieldFocused(false), 150)}
+                placeholder={stage === "analyze" ? t("addItem.detecting") : t("addItem.leaveEmptyIfNoLogo")}
+                className="mt-1 w-full bg-transparent font-serif text-lg outline-none placeholder:text-muted-foreground/50"
+              />
+              {brandFieldFocused && brand.trim().length > 0 && (() => {
+                const q = brand.trim().toLowerCase();
+                const suggestions = existingBrands
+                  .filter((b) => b.toLowerCase().includes(q) && b.toLowerCase() !== q)
+                  .slice(0, 5);
+                if (!suggestions.length) return null;
+                return (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-10 rounded-2xl border border-border bg-card shadow-luxe overflow-hidden">
+                    {suggestions.map((b) => (
+                      <button
+                        key={b}
+                        onClick={() => { setBrand(b); setBrandFieldFocused(false); }}
+                        className="w-full text-left px-4 py-2.5 text-sm border-b border-border/40 last:border-b-0 active:bg-secondary/40"
+                      >{b}</button>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
             <Field
               label={t("addItem.sizeFieldLabel")}
               value={size}
