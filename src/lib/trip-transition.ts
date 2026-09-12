@@ -169,3 +169,4 @@ export function groupIntoOutfitStates(dayActivities: ActivityForTransition[]): O
   }
   return groups;
 }
+ 
