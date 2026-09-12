@@ -19,7 +19,7 @@ import type { WardrobeItem } from "@/lib/aura-types";
 import type { Screen } from "../AuraApp";
 
 type Verdict = "certain" | "maybe" | "new";
-type Candidate = { wardrobeItemId: string; matchScore: number; verdict: Verdict };
+type Candidate = { detectionId: string; wardrobeItemId: string; matchScore: number; verdict: Verdict };
 type Detection = {
   detectionId: string;
   category: string;
@@ -165,7 +165,7 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
         if (existing) {
           existing.matchScore = Math.max(existing.matchScore, visualSimilarity);
         } else if (visualSimilarity >= 0.6) {
-          list.push({ wardrobeItemId, matchScore: visualSimilarity, verdict: "maybe" });
+          list.push({ detectionId, wardrobeItemId, matchScore: visualSimilarity, verdict: "maybe" });
         }
         if (existing) {
           existing.verdict = existing.matchScore >= 0.9 ? "certain" : existing.matchScore >= 0.6 ? "maybe" : "new";

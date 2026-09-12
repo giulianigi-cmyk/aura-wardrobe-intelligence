@@ -31,9 +31,9 @@ type Detection = {
   bbox: { x: number; y: number; width: number; height: number };
   description: string;
   detectionConfidence: number;
-  sleeveLength: string;
-  length: string;
-  fit: string;
+  sleeveLength?: string;
+  length?: string;
+  fit?: string;
 };
 
 const StartInput = z.object({
@@ -234,17 +234,29 @@ export const confirmWearEvent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ConfirmInput.parse(input))
   .handler(async ({ data, context }) => {
+    // Defense in depth: the SQL function already scopes to auth.uid(),
+    // but every client-supplied id is verified as the caller's here too,
+    // the same pattern the rest of the codebase uses.
+    const { data: ownedItems, error: ownErr } = await (context.supabase.from("wardrobe_items" as never) as any)
+      .select("id").eq("user_id", context.userId).in("id", data.itemIds);
+    if (ownErr) return { ok: false as const, error: ownErr.message };
+    if ((ownedItems ?? []).length !== new Set(data.itemIds).size) {
+      return { ok: false as const, error: "One or more items do not belong to the current user" };
+    }
+    if (data.photoDetectionId) {
+      const { data: det } = await (context.supabase.from("outfit_photo_detections" as never) as any)
+        .select("id").eq("id", data.photoDetectionId).eq("user_id", context.userId).maybeSingle();
+      if (!det) return { ok: false as const, error: "Detection not found" };
+    }
+
     // context.supabase, not supabaseAdmin — the RPC's own auth.uid()
     // check needs the actual signed-in user's session, which only the
-    // request-scoped client carries. The admin client uses the service
-    // role key with no user attached, so auth.uid() inside the function
-    // came back null every time, failing with exactly the error
-    // reported: "confirm_wear_event requires an authenticated user."
+    // request-scoped client carries.
     const { data: eventId, error } = await context.supabase.rpc("confirm_wear_event", {
       _item_ids: data.itemIds,
       _worn_at: data.wornAt,
-      _occasion: data.occasion ?? null,
-      _source_photo_detection_id: data.photoDetectionId ?? null,
+      _occasion: data.occasion ?? undefined,
+      _source_photo_detection_id: data.photoDetectionId ?? undefined,
     });
     if (error) return { ok: false as const, error: error.message };
 
@@ -272,13 +284,27 @@ export const correctWearEventItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => CorrectInput.parse(input))
   .handler(async ({ data, context }) => {
-    // Same fix as confirmWearEvent above — context.supabase, not
-    // supabaseAdmin, so the RPC's auth.uid() check actually sees the
-    // signed-in user.
+    // Verify the wear event and both item ids belong to the caller
+    // before the RPC touches anything (the SQL function checks too).
+    const { data: ev, error: evErr } = await (context.supabase.from("wardrobe_events" as never) as any)
+      .select("id").eq("id", data.eventId).eq("user_id", context.userId).maybeSingle();
+    if (evErr) return { ok: false as const, error: evErr.message };
+    if (!ev) return { ok: false as const, error: "Event not found or does not belong to the current user" };
+
+    const itemIds = [data.removeItemId, ...(data.replacementItemId ? [data.replacementItemId] : [])];
+    const { data: ownedItems, error: ownErr } = await (context.supabase.from("wardrobe_items" as never) as any)
+      .select("id").eq("user_id", context.userId).in("id", itemIds);
+    if (ownErr) return { ok: false as const, error: ownErr.message };
+    if ((ownedItems ?? []).length !== new Set(itemIds).size) {
+      return { ok: false as const, error: "One or more items do not belong to the current user" };
+    }
+
+    // context.supabase, not supabaseAdmin, so the RPC's auth.uid() check
+    // actually sees the signed-in user.
     const { error } = await context.supabase.rpc("correct_wear_event_item", {
       _event_id: data.eventId,
       _remove_item_id: data.removeItemId,
-      _replacement_item_id: data.replacementItemId ?? null,
+      _replacement_item_id: data.replacementItemId ?? undefined,
     });
     if (error) return { ok: false as const, error: error.message };
     return { ok: true as const };

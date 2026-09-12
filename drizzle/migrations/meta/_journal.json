@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789243394477,
+      "tag": "0000_revoke_anon_execute_definer_fns",
+      "breakpoints": true
+    }
+  ]
+}
