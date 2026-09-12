@@ -1743,6 +1743,11 @@
     "doneTitle": "Registrato",
     "doneBody": "La tua cronologia di utilizzo e il costo a uso sono stati aggiornati.",
     "backToCloset": "Torna al guardaroba",
-    "openOnCanvas": "Apri sulla tela"
+    "openOnCanvas": "Apri sulla tela",
+    "searchWardrobe": "Cerca nel guardaroba",
+    "viewPhotoAria": "Vedi foto",
+    "closeAria": "Chiudi",
+    "searchPlaceholder": "Cerca per marca, colore, categoria…",
+    "addToWardrobe": "Aggiungi al guardaroba"
   }
 }
