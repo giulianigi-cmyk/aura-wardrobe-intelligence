@@ -31,6 +31,9 @@ type Detection = {
   bbox: { x: number; y: number; width: number; height: number };
   description: string;
   detectionConfidence: number;
+  sleeveLength: string;
+  length: string;
+  fit: string;
 };
 
 const StartInput = z.object({
@@ -81,12 +84,24 @@ export const startOutfitPhotoDetection = createServerFn({ method: "POST" })
       bbox: it.bbox,
       description: it.description,
       detectionConfidence: it.confidence,
+      sleeveLength: it.sleeveLength,
+      length: it.length,
+      fit: it.fit,
     }));
 
     const candidates: DetectionCandidate[] = [];
     for (const d of detections) {
+      // Every attribute the detector already extracts, not just
+      // category/color/subcategory — a plain 75%-confidence match that
+      // ignored sleeve length, garment length, fit and material was
+      // exactly how a strapless mini dress got matched against a
+      // long-sleeve floor-length one. See outfit-dedupe.ts for the
+      // full reasoning on why each of these earns its own small weight.
       const matches = findTopMatches(
-        { category: d.category, subcategory: d.subcategory, colors: d.colors, brand: null },
+        {
+          category: d.category, subcategory: d.subcategory, colors: d.colors, brand: null,
+          materials: d.materials, sleeveLength: d.sleeveLength, length: d.length, fit: d.fit,
+        },
         wardrobeList,
         3,
       );
