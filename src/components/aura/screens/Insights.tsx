@@ -1,4 +1,5 @@
 import { ArrowLeft, Sparkles, BarChart3, PiggyBank, TrendingDown, Eye, EyeOff, Clock3, Tag } from "lucide-react";
+import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Screen, BuilderInit } from "../AuraApp";
@@ -44,7 +45,7 @@ export function Insights({ go, openWardrobeGap, openBuilder }: { go: (s: Screen)
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
-    supabase.from("wardrobe_items").select("*").eq("user_id", user.id)
+    supabase.from("wardrobe_items").select("*").eq("user_id", user.id).eq("archived", false)
       .then(async ({ data, error }) => {
         if (error) { console.error("[AURA insights] load", error); setLoading(false); return; }
         const list = (data ?? []) as WardrobeItem[];
@@ -171,6 +172,11 @@ export function Insights({ go, openWardrobeGap, openBuilder }: { go: (s: Screen)
       setLifecycleSheetItem(null);
     } catch (e) {
       console.error("[AURA insights] lifecycle update failed", e);
+      // Previously silent — the item stayed in the list (correct, since
+      // it wasn't actually archived), but the sheet just sat there with
+      // no indication anything had gone wrong, so a failed save looked
+      // identical to one still in progress.
+      toast.error(t("insights.toastLifecycleUpdateFailed"));
     } finally {
       setLifecycleBusy(false);
     }
