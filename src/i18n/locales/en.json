@@ -1010,7 +1010,12 @@
     "couldntUpdateCapsule": "Couldn't update the Trip Capsule",
     "viewPieceAria": "View piece",
     "openInWardrobe": "Open in wardrobe",
-    "close": "Close"
+    "close": "Close",
+    "editActivity": "Edit activity",
+    "saveButton": "Save",
+    "startTimeAria": "Start time",
+    "endTimeAria": "End time",
+    "timeHint": "Optional — lets AURA suggest one outfit across nearby activities instead of a separate look for each."
   },
   "batchReview": {
     "couldntLoadBatch": "Couldn't load this batch.",
