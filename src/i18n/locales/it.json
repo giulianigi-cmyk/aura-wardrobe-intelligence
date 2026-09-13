@@ -1008,7 +1008,12 @@
     "couldntUpdateCapsule": "Non sono riuscito ad aggiornare la Trip Capsule",
     "viewPieceAria": "Vedi il capo",
     "openInWardrobe": "Apri nel guardaroba",
-    "close": "Chiudi"
+    "close": "Chiudi",
+    "editActivity": "Modifica attività",
+    "saveButton": "Salva",
+    "startTimeAria": "Ora di inizio",
+    "endTimeAria": "Ora di fine",
+    "timeHint": "Facoltativo — permette ad AURA di suggerire un unico outfit per attività vicine invece di un look diverso per ciascuna."
   },
   "batchReview": {
     "couldntLoadBatch": "Impossibile caricare questo batch.",
