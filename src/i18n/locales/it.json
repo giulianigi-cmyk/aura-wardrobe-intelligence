@@ -1369,7 +1369,8 @@
     "lifecycleSheetHint": "Questo toglie il capo dal tuo guardaroba attivo. Non verrà più suggerito.",
     "markSold": "Segna come venduto",
     "markDonated": "Segna come regalato",
-    "cancel": "Annulla"
+    "cancel": "Annulla",
+    "toastLifecycleUpdateFailed": "Impossibile aggiornare questo capo — riprova"
   },
   "dressPrefs": {
     "dressPreferences": "Preferenze di abbigliamento",
