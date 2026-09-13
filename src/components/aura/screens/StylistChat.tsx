@@ -157,6 +157,13 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
   // in Planner.tsx). Used so a confirmed outfit is saved into that event's
   // own outfit_plans slot instead of colliding with the day's general plan.
   const eventIdRef = useRef<string | null>(null);
+  // Populated from the calendar event's OWN start_time, once fetched
+  // below — this is the actual gap the person reported: eventId was
+  // already being carried through (used later just to link the saved
+  // outfit back to the event), but the event's real time never reached
+  // the AI at all, so "what time is this" only ever worked when the
+  // person happened to type it into their own message.
+  const eventTimeRef = useRef<string | null>(null);
 
   const autoSentRef = useRef(false);
   useEffect(() => {
@@ -171,7 +178,21 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
       eventDateRef.current = initialMessage.date ?? null;
       eventIdRef.current = initialMessage.eventId ?? null;
 
-      void sendMessage(initialMessage.message);
+      void (async () => {
+        if (eventIdRef.current) {
+          try {
+            const { data: ev } = await (supabase.from("calendar_events_cache" as never) as any)
+              .select("start_time, all_day").eq("id", eventIdRef.current).maybeSingle();
+            const row = ev as { start_time: string; all_day: boolean } | null;
+            if (row && !row.all_day) {
+              eventTimeRef.current = new Date(row.start_time).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+            }
+          } catch (e) {
+            console.error("[AURA stylist-chat] event time lookup failed", e);
+          }
+        }
+        void sendMessage(initialMessage.message);
+      })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialMessage, itemsLoaded]);
@@ -199,6 +220,7 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
           profession: profile?.profession ?? null,
           temperature: temp,
           condition: desc,
+          eventTime: eventTimeRef.current,
                     feedbackContext: feedbackContext ?? null,
           todayDate: todayIso(),
           items: items.map((it) => ({
