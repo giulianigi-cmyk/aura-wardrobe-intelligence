@@ -1371,7 +1371,8 @@
     "lifecycleSheetHint": "This removes the piece from your active wardrobe — it won't be suggested again.",
     "markSold": "Mark as sold",
     "markDonated": "Mark as donated",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "toastLifecycleUpdateFailed": "Couldn't update this piece — try again"
   },
   "dressPrefs": {
     "dressPreferences": "Dress preferences",
