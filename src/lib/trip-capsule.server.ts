@@ -1,4 +1,5 @@
 import { suggestOutfitCore, type SuggestOutfitItem } from "./ai-suggest-outfit.functions";
+import { groupIntoOutfitStates, type ActivityForTransition } from "./trip-transition";
 import { dressPreferencesToPrompt, type DressPreferences } from "./dress-preferences";
 import { resolvePlanSlot } from "./outfit-plan-slot";
 import { getTripWeatherMap, weatherKey } from "./trip-weather.server";
@@ -328,6 +329,15 @@ export type Requirement = {
   daySegment: "day" | "evening";
   dressCode: string | null;
   label: string | null;
+  // Populated from trip_day_activities.start_time/end_time/location —
+  // added for the Context & Transition Engine (trip-transition.ts).
+  // Nullable because every activity logged before those columns existed
+  // has none; a Requirement with either time missing is never grouped
+  // with a neighbor (see groupIntoOutfitStates' own conservative
+  // default), so this addition changes nothing for pre-existing trips.
+  startTime: string | null;
+  endTime: string | null;
+  location: string | null;
 };
 
 const MIN_MEMORY_EVIDENCE = 2;
@@ -1036,6 +1046,7 @@ export async function generateTripCapsuleCore({ data, context }: {
     // still gets no requirement at all. ---
     let activities = (activityRows ?? []) as {
       id: string; activity_date: string; activity_type: string; day_segment: string | null; dress_code: string | null;
+      start_time: string | null; end_time: string | null; location: string | null;
     }[];
 
     // A trip with no itinerary at all shouldn't produce nothing — per the
@@ -1096,6 +1107,9 @@ export async function generateTripCapsuleCore({ data, context }: {
         daySegment: a.day_segment === "evening" ? "evening" : "day",
         dressCode: a.dress_code,
         label: a.activity_type,
+        startTime: a.start_time,
+        endTime: a.end_time,
+        location: a.location,
       }));
 
     // Targeted runs mean "regenerate this one" — the existing plan is
@@ -1122,10 +1136,51 @@ export async function generateTripCapsuleCore({ data, context }: {
       : allRequirements.filter((r) => !plannedActivityIds.has(r.activityId));
     const skippedExisting = allRequirements.length - requirements.length;
 
+    // --- Context & Transition Engine: group same-day activities that can
+    // share one outfit (see trip-transition.ts) BEFORE generating anything
+    // — the AI runs once per GROUP, not once per activity, when a small
+    // transition (a layer, a bag, shoes) covers the gap between them
+    // instead of a full change. Activities missing start/end time (every
+    // one logged before this feature existed) always form their own
+    // standalone group, so no existing trip's capsule changes just
+    // because this code now runs.
+    const requirementsByDate = new Map<string, Requirement[]>();
+    for (const r of requirements) {
+      (requirementsByDate.get(r.date) ?? requirementsByDate.set(r.date, []).get(r.date)!).push(r);
+    }
+    // representativeActivityId -> companion activityIds that should reuse
+    // its outfit once generated; companionActivityId -> transition note
+    // to attach to ITS OWN saved plan (the representative's plan keeps no
+    // note, since nothing transitions INTO the first activity of the day).
+    const groupCompanions = new Map<string, string[]>();
+    const companionTransitionNote = new Map<string, string>();
+    for (const [, dayReqs] of requirementsByDate) {
+      const forGrouping: ActivityForTransition[] = dayReqs.map((r) => ({
+        activityId: r.activityId, daySegment: r.daySegment, dressCode: r.dressCode,
+        label: r.label, startTime: r.startTime, endTime: r.endTime, location: r.location,
+      }));
+      for (const group of groupIntoOutfitStates(forGrouping)) {
+        if (group.activityIds.length < 2) continue;
+        const [representative, ...companions] = group.activityIds;
+        groupCompanions.set(representative, companions);
+        if (group.transitionNote) {
+          for (const companionId of companions) companionTransitionNote.set(companionId, group.transitionNote);
+        }
+      }
+    }
+    const companionActivityIds = new Set([...groupCompanions.values()].flat());
+    // The AI generation loop below only ever sees representatives —
+    // companions are filled in afterward by copying the representative's
+    // result, once it's known to have succeeded.
+    const requirementsForGeneration = requirements.filter((r) => !companionActivityIds.has(r.activityId));
+
     // Credit- and cost-conscious cap — a trip logging more than 30
     // activities in one go is not the common case, and this keeps a
-    // single run from firing an unbounded number of AI calls.
-    const capped = requirements.slice(0, 30);
+    // single run from firing an unbounded number of AI calls. Capped
+    // AFTER grouping, not before: a trip with 40 activities that group
+    // down to 25 outfit-states should still generate all 25, not an
+    // arbitrary 30-activities'-worth that happens to land on fewer groups.
+    const capped = requirementsForGeneration.slice(0, 30);
 
     // Transport processed LAST within its own day — the reverse of what
     // it was, deliberately. A transport leg can now reuse another
@@ -1550,6 +1605,41 @@ export async function generateTripCapsuleCore({ data, context }: {
         continue;
       }
       created.push({ date: req.date, daySegment: req.daySegment });
+
+      // This activity anchored a transition group (see the Context &
+      // Transition Engine setup above) — copy the SAME outfit to each
+      // companion activity rather than generating a second, disconnected
+      // look for it. Each companion's own transition note (what actually
+      // changes, and when) goes in ITS row's notes, not the
+      // representative's, since the representative is what the day
+      // starts in, before any transition has happened yet.
+      const companions = groupCompanions.get(req.activityId);
+      if (companions?.length) {
+        for (const companionId of companions) {
+          const companionReq = requirements.find((r) => r.activityId === companionId);
+          if (!companionReq) continue;
+          const note = companionTransitionNote.get(companionId);
+          const { error: companionErr } = await supabase.from("outfit_plans").upsert({
+            user_id: userId,
+            trip_id: data.tripId,
+            trip_activity_id: companionId,
+            date: companionReq.date,
+            day_segment: companionReq.daySegment,
+            item_ids: result.item_ids,
+            occasion: companionReq.label ?? companionReq.dressCode ?? null,
+            notes: note ?? (result.explanation || null),
+            status: "planned",
+            weather_temp: temperature != null ? Math.round(temperature) : null,
+            weather_condition: condition,
+            weather_estimated: dayWeather?.estimated ?? null,
+          } as never, { onConflict: resolvePlanSlot({ tripActivityId: companionId }).onConflict });
+          if (companionErr) {
+            failed.push({ date: companionReq.date, daySegment: companionReq.daySegment, reason: companionErr.message });
+          } else {
+            created.push({ date: companionReq.date, daySegment: companionReq.daySegment });
+          }
+        }
+      }
     }
 
     // Persist what was actually chosen this run into the durable capsule
