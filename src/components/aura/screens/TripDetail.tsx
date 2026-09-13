@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import type { Screen } from "../AuraApp";
 import { getTrip, deleteTrip, updateTripOutfitPlanItems, deleteTripOutfitPlan, type Trip, type TripDestination, type TripType, type DaySegment } from "@/lib/trips.functions";
 import { addTripEssential, removeTripEssential, updateTripEssential, type TripEssential } from "@/lib/essentials.functions";
-import { addTripActivity, removeTripActivity, type TripActivity } from "@/lib/trip-activities.functions";
+import { addTripActivity, updateTripActivity, removeTripActivity, type TripActivity } from "@/lib/trip-activities.functions";
 import { addTripPackingItem, removeTripPackingItem, updateTripPackingItem, type TripPackingItem } from "@/lib/trip-packing.functions";
 import { generateTripCapsule } from "@/lib/trip-capsule.functions";
 import { listLocations } from "@/lib/wardrobe-locations.functions";
@@ -78,6 +78,14 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
   const [actType, setActType] = useState("");
   const [actSegment, setActSegment] = useState<DaySegment>("day");
   const [actDressCode, setActDressCode] = useState("");
+  // Feeds the Context & Transition Engine (trip-transition.ts) — optional,
+  // so leaving these blank behaves exactly as before this existed.
+  const [actStartTime, setActStartTime] = useState("");
+  const [actEndTime, setActEndTime] = useState("");
+  // Set only when the form is editing an activity already logged
+  // (tap-to-edit on the list) rather than creating a new one or
+  // duplicating — addActivity vs. the update path below branch on this.
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [wardrobeItems, setWardrobeItems] = useState<WardrobeItem[]>([]);
   const [wardrobeSigned, setWardrobeSigned] = useState<Record<string, string>>({});
@@ -206,20 +214,44 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
     }
   };
 
+  const updateActivityFn = useServerFn(updateTripActivity);
+
   const addActivity = async () => {
     if (!actType.trim() || !actDate || !trip) return;
     try {
-      const res = await addTripActivity({
-        data: {
-          tripId: trip.id,
-          activityDate: actDate,
-          activityType: actType.trim(),
-          daySegment: actSegment,
-          dressCode: actDressCode || null,
-        },
-      });
-      setActivities((prev) => [...prev, res.activity].sort((a, b) => a.activity_date.localeCompare(b.activity_date)));
-      setActType(""); setActDressCode(""); setActSegment("day"); setActDate(""); setAddingActivity(false); setDuplicatingActivity(null);
+      if (editingActivityId) {
+        await updateActivityFn({
+          data: {
+            id: editingActivityId,
+            activityDate: actDate,
+            activityType: actType.trim(),
+            daySegment: actSegment,
+            dressCode: actDressCode || null,
+            startTime: actStartTime || null,
+            endTime: actEndTime || null,
+          },
+        });
+        setActivities((prev) => prev.map((a) => (a.id === editingActivityId ? {
+          ...a, activity_date: actDate, activity_type: actType.trim(), day_segment: actSegment,
+          dress_code: actDressCode || null, start_time: actStartTime || null, end_time: actEndTime || null,
+        } : a)).sort((a, b) => a.activity_date.localeCompare(b.activity_date)));
+      } else {
+        const res = await addTripActivity({
+          data: {
+            tripId: trip.id,
+            activityDate: actDate,
+            activityType: actType.trim(),
+            daySegment: actSegment,
+            dressCode: actDressCode || null,
+            startTime: actStartTime || null,
+            endTime: actEndTime || null,
+          },
+        });
+        setActivities((prev) => [...prev, res.activity].sort((a, b) => a.activity_date.localeCompare(b.activity_date)));
+      }
+      setActType(""); setActDressCode(""); setActSegment("day"); setActDate("");
+      setActStartTime(""); setActEndTime("");
+      setAddingActivity(false); setDuplicatingActivity(null); setEditingActivityId(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("tripDetail.couldntAddActivity"));
     }
@@ -227,17 +259,41 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
 
   const startDuplicateActivity = (activity: TripActivity) => {
     setDuplicatingActivity(activity);
+    setEditingActivityId(null);
     setActDate(activity.activity_date);
     setActType(activity.activity_type);
     setActSegment(activity.day_segment ?? "day");
     setActDressCode(activity.dress_code ?? "");
+    // Deliberately NOT copied to a duplicate — a copied activity is a
+    // different occurrence (a second dinner, say), and its time is almost
+    // never the same as the one it was copied from.
+    setActStartTime(""); setActEndTime("");
+    setAddingActivity(true);
+  };
+
+  /** Opens the same form pre-filled with an activity ALREADY logged, so
+   *  its time (or anything else) can be corrected after the fact —
+   *  previously nothing in the interface could do this at all, so every
+   *  activity from before this existed has no time and never will unless
+   *  edited here. */
+  const startEditActivity = (activity: TripActivity) => {
+    setDuplicatingActivity(null);
+    setEditingActivityId(activity.id);
+    setActDate(activity.activity_date);
+    setActType(activity.activity_type);
+    setActSegment(activity.day_segment ?? "day");
+    setActDressCode(activity.dress_code ?? "");
+    setActStartTime(activity.start_time ?? "");
+    setActEndTime(activity.end_time ?? "");
     setAddingActivity(true);
   };
 
   const cancelActivityForm = () => {
     setAddingActivity(false);
     setDuplicatingActivity(null);
+    setEditingActivityId(null);
     setActType(""); setActDressCode(""); setActSegment("day"); setActDate("");
+    setActStartTime(""); setActEndTime("");
   };
 
   const listCalendarEvents = useServerFn(listCalendarEventsForTrip);
@@ -855,32 +911,46 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
 
         <div className="space-y-1.5">
           {activities.map((a) => (
-            <div key={a.id} className="flex items-center gap-2 rounded-xl bg-secondary/40 px-3 py-2.5">
+            <button
+              key={a.id}
+              onClick={() => startEditActivity(a)}
+              className="w-full flex items-center gap-2 rounded-xl bg-secondary/40 px-3 py-2.5 text-left active:scale-[0.99] transition"
+            >
               {a.day_segment === "evening" ? <Moon size={13} className="text-muted-foreground shrink-0" /> : <Sun size={13} className="text-muted-foreground shrink-0" />}
               <div className="flex-1 min-w-0">
                 <p className="text-sm truncate">{a.activity_type}</p>
                 <p className="text-[10px] text-muted-foreground">
-                  {fmtDate(a.activity_date)}{a.dress_code ? ` · ${a.dress_code}` : ""}
+                  {fmtDate(a.activity_date)}
+                  {a.start_time ? ` · ${a.start_time}${a.end_time ? `–${a.end_time}` : ""}` : ""}
+                  {a.dress_code ? ` · ${a.dress_code}` : ""}
                 </p>
               </div>
-              <button
-                onClick={() => startDuplicateActivity(a)}
+              <span
+                onClick={(e) => { e.stopPropagation(); startDuplicateActivity(a); }}
+                role="button"
+                tabIndex={0}
                 aria-label={t("tripDetail.duplicateActivityAria", { name: a.activity_type })}
                 className="h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-muted-foreground active:scale-90"
               >
                 <Copy size={12} />
-              </button>
-              <button onClick={() => void removeActivity(a.id)} aria-label={t("tripDetail.removeActivityAria", { name: a.activity_type })} className="h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-muted-foreground">
+              </span>
+              <span
+                onClick={(e) => { e.stopPropagation(); void removeActivity(a.id); }}
+                role="button"
+                tabIndex={0}
+                aria-label={t("tripDetail.removeActivityAria", { name: a.activity_type })}
+                className="h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-muted-foreground"
+              >
                 <X size={13} />
-              </button>
-            </div>
+              </span>
+            </button>
           ))}
         </div>
 
         {addingActivity ? (
           <div className="mt-3 space-y-2">
             <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-              {duplicatingActivity ? t("tripDetail.duplicateActivity") : t("tripDetail.newActivity")}
+              {editingActivityId ? t("tripDetail.editActivity") : duplicatingActivity ? t("tripDetail.duplicateActivity") : t("tripDetail.newActivity")}
             </p>
             <div className="flex items-center gap-2">
               <input
@@ -899,6 +969,24 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
                 className="flex-1 bg-secondary/60 rounded-full px-4 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
               />
             </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="time"
+                value={actStartTime}
+                onChange={(e) => setActStartTime(e.target.value)}
+                aria-label={t("tripDetail.startTimeAria")}
+                className="flex-1 bg-secondary/60 rounded-full px-3 py-2.5 text-xs outline-none"
+              />
+              <span className="text-muted-foreground text-xs">–</span>
+              <input
+                type="time"
+                value={actEndTime}
+                onChange={(e) => setActEndTime(e.target.value)}
+                aria-label={t("tripDetail.endTimeAria")}
+                className="flex-1 bg-secondary/60 rounded-full px-3 py-2.5 text-xs outline-none"
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground px-1">{t("tripDetail.timeHint")}</p>
             <div className="flex gap-1.5">
               {(["day", "evening"] as const).map((seg) => (
                 <button
@@ -922,14 +1010,14 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
             <div className="flex gap-2 pt-1">
               <button onClick={() => cancelActivityForm()} className="flex-1 h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.3em]">{t("tripDetail.cancel")}</button>
               <button onClick={() => void addActivity()} disabled={!actType.trim() || !actDate} className="flex-1 h-10 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] disabled:opacity-40">
-                {duplicatingActivity ? t("tripDetail.duplicateButton") : t("tripDetail.add")}
+                {editingActivityId ? t("tripDetail.saveButton") : duplicatingActivity ? t("tripDetail.duplicateButton") : t("tripDetail.add")}
               </button>
             </div>
           </div>
         ) : (
           <div className="mt-3 flex gap-2">
             <button
-              onClick={() => { setDuplicatingActivity(null); setActDate(minDate ?? ""); setActSegment("day"); setActType(""); setActDressCode(""); setAddingActivity(true); }}
+              onClick={() => { setDuplicatingActivity(null); setEditingActivityId(null); setActDate(minDate ?? ""); setActSegment("day"); setActType(""); setActDressCode(""); setActStartTime(""); setActEndTime(""); setAddingActivity(true); }}
               className="flex-1 h-11 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center justify-center gap-2"
             ><Plus size={13} /> {t("tripDetail.addActivity")}</button>
             <button
