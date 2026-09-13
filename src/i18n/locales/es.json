@@ -1371,7 +1371,8 @@
     "lifecycleSheetHint": "Esto elimina la prenda de tu armario activo — no se volverá a sugerir.",
     "markSold": "Marcar como vendida",
     "markDonated": "Marcar como regalada",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "toastLifecycleUpdateFailed": "No se pudo actualizar esta prenda — inténtalo de nuevo"
   },
   "dressPrefs": {
     "dressPreferences": "Preferencias de vestimenta",
