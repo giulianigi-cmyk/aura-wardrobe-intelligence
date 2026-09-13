@@ -33,6 +33,10 @@ type OutfitPlan = {
 
 type WornEntry = {
   eventId: string; date: string; itemIds: string[]; outfitName: string | null; occasion: string | null;
+  /** Only present for wear events confirmed from a LogWear photo — the
+   *  actual selfie/outfit shot, not just the item thumbnails below it.
+   *  Signed URL, resolved once when this tab loads. */
+  photoUrl: string | null;
 };
 type CalEvent = { id: string; title: string | null; start_time: string; all_day: boolean };
 
@@ -96,7 +100,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
       supabase.from("outfits").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
       supabase.from("outfit_plans").select("*").eq("user_id", user.id).order("date"),
       (supabase.from("wardrobe_events" as never) as any)
-        .select("id, event_date, occasion, outfit_id")
+        .select("id, event_date, occasion, outfit_id, source_photo_detection_id")
         .eq("user_id", user.id).eq("event_type", "worn")
         .order("event_date", { ascending: false }).limit(30),
       (supabase.from("calendar_events_cache" as never) as any)
@@ -124,7 +128,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
     setPlans((pl ?? []) as OutfitPlan[]);
     setTodayCalEvents((cal ?? []) as CalEvent[]);
 
-    const wornEvents = (ev ?? []) as { id: string; event_date: string; occasion: string | null; outfit_id: string | null }[];
+    const wornEvents = (ev ?? []) as { id: string; event_date: string; occasion: string | null; outfit_id: string | null; source_photo_detection_id: string | null }[];
     if (wornEvents.length) {
       const { data: evItems } = await (supabase.from("wardrobe_event_items" as never) as any)
         .select("event_id, item_id").in("event_id", wornEvents.map((e) => e.id));
@@ -134,6 +138,23 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
         arr.push(r.item_id);
         itemsByEvent.set(r.event_id, arr);
       });
+
+      // The actual photo the person uploaded, for events that came from
+      // LogWear — a wear event confirmed from Ask Your Stylist or the
+      // calendar never had a photo to begin with, so this map stays
+      // empty for those, which is correct, not a bug.
+      const photoDetectionIds = wornEvents.map((e) => e.source_photo_detection_id).filter((id): id is string => Boolean(id));
+      const photoByDetectionId = new Map<string, string>();
+      if (photoDetectionIds.length) {
+        const { data: detections } = await (supabase.from("outfit_photo_detections" as never) as any)
+          .select("id, photo_path").in("id", photoDetectionIds);
+        for (const d of (detections ?? []) as { id: string; photo_path: string | null }[]) {
+          if (!d.photo_path) continue; // photo retention disabled, or already cleared
+          const { data: signed } = await supabase.storage.from("outfit-photos").createSignedUrl(d.photo_path, 3600);
+          if (signed?.signedUrl) photoByDetectionId.set(d.id, signed.signedUrl);
+        }
+      }
+
       const outfitNameById = new Map(olist.map((x) => [x.id, x.name]));
       setWornEntries(wornEvents.map((e) => ({
         eventId: e.id,
@@ -141,6 +162,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
         itemIds: itemsByEvent.get(e.id) ?? [],
         outfitName: e.outfit_id ? outfitNameById.get(e.outfit_id) ?? null : null,
         occasion: e.occasion,
+        photoUrl: e.source_photo_detection_id ? photoByDetectionId.get(e.source_photo_detection_id) ?? null : null,
       })).filter((w) => w.itemIds.length > 0));
     } else {
       setWornEntries([]);
@@ -637,6 +659,9 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
                   <p className="text-xs text-muted-foreground mb-2">
                     {dateLabel(w.date)}{w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}
                   </p>
+                  {w.photoUrl && (
+                    <img src={w.photoUrl} alt="" className="w-full rounded-xl mb-2 aspect-[4/5] object-cover" />
+                  )}
                   <ItemThumbs ids={w.itemIds} size="h-14 w-14" />
                 </div>
               ))}
