@@ -1010,7 +1010,12 @@
     "couldntUpdateCapsule": "No se pudo actualizar la Trip Capsule",
     "viewPieceAria": "Ver prenda",
     "openInWardrobe": "Abrir en el armario",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "editActivity": "Editar actividad",
+    "saveButton": "Guardar",
+    "startTimeAria": "Hora de inicio",
+    "endTimeAria": "Hora de fin",
+    "timeHint": "Opcional — permite que AURA sugiera un solo look para actividades cercanas en vez de uno distinto para cada una."
   },
   "batchReview": {
     "couldntLoadBatch": "No se pudo cargar este lote.",
