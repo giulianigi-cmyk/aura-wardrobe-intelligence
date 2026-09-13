@@ -1066,7 +1066,8 @@
     "lifecycleSheetHint": "Cela retire la pièce de votre garde-robe active — elle ne sera plus suggérée.",
     "markSold": "Marquer comme vendue",
     "markDonated": "Marquer comme donnée",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "toastLifecycleUpdateFailed": "Impossible de mettre à jour cette pièce — réessayez"
   },
   "errorBoundary": {
     "somethingWentWrong": "Une erreur s'est produite",
