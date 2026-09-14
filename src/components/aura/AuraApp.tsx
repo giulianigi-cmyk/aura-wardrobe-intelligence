@@ -258,18 +258,78 @@ function Inner() {
 
   const showTabs = user && !["splash", "onboarding", "auth", "reset", "profile-setup", "add", "builder", "stylist-chat", "chat-thread"].includes(screen);
 
+  // The 5 screens reachable from the bottom tab bar stay mounted for the
+  // whole session once first visited, shown/hidden with CSS instead of
+  // being torn down and rebuilt every time — this is what makes
+  // "Home → Wardrobe → Stylist → Wardrobe" instant on the second visit
+  // instead of re-running every data fetch from scratch. Everything else
+  // (AddItem, LogWear, OutfitBuilder, Settings, TripDetail, etc.) keeps
+  // the original mount-on-demand/unmount-on-leave behavior: these are
+  // flows people finish or back out of, not places they bounce between
+  // all session long, so there's no real benefit to keeping them alive
+  // and a real cost (memory) to doing so.
+  //
+  // Each persistent tab only actually mounts the FIRST time it's
+  // visited (mountedTabs), not all five up front on cold start — so the
+  // very first screen a person lands on doesn't pay for four others
+  // they may never open this session.
+  const MAIN_TABS = ["home", "wardrobe", "ai", "planner", "profile"] as const;
+  const isMainTab = (MAIN_TABS as readonly string[]).includes(screen);
+  const [mountedTabs, setMountedTabs] = useState<Set<Screen>>(new Set());
+  useEffect(() => {
+    if (isMainTab && !mountedTabs.has(screen)) {
+      setMountedTabs((prev) => new Set(prev).add(screen));
+    }
+  }, [screen, isMainTab, mountedTabs]);
+
   return (
     <PhoneFrame>
       <div className="relative h-full w-full overflow-hidden bg-background">
-                <div key={screen} className="absolute inset-0 animate-fade-in">
+        {mountedTabs.has("home") && (
+          <div className={`absolute inset-0 ${screen === "home" ? "" : "hidden"}`}>
+            <ErrorBoundary onReset={() => go("home")}>
+              <Home go={go} />
+            </ErrorBoundary>
+          </div>
+        )}
+        {mountedTabs.has("wardrobe") && (
+          <div className={`absolute inset-0 ${screen === "wardrobe" ? "" : "hidden"}`}>
+            <ErrorBoundary onReset={() => go("home")}>
+              <Wardrobe go={go} gapFilter={wardrobeGapFilter} onClearGapFilter={() => setWardrobeGapFilter(null)} />
+            </ErrorBoundary>
+          </div>
+        )}
+        {mountedTabs.has("ai") && (
+          <div className={`absolute inset-0 ${screen === "ai" ? "" : "hidden"}`}>
+            <ErrorBoundary onReset={() => go("home")}>
+              <AIStylist go={go} openBuilder={openBuilder} openAvatarTryOn={openAvatarTryOn} />
+            </ErrorBoundary>
+          </div>
+        )}
+        {mountedTabs.has("planner") && (
+          <div className={`absolute inset-0 ${screen === "planner" ? "" : "hidden"}`}>
+            <ErrorBoundary onReset={() => go("home")}>
+              <Planner go={go} openStylistChat={openStylistChat} openBuilder={openBuilder} focus={plannerFocus} />
+            </ErrorBoundary>
+          </div>
+        )}
+        {mountedTabs.has("profile") && (
+          <div className={`absolute inset-0 ${screen === "profile" ? "" : "hidden"}`}>
+            <ErrorBoundary onReset={() => go("home")}>
+              <Profile go={go} openConversation={openConversation} openUserProfile={openUserProfile} />
+            </ErrorBoundary>
+          </div>
+        )}
+
+        {/* Everything else — unchanged mount-on-demand behavior. */}
+        {!isMainTab && (
+        <div key={screen} className="absolute inset-0 animate-fade-in">
           <ErrorBoundary onReset={() => go("home")}>
           {screen === "splash" && <Splash go={go} />}
           {screen === "onboarding" && <Onboarding onDone={finishOnboarding} />}
           {screen === "auth" && <Auth />}
           {screen === "reset" && <ResetPassword onDone={() => setScreen(user ? "home" : "auth")} />}
           {screen === "profile-setup" && <ProfileSetup onDone={() => setScreen("home")} />}
-          {screen === "home" && <Home go={go} />}
-                    {screen === "wardrobe" && <Wardrobe go={go} gapFilter={wardrobeGapFilter} onClearGapFilter={() => setWardrobeGapFilter(null)} />}
 
           {screen === "add" && (
             <AddItem
@@ -277,7 +337,6 @@ function Inner() {
               initialGarment={addItemInitialGarment}
             />
           )}
-          {screen === "ai" && <AIStylist go={go} openBuilder={openBuilder} openAvatarTryOn={openAvatarTryOn} />}
           {screen === "stylist-chat" && <StylistChat go={go} openBuilder={openBuilder} initialMessage={stylistChatInit} />}
           {screen === "outfit-scan" && <OutfitScan go={go} />}
           {screen === "batch-scan" && <BatchScan go={go} openReview={openBatchReview} />}
@@ -286,11 +345,9 @@ function Inner() {
           {screen === "trip-create" && <TripCreate go={go} onCreated={(id) => { setActiveTripId(id); setScreen("trip-detail"); }} />}
           {screen === "trip-detail" && activeTripId && <TripDetail go={go} tripId={activeTripId} focusActivityId={tripFocusActivityId} openBuilder={openBuilder} openAvatarTryOn={openAvatarTryOn} />}
           {screen === "essential-presets" && <EssentialPresets go={go} />}
-          {screen === "planner" && <Planner go={go} openStylistChat={openStylistChat} openBuilder={openBuilder} focus={plannerFocus} />}
           {screen === "shop" && <Shop go={go} />}
           {screen === "color-lab" && <ColorLab go={go} />}
           {screen === "community" && <Community go={go} openConversation={openConversation} openUserProfile={openUserProfile} />}
-                    {screen === "profile" && <Profile go={go} openConversation={openConversation} openUserProfile={openUserProfile} />}
           {screen === "settings" && <Settings go={go} />}
           {screen === "settings-personal" && <PersonalInfo go={go} />}
           {screen === "settings-style-prefs" && <StylePreferences go={go} />}
@@ -328,6 +385,7 @@ function Inner() {
           )}
           </ErrorBoundary>
         </div>
+        )}
         {showTabs && <TabBar current={screen} go={go} />}
       </div>
     </PhoneFrame>
