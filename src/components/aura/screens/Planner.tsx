@@ -632,10 +632,17 @@ function DayDetail({
     const eventDateLabel = new Date(date + "T00:00:00").toLocaleDateString(i18n.language, {
       weekday: "long", month: "long", day: "numeric",
     });
+    const eventTimeLabel = event && !event.all_day
+      ? new Date(event.start_time).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" })
+      : null;
     const promptMessage = event
-      ? (event.location
-          ? t("planner.chatPromptEventWithLocation", { title: event.title || t("planner.anEvent"), date: eventDateLabel, location: event.location })
-          : t("planner.chatPromptEvent", { title: event.title || t("planner.anEvent"), date: eventDateLabel }))
+      ? (eventTimeLabel
+          ? (event.location
+              ? t("planner.chatPromptEventWithLocationAndTime", { title: event.title || t("planner.anEvent"), date: eventDateLabel, time: eventTimeLabel, location: event.location })
+              : t("planner.chatPromptEventWithTime", { title: event.title || t("planner.anEvent"), date: eventDateLabel, time: eventTimeLabel }))
+          : (event.location
+              ? t("planner.chatPromptEventWithLocation", { title: event.title || t("planner.anEvent"), date: eventDateLabel, location: event.location })
+              : t("planner.chatPromptEvent", { title: event.title || t("planner.anEvent"), date: eventDateLabel })))
       : t("planner.chatPromptGeneral", { date: eventDateLabel });
     openStylistChat({
       message: promptMessage,
@@ -643,6 +650,9 @@ function DayDetail({
       condition: weather ? describeWeather(weather.weatherCode).label : null,
       date,
       eventId: event?.id ?? null,
+      // Already sitting right on the event object — no lookup needed,
+      // and no risk of it silently not matching a database row.
+      eventTime: eventTimeLabel,
     });
   };
 
