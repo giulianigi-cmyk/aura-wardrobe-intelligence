@@ -85,6 +85,14 @@ export type StylistChatInit = {
   condition: string | null;
   date?: string | null;
   eventId?: string | null;
+  /** The event's own start_time, already available on the caller's
+   *  ImportedEvent object (Planner.tsx) — passed directly rather than
+   *  re-fetched by id in StylistChat.tsx, since that id doesn't always
+   *  correspond to a calendar_events_cache row (an event merged in from
+   *  the device's native calendar can carry a different id scheme),
+   *  which was silently failing that lookup. Null for an all-day event
+   *  or one truly missing a time. */
+  eventTime?: string | null;
 } | null;
 
 
