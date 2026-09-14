@@ -958,7 +958,6 @@ export function AddItem({ onClose, initialGarment }: {
               onKeyDown={(e) => { if (e.key === "Enter") void runLibrarySearch(); }}
               placeholder={t("addItem.libraryPlaceholder")}
               className="flex-1 ml-2 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
-              autoFocus
             />
           </div>
           <button
@@ -1146,7 +1145,6 @@ export function AddItem({ onClose, initialGarment }: {
                 onChange={(e) => setUrlInput(e.target.value)}
                 placeholder="https://www.zara.com/…"
                 className="flex-1 ml-2 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
-                autoFocus
               />
             </div>
             <button
