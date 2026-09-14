@@ -7,6 +7,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesInsert } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/use-auth";
+import { useWardrobeCacheActions } from "@/lib/wardrobe-query";
+import type { WardrobeItem } from "@/lib/aura-types";
 import { ColorPicker } from "@/components/aura/ColorPicker";
 import { MaterialCombobox } from "@/components/aura/MaterialCombobox";
 import { analyzeWardrobeImage } from "@/lib/ai-analyze.functions";
@@ -196,6 +198,7 @@ export function AddItem({ onClose, initialGarment }: {
 }) {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
+  const wardrobeCache = useWardrobeCacheActions();
   const analyze = useServerFn(analyzeWardrobeImage);
   const fetchLocations = useServerFn(listLocations);
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
@@ -839,7 +842,15 @@ export function AddItem({ onClose, initialGarment }: {
           console.error("[AURA add-item] visual embedding failed — attribute matching still works without it", e);
         }
       })();
-      window.dispatchEvent(new CustomEvent("aura:wardrobe-item-created", { detail: inserted }));
+      // Writes straight into the shared wardrobe cache (see
+      // wardrobe-query.ts) — every screen reading from it (Wardrobe,
+      // Home, AIStylist, Planner) sees the new piece immediately,
+      // regardless of which one AddItem was opened from. Replaces the
+      // old "aura:wardrobe-item-created" DOM event, which only ever
+      // worked if the originating screen happened to still be mounted —
+      // never true in the previous navigation model, and unnecessary
+      // now that the cache itself is the shared source of truth.
+      wardrobeCache.addItem(inserted as WardrobeItem);
       onClose();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : (typeof e === "object" && e !== null && "message" in e ? String((e as { message: unknown }).message) : t("addItem.errFailedToSave"));
