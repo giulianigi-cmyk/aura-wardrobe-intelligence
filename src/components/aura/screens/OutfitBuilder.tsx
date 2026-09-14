@@ -87,7 +87,15 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
   const { data: weather } = useWeather(latitude, longitude);
 
   const [ratio, setRatio] = useState<Ratio>("1:1");
-  const [items, setItems] = useState<WardrobeItem[]>([]);
+  // Full set, archived included — needed to correctly resolve an
+  // EXISTING saved outfit's item_ids (init.itemIds below): a piece
+  // archived after the outfit was saved must still render on the
+  // canvas, not silently disappear. `items` (derived below) is the
+  // filtered, active-only view used everywhere else (AI Suggest, the
+  // "add a piece" picker) — same dual-need pattern already fixed in
+  // Planner.tsx for the same underlying reason.
+  const [allItems, setAllItems] = useState<WardrobeItem[]>([]);
+  const items = useMemo(() => allItems.filter((it) => !(it as unknown as { archived?: boolean }).archived), [allItems]);
   const [signed, setSigned] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [placed, setPlaced] = useState<Placed[]>([]);
@@ -152,9 +160,10 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
     if (!user) return;
     void (async () => {
       setLoading(true);
-      const { data } = await (supabase.from("wardrobe_items" as never) as any).select("*").eq("user_id", user.id).eq("archived", false);
+      // No .eq("archived", false) here — see allItems above for why.
+      const { data } = await (supabase.from("wardrobe_items" as never) as any).select("*").eq("user_id", user.id);
       const list = (data ?? []) as WardrobeItem[];
-      setItems(list);
+      setAllItems(list);
       const signedMap = await resolveWardrobeUrls(list);
       setSigned(signedMap);
       setLoading(false);
