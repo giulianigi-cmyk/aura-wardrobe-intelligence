@@ -75,6 +75,19 @@ function parseMinutes(t: string | null): number | null {
  *  pair even get a chance to share an outfit", not the exact pieces
  *  that would change (that's still suggestOutfitCore's job). */
 function estimateTransition(a: ActivityForTransition, b: ActivityForTransition): { kind: TransitionKind; cost: number } {
+  // A day → evening (or evening → day) crossing is never a "minor"
+  // transition on its own, regardless of dressCode — this was the real
+  // bug: with both dressCodes null, formalityBand() returned "mid" for
+  // both sides, so ANY gap between a lunch and a dinner (even 8+ hours)
+  // fell through to the "same formality band" branch below and merged
+  // them into one shared outfit. daySegment is checked FIRST, before
+  // formality, because it's known with certainty the moment both
+  // activities have one set — dressCode is frequently null and was
+  // never a reliable enough signal to carry this decision alone.
+  if (a.daySegment !== b.daySegment) {
+    return { kind: "major", cost: TRANSITION_COST.FULL_CHANGE };
+  }
+
   const gapMinutes = (() => {
     const aEnd = parseMinutes(a.endTime);
     const bStart = parseMinutes(b.startTime);
@@ -129,6 +142,10 @@ function estimateTransition(a: ActivityForTransition, b: ActivityForTransition):
  *  long one never reaches this, only the genuinely uncertain middle
  *  case does. */
 export function requiresClarification(a: ActivityForTransition, b: ActivityForTransition): boolean {
+  // Same reasoning as estimateTransition above — a day/evening crossing
+  // is always "major" now, never ambiguous, so asking about it would
+  // never actually change the outcome.
+  if (a.daySegment !== b.daySegment) return false;
   const aEnd = parseMinutes(a.endTime);
   const bStart = parseMinutes(b.startTime);
   if (aEnd == null || bStart == null) return false;
@@ -169,4 +186,3 @@ export function groupIntoOutfitStates(dayActivities: ActivityForTransition[]): O
   }
   return groups;
 }
- 
