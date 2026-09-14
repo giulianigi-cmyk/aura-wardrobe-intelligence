@@ -11,7 +11,8 @@ import { describeWeather, classifyTemp, suggestOutfit, weatherLabelKey, type Dai
 import type { WardrobeItem } from "@/lib/aura-types";
 import type { Tables } from "@/integrations/supabase/types";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
-import { useWardrobeItems } from "@/lib/wardrobe-query";
+import { useWardrobeItems, useWardrobeImages } from "@/lib/wardrobe-query";
+import { useOutfitPlans, useOutfitPlansCacheActions } from "@/lib/outfit-plans-query";
 import { PiecePicker } from "../PiecePicker";
 import { logWardrobeEvent, confirmOutfitPlanWorn } from "@/lib/wardrobe-events";
 import { resolvePlanSlot, validateEventSlot } from "@/lib/outfit-plan-slot";
@@ -88,11 +89,11 @@ export function Planner({ go, openStylistChat, openBuilder, focus }: {
 
   const [view, setView] = useState<"month" | "week">("month");
   const [anchor, setAnchor] = useState<Date>(startOfDay(new Date()));
-  const [plans, setPlans] = useState<OutfitPlan[]>([]);
+  const { data: plans = [], refetch: refetchPlans } = useOutfitPlans() as { data: OutfitPlan[]; refetch: () => Promise<unknown> };
+  const outfitPlansCache = useOutfitPlansCacheActions();
   const [calendarEvents, setCalendarEvents] = useState<ImportedEvent[]>([]);
   const [dismissedEvents, setDismissedEvents] = useState<ImportedEvent[]>([]);
   const [showDismissed, setShowDismissed] = useState(false);
-  const [signed, setSigned] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(focus?.date ?? null);
   const [manualCity, setManualCity] = useState("");
@@ -106,16 +107,14 @@ export function Planner({ go, openStylistChat, openBuilder, focus }: {
   // file, which needs archived pieces to still render correctly.
   const itemsQuery = useWardrobeItems();
   const items = itemsQuery.data ?? [];
-  useEffect(() => {
-    if (!items.length) { setSigned({}); return; }
-    void resolveWardrobeUrls(items).then(setSigned);
-  }, [items]);
+  // Shared image cache (see wardrobe-query.ts) — same set Wardrobe.tsx
+  // and AIStylist.tsx also draw from.
+  const { data: signed = {} } = useWardrobeImages(items);
 
   const reload = useCallback(async () => {
     if (!user) { setLoading(false); return; }
     setLoading(true);
-    const [{ data: pl }, { data: ev }, { data: dismissed }] = await Promise.all([
-      supabase.from("outfit_plans").select("*").eq("user_id", user.id).order("date"),
+    const [{ data: ev }, { data: dismissed }] = await Promise.all([
       (supabase.from("calendar_events_cache" as never) as any)
         .select("id, title, start_time, end_time, location, all_day, removed_from_source")
         .eq("user_id", user.id)
@@ -129,11 +128,20 @@ export function Planner({ go, openStylistChat, openBuilder, focus }: {
         .eq("permanently_deleted_by_user", false)
         .order("start_time"),
     ]);
-    setPlans((pl ?? []) as OutfitPlan[]);
     setCalendarEvents((ev ?? []) as ImportedEvent[]);
     setDismissedEvents((dismissed ?? []) as ImportedEvent[]);
     setLoading(false);
   }, [user]);
+
+  // outfit_plans now comes from the shared cache (see
+  // outfit-plans-query.ts) — a save/cancel elsewhere in this component
+  // calls this after its own mutation, same as it always called reload()
+  // before, except now it also invalidates the SAME cache AIStylist
+  // reads, so a plan changed here shows correctly there too.
+  const reloadPlans = useCallback(() => {
+    outfitPlansCache.invalidate();
+    void refetchPlans();
+  }, [outfitPlansCache, refetchPlans]);
 
   const dismissEvent = async (eventId: string) => {
     setCalendarEvents((prev) => prev.filter((e) => e.id !== eventId));
@@ -426,7 +434,7 @@ export function Planner({ go, openStylistChat, openBuilder, focus }: {
           proposals={proposals}
           onProposalResolved={() => { void reloadProposals(); void reload(); }}
           onClose={() => setSelectedDate(null)}
-          onSaved={reload}
+          onSaved={reloadPlans}
           onDismissEvent={dismissEvent}
         />
       )}
