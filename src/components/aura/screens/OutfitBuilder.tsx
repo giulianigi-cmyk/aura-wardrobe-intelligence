@@ -168,14 +168,46 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
       setSigned(signedMap);
       setLoading(false);
 
-      // If opened from a saved outfit, place its items on the canvas.
+      // If opened from a saved outfit, place its items on the canvas —
+      // using the REAL saved layout when one exists, rather than
+      // re-guessing positions from each item's category every time
+      // (autoPlace). This is what previously produced pieces stacked on
+      // top of each other on reopen: the guess isn't wrong exactly, it
+      // just isn't the same arrangement the person actually left it in.
       if (init && !initAppliedRef.current && init.itemIds.length) {
         initAppliedRef.current = true;
         const byId = new Map(list.map((it) => [it.id, it]));
         const picks = init.itemIds
           .map((id) => byId.get(id))
           .filter((it): it is WardrobeItem => Boolean(it));
-        const nextPlaced = autoPlace(picks, signedMap);
+
+        let nextPlaced: Placed[];
+        if (init.layout?.length) {
+          const layoutById = new Map(init.layout.map((l) => [l.itemId, l]));
+          nextPlaced = picks
+            .map((it, i) => {
+              const path = toStoragePath(it.image_url);
+              const url = path ? signedMap[path] : "";
+              const l = layoutById.get(it.id);
+              if (!url || !l) return null;
+              return {
+                key: `${it.id}-init-${i}-${Date.now()}`,
+                itemId: it.id, imgUrl: url,
+                x: l.x, y: l.y, scale: l.scale, rotation: l.rotation, z: l.z,
+              } as Placed;
+            })
+            .filter((p): p is Placed => p !== null);
+          // A saved layout missing an item entirely (rare — e.g. the
+          // outfit was edited to add a piece through some other path
+          // that didn't update layout) still gets that piece placed via
+          // the same fallback as a layout-less outfit, rather than
+          // silently dropping it.
+          const placedIds = new Set(nextPlaced.map((p) => p.itemId));
+          const missing = picks.filter((it) => !placedIds.has(it.id));
+          if (missing.length) nextPlaced = [...nextPlaced, ...autoPlace(missing, signedMap)];
+        } else {
+          nextPlaced = autoPlace(picks, signedMap);
+        }
         if (nextPlaced.length) {
           zSeqRef.current = Math.max(zSeqRef.current, ...nextPlaced.map((p) => p.z)) + 1;
           setPlaced(nextPlaced);
@@ -541,10 +573,16 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         occasion: occasion ? [occasion] : [],
         season: seasonTag,
         notes: notes.trim() || null,
+        // The exact canvas position of every piece — see
+        // outfit_canvas_layout.sql. Not yet in the generated Outfits
+        // update type (added after the last regeneration), same
+        // situation as several other newer columns elsewhere in this
+        // codebase; cast below at the insert/update call sites.
+        layout: placed.map((p) => ({ itemId: p.itemId, x: p.x, y: p.y, scale: p.scale, rotation: p.rotation, z: p.z })),
       };
             const { data: savedRow, error } = init?.outfitId
-        ? await supabase.from("outfits").update(payload).eq("id", init.outfitId).eq("user_id", user.id).select("id").single()
-        : await supabase.from("outfits").insert({ user_id: user.id, ...payload }).select("id").single();
+        ? await supabase.from("outfits").update(payload as never).eq("id", init.outfitId).eq("user_id", user.id).select("id").single()
+        : await supabase.from("outfits").insert({ user_id: user.id, ...payload } as never).select("id").single();
       if (error) throw error;
       setSavedOutfitId((savedRow as { id: string } | null)?.id ?? init?.outfitId ?? null);
 
