@@ -20,7 +20,9 @@ import type { WardrobeLocation } from "@/lib/wardrobe-location";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { logWardrobeEvent, confirmOutfitPlanWorn } from "@/lib/wardrobe-events";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
-import { useWardrobeItems } from "@/lib/wardrobe-query";
+import { useWardrobeItems, useWardrobeImages } from "@/lib/wardrobe-query";
+import { useOutfitPlans, outfitPlansQueryKey, useOutfitPlansCacheActions } from "@/lib/outfit-plans-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { ITEM_CATEGORIES } from "@/lib/wardrobe-options";
 import { resolvePlanSlot } from "@/lib/outfit-plan-slot";
 import i18n from "@/i18n/config";
@@ -67,14 +69,29 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
   // sharing); only the wardrobe items list itself moves to the cache.
   const itemsQuery = useWardrobeItems();
   const items = itemsQuery.data ?? [];
-  const [itemSigned, setItemSigned] = useState<Record<string, string>>({});
-  useEffect(() => {
-    if (!items.length) { setItemSigned({}); return; }
-    void resolveWardrobeUrls(items).then(setItemSigned);
-  }, [items]);
+  // Shared image cache (see wardrobe-query.ts) — same set of items
+  // Wardrobe.tsx itself resolves, so once either screen has loaded them
+  // once this session, the other reads instantly instead of re-signing.
+  const { data: itemSigned = {} } = useWardrobeImages(items);
   const [outfits, setOutfits] = useState<Outfit[]>([]);
   const [signed, setSigned] = useState<Record<string, string>>({});
-  const [plans, setPlans] = useState<OutfitPlan[]>([]);
+  // Shared cache (see outfit-plans-query.ts) — same duplication fix as
+  // wardrobe items: Planner reads from this same key. The shim below
+  // keeps every existing optimistic setPlans call in this file working
+  // unchanged, same pattern as Wardrobe.tsx's setItems shim.
+  const queryClient = useQueryClient();
+  const outfitPlansCache = useOutfitPlansCacheActions();
+  const plansQuery = useOutfitPlans();
+  const plans = (plansQuery.data ?? []) as OutfitPlan[];
+  const setPlans = useCallback(
+    (updater: OutfitPlan[] | ((prev: OutfitPlan[]) => OutfitPlan[])) => {
+      queryClient.setQueryData<OutfitPlan[]>(
+        outfitPlansQueryKey(user?.id),
+        (prev) => (typeof updater === "function" ? updater((prev ?? []) as OutfitPlan[]) : updater) as never,
+      );
+    },
+    [queryClient, user?.id],
+  );
   const [wornEntries, setWornEntries] = useState<WornEntry[]>([]);
   const [todayCalEvents, setTodayCalEvents] = useState<CalEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,9 +124,8 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
     if (!user) return;
     setLoading(true);
     const today = todayIso();
-    const [{ data: o }, { data: pl }, { data: ev }, { data: cal }] = await Promise.all([
+    const [{ data: o }, { data: ev }, { data: cal }] = await Promise.all([
       supabase.from("outfits").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
-      supabase.from("outfit_plans").select("*").eq("user_id", user.id).order("date"),
       (supabase.from("wardrobe_events" as never) as any)
         .select("id, event_date, occasion, outfit_id, source_photo_detection_id")
         .eq("user_id", user.id).eq("event_type", "worn")
@@ -132,7 +148,6 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
       setSigned({});
     }
 
-    setPlans((pl ?? []) as OutfitPlan[]);
     setTodayCalEvents((cal ?? []) as CalEvent[]);
 
     const wornEvents = (ev ?? []) as { id: string; event_date: string; occasion: string | null; outfit_id: string | null; source_photo_detection_id: string | null }[];
@@ -349,6 +364,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
     if (eventErr) console.error("[AURA wardrobe-events] log failed", eventErr);
     toast.success(t("aiStylist.toastAddedToCalendar"));
     setAssignFor(null);
+    outfitPlansCache.invalidate();
     void load();
   };
 
@@ -396,6 +412,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
     if (error) { toast.error(error); return; }
     setEditedItems((prev) => { const next = { ...prev }; delete next[plan.id]; return next; });
     toast.success(t("aiStylist.toastMarkedAsWorn"));
+    outfitPlansCache.invalidate();
     void load();
   };
 
@@ -406,6 +423,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
     setConfirmingPlanId(null);
     if (error) { toast.error(error.message); return; }
     void logWardrobeEvent({ userId: user.id, eventType: "cancelled", date: plan.date, itemIds: plan.item_ids, outfitPlanId: plan.id });
+    outfitPlansCache.invalidate();
     void load();
   };
 
