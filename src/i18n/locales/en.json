@@ -758,7 +758,9 @@
     "removedFromCalendar": "· removed from calendar",
     "couldntDeleteEvent": "Couldn't delete that event",
     "deleteEventAria": "Delete permanently",
-    "openOnCanvasAria": "Open on canvas"
+    "openOnCanvasAria": "Open on canvas",
+    "chatPromptEventWithTime": "I have \"{{title}}\" on {{date}} at {{time}}. What do you recommend I wear?",
+    "chatPromptEventWithLocationAndTime": "I have \"{{title}}\" on {{date}} at {{time}}, at {{location}}. What do you recommend I wear?"
   },
   "aiStylist": {
     "notEnoughActivePieces_one": "You have {{count}} piece in your active wardrobe — add at least 3 (or restore an archived one) to generate an AI outfit.",
