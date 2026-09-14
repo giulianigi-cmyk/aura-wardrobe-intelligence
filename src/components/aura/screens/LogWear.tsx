@@ -14,6 +14,7 @@ import { ArrowLeft, Loader2, Check, HelpCircle, Plus, ChevronDown, ChevronUp, Se
 import { startOutfitPhotoDetection, confirmWearEvent, refineDetectionWithVisualSimilarity } from "@/lib/outfit-wear.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useWardrobeCacheActions } from "@/lib/wardrobe-query";
 import { resolveWardrobeUrls, thumbSrc } from "@/lib/wardrobe-image";
 import type { WardrobeItem } from "@/lib/aura-types";
 import type { Screen } from "../AuraApp";
@@ -96,6 +97,7 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const wardrobeCache = useWardrobeCacheActions();
   const start = useServerFn(startOutfitPhotoDetection);
   const confirm = useServerFn(confirmWearEvent);
   const refineVisual = useServerFn(refineDetectionWithVisualSimilarity);
@@ -313,6 +315,12 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
         data: { photoDetectionId: result.id, itemIds: confirmedItemIds, wornAt, occasion: occasion.trim() || null },
       });
       if (!res.ok) throw new Error(res.error);
+      // worn_count/last_worn changed on the confirmed items server-side
+      // (via the confirm_wear_event RPC), which doesn't hand back the
+      // updated rows — targeted invalidation, same reasoning as
+      // BatchReview: not enough here to update the cache optimistically
+      // without risking it being wrong.
+      wardrobeCache.invalidate();
       setStage("done");
     } catch (e) {
       console.error("[AURA log-wear] confirm failed", e);
