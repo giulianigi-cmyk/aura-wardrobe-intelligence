@@ -220,6 +220,45 @@ export const refineDetectionWithVisualSimilarity = createServerFn({ method: "POS
     return { ok: true as const, visualCandidates: results };
   });
 
+const FindVisualDuplicatesInput = z.object({
+  category: z.string(),
+  embedding: z.array(z.number()).length(768),
+});
+
+/** Generic version of the pgvector lookup above, for the wardrobe-import
+ *  dedup flow (OutfitScan.tsx / BatchReview.tsx) rather than wear
+ *  detection — no photoDetectionId, since importing a new piece has no
+ *  outfit photo record to attach to. Same category-filtered pgvector
+ *  search; kept as its own function rather than reusing
+ *  refineDetectionWithVisualSimilarity so that function's required
+ *  photoDetectionId stays a real requirement for its own callers instead
+ *  of becoming optional everywhere just to accommodate this case. */
+export const findVisualDuplicates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => FindVisualDuplicatesInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: matches, error } = await context.supabase.rpc("find_visually_similar_items", {
+      _query_embedding: `[${data.embedding.join(",")}]`,
+      _limit: 5,
+    });
+    if (error) {
+      console.error("[AURA visual-dedup] pgvector search failed", error);
+      return { ok: true as const, matches: [] };
+    }
+    const matchedIds = ((matches ?? []) as { wardrobe_item_id: string; visual_similarity: number }[]).map((m) => m.wardrobe_item_id);
+    if (!matchedIds.length) return { ok: true as const, matches: [] };
+
+    const { data: categoryRows } = await (context.supabase.from("wardrobe_items" as never) as any)
+      .select("id, category").in("id", matchedIds);
+    const categoryById = new Map(((categoryRows ?? []) as { id: string; category: string }[]).map((r) => [r.id, r.category]));
+
+    const filtered = ((matches ?? []) as { wardrobe_item_id: string; visual_similarity: number }[])
+      .filter((m) => categoryById.get(m.wardrobe_item_id) === data.category)
+      .map((m) => ({ wardrobeItemId: m.wardrobe_item_id, visualSimilarity: m.visual_similarity }));
+
+    return { ok: true as const, matches: filtered };
+  });
+
 const ConfirmInput = z.object({
   photoDetectionId: z.string().uuid().nullable().optional(),
   itemIds: z.array(z.string().uuid()).min(1),
