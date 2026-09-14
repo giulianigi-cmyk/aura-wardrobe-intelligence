@@ -193,3 +193,47 @@ export async function markItemLifecycleStatus(
 
   return { error: null };
 }
+
+/** Removes a logged "worn" entry entirely (AIStylist's Worn tab) and
+ *  puts worn_count/last_worn back to what they'd correctly be without
+ *  it — recomputed directly from the remaining wardrobe_events for
+ *  each affected item, rather than assuming the sync_wardrobe_wear_stats
+ *  trigger (whose real definition lives outside this repo's tracked
+ *  migrations, so its DELETE behavior can't be confirmed from the
+ *  codebase) handles the deletion path the same way it handles insert.
+ *  Correct either way: if the trigger DOES also fire on delete, this
+ *  recompute lands on the same correct numbers redundantly; if it
+ *  doesn't, this is what keeps them right. */
+export async function deleteWornEvent(
+  eventId: string,
+  itemIds: string[],
+  userId: string,
+): Promise<{ error: string | null }> {
+  const { error: itemsErr } = await (supabase.from("wardrobe_event_items" as never) as any)
+    .delete().eq("event_id", eventId);
+  if (itemsErr) return { error: itemsErr.message };
+
+  const { error: eventErr } = await (supabase.from("wardrobe_events" as never) as any)
+    .delete().eq("id", eventId).eq("user_id", userId);
+  if (eventErr) return { error: eventErr.message };
+
+  for (const itemId of itemIds) {
+    const { data: remaining, error: remErr } = await (supabase.from("wardrobe_events" as never) as any)
+      .select("event_date, wardrobe_event_items!inner(item_id)")
+      .eq("user_id", userId)
+      .eq("event_type", "worn")
+      .eq("wardrobe_event_items.item_id", itemId);
+    if (remErr) { console.error("[AURA wardrobe-events] recompute read failed", remErr); continue; }
+
+    const dates = ((remaining ?? []) as { event_date: string }[]).map((r) => r.event_date);
+    const wornCount = dates.length;
+    const lastWorn = dates.length ? dates.reduce((max, d) => (d > max ? d : max)) : null;
+
+    const { error: updErr } = await (supabase.from("wardrobe_items" as never) as any)
+      .update({ worn_count: wornCount, last_worn: lastWorn })
+      .eq("id", itemId).eq("user_id", userId);
+    if (updErr) console.error("[AURA wardrobe-events] wear-stats recompute failed for item", itemId, updErr);
+  }
+
+  return { error: null };
+}
