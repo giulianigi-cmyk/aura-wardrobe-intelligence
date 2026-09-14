@@ -12,6 +12,7 @@ import type { BuilderInit, Screen } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { PiecePicker } from "../PiecePicker";
 import { useAuth } from "@/hooks/use-auth";
+import { useOutfitPlansCacheActions } from "@/lib/outfit-plans-query";
 import { useLocation } from "@/hooks/use-location";
 import { useWeather } from "@/hooks/use-weather";
 import {
@@ -81,6 +82,7 @@ function autoPlace(items: WardrobeItem[], signed: Record<string, string>): Place
 export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) => void; init?: BuilderInit; openAvatarTryOn: (itemIds?: string[]) => void }) {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const outfitPlansCache = useOutfitPlansCacheActions();
   const { latitude, longitude, city } = useLocation();
   const { data: weather } = useWeather(latitude, longitude);
 
@@ -591,6 +593,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
       });
       if (eventErr) console.error("[AURA wardrobe-events] log failed", eventErr);
       toast.success(t("outfitBuilder.toastAddedToCalendar"));
+      outfitPlansCache.invalidate();
       setCalendarOpen(false);
     } catch (e) {
       console.error("[AURA] add to calendar", e);
