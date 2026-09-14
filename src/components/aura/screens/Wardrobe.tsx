@@ -28,6 +28,8 @@ import { useLocation } from "@/hooks/use-location";
 import { useWeather } from "@/hooks/use-weather";
 import { describeWeather } from "@/lib/weather";
 import { currentSeason, itemMatchesSeason, resolveWardrobeUrls, toStoragePath, thumbSrc } from "@/lib/wardrobe-image";
+import { useWardrobeItems, useWardrobeCacheActions, wardrobeItemsQueryKey } from "@/lib/wardrobe-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ITEM_CATEGORIES,
   SEASON_OPTIONS,
@@ -63,10 +65,30 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter }: {
   const { user } = useAuth();
   const { latitude, longitude, city } = useLocation();
   const { data: weather } = useWeather(latitude, longitude);
-  const [items, setItems] = useState<WardrobeItem[]>([]);
+  // Shared cache (see src/lib/wardrobe-query.ts) — replaces this screen's
+  // own independent fetch. The query itself handles fetch-on-mount,
+  // caching across tab switches, and background refresh; `setItems`
+  // below is a compatibility shim so every existing optimistic update
+  // in this file (map/filter over `prev`) keeps working completely
+  // unchanged — it now writes into the SAME cache Home/AIStylist/
+  // Planner will read from once they're migrated too, instead of a
+  // local-only state array only this screen could see.
+  const queryClient = useQueryClient();
+  const itemsQuery = useWardrobeItems();
+  const items = itemsQuery.data ?? [];
+  const setItems = useCallback(
+    (updater: WardrobeItem[] | ((prev: WardrobeItem[]) => WardrobeItem[])) => {
+      queryClient.setQueryData<WardrobeItem[]>(
+        wardrobeItemsQueryKey(user?.id),
+        (prev) => (typeof updater === "function" ? updater(prev ?? []) : updater),
+      );
+    },
+    [queryClient, user?.id],
+  );
+  const [loading, setLoading] = useState(true);
+  useEffect(() => { setLoading(itemsQuery.isLoading); }, [itemsQuery.isLoading]);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
   const [signed, setSigned] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
   const [cat, setCat] = useState("All");
   const [q, setQ] = useState("");
   const [seasonOnly, setSeasonOnly] = useState(true);
@@ -683,34 +705,18 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter }: {
     return () => window.removeEventListener("aura:wardrobe-item-created", onCreated);
   }, [user?.id]);
 
-      const loadItems = useCallback((uid: string) => {
-    setLoading(true);
-    const query = supabase.from("wardrobe_items")
-      .select("*").eq("user_id", uid).order("created_at", { ascending: false });
-    const timeout = new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), 10000));
-    return Promise.race([query, timeout]).then((result) => {
-      if (result === "timeout") {
-        console.error("[AURA wardrobe] load timed out after 10s");
-        toast.error(t("wardrobe.toastLoadTimeout"));
-        setLoading(false);
-        return;
-      }
-      const { data, error } = result;
-      if (error) {
-        console.error("[AURA wardrobe] load error", error);
-        toast.error(`${t("wardrobe.toastLoadFailed")} — ${error.message}`);
-        setLoading(false);
-        return;
-      }
-      setItems((data ?? []) as WardrobeItem[]);
-      setLoading(false);
-    });
-  }, []);
-
+  // The shared query (useWardrobeItems, see wardrobe-query.ts) now owns
+  // the actual fetch — it runs automatically on mount when there's a
+  // user, and serves from cache instantly on every later remount within
+  // its staleTime instead of hitting the network again. Error reporting
+  // is preserved here since the old fetch showed a toast on failure and
+  // callers elsewhere in this file still expect that.
   useEffect(() => {
-    if (!user) { setItems([]); setLoading(false); return; }
-    void loadItems(user.id);
-  }, [user, loadItems]);
+    if (itemsQuery.error) {
+      console.error("[AURA wardrobe] load error", itemsQuery.error);
+      toast.error(`${t("wardrobe.toastLoadFailed")} — ${itemsQuery.error instanceof Error ? itemsQuery.error.message : String(itemsQuery.error)}`);
+    }
+  }, [itemsQuery.error, t]);
 
 
 
@@ -968,7 +974,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter }: {
           </p>
           {gapFilter && items.length === 0 ? (
             <button
-              onClick={() => user && void loadItems(user.id)}
+              onClick={() => void itemsQuery.refetch()}
               className="mt-6 h-12 px-6 rounded-full bg-foreground text-background uppercase tracking-[0.3em] text-xs"
             >{t("wardrobe.retry")}</button>
           ) : gapFilter ? (
