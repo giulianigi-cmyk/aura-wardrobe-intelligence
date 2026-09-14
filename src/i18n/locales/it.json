@@ -756,7 +756,9 @@
     "recoverEvent": "Recupera",
     "dismissedEventsCount": "{{count}} eventi scartati",
     "removedFromCalendar": "· rimosso dal calendario",
-    "openOnCanvasAria": "Apri sulla tela"
+    "openOnCanvasAria": "Apri sulla tela",
+    "chatPromptEventWithTime": "Ho \"{{title}}\" il {{date}} alle {{time}}. Cosa mi consigli di indossare?",
+    "chatPromptEventWithLocationAndTime": "Ho \"{{title}}\" il {{date}} alle {{time}}, a {{location}}. Cosa mi consigli di indossare?"
   },
   "aiStylist": {
     "notEnoughActivePieces_one": "Hai {{count}} capo nel guardaroba attivo. Aggiungine almeno 3 (o ripristina uno archiviato) per generare un outfit AI.",
