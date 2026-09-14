@@ -140,9 +140,19 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
     setOutfits(olist);
     const paths = olist.map((x) => x.canvas_image_url).filter(Boolean) as string[];
     if (paths.length) {
-      const { data: urls } = await supabase.storage.from("outfits").createSignedUrls(paths, 60 * 60);
+      // Errors here were previously silent — createSignedUrls failing
+      // (a permissions issue, a path that no longer exists in storage)
+      // left `signed` simply empty with nothing logged, so a broken
+      // canvas thumbnail in the "My Outfits" grid had zero diagnostic
+      // trace. Logs and skips only the missing ones now, instead of
+      // failing the whole batch silently.
+      const { data: urls, error: signErr } = await supabase.storage.from("outfits").createSignedUrls(paths, 60 * 60);
+      if (signErr) console.error("[AURA my-outfits] canvas thumbnail signing failed", signErr);
       const map: Record<string, string> = {};
-      urls?.forEach((r, idx) => { if (r.signedUrl) map[paths[idx]] = r.signedUrl; });
+      urls?.forEach((r, idx) => {
+        if (r.signedUrl) map[paths[idx]] = r.signedUrl;
+        else if (r.error) console.error("[AURA my-outfits] no signed URL for outfit canvas", paths[idx], r.error);
+      });
       setSigned(map);
     } else {
       setSigned({});
