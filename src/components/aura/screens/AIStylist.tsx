@@ -18,9 +18,9 @@ import { generateWeeklyOutfits } from "@/lib/weekly-outfits.functions";
 import { listLocations } from "@/lib/wardrobe-locations.functions";
 import type { WardrobeLocation } from "@/lib/wardrobe-location";
 import { loadDressRules } from "@/lib/dress-preferences";
-import { logWardrobeEvent, confirmOutfitPlanWorn } from "@/lib/wardrobe-events";
+import { logWardrobeEvent, confirmOutfitPlanWorn, deleteWornEvent } from "@/lib/wardrobe-events";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
-import { useWardrobeItems, useWardrobeImages } from "@/lib/wardrobe-query";
+import { useWardrobeItems, useWardrobeImages, useWardrobeCacheActions } from "@/lib/wardrobe-query";
 import { useOutfitPlans, outfitPlansQueryKey, useOutfitPlansCacheActions } from "@/lib/outfit-plans-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { ITEM_CATEGORIES } from "@/lib/wardrobe-options";
@@ -43,7 +43,7 @@ type WornEntry = {
 };
 type CalEvent = { id: string; title: string | null; start_time: string; all_day: boolean };
 
-type OutfitTab = "upcoming" | "worn" | "saved" | "archive";
+type OutfitTab = "upcoming" | "worn" | "myOutfitPhotos" | "saved" | "archive";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -68,6 +68,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
   // other screens yet — see Phase 4 for which OTHER data is worth
   // sharing); only the wardrobe items list itself moves to the cache.
   const itemsQuery = useWardrobeItems();
+  const wardrobeCache = useWardrobeCacheActions();
   const items = itemsQuery.data ?? [];
   // Shared image cache (see wardrobe-query.ts) — same set of items
   // Wardrobe.tsx itself resolves, so once either screen has loaded them
@@ -93,6 +94,28 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
     [queryClient, user?.id],
   );
   const [wornEntries, setWornEntries] = useState<WornEntry[]>([]);
+  // Split for two tabs instead of one mixed list — a plain "worn" log
+  // entry (no photo) reads very differently from an actual outfit
+  // selfie from LogWear, and mixing them together read as cluttered.
+  const wornItemEntries = useMemo(() => wornEntries.filter((w) => !w.photoUrl), [wornEntries]);
+  const myOutfitPhotoEntries = useMemo(() => wornEntries.filter((w) => w.photoUrl), [wornEntries]);
+  const [deletingWornId, setDeletingWornId] = useState<string | null>(null);
+  const [confirmDeleteWorn, setConfirmDeleteWorn] = useState<WornEntry | null>(null);
+
+  const removeWornEntry = async (entry: WornEntry) => {
+    if (!user) return;
+    setDeletingWornId(entry.eventId);
+    const { error } = await deleteWornEvent(entry.eventId, entry.itemIds, user.id);
+    setDeletingWornId(null);
+    setConfirmDeleteWorn(null);
+    if (error) { toast.error(error); return; }
+    setWornEntries((prev) => prev.filter((w) => w.eventId !== entry.eventId));
+    // worn_count/last_worn changed on the affected items — the shared
+    // wardrobe cache (see wardrobe-query.ts) needs to know, same
+    // reasoning as LogWear's own confirm flow.
+    wardrobeCache.invalidate();
+    toast.success(t("aiStylist.toastWornEntryDeleted"));
+  };
   const [todayCalEvents, setTodayCalEvents] = useState<CalEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [occasion, setOccasion] = useState<string>("Everyday");
@@ -626,6 +649,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
           {([
             { key: "upcoming", label: t("aiStylist.tabUpcoming") },
             { key: "worn", label: t("aiStylist.tabWorn") },
+            { key: "myOutfitPhotos", label: t("aiStylist.tabMyOutfitPhotos") },
             { key: "saved", label: t("aiStylist.tabSaved") },
             { key: "archive", label: t("aiStylist.tabArchive") },
           ] as { key: OutfitTab; label: string }[]).map((t2) => (
@@ -690,15 +714,44 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
             </div>
           )
         ) : outfitTab === "worn" ? (
-          wornEntries.length === 0 ? (
+          wornItemEntries.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("aiStylist.nothingLoggedAsWorn")}</p>
           ) : (
             <div className="space-y-2">
-              {wornEntries.map((w) => (
+              {wornItemEntries.map((w) => (
                 <div key={w.eventId} className="rounded-2xl border border-border/60 bg-card p-3">
-                  <p className="text-xs text-muted-foreground mb-2">
-                    {dateLabel(w.date)}{w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}
-                  </p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-muted-foreground">
+                      {dateLabel(w.date)}{w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}
+                    </p>
+                    <button
+                      onClick={() => setConfirmDeleteWorn(w)}
+                      aria-label={t("aiStylist.deleteWornEntryAria")}
+                      className="h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-muted-foreground"
+                    ><Trash2 size={13} /></button>
+                  </div>
+                  <ItemThumbs ids={w.itemIds} size="h-14 w-14" />
+                </div>
+              ))}
+            </div>
+          )
+        ) : outfitTab === "myOutfitPhotos" ? (
+          myOutfitPhotoEntries.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("aiStylist.noOutfitPhotosYet")}</p>
+          ) : (
+            <div className="space-y-2">
+              {myOutfitPhotoEntries.map((w) => (
+                <div key={w.eventId} className="rounded-2xl border border-border/60 bg-card p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-muted-foreground">
+                      {dateLabel(w.date)}{w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}
+                    </p>
+                    <button
+                      onClick={() => setConfirmDeleteWorn(w)}
+                      aria-label={t("aiStylist.deleteWornEntryAria")}
+                      className="h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-muted-foreground"
+                    ><Trash2 size={13} /></button>
+                  </div>
                   {w.photoUrl && (
                     <img src={w.photoUrl} alt="" className="w-full rounded-xl mb-2 aspect-[4/5] object-cover" />
                   )}
@@ -885,6 +938,33 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
       })()}
 
       {shareFor && <ShareOutfitSheet outfitId={shareFor} onClose={() => setShareFor(null)} />}
+
+      {confirmDeleteWorn && (
+        <div
+          className="fixed inset-0 z-[80] bg-background/70 backdrop-blur-sm flex items-center justify-center px-6"
+          onClick={() => !deletingWornId && setConfirmDeleteWorn(null)}
+        >
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xs rounded-2xl border border-border bg-card p-5 shadow-luxe">
+            <p className="font-serif text-lg text-center">{t("aiStylist.deleteWornEntryTitle")}</p>
+            <p className="text-xs text-muted-foreground text-center mt-1">{t("aiStylist.deleteWornEntryHint")}</p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setConfirmDeleteWorn(null)}
+                disabled={!!deletingWornId}
+                className="h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] disabled:opacity-60"
+              >{t("aiStylist.cancel")}</button>
+              <button
+                onClick={() => void removeWornEntry(confirmDeleteWorn)}
+                disabled={!!deletingWornId}
+                className="h-11 rounded-full bg-destructive text-destructive-foreground text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {deletingWornId && <Loader2 size={12} className="animate-spin" />}
+                {t("aiStylist.delete")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {assignFor && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => setAssignFor(null)}>
