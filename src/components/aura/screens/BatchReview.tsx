@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type { Screen } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useWardrobeCacheActions } from "@/lib/wardrobe-query";
 import { DetectedItemCard, type DetectedItemDraft } from "@/components/aura/DetectedItemCard";
 import { ItemCropAdjuster, type FractionalBox } from "@/components/aura/ItemCropAdjuster";
 import { confirmDetectedItems, listDetectedItems, rejectDetectedItem } from "@/lib/batch-scan.functions";
@@ -69,6 +70,7 @@ async function dataUrlToFile(dataUrl: string, filename: string): Promise<File> {
 export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: string }) {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const wardrobeCache = useWardrobeCacheActions();
   const load = useServerFn(listDetectedItems);
   const confirm = useServerFn(confirmDetectedItems);
   const reject = useServerFn(rejectDetectedItem);
@@ -469,6 +471,13 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
       if (res.confirmed > 0) {
         const dupNote = skippedCount ? t("batchReview.skippedAsDuplicates", { count: skippedCount }) : "";
         toast.success(t("batchReview.addedToCloset", { count: res.confirmed }) + dupNote);
+        // The server doesn't hand back full wardrobe_items rows for a
+        // batch confirm (just id/ok/error per item), so there isn't
+        // enough here to optimistically construct them client-side —
+        // targeted invalidation instead, per the rule for cases where an
+        // optimistic write could go wrong. Every screen reading the
+        // shared cache refetches on its next mount/focus.
+        wardrobeCache.invalidate();
       }
       const failedItems = res.results.filter((r) => !r.ok);
       if (failedItems.length) {
