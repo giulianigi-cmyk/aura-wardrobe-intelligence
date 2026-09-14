@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type { Screen } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useWardrobeCacheActions } from "@/lib/wardrobe-query";
 import type { TablesInsert } from "@/integrations/supabase/types";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { DetectedItemCard } from "@/components/aura/DetectedItemCard";
@@ -57,6 +58,7 @@ type ScanItem = {
 export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const wardrobeCache = useWardrobeCacheActions();
   const analyze = useServerFn(analyzeWardrobeImage);
   const findVisualDupes = useServerFn(findVisualDuplicates);
   
@@ -302,7 +304,11 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           }
         })();
 
-        window.dispatchEvent(new CustomEvent("aura:wardrobe-item-created", { detail: inserted }));
+        // See AddItem.tsx for why this replaces the old DOM event —
+        // same reasoning, batch-scanned pieces now reach every screen's
+        // cache directly instead of depending on one happening to be
+        // mounted.
+        wardrobeCache.addItem(inserted as WardrobeItem);
         ok++;
       } catch (e) {
         console.error("[AURA outfit-scan] save item failed", e);
