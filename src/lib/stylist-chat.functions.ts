@@ -7,6 +7,8 @@ import { BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
 import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE } from "./outfit-styling-rules";
 import { isItemAllowedByDressPreferences, coversLegs, coversArms, type DressPreferences } from "./dress-preferences";
 import { isItemAtLocation } from "./wardrobe-location";
+import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
+import { detectActivityKind } from "./activity-kind";
 const ItemSchema = z.object({
   id: z.string(),
   category: z.string().nullable().optional(),
@@ -120,6 +122,36 @@ export const stylistChat = createServerFn({ method: "POST" })
     const eventTimeLine = data.eventTime
       ? `This occasion's actual start time is ${data.eventTime}. Use this exact time — not a guess from the occasion's name or how formal it sounds — for every time-of-day decision (day vs. early-evening vs. night formality, how bold the pieces can be).`
       : null;
+
+    // Style Memory — learned from every ❤️/👎/💾 given in THIS chat and
+    // elsewhere in the app (see outfit-feedback.functions.ts). Was never
+    // read back here before: every reaction given in Ask Your Stylist
+    // was saved with its occasion context but had no effect on future
+    // suggestions in this same chat. Same shared module and occasion-
+    // scoped-beats-general priority already used by Trip Capsule and the
+    // Home daily-looks engine — soft guidance only, never overriding a
+    // hard rule above. The occasion label isn't a fixed field here (this
+    // is free text, not a picked dress code), so a quick best-guess from
+    // the person's own latest message stands in for it, alongside a
+    // handful of common occasions as a safety net for scoped memories
+    // that guess might miss.
+    let styleMemorySection: string[] = [];
+    try {
+      const latestUserMessage = [...data.messages].reverse().find((m) => m.role === "user")?.content ?? "";
+      const guessedKind = detectActivityKind({ label: latestUserMessage, dressCode: null, minFormality: null });
+      const occasionLabels = [...new Set([guessedKind, "Work", "Weekend", "Evening"].filter((x): x is string => Boolean(x)))];
+      const { data: memoryRows } = await context.supabase
+        .from("user_style_memory_active")
+        .select("memory_type, value, context_axis, context_value, effective_confidence, evidence_count")
+        .order("effective_confidence", { ascending: false })
+        .limit(100);
+      styleMemorySection = buildStyleMemoryPromptSection(memoryRows ?? [], occasionLabels);
+    } catch (e) {
+      // A person with no history yet, or a transient read error, sees
+      // exactly the same suggestion quality as always — this only ever
+      // adds a nudge on top, never something the reply depends on.
+      console.error("[AURA stylist-chat] style memory read failed, continuing without it", e);
+    }
 
     const dressPrefs = (data.dressPreferences ?? null) as DressPreferences | null;
     const dressAllowed = data.items.filter((it) => isItemAllowedByDressPreferences(it, dressPrefs));
@@ -277,6 +309,7 @@ export const stylistChat = createServerFn({ method: "POST" })
               ...(data.todayDate ? [`EVENT DATE: today's date is ${data.todayDate}. If the person's message clearly implies a specific date for the outfit they're asking about — an explicit date, a weekday name ('Monday', 'lunedì'), a relative expression ('in 3 days', 'tra tre giorni', 'next week') — work out the actual ISO date (YYYY-MM-DD) relative to today's date and return it as 'eventDate' in your JSON response. If no specific date is implied, or the person is just asking generally (not about a specific future occasion), leave eventDate null. Only set this when you're genuinely confident about the date; a wrong guess here is worse than leaving it empty.`] : []),
       wx,
       ...(eventTimeLine ? [eventTimeLine] : []),
+      ...styleMemorySection,
 
       `Wardrobe catalog (JSON): ${JSON.stringify(catalog)}`,
       "",
