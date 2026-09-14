@@ -51,30 +51,35 @@ export function scoreMatch(
 ): number {
   if (!detected.category || detected.category !== existing.category) return 0;
 
-  let score = 0.2; // same category baseline
+  let score = 0.25; // same category baseline
 
   const existingColors = existing.colors?.length ? existing.colors : (existing.color ? [existing.color] : []);
   const colorOverlap = detected.colors.some((c) => existingColors.includes(c));
-  if (colorOverlap) score += 0.2;
+  if (colorOverlap) score += 0.25;
 
   const existingSub = existing.subcategory ?? "";
-  if (detected.subcategory && existingSub && detected.subcategory === existingSub) score += 0.2;
+  if (detected.subcategory && existingSub && detected.subcategory === existingSub) score += 0.25;
 
   const db = detected.brand?.trim().toLowerCase();
   const eb = existing.brand?.trim().toLowerCase();
-  if (db && eb && db === eb) score += 0.2;
+  if (db && eb && db === eb) score += 0.25;
 
-  // Same weight as color — a genuinely different fabric is just as
-  // telling as a genuinely different color for "is this the same
-  // piece", and the detection engine already extracts it every time.
+  // Additional signal ON TOP of the four base weights above (which
+  // already sum to 1.0 on their own, exactly restoring the pre-existing
+  // behavior documented above: category+color+subcategory+brand alone
+  // reaches "certain"). These only matter for callers that actually
+  // supply them (LogWear's richer detection) — a caller with just the
+  // four base fields (OutfitScan, BatchReview, purchase-advisor) is
+  // completely unaffected by them and still needs a brand match (or
+  // nothing else) to cross into "certain", matching the file's own
+  // documented rule. A prior version lowered the four base weights to
+  // "make room" for these bonuses under the score cap below — that was
+  // the bug: it silently capped every base-only caller at 0.8, never
+  // "certain", regardless of a genuine brand match.
   const existingMaterials = existing.material ?? [];
   const materialOverlap = (detected.materials ?? []).some((m) => existingMaterials.includes(m));
   if (materialOverlap) score += 0.1;
 
-  // Sleeve length, garment length and fit are each a smaller signal on
-  // their own, but a strapless mini dress vs. a long-sleeve floor-length
-  // one differs on every single one of these — exactly the case that
-  // was scoring identically to a genuine match before this change.
   if (detected.sleeveLength && existing.sleeve_length && detected.sleeveLength === existing.sleeve_length) score += 0.05;
   if (detected.length && existing.length && detected.length === existing.length) score += 0.05;
   if (detected.fit && existing.fit && detected.fit === existing.fit) score += 0.05;
