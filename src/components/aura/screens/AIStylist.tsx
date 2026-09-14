@@ -20,6 +20,7 @@ import type { WardrobeLocation } from "@/lib/wardrobe-location";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { logWardrobeEvent, confirmOutfitPlanWorn } from "@/lib/wardrobe-events";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
+import { useWardrobeItems } from "@/lib/wardrobe-query";
 import { ITEM_CATEGORIES } from "@/lib/wardrobe-options";
 import { resolvePlanSlot } from "@/lib/outfit-plan-slot";
 import i18n from "@/i18n/config";
@@ -58,8 +59,19 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
   const { user } = useAuth();
   const { latitude, longitude } = useLocation();
   const { data: weather } = useWeather(latitude, longitude);
-  const [items, setItems] = useState<WardrobeItem[]>([]);
+  // Shared cache (see src/lib/wardrobe-query.ts) — replaces this
+  // screen's own independent wardrobe_items fetch, which used to run
+  // inside the combined load() below alongside outfits/plans/worn
+  // events. Those four stay as this screen's own fetch (not shared with
+  // other screens yet — see Phase 4 for which OTHER data is worth
+  // sharing); only the wardrobe items list itself moves to the cache.
+  const itemsQuery = useWardrobeItems();
+  const items = itemsQuery.data ?? [];
   const [itemSigned, setItemSigned] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!items.length) { setItemSigned({}); return; }
+    void resolveWardrobeUrls(items).then(setItemSigned);
+  }, [items]);
   const [outfits, setOutfits] = useState<Outfit[]>([]);
   const [signed, setSigned] = useState<Record<string, string>>({});
   const [plans, setPlans] = useState<OutfitPlan[]>([]);
@@ -95,8 +107,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
     if (!user) return;
     setLoading(true);
     const today = todayIso();
-    const [{ data: i }, { data: o }, { data: pl }, { data: ev }, { data: cal }] = await Promise.all([
-      supabase.from("wardrobe_items").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+    const [{ data: o }, { data: pl }, { data: ev }, { data: cal }] = await Promise.all([
       supabase.from("outfits").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
       supabase.from("outfit_plans").select("*").eq("user_id", user.id).order("date"),
       (supabase.from("wardrobe_events" as never) as any)
@@ -108,10 +119,6 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
         .eq("user_id", user.id)
         .gte("start_time", `${today}T00:00:00`).lt("start_time", `${today}T23:59:59`),
     ]);
-
-    const itemList = (i ?? []) as WardrobeItem[];
-    setItems(itemList);
-    setItemSigned(await resolveWardrobeUrls(itemList));
 
     const olist = (o ?? []) as Outfit[];
     setOutfits(olist);
