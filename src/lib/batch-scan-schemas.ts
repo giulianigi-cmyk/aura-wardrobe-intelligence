@@ -58,6 +58,12 @@ export const ConfirmItemSchema = z.object({
   closure: z.string().nullable().optional(),
   gender: z.string().nullable().optional(),
   style_tags: z.array(z.string()).default([]),
+  // Computed client-side (see visual-embedding.ts) right before
+  // confirming — optional so a batch confirmed before this existed, or
+  // one where the embedding model failed for a given item, still saves
+  // the item itself; it just won't be visually matchable until a later
+  // backfill catches it.
+  embedding: z.array(z.number()).length(768).nullable().optional(),
 });
 
 export const ConfirmDetectedItemsSchema = z.object({
