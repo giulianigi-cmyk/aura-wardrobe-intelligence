@@ -121,7 +121,20 @@
 }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scale-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
-@keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes slide-up {
+  from { transform: translateY(100%); pointer-events: none; }
+  /* Pointer events stay off for nearly the whole animation, not just
+     the very first frame — a tap landing anywhere before the screen has
+     actually finished sliding into place can hit whatever is currently
+     under the finger, not the button that's still moving toward it.
+     This was reported as needing to tap an Add Item button twice: the
+     first tap during the slide did nothing (or hit the wrong target),
+     the second — after it had settled — worked. Flipping back to
+     "auto" only in the last fraction of the animation means input is
+     accepted the moment the screen is actually where it looks. */
+  99% { pointer-events: none; }
+  to { transform: translateY(0); pointer-events: auto; }
+}
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 
