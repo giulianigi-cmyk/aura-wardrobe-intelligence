@@ -11,6 +11,7 @@ import { describeWeather, classifyTemp, suggestOutfit, weatherLabelKey, type Dai
 import type { WardrobeItem } from "@/lib/aura-types";
 import type { Tables } from "@/integrations/supabase/types";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
+import { useWardrobeItems } from "@/lib/wardrobe-query";
 import { PiecePicker } from "../PiecePicker";
 import { logWardrobeEvent, confirmOutfitPlanWorn } from "@/lib/wardrobe-events";
 import { resolvePlanSlot, validateEventSlot } from "@/lib/outfit-plan-slot";
@@ -91,7 +92,6 @@ export function Planner({ go, openStylistChat, openBuilder, focus }: {
   const [calendarEvents, setCalendarEvents] = useState<ImportedEvent[]>([]);
   const [dismissedEvents, setDismissedEvents] = useState<ImportedEvent[]>([]);
   const [showDismissed, setShowDismissed] = useState(false);
-  const [items, setItems] = useState<WardrobeItem[]>([]);
   const [signed, setSigned] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(focus?.date ?? null);
@@ -99,11 +99,22 @@ export function Planner({ go, openStylistChat, openBuilder, focus }: {
   const [proposals, setProposals] = useState<WeatherProposal[]>([]);
   const loadProposals = useServerFn(listOpenWeatherProposals);
 
+  // Shared cache (see src/lib/wardrobe-query.ts) — replaces this
+  // screen's own independent wardrobe_items fetch. Kept as the FULL set
+  // (archived included) here too, same reasoning as AIStylist: this
+  // list resolves already-saved plans by item id elsewhere in this
+  // file, which needs archived pieces to still render correctly.
+  const itemsQuery = useWardrobeItems();
+  const items = itemsQuery.data ?? [];
+  useEffect(() => {
+    if (!items.length) { setSigned({}); return; }
+    void resolveWardrobeUrls(items).then(setSigned);
+  }, [items]);
+
   const reload = useCallback(async () => {
     if (!user) { setLoading(false); return; }
     setLoading(true);
-    const [{ data: it }, { data: pl }, { data: ev }, { data: dismissed }] = await Promise.all([
-      supabase.from("wardrobe_items").select("*").eq("user_id", user.id),
+    const [{ data: pl }, { data: ev }, { data: dismissed }] = await Promise.all([
       supabase.from("outfit_plans").select("*").eq("user_id", user.id).order("date"),
       (supabase.from("calendar_events_cache" as never) as any)
         .select("id, title, start_time, end_time, location, all_day, removed_from_source")
@@ -118,12 +129,9 @@ export function Planner({ go, openStylistChat, openBuilder, focus }: {
         .eq("permanently_deleted_by_user", false)
         .order("start_time"),
     ]);
-    const list = (it ?? []) as WardrobeItem[];
-    setItems(list);
     setPlans((pl ?? []) as OutfitPlan[]);
     setCalendarEvents((ev ?? []) as ImportedEvent[]);
     setDismissedEvents((dismissed ?? []) as ImportedEvent[]);
-    setSigned(await resolveWardrobeUrls(list));
     setLoading(false);
   }, [user]);
 
@@ -508,16 +516,27 @@ function DayDetail({
 
   const suggestedKeywords = suggestion?.categories ?? [];
   const suggestedMaterials = suggestion?.materials ?? [];
+  // Suggestion pool only — never offer to plan an outfit around a piece
+  // that's been archived (sold/donated). This is intentionally NOT
+  // applied to `items` itself: the same list also resolves ALREADY-
+  // SAVED outfit plans by id elsewhere in this component (a plan made
+  // before a piece was archived should still show its real thumbnail,
+  // not a blank one), which is a different need from "what can this
+  // NEW suggestion draw from".
+  const activeItems = useMemo(
+    () => items.filter((it) => !(it as unknown as { archived?: boolean }).archived),
+    [items],
+  );
   const suggestedItems = useMemo(
-    () => (suggestedKeywords.length ? items.filter((it) => itemMatchesKeywords(it, suggestedKeywords, suggestedMaterials)) : []),
-    [items, suggestedKeywords, suggestedMaterials],
+    () => (suggestedKeywords.length ? activeItems.filter((it) => itemMatchesKeywords(it, suggestedKeywords, suggestedMaterials)) : []),
+    [activeItems, suggestedKeywords, suggestedMaterials],
   );
   const [wornPickerOpen, setWornPickerOpen] = useState(false);
   const [wornSelected, setWornSelected] = useState<string[]>([]);
   const toggleWorn = (id: string) =>
     setWornSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
-  const baseItems = filterSuggested && suggestedItems.length ? suggestedItems : items;
+  const baseItems = filterSuggested && suggestedItems.length ? suggestedItems : activeItems;
 
   const toggle = (id: string) =>
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
