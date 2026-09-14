@@ -77,6 +77,18 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     letter-spacing: -0.01em;
+    /* Removes the ~300ms tap-delay some mobile browsers still apply
+       while deciding whether a touch is the start of a double-tap-to-
+       zoom gesture. This app is never zoomed by double-tap, so that
+       wait buys nothing here — it only ever shows up as taps that seem
+       to need repeating, exclusively on touch devices, since desktop
+       clicks were never subject to it in the first place. */
+    touch-action: manipulation;
+    /* iOS Safari's default grey flash on every tap reads as visual
+       noise on top of this app's own active:scale-* feedback on
+       buttons — this turns off the browser's version so only the
+       intentional one shows. */
+    -webkit-tap-highlight-color: transparent;
   }
   /* Wardrobe images are flattened onto white at upload time (see AddItem.tsx),
      so image elements no longer need a global background-color safety net. */
