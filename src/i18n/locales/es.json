@@ -841,7 +841,13 @@
     "fillsInWorkDaysOnly": "Rellena solo tus días laborables (definidos en tu perfil). Nunca toca un día que ya hayas planificado, ni un outfit ya vinculado a un evento específico.",
     "generate": "Generar",
     "openOnCanvas": "Abrir en el lienzo",
-    "openOnCanvasAria": "Abrir este look en el lienzo"
+    "openOnCanvasAria": "Abrir este look en el lienzo",
+    "tabMyOutfitPhotos": "Mi Outfit",
+    "toastWornEntryDeleted": "Eliminado",
+    "deleteWornEntryAria": "Eliminar esta entrada",
+    "noOutfitPhotosYet": "Aún no hay fotos de looks registradas.",
+    "deleteWornEntryTitle": "¿Eliminar esta entrada?",
+    "deleteWornEntryHint": "Esto la quita de tu historial y actualiza cuántas veces se han usado estas prendas."
   },
   "outfitBuilder": {
     "itemNoImage": "Esta prenda aún no tiene imagen",
