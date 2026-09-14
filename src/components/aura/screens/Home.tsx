@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
+import { useWardrobeItems } from "@/lib/wardrobe-query";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { suggestDailyLooks, type DailyLook } from "@/lib/suggest-daily-looks.functions";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
@@ -50,48 +51,37 @@ export function Home({ go }: { go: (s: Screen) => void }) {
   const [manualOpen, setManualOpen] = useState(false);
   const [manualCity, setManualCity] = useState("");
   const [autoTried, setAutoTried] = useState(false);
-  const [stats, setStats] = useState<{ pieces: number; outfits: number; wearRate: number }>({
-    pieces: 0, outfits: 0, wearRate: 0,
-  });
-  const [recent, setRecent] = useState<WardrobeItem[]>([]);
   const [recentSigned, setRecentSigned] = useState<Record<string, string>>({});
-  const [allItems, setAllItems] = useState<WardrobeItem[]>([]);
   const [todayLook, setTodayLook] = useState<DailyLook | null>(null);
   const [curatedLooks, setCuratedLooks] = useState<DailyLook[]>([]);
   const [looksSigned, setLooksSigned] = useState<Record<string, string>>({});
   const [looksLoading, setLooksLoading] = useState(true);
   const [looksError, setLooksError] = useState<string | null>(null);
-  const [itemsLoaded, setItemsLoaded] = useState(false);
 
-  // Wardrobe load. This must never be gated on allItems (it is what fills
-  // allItems) nor on the weather round trip — doing either leaves the whole
-  // dashboard permanently empty and the "selected for you" block spinning.
+  // Shared cache (see src/lib/wardrobe-query.ts) — replaces this
+  // screen's own independent full-table fetch. `pieces`/`worn`/`recent`
+  // are all derived from the same shared data instead of a second
+  // supabase call; the outfits count below is unrelated to the wardrobe
+  // and was already using head:true correctly, so it's untouched.
+  const itemsQuery = useWardrobeItems();
+  const allItems = itemsQuery.data ?? [];
+  const itemsLoaded = itemsQuery.isSuccess;
+  const [outfitsCount, setOutfitsCount] = useState(0);
   useEffect(() => {
     if (!user) return;
-    void (async () => {
-      const [itemsRes, outfitsCountRes] = await Promise.all([
-        supabase.from("wardrobe_items")
-          .select("*", { count: "exact" })
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false }),
-
-        supabase.from("outfits").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-      ]);
-      const items = (itemsRes.data ?? []) as WardrobeItem[];
-      setAllItems(items);
-      const pieces = itemsRes.count ?? items.length;
-      const worn = items.filter((i) => (i.worn_count ?? 0) > 0).length;
-      setStats({
-        pieces,
-        outfits: outfitsCountRes.count ?? 0,
-        wearRate: pieces ? Math.round((worn / pieces) * 100) : 0,
-      });
-      const top = items.slice(0, 3);
-      setRecent(top);
-      setRecentSigned(await resolveWardrobeUrls(top));
-      setItemsLoaded(true);
-    })();
+    void supabase.from("outfits").select("id", { count: "exact", head: true }).eq("user_id", user.id)
+      .then(({ count }) => setOutfitsCount(count ?? 0));
   }, [user]);
+  const stats = useMemo(() => {
+    const pieces = allItems.length;
+    const worn = allItems.filter((i) => (i.worn_count ?? 0) > 0).length;
+    return { pieces, outfits: outfitsCount, wearRate: pieces ? Math.round((worn / pieces) * 100) : 0 };
+  }, [allItems, outfitsCount]);
+  const recent = useMemo(() => allItems.slice(0, 3), [allItems]);
+  useEffect(() => {
+    if (!recent.length) { setRecentSigned({}); return; }
+    void resolveWardrobeUrls(recent).then(setRecentSigned);
+  }, [recent]);
 
   useEffect(() => {
     if (!user || !itemsLoaded) return;
