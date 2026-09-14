@@ -334,6 +334,11 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
   const openOutfit = (o: Outfit) => openBuilder({
     itemIds: o.item_ids, name: o.name, occasion: o.occasion?.[0],
     notes: o.notes ?? undefined, outfitId: o.id,
+    // Not in the generated Outfit type yet (see outfit_canvas_layout.sql
+    // — added after the last type regeneration), hence the cast. Absent
+    // on any outfit saved before this existed, which is fine: the
+    // canvas falls back to its original auto-placement in that case.
+    layout: (o as unknown as { layout?: { itemId: string; x: number; y: number; scale: number; rotation: number; z: number }[] | null }).layout ?? null,
   });
   const duplicateOutfit = (o: Outfit) => openBuilder({
     itemIds: o.item_ids, name: `${o.name} Copy`, occasion: o.occasion?.[0],
