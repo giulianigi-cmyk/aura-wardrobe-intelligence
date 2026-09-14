@@ -77,6 +77,12 @@ export type BuilderInit = {
    *  a ready-made idea the moment the person lands here, not one more
    *  step before they see anything. */
   anchorItemId?: string;
+  /** The exact canvas position of every piece (x, y, scale, rotation,
+   *  z), when reopening an outfit that has one saved — restores the
+   *  real layout instead of re-guessing positions from each item's
+   *  category. Absent for a brand-new outfit, or one saved before this
+   *  existed (falls back to the original auto-placement). */
+  layout?: { itemId: string; x: number; y: number; scale: number; rotation: number; z: number }[] | null;
 } | null;
 
 export type StylistChatInit = {
