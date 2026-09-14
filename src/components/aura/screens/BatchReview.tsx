@@ -11,6 +11,7 @@ import { ItemCropAdjuster, type FractionalBox } from "@/components/aura/ItemCrop
 import { confirmDetectedItems, listDetectedItems, rejectDetectedItem } from "@/lib/batch-scan.functions";
 import type { BBox } from "@/lib/outfit-detect-types";
 import { findBestMatch, type DedupeResult } from "@/lib/outfit-dedupe";
+import { findVisualDuplicates } from "@/lib/outfit-wear.functions";
 import { clearSegmentationCache, cropItemFromSegmentation } from "@/lib/outfit-segmentation";
 import { trimWhiteMargins } from "@/lib/auto-crop";
 import { removeBackgroundClient } from "@/lib/bg-removal-client";
@@ -26,6 +27,10 @@ type Draft = DetectedItemDraft & {
   dedupe: DedupeResult;
   included: boolean;
   bgRemoved: boolean;
+  /** Computed once during load (see the dedup pass above) and carried
+   *  through to the confirm call — null if the model failed for this
+   *  crop, which never blocks saving the item itself. */
+  embedding: number[] | null;
 };
 
 async function cropFromUrl(src: string, bbox: BBox | null): Promise<string | null> {
@@ -67,6 +72,7 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
   const load = useServerFn(listDetectedItems);
   const confirm = useServerFn(confirmDetectedItems);
   const reject = useServerFn(rejectDetectedItem);
+  const findVisualDupes = useServerFn(findVisualDuplicates);
 
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(true);
@@ -129,10 +135,41 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
 
             const category = it.category ?? "";
             const colors = it.colors ?? [];
-            const dedupe = findBestMatch(
+            let dedupe = findBestMatch(
               { category, subcategory: it.subcategory ?? undefined, colors },
               wardrobe,
             );
+            // Computed once here and reused at confirm time (see the
+            // Draft type/embedding field below) — no point running the
+            // model twice on the same crop. Also feeds the same visual
+            // dedup pass OutfitScan.tsx now does, closing the gap where
+            // batch-imported pieces got attribute-only duplicate checks
+            // even after the visual embedding infrastructure existed.
+            let embedding: number[] | null = null;
+            if (cropUrl) {
+              try {
+                const { computeGarmentEmbedding } = await import("@/lib/visual-embedding");
+                embedding = await computeGarmentEmbedding(cropUrl);
+                if (dedupe.verdict !== "certain" && category && embedding) {
+                  const res = await findVisualDupes({ data: { category, embedding } });
+                  if (res.ok && res.matches.length) {
+                    const best = res.matches[0];
+                    if (best.visualSimilarity > dedupe.score) {
+                      const matchedItem = wardrobe.find((w) => w.id === best.wardrobeItemId) ?? null;
+                      if (matchedItem) {
+                        dedupe = {
+                          score: best.visualSimilarity,
+                          match: matchedItem,
+                          verdict: best.visualSimilarity >= 0.9 ? "certain" : best.visualSimilarity >= 0.6 ? "maybe" : "new",
+                        };
+                      }
+                    }
+                  }
+                }
+              } catch (e) {
+                console.error("[AURA batch-review] visual embedding/dedup failed, keeping attribute-only result", it.id, e);
+              }
+            }
             built.push({
               id: it.id,
               jobId: it.job_id,
@@ -143,6 +180,7 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
               subcategory: it.subcategory ?? "",
               colors,
               materials: it.material ?? [],
+              embedding,
               seasons: it.season ? [it.season] : [],
               brand: it.brand ?? "",
               description: it.description ?? "",
@@ -414,6 +452,7 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
           closure: d.closure || null,
           gender: d.gender || null,
           style_tags: d.styleTags,
+          embedding: d.embedding,
         });
       }
 
