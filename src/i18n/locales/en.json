@@ -841,7 +841,13 @@
     "fillsInWorkDaysOnly": "Fills in your work days only (set in your profile) — never touches a day you've already planned, and never touches an outfit already linked to a specific event.",
     "generate": "Generate",
     "openOnCanvas": "Open on canvas",
-    "openOnCanvasAria": "Open this outfit on the canvas"
+    "openOnCanvasAria": "Open this outfit on the canvas",
+    "tabMyOutfitPhotos": "My Outfit",
+    "toastWornEntryDeleted": "Removed",
+    "deleteWornEntryAria": "Delete this entry",
+    "noOutfitPhotosYet": "No outfit photos logged yet.",
+    "deleteWornEntryTitle": "Delete this entry?",
+    "deleteWornEntryHint": "This removes it from your history and updates how often these pieces show as worn."
   },
   "outfitBuilder": {
     "itemNoImage": "This item has no image yet",
