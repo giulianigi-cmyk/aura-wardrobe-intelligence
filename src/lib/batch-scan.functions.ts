@@ -381,7 +381,7 @@ export const confirmDetectedItems = createServerFn({ method: "POST" })
         continue;
       }
       try {
-                        const { error: insErr } = await supabase.from("wardrobe_items").insert({
+                        const { data: insertedRow, error: insErr } = await supabase.from("wardrobe_items").insert({
           user_id: userId,
           image_url: it.image_path,
           thumbnail_path: it.thumbnail_path ?? null,
@@ -410,10 +410,27 @@ export const confirmDetectedItems = createServerFn({ method: "POST" })
           purchase_date: it.purchase_date || null,
           source: "batch_scan",
           location_id: activeLocationId,
-        } as never);
+        } as never).select("id").single();
 
 
         if (insErr) throw new Error(insErr.message);
+
+        // Same fire-and-forget principle as AddItem.tsx/OutfitScan.tsx —
+        // never fails the item's own save. Only runs when the client
+        // actually computed one (see ConfirmItemSchema) — a batch of 50
+        // items already means 50 model runs client-side, so this is
+        // strictly additive to work already being done there, not new
+        // cost on top of an otherwise-instant confirm.
+        if (it.embedding) {
+          const { EMBEDDING_MODEL_VERSION } = await import("@/lib/visual-embedding");
+          const { error: embErr } = await (supabase.from("visual_embeddings" as never) as any).insert({
+            wardrobe_item_id: (insertedRow as { id: string }).id,
+            user_id: userId,
+            embedding: `[${it.embedding.join(",")}]`,
+            model_version: EMBEDDING_MODEL_VERSION,
+          });
+          if (embErr) console.error("[AURA batch-scan] visual embedding save failed for item", it.id, embErr);
+        }
 
         const { error: updErr } = await supabaseAdmin
           .from("scan_detected_items").update({ status: "confirmed" }).eq("id", it.id).eq("user_id", userId);
