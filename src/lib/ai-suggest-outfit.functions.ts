@@ -288,12 +288,37 @@ export async function suggestOutfitCore(params: {
     ? "This person prefers a classic wardrobe: favor neutral, coordinated colors and minimal pattern-mixing over bold color or print combinations, even when a bolder pairing would technically also work."
     : null;
 
+  // Style Memory — learned from every ❤️/👎/💾 given anywhere in the app
+  // (see outfit-feedback.functions.ts). This is the shared core every
+  // "AI Suggest" call goes through (OutfitBuilder's button, Ask Your
+  // Stylist's "more options"), so wiring it in here covers all of them
+  // at once — previously none of them read it back at all. Same shared
+  // module and occasion-scoped-beats-general priority already used by
+  // Trip Capsule and the Home daily-looks engine.
+  let styleMemorySection: string[] = [];
+  try {
+    const { buildStyleMemoryPromptSection } = await import("./style-memory-prompt");
+    const occasionLabels = [...new Set([params.occasion, "Work", "Weekend", "Evening"].filter((x): x is string => Boolean(x)))];
+    const { data: memoryRows } = await params.supabase
+      .from("user_style_memory_active")
+      .select("memory_type, value, context_axis, context_value, effective_confidence, evidence_count")
+      .order("effective_confidence", { ascending: false })
+      .limit(100);
+    styleMemorySection = buildStyleMemoryPromptSection(memoryRows ?? [], occasionLabels);
+  } catch (e) {
+    // A person with no history yet, or a transient read error, sees
+    // exactly the same suggestion quality as always — this only ever
+    // adds a nudge on top, never something the outfit depends on.
+    console.error("[AURA suggest-outfit] style memory read failed, continuing without it", e);
+  }
+
   const system = [
     ...(params.dressRules ? [params.dressRules, ""] : []),
     "You are a personal stylist. Compose ONE coherent outfit from the user's wardrobe.",
     "Pick 3-5 items that work together (typically 1 top + 1 bottom OR 1 dress, + 1 shoes, optionally 1 outerwear and 1 accessory/bag).",
     ...(genderLine ? [genderLine] : []),
     "Match the weather and occasion. Prefer colors that harmonize and consistent style.",
+    ...styleMemorySection,
     // The rules below this line are styling DEFAULTS, not absolute bans —
     // treat them as: strong preference → deviate when the outfit's own
     // context makes the combination clearly intentional (a monochrome-
