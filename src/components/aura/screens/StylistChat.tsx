@@ -177,22 +177,14 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
             eventWeatherRef.current = { temperature: initialMessage.temperature, condition: initialMessage.condition };
       eventDateRef.current = initialMessage.date ?? null;
       eventIdRef.current = initialMessage.eventId ?? null;
+      // Passed directly from the caller (Planner.tsx), which already has
+      // the event's own start_time on hand — no lookup needed here, and
+      // no risk of an id mismatch (an event merged in from the device's
+      // native calendar can carry a different id scheme than
+      // calendar_events_cache) silently leaving this null.
+      eventTimeRef.current = initialMessage.eventTime ?? null;
 
-      void (async () => {
-        if (eventIdRef.current) {
-          try {
-            const { data: ev } = await (supabase.from("calendar_events_cache" as never) as any)
-              .select("start_time, all_day").eq("id", eventIdRef.current).maybeSingle();
-            const row = ev as { start_time: string; all_day: boolean } | null;
-            if (row && !row.all_day) {
-              eventTimeRef.current = new Date(row.start_time).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
-            }
-          } catch (e) {
-            console.error("[AURA stylist-chat] event time lookup failed", e);
-          }
-        }
-        void sendMessage(initialMessage.message);
-      })();
+      void sendMessage(initialMessage.message);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialMessage, itemsLoaded]);
