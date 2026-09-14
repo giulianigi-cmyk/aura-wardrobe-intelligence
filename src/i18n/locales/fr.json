@@ -841,7 +841,13 @@
     "fillsInWorkDaysOnly": "Remplit uniquement vos jours de travail (définis dans votre profil) — ne touche jamais un jour déjà planifié, ni une tenue déjà liée à un événement spécifique.",
     "generate": "Générer",
     "openOnCanvas": "Ouvrir sur la toile",
-    "openOnCanvasAria": "Ouvrir cette tenue sur la toile"
+    "openOnCanvasAria": "Ouvrir cette tenue sur la toile",
+    "tabMyOutfitPhotos": "Ma Tenue",
+    "toastWornEntryDeleted": "Supprimé",
+    "deleteWornEntryAria": "Supprimer cette entrée",
+    "noOutfitPhotosYet": "Aucune photo de tenue enregistrée pour l'instant.",
+    "deleteWornEntryTitle": "Supprimer cette entrée ?",
+    "deleteWornEntryHint": "Cela la retire de votre historique et met à jour la fréquence de port de ces pièces."
   },
   "outfitBuilder": {
     "itemNoImage": "Cet article n'a pas encore d'image",
