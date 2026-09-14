@@ -12,6 +12,7 @@ import { DetectedItemCard } from "@/components/aura/DetectedItemCard";
 import { analyzeWardrobeImage } from "@/lib/ai-analyze.functions";
 import { segmentOutfitPhoto } from "@/lib/outfit-segmentation";
 import { findBestMatch, type DedupeResult } from "@/lib/outfit-dedupe";
+import { findVisualDuplicates } from "@/lib/outfit-wear.functions";
 import { trimFileMargins } from "@/lib/auto-crop";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 
@@ -57,6 +58,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const analyze = useServerFn(analyzeWardrobeImage);
+  const findVisualDupes = useServerFn(findVisualDuplicates);
   
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -134,10 +136,39 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           };
         }
 
-        const dedupe = findBestMatch(
+        let dedupe = findBestMatch(
           { category: meta.category, subcategory: meta.subcategory, colors: meta.colors, brand: meta.brand || null },
           existingList,
         );
+        // Visual comparison, second pass — only worth the round-trip when
+        // attributes alone weren't already confident. This was the real
+        // gap the ADR's original plan aimed at (import dedup, not wear
+        // detection): a scan-imported piece was checked for duplicates
+        // by attributes only, even after the visual embedding
+        // infrastructure existed for LogWear. Silently skipped (never
+        // blocks the scan) if the embedding model or the request fails.
+        if (dedupe.verdict !== "certain" && meta.category) {
+          try {
+            const { computeGarmentEmbedding } = await import("@/lib/visual-embedding");
+            const embedding = await computeGarmentEmbedding(seg.imageDataUrl);
+            const res = await findVisualDupes({ data: { category: meta.category, embedding } });
+            if (res.ok && res.matches.length) {
+              const best = res.matches[0];
+              if (best.visualSimilarity > dedupe.score) {
+                const matchedItem = existingList.find((w) => w.id === best.wardrobeItemId) ?? null;
+                if (matchedItem) {
+                  dedupe = {
+                    score: best.visualSimilarity,
+                    match: matchedItem,
+                    verdict: best.visualSimilarity >= 0.9 ? "certain" : best.visualSimilarity >= 0.6 ? "maybe" : "new",
+                  };
+                }
+              }
+            }
+          } catch (e) {
+            console.error("[AURA outfit-scan] visual dedup check failed, keeping attribute-only result", e);
+          }
+        }
         if (dedupe.match) {
           const path = toStoragePath(dedupe.match.image_url);
           if (path) {
@@ -250,6 +281,26 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
         const { data: inserted, error: insErr } = await supabase
           .from("wardrobe_items").insert(payload).select("*").single();
         if (insErr) throw insErr;
+
+        // Fire-and-forget, same as AddItem.tsx's save() — a piece added
+        // via outfit scan gets a visual fingerprint too, not just one
+        // added through the single-item flow. Without this, every
+        // batch-scanned piece stayed invisible to visual dedup/matching
+        // forever unless someone later ran the wardrobe-wide backfill.
+        void (async () => {
+          try {
+            const { computeGarmentEmbedding, EMBEDDING_MODEL_VERSION } = await import("@/lib/visual-embedding");
+            const embedding = await computeGarmentEmbedding(it.imageDataUrl);
+            await supabase.from("visual_embeddings" as never).insert({
+              wardrobe_item_id: (inserted as { id: string }).id,
+              user_id: user.id,
+              embedding: `[${embedding.join(",")}]`,
+              model_version: EMBEDDING_MODEL_VERSION,
+            } as never);
+          } catch (e) {
+            console.error("[AURA outfit-scan] visual embedding failed — attribute matching still works without it", e);
+          }
+        })();
 
         window.dispatchEvent(new CustomEvent("aura:wardrobe-item-created", { detail: inserted }));
         ok++;
