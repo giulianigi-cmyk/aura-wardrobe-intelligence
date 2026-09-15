@@ -847,7 +847,13 @@
     "deleteWornEntryAria": "Delete this entry",
     "noOutfitPhotosYet": "No outfit photos logged yet.",
     "deleteWornEntryTitle": "Delete this entry?",
-    "deleteWornEntryHint": "This removes it from your history and updates how often these pieces show as worn."
+    "deleteWornEntryHint": "This removes it from your history and updates how often these pieces show as worn.",
+    "date": "Date",
+    "pieces": "Pieces",
+    "saveButton": "Save",
+    "editWornEntryAria": "Edit this entry",
+    "editWornEntryTitle": "Edit entry",
+    "toastWornEntryUpdated": "Updated"
   },
   "outfitBuilder": {
     "itemNoImage": "This item has no image yet",
