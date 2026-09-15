@@ -13,11 +13,18 @@
 // endpoint is in "Preview" lifecycle (released Jan 26, 2026), so it's
 // worth re-checking that page if generations start failing unexpectedly.
 //
-// generation_mode "balanced" + resolution "2k" is the default here —
-// FASHN's own docs put this at ~25s, matching what was seen testing the
-// app directly. "quality" + "4k" (~55s) exists as an escape hatch (see
-// QUALITY_OVERRIDE) for a future "this garment keeps failing" retry path,
-// not as the default.
+// generation_mode "quality" + resolution "4k" is now the default —
+// previously "balanced" + "2k" (~25s vs ~55s), chosen for speed. Changed
+// after a real identity-preservation complaint (the face reads as
+// noticeably wrong after generation) — FASHN's own guide recommends
+// quality mode specifically for a final result meant to be trusted,
+// with balanced/performance framed as a preview mode for quickly
+// testing combinations. QUALITY_OVERRIDE below is kept as the same
+// object, just now used unconditionally rather than as an opt-in
+// escape hatch. The polling timeout (MAX_POLL_ATTEMPTS × POLL_INTERVAL_MS
+// in AvatarTryOn.tsx) is 90s per item, comfortably above quality mode's
+// documented ~55s, so this doesn't risk generations timing out that
+// wouldn't have before.
 //
 // Privacy: return_base64 is on by default. These are biometric photos
 // (face + body), so images live on FASHN's CDN for 60 minutes instead of
@@ -38,7 +45,8 @@
 
 const FASHN_BASE_URL = "https://api.fashn.ai/v1";
 
-/** Escape hatch for a future "this garment keeps failing" retry path — not used by default. */
+/** Now used unconditionally as the default generation settings — see the
+ *  file header comment for why. */
 export const QUALITY_OVERRIDE = { generation_mode: "quality", resolution: "4k" } as const;
 
 type FashnRunResponse = { id: string; error: string | null };
@@ -71,14 +79,12 @@ export type FashnCheckResult =
 export async function submitFashnRun(
   modelImage: string,
   garmentImage: string,
-  options?: { prompt?: string; qualityOverride?: boolean },
+  options?: { prompt?: string },
 ): Promise<FashnSubmitResult> {
   const key = process.env.FASHN_API_KEY;
   if (!key) return { ok: false, error: "Missing FASHN_API_KEY" };
 
-  const generationSettings = options?.qualityOverride
-    ? QUALITY_OVERRIDE
-    : { generation_mode: "balanced" as const, resolution: "2k" as const };
+  const generationSettings = QUALITY_OVERRIDE;
 
   try {
     const runRes = await fetch(`${FASHN_BASE_URL}/run`, {
