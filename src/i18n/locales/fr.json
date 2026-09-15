@@ -847,7 +847,13 @@
     "deleteWornEntryAria": "Supprimer cette entrée",
     "noOutfitPhotosYet": "Aucune photo de tenue enregistrée pour l'instant.",
     "deleteWornEntryTitle": "Supprimer cette entrée ?",
-    "deleteWornEntryHint": "Cela la retire de votre historique et met à jour la fréquence de port de ces pièces."
+    "deleteWornEntryHint": "Cela la retire de votre historique et met à jour la fréquence de port de ces pièces.",
+    "date": "Date",
+    "pieces": "Pièces",
+    "saveButton": "Enregistrer",
+    "editWornEntryAria": "Modifier cette entrée",
+    "editWornEntryTitle": "Modifier l'entrée",
+    "toastWornEntryUpdated": "Mis à jour"
   },
   "outfitBuilder": {
     "itemNoImage": "Cet article n'a pas encore d'image",
