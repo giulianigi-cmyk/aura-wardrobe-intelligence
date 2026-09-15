@@ -75,67 +75,6 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
     })();
   }, [user]);
 
-  /** Restores the original, untouched head/upper-shoulder region onto a
-   *  FASHN result before it's used as the next chain step's model_image
-   *  (or saved as the final result). FASHN's tryon-max only needs to see
-   *  and touch the clothing region, but in practice each generation can
-   *  subtly redraw the face too — and since a full outfit chains through
-   *  several garments (see avatar-tryon.functions.ts), any drift on one
-   *  step compounds on the next, which is what people were reacting to.
-   *  A soft-edged gradient mask blends the seam instead of pasting a
-   *  hard-edged rectangle, so the join isn't visible as a line across
-   *  the chest. Best-effort: if anything here fails (a decode error, a
-   *  canvas restriction), the untouched generated result is used as-is
-   *  rather than blocking the whole try-on over a cosmetic step. */
-  const FACE_REGION_FRACTION = 0.2; // top 20% of the frame
-  const FEATHER_FRACTION = 0.08; // soft blend zone above that line
-
-  const loadImageEl = (dataUrl: string): Promise<HTMLImageElement> =>
-    new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error("image decode failed"));
-      img.src = dataUrl;
-    });
-
-  const restoreOriginalFace = async (originalDataUrl: string, generatedDataUrl: string): Promise<string> => {
-    try {
-      const [original, generated] = await Promise.all([loadImageEl(originalDataUrl), loadImageEl(generatedDataUrl)]);
-      const w = generated.naturalWidth;
-      const h = generated.naturalHeight;
-      if (!w || !h) return generatedDataUrl;
-
-      const base = document.createElement("canvas");
-      base.width = w; base.height = h;
-      const baseCtx = base.getContext("2d");
-      if (!baseCtx) return generatedDataUrl;
-      baseCtx.drawImage(generated, 0, 0, w, h);
-
-      // The original, scaled to match, masked down to just the head
-      // region with a feathered bottom edge via a gradient alpha mask.
-      const faceLayer = document.createElement("canvas");
-      faceLayer.width = w; faceLayer.height = h;
-      const faceCtx = faceLayer.getContext("2d");
-      if (!faceCtx) return generatedDataUrl;
-      faceCtx.drawImage(original, 0, 0, w, h);
-
-      const faceRegionEnd = h * FACE_REGION_FRACTION;
-      const featherStart = Math.max(0, faceRegionEnd - h * FEATHER_FRACTION);
-      faceCtx.globalCompositeOperation = "destination-in";
-      const gradient = faceCtx.createLinearGradient(0, featherStart, 0, faceRegionEnd);
-      gradient.addColorStop(0, "rgba(255,255,255,1)");
-      gradient.addColorStop(1, "rgba(255,255,255,0)");
-      faceCtx.fillStyle = gradient;
-      faceCtx.fillRect(0, 0, w, faceRegionEnd);
-
-      baseCtx.drawImage(faceLayer, 0, 0);
-      return base.toDataURL("image/png");
-    } catch (e) {
-      console.error("[AURA avatar-tryon] face-restore failed, using generated result as-is", e);
-      return generatedDataUrl;
-    }
-  };
-
   /** Runs one chained garment step to completion: submit, then poll every
    *  ~2s until FASHN reports done or failed. Never a single long-held
    *  request — see avatar-tryon.functions.ts for why that mattered. */
@@ -181,7 +120,6 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
       }
 
       let currentModelImage = prepared.avatarImageDataUrl;
-      const originalAvatarImage = prepared.avatarImageDataUrl;
       const total = prepared.orderedItemIds.length;
       for (let i = 0; i < total; i++) {
         setProgress({ step: i + 1, total });
@@ -192,11 +130,7 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
           setStage("error");
           return;
         }
-        // Every hop in the chain gets its face region restored from the
-        // pristine original before becoming the next step's input — see
-        // restoreOriginalFace above for why this matters more with each
-        // additional garment.
-        currentModelImage = await restoreOriginalFace(originalAvatarImage, stepResult.imageDataUrl);
+        currentModelImage = stepResult.imageDataUrl;
       }
 
       const final = await finalize({ data: { itemIds, finalImageDataUrl: currentModelImage } });
