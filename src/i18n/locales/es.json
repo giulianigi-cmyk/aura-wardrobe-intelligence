@@ -847,7 +847,13 @@
     "deleteWornEntryAria": "Eliminar esta entrada",
     "noOutfitPhotosYet": "Aún no hay fotos de looks registradas.",
     "deleteWornEntryTitle": "¿Eliminar esta entrada?",
-    "deleteWornEntryHint": "Esto la quita de tu historial y actualiza cuántas veces se han usado estas prendas."
+    "deleteWornEntryHint": "Esto la quita de tu historial y actualiza cuántas veces se han usado estas prendas.",
+    "date": "Fecha",
+    "pieces": "Prendas",
+    "saveButton": "Guardar",
+    "editWornEntryAria": "Editar esta entrada",
+    "editWornEntryTitle": "Editar entrada",
+    "toastWornEntryUpdated": "Actualizado"
   },
   "outfitBuilder": {
     "itemNoImage": "Esta prenda aún no tiene imagen",
