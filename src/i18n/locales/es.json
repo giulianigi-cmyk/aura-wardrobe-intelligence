@@ -401,7 +401,8 @@
     "marketPremiumNote": "Estimación por encima del precio retail — respaldada por datos de mercado específicos de este modelo, no un cálculo genérico.",
     "logWearLink": "¿Qué llevé puesto?",
     "toastComputingVisualFingerprints": "Calculando huellas visuales — {{done}}/{{total}}…",
-    "toastVisualFingerprintsDone": "Huellas visuales listas para {{count}} prendas"
+    "toastVisualFingerprintsDone": "Huellas visuales listas para {{count}} prendas",
+    "createOutfitFromThisButton": "Crear outfit a partir de esto"
   },
   "addItem": {
     "toastSelectImage": "Selecciona una imagen",
