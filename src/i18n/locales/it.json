@@ -845,7 +845,13 @@
     "deleteWornEntryAria": "Elimina questa voce",
     "noOutfitPhotosYet": "Nessuna foto outfit registrata ancora.",
     "deleteWornEntryTitle": "Eliminare questa voce?",
-    "deleteWornEntryHint": "Verrà rimossa dalla cronologia e aggiornerà quante volte questi capi risultano indossati."
+    "deleteWornEntryHint": "Verrà rimossa dalla cronologia e aggiornerà quante volte questi capi risultano indossati.",
+    "date": "Data",
+    "pieces": "Capi",
+    "saveButton": "Salva",
+    "editWornEntryAria": "Modifica questa voce",
+    "editWornEntryTitle": "Modifica voce",
+    "toastWornEntryUpdated": "Aggiornato"
   },
   "outfitBuilder": {
     "itemNoImage": "Questo capo non ha ancora un'immagine",
