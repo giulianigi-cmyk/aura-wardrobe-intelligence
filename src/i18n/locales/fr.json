@@ -401,7 +401,8 @@
     "marketPremiumNote": "Estimation supérieure au prix de vente — basée sur des données de marché spécifiques à ce modèle, pas un calcul générique.",
     "logWearLink": "Qu'ai-je porté ?",
     "toastComputingVisualFingerprints": "Calcul des empreintes visuelles — {{done}}/{{total}}…",
-    "toastVisualFingerprintsDone": "Empreintes visuelles prêtes pour {{count}} pièces"
+    "toastVisualFingerprintsDone": "Empreintes visuelles prêtes pour {{count}} pièces",
+    "createOutfitFromThisButton": "Créer une tenue à partir de ceci"
   },
   "addItem": {
     "toastSelectImage": "Veuillez sélectionner une image",
