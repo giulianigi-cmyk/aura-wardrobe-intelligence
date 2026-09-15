@@ -6,7 +6,7 @@ import { isShoeCategory, sizeEquivalences } from "@/lib/size-conversion";
 import { MaterialCombobox } from "@/components/aura/MaterialCombobox";
 import { AddSourceSheet } from "@/components/aura/AddSourceSheet";
 
-import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users } from "lucide-react";
+import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { migrateLegacyTaxonomy } from "@/lib/migrate-legacy-taxonomy.functions";
@@ -19,7 +19,7 @@ import { compressImageForUpload } from "@/lib/image-compress";
 import { trimWhiteMargins } from "@/lib/auto-crop";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Screen } from "../AuraApp";
+import type { Screen, BuilderInit } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { syncMySharedLibrary } from "@/lib/shared-library.functions";
 import type { WardrobeItem } from "@/lib/aura-types";
@@ -56,10 +56,16 @@ const ICONICITY_OPTIONS: Iconicity[] = ["iconic", "timeless", "classic", "season
 const splitCsv = (v: string | null | undefined) =>
   (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 
-export function Wardrobe({ go, gapFilter, onClearGapFilter }: {
+export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
   go: (s: Screen) => void;
   gapFilter?: "price" | "purchase_date" | null;
   onClearGapFilter?: () => void;
+  /** Opens the outfit canvas editor — used here for "Create outfit from
+   *  this", which pins the tapped item as mandatory (anchorItemId) and
+   *  auto-triggers AI Suggest around it, same mechanism Insights already
+   *  used for its "hasn't been worn" nudge, just reachable on demand
+   *  from any item now instead of only that one prompt. */
+  openBuilder: (init: BuilderInit) => void;
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -1120,6 +1126,12 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter }: {
                   )}
                   {colorWheelOpen && src && (
                     <ColorWheelPicker imageUrl={src} onClose={() => setColorWheelOpen(false)} />
+                  )}
+                  {!editing && (
+                    <button
+                      onClick={() => { setDetail(null); openBuilder({ itemIds: [], anchorItemId: detail.id }); }}
+                      className="mt-4 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 active:scale-[0.98]"
+                    ><Sparkles size={14} /> {t("wardrobe.createOutfitFromThisButton")}</button>
                   )}
                 </>
               );
