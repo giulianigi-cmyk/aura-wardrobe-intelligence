@@ -916,7 +916,8 @@
     "facebook": "Facebook",
     "email": "Email",
     "instagramTiktokNote": "Instagram & TikTok require pasting from your camera roll",
-    "enableLocationHint": "Enable location in Calendar to see today's weather and matching items."
+    "enableLocationHint": "Enable location in Calendar to see today's weather and matching items.",
+    "craftingYourFirstLook": "Putting your first look together…"
   },
   "tripDetail": {
     "couldntLoadTrip": "Couldn't load this trip",
