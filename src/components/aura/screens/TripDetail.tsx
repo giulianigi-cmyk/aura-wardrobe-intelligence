@@ -12,7 +12,7 @@ import { addTripEssential, removeTripEssential, updateTripEssential, type TripEs
 import { addTripActivity, updateTripActivity, removeTripActivity, type TripActivity } from "@/lib/trip-activities.functions";
 import { addTripPackingItem, removeTripPackingItem, updateTripPackingItem, type TripPackingItem } from "@/lib/trip-packing.functions";
 import { generateTripCapsule } from "@/lib/trip-capsule.functions";
-import { listLocations } from "@/lib/wardrobe-locations.functions";
+import { useWardrobeLocations } from "@/lib/wardrobe-locations-query";
 import type { WardrobeLocation } from "@/lib/wardrobe-location";
 import { supabase } from "@/integrations/supabase/client";
 import type { WardrobeItem } from "@/lib/aura-types";
@@ -53,7 +53,10 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
   const [trip, setTrip] = useState<Trip | null>(null);
   const [destinations, setDestinations] = useState<TripDestination[]>([]);
   const [sourceLocationIds, setSourceLocationIds] = useState<string[]>([]);
-  const [allLocations, setAllLocations] = useState<WardrobeLocation[]>([]);
+  // Shared cache (see wardrobe-locations-query.ts) — same key
+  // AIStylist/TripCreate read from.
+  const { data: locationsData } = useWardrobeLocations();
+  const allLocations = locationsData?.locations ?? [];
   const [essentials, setEssentials] = useState<TripEssential[]>([]);
   const [activities, setActivities] = useState<TripActivity[]>([]);
   const [packingItems, setPackingItems] = useState<TripPackingItem[]>([]);
@@ -134,8 +137,8 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
 
 
   const load = () => {
-    Promise.all([getTrip({ data: { tripId } }), listLocations()])
-      .then(async ([tripRes, locRes]) => {
+    getTrip({ data: { tripId } })
+      .then(async (tripRes) => {
         setTrip(tripRes.trip);
         setDestinations(tripRes.destinations);
         setSourceLocationIds(tripRes.sourceLocationIds);
@@ -143,7 +146,6 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
         setActivities(tripRes.activities as TripActivity[]);
         setPackingItems(tripRes.packingItems as TripPackingItem[]);
         setOutfitPlans(tripRes.outfitPlans as OutfitPlan[]);
-        setAllLocations(locRes.locations);
 
         // Loaded eagerly (not lazily on picker-open) — packing items or
         // generated outfits can reference wardrobe pieces before the
