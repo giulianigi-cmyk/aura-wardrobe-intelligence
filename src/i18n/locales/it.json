@@ -914,7 +914,8 @@
     "facebook": "Facebook",
     "email": "Email",
     "instagramTiktokNote": "Instagram e TikTok richiedono di incollare dal rullino fotografico",
-    "enableLocationHint": "Attiva la posizione nel Calendario per vedere il meteo di oggi e i capi adatti."
+    "enableLocationHint": "Attiva la posizione nel Calendario per vedere il meteo di oggi e i capi adatti.",
+    "craftingYourFirstLook": "Sto preparando il tuo primo look…"
   },
   "tripDetail": {
     "couldntLoadTrip": "Impossibile caricare questo viaggio",
