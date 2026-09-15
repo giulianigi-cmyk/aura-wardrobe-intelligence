@@ -1104,7 +1104,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
             .some((v) => v?.toLowerCase().includes(q));
         });
         return (
-          <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={closePicker}>
+          <div className="fixed inset-0 z-[80] bg-background/80 backdrop-blur flex items-end" onClick={closePicker}>
             <div onClick={(e) => e.stopPropagation()} className="w-full max-h-[85dvh] bg-card rounded-t-3xl border-t border-border p-5 flex flex-col">
               <div className="flex items-center justify-between shrink-0">
                 <p className="font-serif italic text-lg">{pickerForPlan ? t("aiStylist.whatDidYouWearInstead") : t("aiStylist.addAPiece")}</p>
