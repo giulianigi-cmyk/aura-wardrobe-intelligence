@@ -6,7 +6,7 @@ import type { Screen } from "../AuraApp";
 import { createTrip, type TripType } from "@/lib/trips.functions";
 import { applyPresetsToTrip } from "@/lib/essentials.functions";
 import { listEssentialPresets, type EssentialPreset } from "@/lib/essentials.functions";
-import { listLocations } from "@/lib/wardrobe-locations.functions";
+import { useWardrobeLocations } from "@/lib/wardrobe-locations-query";
 import type { WardrobeLocation } from "@/lib/wardrobe-location";
 import { searchDestinations, type DestinationSearchResult } from "@/lib/destination-search";
 
@@ -33,7 +33,10 @@ export function TripCreate({ go, onCreated }: { go: (s: Screen) => void; onCreat
   const [laundryAvailable, setLaundryAvailable] = useState(false);
   const [culturalMode, setCulturalMode] = useState(false);
 
-  const [locations, setLocations] = useState<WardrobeLocation[]>([]);
+  // Shared cache (see wardrobe-locations-query.ts) — same key
+  // AIStylist/TripDetail read from.
+  const { data: locationsData, isLoading: locationsLoading } = useWardrobeLocations();
+  const locations = locationsData?.locations ?? [];
   const [selectedLocationIds, setSelectedLocationIds] = useState<string[]>([]);
   const [presets, setPresets] = useState<EssentialPreset[]>([]);
   const [selectedPresetIds, setSelectedPresetIds] = useState<string[]>([]);
@@ -41,17 +44,19 @@ export function TripCreate({ go, onCreated }: { go: (s: Screen) => void; onCreat
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    Promise.all([listLocations(), listEssentialPresets()])
-      .then(([locRes, presetRes]) => {
-        setLocations(locRes.locations);
-        // No locations set up yet (the common single-home case) — that's
-        // fine, the outfit engine already treats "no active location" as
-        // "use the whole wardrobe". Only pre-select when there's a real
-        // choice to make.
-        if (locRes.activeLocationId) setSelectedLocationIds([locRes.activeLocationId]);
+    // No locations set up yet (the common single-home case) — that's
+    // fine, the outfit engine already treats "no active location" as
+    // "use the whole wardrobe". Only pre-select when there's a real
+    // choice to make.
+    if (locationsData?.activeLocationId) setSelectedLocationIds([locationsData.activeLocationId]);
+  }, [locationsData]);
+
+  useEffect(() => {
+    listEssentialPresets()
+      .then((presetRes) => {
         setPresets(presetRes.presets.map((p) => ({ id: p.id, user_id: p.user_id, name: p.name, created_at: p.created_at })));
       })
-      .catch((e) => console.error("[AURA trip-create] context load failed", e))
+      .catch((e) => console.error("[AURA trip-create] presets load failed", e))
       .finally(() => setLoadingContext(false));
   }, []);
 
@@ -129,7 +134,7 @@ export function TripCreate({ go, onCreated }: { go: (s: Screen) => void; onCreat
         </div>
       </header>
 
-      {loadingContext ? (
+      {(loadingContext || locationsLoading) ? (
         <div className="flex justify-center mt-16"><Loader2 className="animate-spin text-muted-foreground" /></div>
       ) : (
         <div className="px-6 mt-6 space-y-5">
