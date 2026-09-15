@@ -445,6 +445,22 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
     }
   }, [anchorItemId, items, aiSuggest]);
 
+  // "Costruisci manualmente" opened with a genuinely blank slate — no
+  // saved outfit to reload, no anchor item, nothing pre-placed. Rather
+  // than showing an empty canvas and waiting for a manual tap on AI
+  // Suggest, this auto-triggers the exact same suggestion the button
+  // would, so the canvas already has a real starting point the moment
+  // it opens — someone can still clear it and build from scratch, but
+  // that's now an edit, not the only way in.
+  const blankSlateAppliedRef = useRef(false);
+  useEffect(() => {
+    const isBlankSlate = !init || (init.itemIds.length === 0 && !init.anchorItemId && !init.outfitId);
+    if (isBlankSlate && items.length && !blankSlateAppliedRef.current && !anchorItemId) {
+      blankSlateAppliedRef.current = true;
+      void aiSuggest();
+    }
+  }, [init, items, aiSuggest, anchorItemId]);
+
   // Export & save ---------------------------------------------------------
 
   /** Fetch a (possibly cross-origin, signed) image URL and inline it as a
@@ -902,9 +918,16 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
 
           {placed.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center text-center px-8">
-              <p className="text-muted-foreground text-sm">
-                {t("outfitBuilder.addItemsToStart")}
-              </p>
+              {aiBusy ? (
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 size={18} className="animate-spin text-muted-foreground" />
+                  <p className="text-muted-foreground text-sm">{t("outfitBuilder.craftingYourFirstLook")}</p>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  {t("outfitBuilder.addItemsToStart")}
+                </p>
+              )}
             </div>
           )}
         </div>
