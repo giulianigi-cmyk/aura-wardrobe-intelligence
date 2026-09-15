@@ -43,11 +43,11 @@ import type { WardrobeLocation } from "@/lib/wardrobe-location";
 import i18n from "@/i18n/config";
 import {
   computeItemValuation,
-  fetchValuationConfig,
   EMPTY_VALUATION_CONFIG,
   type ValuationConfig,
   type Iconicity,
 } from "@/lib/wardrobe-value-engine";
+import { useValuationConfig } from "@/lib/valuation-query";
 
 const categories = ["All", ...ITEM_CATEGORIES];
 const currencySymbol: Record<string, string> = { EUR: "€", USD: "$", GBP: "£" };
@@ -141,11 +141,12 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter }: {
     model: "" as string,
     bagSizeClass: "" as string,
   });
-  const [valuationConfig, setValuationConfig] = useState<ValuationConfig>(EMPTY_VALUATION_CONFIG);
-
-  useEffect(() => {
-    fetchValuationConfig().then(setValuationConfig).catch((e) => console.error("[AURA wardrobe] valuation config", e));
-  }, []);
+  // Shared cache (see valuation-query.ts) — replaces this screen's own
+  // independent fetch; Insights.tsx reads from the same key. The hook's
+  // own placeholderData means this is never actually undefined at
+  // runtime; the ?? fallback below only satisfies the type.
+  const { data: valuationConfigData } = useValuationConfig();
+  const valuationConfig = valuationConfigData ?? EMPTY_VALUATION_CONFIG;
 
   const openEdit = () => {
     if (!detail) return;
