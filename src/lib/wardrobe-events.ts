@@ -194,6 +194,32 @@ export async function markItemLifecycleStatus(
   return { error: null };
 }
 
+/** Recomputes worn_count/last_worn for a set of items directly from
+ *  their remaining wardrobe_events history — shared by deleteWornEvent
+ *  and updateWornEvent below, since both change which events an item is
+ *  linked to and need the same correction afterward. See
+ *  deleteWornEvent's own comment for why this is computed explicitly
+ *  rather than trusted to the sync_wardrobe_wear_stats trigger alone. */
+async function recomputeWearStats(itemIds: string[], userId: string): Promise<void> {
+  for (const itemId of itemIds) {
+    const { data: remaining, error: remErr } = await (supabase.from("wardrobe_events" as never) as any)
+      .select("event_date, wardrobe_event_items!inner(item_id)")
+      .eq("user_id", userId)
+      .eq("event_type", "worn")
+      .eq("wardrobe_event_items.item_id", itemId);
+    if (remErr) { console.error("[AURA wardrobe-events] recompute read failed", remErr); continue; }
+
+    const dates = ((remaining ?? []) as { event_date: string }[]).map((r) => r.event_date);
+    const wornCount = dates.length;
+    const lastWorn = dates.length ? dates.reduce((max, d) => (d > max ? d : max)) : null;
+
+    const { error: updErr } = await (supabase.from("wardrobe_items" as never) as any)
+      .update({ worn_count: wornCount, last_worn: lastWorn })
+      .eq("id", itemId).eq("user_id", userId);
+    if (updErr) console.error("[AURA wardrobe-events] wear-stats recompute failed for item", itemId, updErr);
+  }
+}
+
 /** Removes a logged "worn" entry entirely (AIStylist's Worn tab) and
  *  puts worn_count/last_worn back to what they'd correctly be without
  *  it — recomputed directly from the remaining wardrobe_events for
@@ -217,23 +243,46 @@ export async function deleteWornEvent(
     .delete().eq("id", eventId).eq("user_id", userId);
   if (eventErr) return { error: eventErr.message };
 
-  for (const itemId of itemIds) {
-    const { data: remaining, error: remErr } = await (supabase.from("wardrobe_events" as never) as any)
-      .select("event_date, wardrobe_event_items!inner(item_id)")
-      .eq("user_id", userId)
-      .eq("event_type", "worn")
-      .eq("wardrobe_event_items.item_id", itemId);
-    if (remErr) { console.error("[AURA wardrobe-events] recompute read failed", remErr); continue; }
+  await recomputeWearStats(itemIds, userId);
+  return { error: null };
+}
 
-    const dates = ((remaining ?? []) as { event_date: string }[]).map((r) => r.event_date);
-    const wornCount = dates.length;
-    const lastWorn = dates.length ? dates.reduce((max, d) => (d > max ? d : max)) : null;
+/** Edits an already-logged "worn" entry: its date and/or which pieces
+ *  it includes (AIStylist's Worn tab — the same add/remove-a-piece
+ *  pattern already used for editing an upcoming plan in this screen,
+ *  applied here to something already in the past instead of something
+ *  still to come). Recomputes wear stats for the UNION of the old and
+ *  new item sets — a piece removed from the entry needs its count
+ *  corrected down; a piece added needs it corrected up; one that stayed
+ *  is recomputed too but lands on the same correct number either way. */
+export async function updateWornEvent(
+  eventId: string,
+  previousItemIds: string[],
+  nextItemIds: string[],
+  nextDate: string,
+  userId: string,
+): Promise<{ error: string | null }> {
+  const { error: dateErr } = await (supabase.from("wardrobe_events" as never) as any)
+    .update({ event_date: nextDate })
+    .eq("id", eventId).eq("user_id", userId);
+  if (dateErr) return { error: dateErr.message };
 
-    const { error: updErr } = await (supabase.from("wardrobe_items" as never) as any)
-      .update({ worn_count: wornCount, last_worn: lastWorn })
-      .eq("id", itemId).eq("user_id", userId);
-    if (updErr) console.error("[AURA wardrobe-events] wear-stats recompute failed for item", itemId, updErr);
+  const previousSet = new Set(previousItemIds);
+  const nextSet = new Set(nextItemIds);
+  const toRemove = previousItemIds.filter((id) => !nextSet.has(id));
+  const toAdd = nextItemIds.filter((id) => !previousSet.has(id));
+
+  if (toRemove.length) {
+    const { error: rmErr } = await (supabase.from("wardrobe_event_items" as never) as any)
+      .delete().eq("event_id", eventId).in("item_id", toRemove);
+    if (rmErr) return { error: rmErr.message };
+  }
+  if (toAdd.length) {
+    const { error: addErr } = await (supabase.from("wardrobe_event_items" as never) as any)
+      .insert(toAdd.map((itemId) => ({ event_id: eventId, item_id: itemId })));
+    if (addErr) return { error: addErr.message };
   }
 
+  await recomputeWearStats([...new Set([...previousItemIds, ...nextItemIds])], userId);
   return { error: null };
 }
