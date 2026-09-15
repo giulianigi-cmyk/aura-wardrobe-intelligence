@@ -15,7 +15,7 @@ import { useWeather } from "@/hooks/use-weather";
 import { describeWeather } from "@/lib/weather";
 import { suggestOutfitAI } from "@/lib/ai-suggest-outfit.functions";
 import { generateWeeklyOutfits } from "@/lib/weekly-outfits.functions";
-import { listLocations } from "@/lib/wardrobe-locations.functions";
+import { useWardrobeLocations } from "@/lib/wardrobe-locations-query";
 import type { WardrobeLocation } from "@/lib/wardrobe-location";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { logWardrobeEvent, confirmOutfitPlanWorn, deleteWornEvent, updateWornEvent } from "@/lib/wardrobe-events";
@@ -161,7 +161,11 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
   const [viewerImage, setViewerImage] = useState<{ src: string; alt: string } | null>(null);
   const [pickerQuery, setPickerQuery] = useState("");
   const [pickerCat, setPickerCat] = useState("All");
-  const [locations, setLocations] = useState<WardrobeLocation[]>([]);
+  // Shared cache (see wardrobe-locations-query.ts) — replaces this
+  // screen's own independent fetch; TripCreate/TripDetail read from the
+  // same key.
+  const { data: locationsData } = useWardrobeLocations();
+  const locations = locationsData?.locations ?? [];
   const [weeklySheetOpen, setWeeklySheetOpen] = useState(false);
   const [weeklyDays, setWeeklyDays] = useState<7 | 14>(7);
     // Multi-select on purpose (see suggestOutfitCore's locationIdsOverride):
@@ -257,10 +261,8 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
-    listLocations()
-            .then((res) => { setLocations(res.locations); setWeeklyLocationIds(res.activeLocationId ? [res.activeLocationId] : []); })
-      .catch((e) => console.error("[AURA stylist] locations load failed", e));
-  }, []);
+    if (locationsData?.activeLocationId) setWeeklyLocationIds([locationsData.activeLocationId]);
+  }, [locationsData]);
 
   const aiPick = async () => {
     const activeItems = items.filter((it) => !(it as unknown as { archived?: boolean }).archived);
