@@ -1,4 +1,4 @@
-import { Copy, Loader2, Share2, Sparkles, Search, Calendar as CalendarIcon, Trash2, Check, X, Archive, ArchiveRestore, Plus } from "lucide-react";
+import { Copy, Loader2, Share2, Sparkles, Search, Calendar as CalendarIcon, Trash2, Check, X, Archive, ArchiveRestore, Plus, Pencil } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { updateTripOutfitPlanItems } from "@/lib/trips.functions";
@@ -18,7 +18,7 @@ import { generateWeeklyOutfits } from "@/lib/weekly-outfits.functions";
 import { listLocations } from "@/lib/wardrobe-locations.functions";
 import type { WardrobeLocation } from "@/lib/wardrobe-location";
 import { loadDressRules } from "@/lib/dress-preferences";
-import { logWardrobeEvent, confirmOutfitPlanWorn, deleteWornEvent } from "@/lib/wardrobe-events";
+import { logWardrobeEvent, confirmOutfitPlanWorn, deleteWornEvent, updateWornEvent } from "@/lib/wardrobe-events";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 import { useWardrobeItems, useWardrobeImages, useWardrobeCacheActions } from "@/lib/wardrobe-query";
 import { useOutfitPlans, outfitPlansQueryKey, useOutfitPlansCacheActions } from "@/lib/outfit-plans-query";
@@ -101,6 +101,34 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
   const myOutfitPhotoEntries = useMemo(() => wornEntries.filter((w) => w.photoUrl), [wornEntries]);
   const [deletingWornId, setDeletingWornId] = useState<string | null>(null);
   const [confirmDeleteWorn, setConfirmDeleteWorn] = useState<WornEntry | null>(null);
+  const [editingWorn, setEditingWorn] = useState<WornEntry | null>(null);
+  const [editWornItemIds, setEditWornItemIds] = useState<string[]>([]);
+  const [editWornDate, setEditWornDate] = useState("");
+  const [wornPickerFor, setWornPickerFor] = useState<string | null>(null);
+  const [savingWornEdit, setSavingWornEdit] = useState(false);
+
+  const startEditWorn = (w: WornEntry) => {
+    setEditingWorn(w);
+    setEditWornItemIds(w.itemIds);
+    setEditWornDate(w.date);
+  };
+  const removeFromWornEdit = (itemId: string) =>
+    setEditWornItemIds((prev) => prev.filter((id) => id !== itemId));
+  const addToWornEdit = (itemId: string) => {
+    setEditWornItemIds((prev) => (prev.includes(itemId) ? prev : [...prev, itemId]));
+    setWornPickerFor(null);
+  };
+  const saveEditWorn = async () => {
+    if (!editingWorn || !user || !editWornItemIds.length) return;
+    setSavingWornEdit(true);
+    const { error } = await updateWornEvent(editingWorn.eventId, editingWorn.itemIds, editWornItemIds, editWornDate, user.id);
+    setSavingWornEdit(false);
+    if (error) { toast.error(error); return; }
+    setWornEntries((prev) => prev.map((w) => (w.eventId === editingWorn.eventId ? { ...w, itemIds: editWornItemIds, date: editWornDate } : w)));
+    wardrobeCache.invalidate();
+    setEditingWorn(null);
+    toast.success(t("aiStylist.toastWornEntryUpdated"));
+  };
 
   const removeWornEntry = async (entry: WornEntry) => {
     if (!user) return;
@@ -724,11 +752,18 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
                     <p className="text-xs text-muted-foreground">
                       {dateLabel(w.date)}{w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}
                     </p>
-                    <button
-                      onClick={() => setConfirmDeleteWorn(w)}
-                      aria-label={t("aiStylist.deleteWornEntryAria")}
-                      className="h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-muted-foreground"
-                    ><Trash2 size={13} /></button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => startEditWorn(w)}
+                        aria-label={t("aiStylist.editWornEntryAria")}
+                        className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground"
+                      ><Pencil size={12} /></button>
+                      <button
+                        onClick={() => setConfirmDeleteWorn(w)}
+                        aria-label={t("aiStylist.deleteWornEntryAria")}
+                        className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground"
+                      ><Trash2 size={13} /></button>
+                    </div>
                   </div>
                   <ItemThumbs ids={w.itemIds} size="h-14 w-14" />
                 </div>
@@ -746,11 +781,18 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
                     <p className="text-xs text-muted-foreground">
                       {dateLabel(w.date)}{w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}
                     </p>
-                    <button
-                      onClick={() => setConfirmDeleteWorn(w)}
-                      aria-label={t("aiStylist.deleteWornEntryAria")}
-                      className="h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-muted-foreground"
-                    ><Trash2 size={13} /></button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => startEditWorn(w)}
+                        aria-label={t("aiStylist.editWornEntryAria")}
+                        className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground"
+                      ><Pencil size={12} /></button>
+                      <button
+                        onClick={() => setConfirmDeleteWorn(w)}
+                        aria-label={t("aiStylist.deleteWornEntryAria")}
+                        className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground"
+                      ><Trash2 size={13} /></button>
+                    </div>
                   </div>
                   {w.photoUrl && (
                     <img src={w.photoUrl} alt="" className="w-full rounded-xl mb-2 aspect-[4/5] object-cover" />
@@ -939,6 +981,64 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
 
       {shareFor && <ShareOutfitSheet outfitId={shareFor} onClose={() => setShareFor(null)} />}
 
+      {editingWorn && (
+        <div className="fixed inset-0 z-[70] bg-background flex flex-col animate-fade-in">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 pt-14">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("aiStylist.editWornEntryTitle")}</p>
+              <p className="font-serif text-xl italic">{dateLabel(editingWorn.date)}</p>
+            </div>
+            <button onClick={() => setEditingWorn(null)} aria-label={t("aiStylist.closeAria")} className="h-9 w-9 rounded-full border border-border flex items-center justify-center"><X size={16} /></button>
+          </div>
+          <div className="flex-1 overflow-y-auto no-scrollbar px-5 py-4 space-y-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">{t("aiStylist.date")}</p>
+              <input
+                type="date"
+                value={editWornDate}
+                onChange={(e) => setEditWornDate(e.target.value)}
+                className="w-full bg-secondary/60 rounded-full px-4 py-2.5 text-sm outline-none"
+              />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">{t("aiStylist.pieces")}</p>
+              <div className="flex flex-wrap gap-2">
+                {editWornItemIds.map((id) => {
+                  const it = items.find((x) => x.id === id);
+                  const path = it ? toStoragePath(it.image_url) : null;
+                  const src = path ? itemSigned[path] : null;
+                  return (
+                    <div key={id} className="relative h-16 w-16 rounded-xl overflow-hidden border border-border/60" style={{ background: "#FFFFFF" }}>
+                      {src ? <img src={src} alt="" className="h-full w-full object-contain p-1" loading="lazy" /> : null}
+                      <button
+                        onClick={() => removeFromWornEdit(id)}
+                        aria-label={t("aiStylist.removeThisPieceAria")}
+                        className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-background/90 border border-border flex items-center justify-center"
+                      ><X size={10} /></button>
+                    </div>
+                  );
+                })}
+                <button
+                  onClick={() => setWornPickerFor(editingWorn.eventId)}
+                  aria-label={t("aiStylist.addAPieceAria")}
+                  className="h-16 w-16 rounded-xl border border-dashed border-border flex items-center justify-center text-muted-foreground"
+                ><Plus size={16} /></button>
+              </div>
+            </div>
+          </div>
+          <div className="px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 border-t border-border/60">
+            <button
+              onClick={() => void saveEditWorn()}
+              disabled={savingWornEdit || !editWornItemIds.length}
+              className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 disabled:opacity-40"
+            >
+              {savingWornEdit ? <Loader2 size={14} className="animate-spin" /> : null}
+              {t("aiStylist.saveButton")}
+            </button>
+          </div>
+        </div>
+      )}
+
       {confirmDeleteWorn && (
         <div
           className="fixed inset-0 z-[80] bg-background/70 backdrop-blur-sm flex items-center justify-center px-6"
@@ -984,12 +1084,14 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
         </div>
       )}
 
-      {(pickerForPlan || upcomingPickerFor) && (() => {
-        const activePlanId = (pickerForPlan ?? upcomingPickerFor) as string;
-        const closePicker = () => { setPickerForPlan(null); setUpcomingPickerFor(null); };
+      {(pickerForPlan || upcomingPickerFor || wornPickerFor) && (() => {
+        const activePlanId = (pickerForPlan ?? upcomingPickerFor ?? wornPickerFor) as string;
+        const closePicker = () => { setPickerForPlan(null); setUpcomingPickerFor(null); setWornPickerFor(null); };
         const currentIds = new Set(
           pickerForPlan
             ? (editedItems[pickerForPlan] ?? plans.find((p) => p.id === pickerForPlan)?.item_ids ?? [])
+            : wornPickerFor
+            ? editWornItemIds
             : (plans.find((p) => p.id === upcomingPickerFor)?.item_ids ?? [])
         );
         const activeOnly = items.filter((it) => !(it as unknown as { archived?: boolean }).archived);
@@ -1037,7 +1139,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
                   return (
                     <button
                       key={it.id}
-                      onClick={() => (pickerForPlan ? addToPlan(pickerForPlan, it.id) : addToUpcomingPlan(activePlanId, it.id))}
+                      onClick={() => (pickerForPlan ? addToPlan(pickerForPlan, it.id) : wornPickerFor ? addToWornEdit(it.id) : addToUpcomingPlan(activePlanId, it.id))}
                       className="text-left"
                     >
                       <div
