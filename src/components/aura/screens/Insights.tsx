@@ -13,11 +13,10 @@ import { markItemLifecycleStatus } from "@/lib/wardrobe-events";
 import i18n from "@/i18n/config";
 import {
   aggregateWardrobeValuation,
-  fetchValuationConfig,
   EMPTY_VALUATION_CONFIG,
-  type ValuationConfig,
   type Iconicity,
 } from "@/lib/wardrobe-value-engine";
+import { useValuationConfig } from "@/lib/valuation-query";
 
 const currencySymbol: Record<string, string> = { EUR: "€", USD: "$", GBP: "£" };
 const fmt = (n: number, currency: string) => `${currencySymbol[currency] ?? currency}${Math.round(n).toLocaleString(i18n.language)}`;
@@ -41,7 +40,12 @@ export function Insights({ go, openWardrobeGap, openBuilder }: { go: (s: Screen)
   };
   const [signed, setSigned] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [valuationConfig, setValuationConfig] = useState<ValuationConfig>(EMPTY_VALUATION_CONFIG);
+  // Shared cache (see valuation-query.ts) — replaces this screen's own
+  // independent fetch; Wardrobe.tsx reads from the same key. The hook's
+  // own placeholderData means this is never actually undefined at
+  // runtime; the ?? fallback below only satisfies the type.
+  const { data: valuationConfigData } = useValuationConfig();
+  const valuationConfig = valuationConfigData ?? EMPTY_VALUATION_CONFIG;
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -53,7 +57,6 @@ export function Insights({ go, openWardrobeGap, openBuilder }: { go: (s: Screen)
         setSigned(await resolveWardrobeUrls(list));
         setLoading(false);
       });
-    fetchValuationConfig().then(setValuationConfig).catch((e) => console.error("[AURA insights] valuation config", e));
   }, [user]);
 
   const stats = useMemo(() => {
