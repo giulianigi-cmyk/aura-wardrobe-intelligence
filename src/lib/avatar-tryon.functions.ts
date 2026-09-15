@@ -39,6 +39,45 @@ import { submitFashnRun, checkFashnStatus } from "@/lib/fashn.server";
 // a clear message instead of surfacing FASHN's raw rejection to the user.
 const UNSUPPORTED_CATEGORIES = new Set(["Underwear", "Swimwear"]);
 
+/** Maps AURA's own wardrobe category to FASHN's tops/bottoms/one-pieces
+ *  classification (see docs.fashn.ai/guides/tryon-parameters-guide) —
+ *  previously never sent, leaving every submission to FASHN's own
+ *  auto-detection guess. No mapping for bags or other accessories:
+ *  FASHN's category enum has no accessory slot, and forcing the closest
+ *  wrong one would likely hurt placement rather than help it. */
+function toFashnCategory(category: string | null): "tops" | "bottoms" | "one-pieces" | undefined {
+  switch (category) {
+    case "Tops": return "tops";
+    case "Bottoms": return "bottoms";
+    case "Dresses":
+    case "Jumpsuits":
+      return "one-pieces";
+    default: return undefined;
+  }
+}
+
+/** A short, factual length hint appended to the prompt for any garment
+ *  with a recorded length — reported as a real problem specifically for
+ *  a calf-length/midi skirt generating visibly too short, with nothing
+ *  telling FASHN the garment's real proportions beyond the flat product
+ *  photo itself. AURA already records this per item (Mini/Midi/Maxi
+ *  etc. — see LENGTH_OPTIONS in wardrobe-options.ts, tracked for both
+ *  skirts and dresses/jumpsuits); this just states it in plain language
+ *  rather than leaving FASHN to infer length purely from the product
+ *  image. Left out for anything without a length on file. */
+function lengthPromptHint(length: string | null): string {
+  if (!length) return "";
+  const known: Record<string, string> = {
+    Mini: "a short, mini-length garment ending well above the knee",
+    Midi: "a midi-length garment ending around the calf, not shorter",
+    Maxi: "a maxi-length, floor-length garment",
+    Long: "a long garment",
+    Cropped: "a cropped, shortened garment",
+  };
+  const phrase = known[length];
+  return phrase ? `This is ${phrase} — preserve its true length exactly as shown in the product photo, do not shorten it.` : "";
+}
+
 /** Web Crypto (crypto.subtle), not node:crypto's createHash — this runs on
  *  Cloudflare Workers, where Web Crypto is a native runtime API rather
  *  than something routed through the nodejs_compat shim. Buffer (used
@@ -164,7 +203,7 @@ export const startTryOnStep = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: item, error: itemErr } = await (supabaseAdmin.from("wardrobe_items" as never) as any)
-      .select("image_url")
+      .select("image_url, category, length")
       .eq("user_id", context.userId)
       .eq("id", data.itemId)
       .maybeSingle();
@@ -181,7 +220,10 @@ export const startTryOnStep = createServerFn({ method: "POST" })
       return { ok: false as const, error: e instanceof Error ? e.message : "Could not load garment image." };
     }
 
-    const result = await submitFashnRun(data.modelImageDataUrl, garmentImage);
+    const result = await submitFashnRun(data.modelImageDataUrl, garmentImage, {
+      category: toFashnCategory(item.category),
+      prompt: lengthPromptHint(item.length) || undefined,
+    });
     if (!result.ok) return { ok: false as const, error: result.error };
     return { ok: true as const, predictionId: result.predictionId };
   });
