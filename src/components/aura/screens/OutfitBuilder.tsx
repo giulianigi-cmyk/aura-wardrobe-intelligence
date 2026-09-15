@@ -451,16 +451,55 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
    *  data URL. html-to-image's own cross-origin fetch is unreliable with
    *  tokenised/signed URLs (silently drops the image instead of throwing),
    *  so we do the fetch ourselves and hand toPng() a self-contained DOM. */
+  // Downscales a fetched image before embedding it as a data URL for
+  // export — wardrobe photos are often several MB at full camera
+  // resolution, but on the final 1080px canvas a single piece never
+  // occupies more than a few hundred pixels. Embedding at full size was
+  // the real cause of both symptoms reported: the export taking a long
+  // time (fetching + base64-encoding every full-resolution photo), and
+  // some pieces silently missing from the result (html-to-image's own
+  // internal image handling can drop an oversized embedded image without
+  // throwing, past a certain total payload size — which is exactly why
+  // it looked random rather than a clean failure). 900px on the longest
+  // side is comfortably more than the final composition ever needs.
+  const MAX_EXPORT_IMAGE_DIMENSION = 900;
+
   async function toDataUrl(url: string): Promise<string> {
     const resp = await fetch(url, { mode: "cors", cache: "no-store" });
     if (!resp.ok) throw new Error(`image fetch failed: ${resp.status}`);
     const blob = await resp.blob();
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
+
+    const bitmap = await createImageBitmap(blob).catch(() => null);
+    if (!bitmap) {
+      // Fallback for anything createImageBitmap can't decode — embed at
+      // full size rather than fail the whole export over it.
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    const scale = Math.min(1, MAX_EXPORT_IMAGE_DIMENSION / Math.max(bitmap.width, bitmap.height));
+    const targetW = Math.round(bitmap.width * scale);
+    const targetH = Math.round(bitmap.height * scale);
+    const off = document.createElement("canvas");
+    off.width = targetW;
+    off.height = targetH;
+    const ctx = off.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+    }
+    ctx.drawImage(bitmap, 0, 0, targetW, targetH);
+    bitmap.close();
+    return off.toDataURL("image/png");
   }
 
     const exportCanvas = useCallback(async (): Promise<{ blob: Blob; dataUrl: string } | null> => {
@@ -530,6 +569,10 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         canvasWidth: targetW,
         canvasHeight: targetH,
         backgroundColor: "#FFFFFF",
+        // Every image is already inlined as a (now downscaled) data URL
+        // by this point, so this is a safety net against html-to-image's
+        // own internal processing hanging, not a network fetch timeout.
+        timeout: 15000,
       });
       const blob = dataUrlToBlob(dataUrl);
       return { blob, dataUrl };
