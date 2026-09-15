@@ -301,7 +301,7 @@ function Inner() {
         {mountedTabs.has("wardrobe") && (
           <div className={`absolute inset-0 ${screen === "wardrobe" ? "" : "hidden"}`}>
             <ErrorBoundary onReset={() => go("home")}>
-              <Wardrobe go={go} gapFilter={wardrobeGapFilter} onClearGapFilter={() => setWardrobeGapFilter(null)} />
+              <Wardrobe go={go} gapFilter={wardrobeGapFilter} onClearGapFilter={() => setWardrobeGapFilter(null)} openBuilder={openBuilder} />
             </ErrorBoundary>
           </div>
         )}
