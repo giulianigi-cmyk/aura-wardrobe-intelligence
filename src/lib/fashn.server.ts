@@ -60,11 +60,20 @@ export type FashnCheckResult =
 /** Submits one garment onto one person image and returns immediately with
  *  a prediction id — does not wait for the result. Callers chain this for
  *  multi-item outfits (see avatar-tryon.functions.ts), feeding each
- *  finished result back in as the next modelImage. */
+ *  finished result back in as the next modelImage.
+ *
+ *  category, when provided, is passed straight through as FASHN's own
+ *  tops/bottoms/one-pieces classification — previously never sent at
+ *  all, leaving every submission to FASHN's own auto-detection. AURA
+ *  already knows each wardrobe item's category, so this removes a guess
+ *  the API didn't need to make. Left unset for anything that doesn't
+ *  map cleanly (bags, other accessories) — FASHN's category enum has no
+ *  slot for those, and forcing the wrong one (e.g. "tops" for a bag)
+ *  would very likely make placement worse, not better. */
 export async function submitFashnRun(
   modelImage: string,
   garmentImage: string,
-  options?: { prompt?: string; qualityOverride?: boolean },
+  options?: { prompt?: string; qualityOverride?: boolean; category?: "tops" | "bottoms" | "one-pieces" },
 ): Promise<FashnSubmitResult> {
   const key = process.env.FASHN_API_KEY;
   if (!key) return { ok: false, error: "Missing FASHN_API_KEY" };
@@ -83,6 +92,7 @@ export async function submitFashnRun(
           model_image: modelImage,
           product_image: garmentImage,
           ...generationSettings,
+          ...(options?.category ? { category: options.category } : {}),
           // e.g. "keep jacket open" — empty by default, FASHN's own
           // intelligent defaults handle plain garment placement fine.
           prompt: options?.prompt ?? "",
