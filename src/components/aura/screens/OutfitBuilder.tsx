@@ -47,8 +47,20 @@ type Placed = {
 };
 
 type Bucket = "top" | "bottom" | "dress" | "shoes" | "outer" | "acc";
-const LAYOUT_Y: Record<Bucket, number> = { outer: 0.28, top: 0.34, dress: 0.5, bottom: 0.6, shoes: 0.85, acc: 0.45 };
+// Y positions pulled closer together than before (was a rigid, evenly
+// spaced stack) so adjacent pieces overlap slightly — a hem tucking
+// under a waistband, a jacket draping past a shoulder — the way a
+// styled flat-lay actually looks, not a vertical list of items.
+const LAYOUT_Y: Record<Bucket, number> = { outer: 0.30, top: 0.36, dress: 0.48, bottom: 0.57, shoes: 0.82, acc: 0.40 };
 const Z_BY_BUCKET: Record<Bucket, number> = { outer: 2, top: 3, dress: 3, bottom: 2, shoes: 1, acc: 4 };
+// Every bucket now has its own small horizontal offset and tilt instead
+// of dead-center/zero-rotation for everything — outerwear drapes to one
+// side as if worn open, bottoms sit a touch off-axis from the top above
+// them, shoes angle in from the opposite side of the bag. Small, fixed
+// values (not random) so the same outfit lays out the same way every
+// time, but the composition reads as arranged rather than stacked.
+const LAYOUT_X: Record<Bucket, number> = { outer: 0.62, top: 0.47, dress: 0.5, bottom: 0.51, shoes: 0.40, acc: 0.76 };
+const LAYOUT_ROTATION: Record<Bucket, number> = { outer: -6, top: -2, dress: 0, bottom: 2, shoes: 7, acc: -5 };
 function bucketOf(it: WardrobeItem): Bucket {
   const c = `${it.category ?? ""} ${it.style ?? ""}`.toLowerCase();
   if (/dress|gown|jumpsuit/.test(c)) return "dress";
@@ -60,19 +72,33 @@ function bucketOf(it: WardrobeItem): Bucket {
 }
 function autoPlace(items: WardrobeItem[], signed: Record<string, string>): Placed[] {
   const placed: Placed[] = [];
+  // Tracks how many pieces have already landed in each bucket, so a
+  // second accessory (or an unusual second top) doesn't land exactly on
+  // top of the first — previously EVERY accessory shared one fixed
+  // spot, meaning a bag and a necklace together were fully overlapping,
+  // indistinguishable, rather than fanned out the way a real flat-lay
+  // spreads multiple small pieces near each other.
+  const seenInBucket: Partial<Record<Bucket, number>> = {};
   items.forEach((it, i) => {
     const path = toStoragePath(it.image_url);
     const url = path ? signed[path] : "";
     if (!url) return;
     const b = bucketOf(it);
+    const duplicateIndex = seenInBucket[b] ?? 0;
+    seenInBucket[b] = duplicateIndex + 1;
+    // Each additional piece in the same bucket fans out a little further
+    // and tilts a little more, alternating direction, instead of
+    // stacking exactly on the first.
+    const fanOut = duplicateIndex * (b === "acc" ? 0.09 : 0.05) * (duplicateIndex % 2 === 0 ? 1 : -1);
+    const rotationFan = duplicateIndex * 4 * (duplicateIndex % 2 === 0 ? 1 : -1);
     placed.push({
       key: `${it.id}-init-${i}-${Date.now()}`,
       itemId: it.id,
       imgUrl: url,
-      x: b === "acc" ? 0.75 : 0.5,
-      y: LAYOUT_Y[b],
+      x: LAYOUT_X[b] + fanOut,
+      y: LAYOUT_Y[b] + duplicateIndex * 0.03,
       scale: b === "shoes" ? 0.28 : b === "acc" ? 0.24 : 0.42,
-      rotation: 0,
+      rotation: LAYOUT_ROTATION[b] + rotationFan,
       z: Z_BY_BUCKET[b] ?? 1,
     });
   });
