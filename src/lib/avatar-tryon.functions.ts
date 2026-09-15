@@ -39,23 +39,6 @@ import { submitFashnRun, checkFashnStatus } from "@/lib/fashn.server";
 // a clear message instead of surfacing FASHN's raw rejection to the user.
 const UNSUPPORTED_CATEGORIES = new Set(["Underwear", "Swimwear"]);
 
-/** Maps AURA's own wardrobe category to FASHN's tops/bottoms/one-pieces
- *  classification (see docs.fashn.ai/guides/tryon-parameters-guide) —
- *  previously never sent, leaving every submission to FASHN's own
- *  auto-detection guess. No mapping for bags or other accessories:
- *  FASHN's category enum has no accessory slot, and forcing the closest
- *  wrong one would likely hurt placement rather than help it. */
-function toFashnCategory(category: string | null): "tops" | "bottoms" | "one-pieces" | undefined {
-  switch (category) {
-    case "Tops": return "tops";
-    case "Bottoms": return "bottoms";
-    case "Dresses":
-    case "Jumpsuits":
-      return "one-pieces";
-    default: return undefined;
-  }
-}
-
 /** A short, factual length hint appended to the prompt for any garment
  *  with a recorded length — reported as a real problem specifically for
  *  a calf-length/midi skirt generating visibly too short, with nothing
@@ -221,7 +204,6 @@ export const startTryOnStep = createServerFn({ method: "POST" })
     }
 
     const result = await submitFashnRun(data.modelImageDataUrl, garmentImage, {
-      category: toFashnCategory(item.category),
       prompt: lengthPromptHint(item.length) || undefined,
     });
     if (!result.ok) return { ok: false as const, error: result.error };
