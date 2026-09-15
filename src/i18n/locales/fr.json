@@ -916,7 +916,8 @@
     "facebook": "Facebook",
     "email": "E-mail",
     "instagramTiktokNote": "Instagram et TikTok nécessitent de coller depuis votre pellicule",
-    "enableLocationHint": "Activez la localisation dans Calendrier pour voir la météo du jour et les articles adaptés."
+    "enableLocationHint": "Activez la localisation dans Calendrier pour voir la météo du jour et les articles adaptés.",
+    "craftingYourFirstLook": "Préparation de votre première tenue…"
   },
   "tabBar": {
     "home": "Accueil",
