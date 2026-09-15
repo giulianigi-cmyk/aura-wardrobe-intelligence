@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Search, X, Sparkles, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { BRAND_NAMES, canonicalBrandKey } from "@/lib/brand-domains";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
+import { useWardrobeItems } from "@/lib/wardrobe-query";
 
 type Suggestion = { brand: string; count: number; pct: number } | null;
 
@@ -34,11 +34,19 @@ export function MyBrands() {
   const [brands, setBrands] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [suggestion, setSuggestion] = useState<Suggestion>(null);
   const [dismissed, setDismissed] = useState<Set<string>>(() => loadDismissed());
     const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const suggestionRequestId = useRef(0);
+  // Reads from the shared wardrobe cache (see wardrobe-query.ts) instead
+  // of this component's own independent fetch — this both removes yet
+  // another duplicate wardrobe_items query, and fixes a real bug: this
+  // used to also listen for a DOM event ("aura:wardrobe-item-created")
+  // that AddItem/OutfitScan no longer dispatch since they now write
+  // straight into the shared cache, which left this suggestion never
+  // re-checking after adding a piece. Reading the cache's own data
+  // reactively means it updates the moment the cache does, with nothing
+  // to wire up or keep in sync by hand.
+  const { data: wardrobeItems } = useWardrobeItems();
 
   useEffect(() => {
     setBrands(profile?.owned_brands ?? []);
@@ -81,23 +89,13 @@ export function MyBrands() {
     !suggestions.some(s => canonicalBrandKey(s) === canonicalBrandKey(query)) &&
     !brands.some(b => canonicalBrandKey(b) === canonicalBrandKey(query));
 
-    const checkWardrobeSuggestion = async () => {
-    if (!user) return;
-    // Guard against out-of-order async responses: only the most recently
-    // started request is allowed to update state. Without this, a slow
-    // request kicked off before the profile/brands finished loading can
-    // resolve after a later, correct request and re-show a stale suggestion
-    // for a brand the user already added.
-    const requestId = ++suggestionRequestId.current;
-    const { data, error } = await supabase
-      .from("wardrobe_items").select("brand").eq("user_id", user.id);
-    if (requestId !== suggestionRequestId.current) return; // stale response, ignore
-    if (error || !data || data.length < 3) return;
+  const suggestion = useMemo<Suggestion>(() => {
+    if (!user || !wardrobeItems || wardrobeItems.length < 3) return null;
 
     // Count wardrobe brands by canonical key, keeping the first pretty label seen.
     const counts = new Map<string, { label: string; count: number }>();
-    for (const row of data) {
-      const label = (row.brand ?? "").trim();
+    for (const it of wardrobeItems) {
+      const label = (it.brand ?? "").trim();
       const key = canonicalBrandKey(label);
       if (!key) continue;
       const cur = counts.get(key);
@@ -110,7 +108,7 @@ export function MyBrands() {
     const owned = new Set(
       [...brands, ...(profile?.owned_brands ?? [])].map(canonicalBrandKey).filter(Boolean),
     );
-    const total = data.length;
+    const total = wardrobeItems.length;
 
     let best: Suggestion = null;
     for (const [key, { label, count }] of counts.entries()) {
@@ -120,20 +118,8 @@ export function MyBrands() {
       if (dismissed.has(key)) continue;
       if (!best || count > best.count) best = { brand: label, count, pct };
     }
-    setSuggestion(best);
-  };
-
-  useEffect(() => {
-    void checkWardrobeSuggestion();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, profile?.owned_brands, brands, dismissed]);
-
-  useEffect(() => {
-    const handler = () => { void checkWardrobeSuggestion(); };
-    window.addEventListener("aura:wardrobe-item-created", handler);
-    return () => window.removeEventListener("aura:wardrobe-item-created", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, profile?.owned_brands, brands, dismissed]);
+    return best;
+  }, [user, wardrobeItems, brands, profile?.owned_brands, dismissed]);
 
   return (
     <section className="mx-6 mt-4 animate-fade-up">
@@ -152,7 +138,7 @@ export function MyBrands() {
           </div>
           <div className="flex gap-1.5 shrink-0">
             <button
-              onClick={() => { addBrand(suggestion.brand); setSuggestion(null); }}
+              onClick={() => addBrand(suggestion.brand)}
               className="h-7 w-7 rounded-full bg-foreground text-background flex items-center justify-center active:scale-90"
               aria-label={t("myBrands.acceptSuggestionAria")}
             ><Check size={12} /></button>
@@ -163,7 +149,6 @@ export function MyBrands() {
                   saveDismissed(next);
                   return next;
                 });
-                setSuggestion(null);
               }}
               className="h-7 w-7 rounded-full border border-border flex items-center justify-center active:scale-90"
               aria-label={t("myBrands.dismissSuggestionAria")}
