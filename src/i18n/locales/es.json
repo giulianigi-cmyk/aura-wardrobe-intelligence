@@ -1744,7 +1744,8 @@
     "noAvatarYetTitle": "Configura antes tu avatar",
     "noAvatarYetBody": "Crea tu avatar una vez y luego prueba cualquier outfit en ti misma.",
     "setUpNow": "Configurarlo",
-    "biometricConsentRequired": "Confirma el consentimiento de arriba antes de continuar."
+    "biometricConsentRequired": "Confirma el consentimiento de arriba antes de continuar.",
+    "generatingTimeEstimate": "Unos 30 segundos por prenda — unos {{seconds}}s en total"
   },
   "logWear": {
     "title": "¿Qué llevé puesto?",
