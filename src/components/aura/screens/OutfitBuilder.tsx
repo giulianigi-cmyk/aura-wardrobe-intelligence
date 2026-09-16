@@ -480,26 +480,6 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
     }
   }, [anchorItemId, items, signed, aiSuggest]);
 
-  // "Costruisci manualmente" opened with a genuinely blank slate — no
-  // saved outfit to reload, no anchor item, nothing pre-placed. Rather
-  // than showing an empty canvas and waiting for a manual tap on AI
-  // Suggest, this auto-triggers the exact same suggestion the button
-  // would, so the canvas already has a real starting point the moment
-  // it opens — someone can still clear it and build from scratch, but
-  // that's now an edit, not the only way in.
-  const blankSlateAppliedRef = useRef(false);
-  useEffect(() => {
-    const isBlankSlate = !init || (init.itemIds.length === 0 && !init.anchorItemId && !init.outfitId);
-    // Same signed-images gate as the anchor effect above, and for the
-    // same reason — this is the effect that was actually hit by the
-    // reported bug, since it fires the moment the screen opens, right
-    // when the items/signed loading gap is most likely to be in play.
-    if (isBlankSlate && items.length && Object.keys(signed).length > 0 && !blankSlateAppliedRef.current && !anchorItemId) {
-      blankSlateAppliedRef.current = true;
-      void aiSuggest();
-    }
-  }, [init, items, signed, aiSuggest, anchorItemId]);
-
   // Export & save ---------------------------------------------------------
 
   /** Fetch a (possibly cross-origin, signed) image URL and inline it as a
