@@ -465,11 +465,20 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
 
   const anchorAppliedRef = useRef(false);
   useEffect(() => {
-    if (anchorItemId && items.length && !anchorAppliedRef.current) {
+    // Waits for `signed` too, not just `items` — items and their signed
+    // image URLs load in two separate steps (see the load effect above:
+    // setAllItems happens first, resolveWardrobeUrls resolves after),
+    // so items.length alone could be true for a render or two while
+    // signed is still empty. Firing aiSuggest in that gap meant every
+    // returned item_id failed to resolve an image, which is exactly
+    // what produced the reported "selected items are missing images"
+    // error — the AI's picks were fine, there was just nothing yet to
+    // draw them with.
+    if (anchorItemId && items.length && Object.keys(signed).length > 0 && !anchorAppliedRef.current) {
       anchorAppliedRef.current = true;
       void aiSuggest(anchorItemId);
     }
-  }, [anchorItemId, items, aiSuggest]);
+  }, [anchorItemId, items, signed, aiSuggest]);
 
   // "Costruisci manualmente" opened with a genuinely blank slate — no
   // saved outfit to reload, no anchor item, nothing pre-placed. Rather
@@ -481,11 +490,15 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
   const blankSlateAppliedRef = useRef(false);
   useEffect(() => {
     const isBlankSlate = !init || (init.itemIds.length === 0 && !init.anchorItemId && !init.outfitId);
-    if (isBlankSlate && items.length && !blankSlateAppliedRef.current && !anchorItemId) {
+    // Same signed-images gate as the anchor effect above, and for the
+    // same reason — this is the effect that was actually hit by the
+    // reported bug, since it fires the moment the screen opens, right
+    // when the items/signed loading gap is most likely to be in play.
+    if (isBlankSlate && items.length && Object.keys(signed).length > 0 && !blankSlateAppliedRef.current && !anchorItemId) {
       blankSlateAppliedRef.current = true;
       void aiSuggest();
     }
-  }, [init, items, aiSuggest, anchorItemId]);
+  }, [init, items, signed, aiSuggest, anchorItemId]);
 
   // Export & save ---------------------------------------------------------
 
