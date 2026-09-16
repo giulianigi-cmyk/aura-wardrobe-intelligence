@@ -1278,7 +1278,8 @@
     "noAvatarYetTitle": "Configurez d'abord votre avatar",
     "noAvatarYetBody": "Créez votre avatar une fois, puis essayez n'importe quelle tenue sur vous-même.",
     "setUpNow": "Le configurer",
-    "biometricConsentRequired": "Veuillez confirmer le consentement ci-dessus avant de continuer."
+    "biometricConsentRequired": "Veuillez confirmer le consentement ci-dessus avant de continuer.",
+    "generatingTimeEstimate": "Environ 30 secondes par pièce — environ {{seconds}}s au total"
   },
   "logWear": {
     "title": "Qu'ai-je porté ?",
