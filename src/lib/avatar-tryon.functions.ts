@@ -61,6 +61,19 @@ function lengthPromptHint(length: string | null): string {
   return phrase ? `This is ${phrase} — preserve its true length exactly as shown in the product photo, do not shorten it.` : "";
 }
 
+/** A styling hint for outerwear specifically, when the outfit also
+ *  includes a dress or jumpsuit — reported as a real problem: a jacket
+ *  or coat applied on top of a dress needs to read as worn OPEN or
+ *  draped over the shoulders, not buttoned closed over it (closing it
+ *  would hide the dress's own silhouette/length entirely, which is
+ *  never how this combination is actually styled). Left out for a
+ *  jacket over separates (top+bottom), where closed is a normal,
+ *  correct choice. */
+function outerwearOverDressHint(category: string | null, hasDressInOutfit: boolean): string {
+  if (!hasDressInOutfit || category !== "Outerwear") return "";
+  return "This outfit includes a dress underneath. Wear this outerwear piece open (unbuttoned/unzipped) or draped over the shoulders, never buttoned or zipped closed over the dress.";
+}
+
 /** Web Crypto (crypto.subtle), not node:crypto's createHash — this runs on
  *  Cloudflare Workers, where Web Crypto is a native runtime API rather
  *  than something routed through the nodejs_compat shim. Buffer (used
@@ -166,12 +179,28 @@ export const prepareAvatarTryOn = createServerFn({ method: "POST" })
     // Preserve the order the caller asked for (outfits.item_ids already
     // encodes a sensible layering order from the outfit engine; the
     // direct-selection picker is responsible for its own ordering).
-    return { ok: true as const, cached: false as const, avatarImageDataUrl, orderedItemIds: data.itemIds, cacheKey };
+    return {
+      ok: true as const,
+      cached: false as const,
+      avatarImageDataUrl,
+      orderedItemIds: data.itemIds,
+      cacheKey,
+      // Categories for every item, already fetched above for the
+      // unsupported-category check — returned here too so the client
+      // can work out cross-item context (e.g. "is there a dress in this
+      // outfit?" for outerwearOverDressHint) without a second query.
+      itemCategories: (items as { id: string; category: string | null }[]),
+    };
   });
 
 const StepInput = z.object({
   modelImageDataUrl: z.string().min(1),
   itemId: z.string(),
+  // Whether this outfit ALSO includes a dress/jumpsuit elsewhere in the
+  // chain — the client knows the full item list, this step only ever
+  // sees one item at a time, so it can't work this out on its own. Only
+  // used to steer outerwear styling (see outerwearOverDressHint above).
+  hasDressInOutfit: z.boolean().optional(),
 });
 
 /** One chain step, submit half: fetches this item's garment image and
@@ -204,7 +233,8 @@ export const startTryOnStep = createServerFn({ method: "POST" })
     }
 
     const result = await submitFashnRun(data.modelImageDataUrl, garmentImage, {
-      prompt: lengthPromptHint(item.length) || undefined,
+      prompt: [lengthPromptHint(item.length), outerwearOverDressHint(item.category, data.hasDressInOutfit ?? false)]
+        .filter(Boolean).join(" ") || undefined,
     });
     if (!result.ok) return { ok: false as const, error: result.error };
     return { ok: true as const, predictionId: result.predictionId };
