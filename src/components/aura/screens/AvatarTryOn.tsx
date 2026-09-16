@@ -246,6 +246,11 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
             </div>
           )}
 
+          {selected.length > 0 && (
+            <p className="fixed bottom-[10rem] left-6 right-6 text-center text-[11px] text-muted-foreground">
+              {t("avatar.generatingTimeEstimate", { seconds: selected.length * 30 })}
+            </p>
+          )}
           <button
             onClick={() => void generate(selected)}
             disabled={selected.length === 0}
@@ -265,6 +270,11 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
           <p className="mt-4 text-xs text-muted-foreground leading-relaxed max-w-[220px]">
             {progress && progress.total > 1 ? `${t("avatar.generating")} (${progress.step}/${progress.total})` : t("avatar.generating")}
           </p>
+          {progress && (
+            <p className="mt-1 text-[11px] text-muted-foreground/70">
+              {t("avatar.generatingTimeEstimate", { seconds: progress.total * 30 })}
+            </p>
+          )}
         </div>
       )}
 
