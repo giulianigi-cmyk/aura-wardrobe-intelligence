@@ -28,6 +28,10 @@ import { ITEM_CATEGORIES } from "@/lib/wardrobe-options";
 import { resolvePlanSlot } from "@/lib/outfit-plan-slot";
 import i18n from "@/i18n/config";
 const OCCASIONS = ["Everyday", "Work", "Evening", "Weekend", "Travel", "Formal", "Sport"];
+// Stable, shared reference for the "no outfits yet" case — see its use
+// alongside useOutfits() below for why a fresh [] on every render was a
+// real bug, not just style.
+const EMPTY_OUTFITS: Outfit[] = [];
 
 type OutfitPlan = {
   id: string; date: string; item_ids: string[]; occasion: string | null;
@@ -81,13 +85,29 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
   // no longer triggers a natural remount+refetch here, so an explicit
   // invalidation after save/delete/archive is what makes it show up.
   const { data: outfitsData } = useOutfits();
-  const outfits = outfitsData ?? [];
+  // Memoized on outfitsData itself (a stable reference from react-query,
+  // changing only when the underlying data actually changes) rather than
+  // `outfitsData ?? []`, which allocates a NEW empty array on every
+  // single render whenever outfitsData is undefined. That fed straight
+  // into the effect below (dependency [outfits]) and into setSigned({})
+  // — also a fresh object every time — each state update triggering
+  // another render, another new [], another effect run: a genuine
+  // infinite loop, not just an inefficiency.
+  const outfits = useMemo(() => outfitsData ?? EMPTY_OUTFITS, [outfitsData]);
   const outfitsCache = useOutfitsCacheActions();
   const [signed, setSigned] = useState<Record<string, string>>({});
   useEffect(() => {
     void (async () => {
       const paths = outfits.map((x) => x.canvas_image_url).filter(Boolean) as string[];
-      if (!paths.length) { setSigned({}); return; }
+      if (!paths.length) {
+        // Only actually updates state if there's something to clear —
+        // setSigned({}) unconditionally was the other half of the loop
+        // above: even with `outfits` now stable, calling this every time
+        // paths is empty would still re-trigger for any OTHER reason
+        // this effect re-runs. Belt and braces, not just the one fix.
+        setSigned((prev) => (Object.keys(prev).length ? {} : prev));
+        return;
+      }
       // Errors here were previously silent — createSignedUrls failing
       // (a permissions issue, a path that no longer exists in storage)
       // left `signed` simply empty with nothing logged, so a broken
