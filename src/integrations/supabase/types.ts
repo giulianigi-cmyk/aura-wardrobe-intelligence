@@ -943,6 +943,7 @@ export type Database = {
           created_at: string
           id: string
           item_ids: string[]
+          layout: Json | null
           name: string
           notes: string | null
           occasion: string[]
@@ -957,6 +958,7 @@ export type Database = {
           created_at?: string
           id?: string
           item_ids?: string[]
+          layout?: Json | null
           name?: string
           notes?: string | null
           occasion?: string[]
@@ -971,6 +973,7 @@ export type Database = {
           created_at?: string
           id?: string
           item_ids?: string[]
+          layout?: Json | null
           name?: string
           notes?: string | null
           occasion?: string[]
