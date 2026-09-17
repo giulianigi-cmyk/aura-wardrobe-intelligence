@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PiecePicker } from "../PiecePicker";
 import { useAuth } from "@/hooks/use-auth";
 import { useOutfitPlansCacheActions } from "@/lib/outfit-plans-query";
+import { useOutfitsCacheActions } from "@/lib/outfits-query";
 import { useLocation } from "@/hooks/use-location";
 import { useWeather } from "@/hooks/use-weather";
 import {
@@ -109,6 +110,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
   const { t } = useTranslation();
   const { user } = useAuth();
   const outfitPlansCache = useOutfitPlansCacheActions();
+  const outfitsCache = useOutfitsCacheActions();
   const { latitude, longitude, city } = useLocation();
   const { data: weather } = useWeather(latitude, longitude);
 
@@ -663,6 +665,12 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         : await supabase.from("outfits").insert({ user_id: user.id, ...payload } as never).select("id").single();
       if (error) throw error;
       setSavedOutfitId((savedRow as { id: string } | null)?.id ?? init?.outfitId ?? null);
+      // AIStylist's "My Outfits" is a persistent tab now (see
+      // AuraApp.tsx) — it never naturally remounts and refetches after
+      // a save happens here, so this is what actually makes a newly
+      // saved (or just-edited) outfit show up there without leaving and
+      // reopening the whole app.
+      outfitsCache.invalidate();
 
       // A person building and saving an outfit BY HAND chose every one of
       // these pieces on purpose — a strong positive signal for the exact
