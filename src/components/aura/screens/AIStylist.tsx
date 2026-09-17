@@ -22,6 +22,7 @@ import { logWardrobeEvent, confirmOutfitPlanWorn, deleteWornEvent, updateWornEve
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 import { useWardrobeItems, useWardrobeImages, useWardrobeCacheActions } from "@/lib/wardrobe-query";
 import { useOutfitPlans, outfitPlansQueryKey, useOutfitPlansCacheActions } from "@/lib/outfit-plans-query";
+import { useOutfits, useOutfitsCacheActions } from "@/lib/outfits-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { ITEM_CATEGORIES } from "@/lib/wardrobe-options";
 import { resolvePlanSlot } from "@/lib/outfit-plan-slot";
@@ -74,8 +75,35 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
   // Wardrobe.tsx itself resolves, so once either screen has loaded them
   // once this session, the other reads instantly instead of re-signing.
   const { data: itemSigned = {} } = useWardrobeImages(items);
-  const [outfits, setOutfits] = useState<Outfit[]>([]);
+  // Shared cache (see outfits-query.ts) — replaces this screen's own
+  // independent fetch inside load() below. Critical now that AIStylist
+  // is a persistent tab: saving a new outfit elsewhere (OutfitBuilder)
+  // no longer triggers a natural remount+refetch here, so an explicit
+  // invalidation after save/delete/archive is what makes it show up.
+  const { data: outfitsData } = useOutfits();
+  const outfits = outfitsData ?? [];
+  const outfitsCache = useOutfitsCacheActions();
   const [signed, setSigned] = useState<Record<string, string>>({});
+  useEffect(() => {
+    void (async () => {
+      const paths = outfits.map((x) => x.canvas_image_url).filter(Boolean) as string[];
+      if (!paths.length) { setSigned({}); return; }
+      // Errors here were previously silent — createSignedUrls failing
+      // (a permissions issue, a path that no longer exists in storage)
+      // left `signed` simply empty with nothing logged, so a broken
+      // canvas thumbnail in the "My Outfits" grid had zero diagnostic
+      // trace. Logs and skips only the missing ones now, instead of
+      // failing the whole batch silently.
+      const { data: urls, error: signErr } = await supabase.storage.from("outfits").createSignedUrls(paths, 60 * 60);
+      if (signErr) console.error("[AURA my-outfits] canvas thumbnail signing failed", signErr);
+      const map: Record<string, string> = {};
+      urls?.forEach((r, idx) => {
+        if (r.signedUrl) map[paths[idx]] = r.signedUrl;
+        else if (r.error) console.error("[AURA my-outfits] no signed URL for outfit canvas", paths[idx], r.error);
+      });
+      setSigned(map);
+    })();
+  }, [outfits]);
   // Shared cache (see outfit-plans-query.ts) — same duplication fix as
   // wardrobe items: Planner reads from this same key. The shim below
   // keeps every existing optimistic setPlans call in this file working
@@ -179,8 +207,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
     if (!user) return;
     setLoading(true);
     const today = todayIso();
-    const [{ data: o }, { data: ev }, { data: cal }] = await Promise.all([
-      supabase.from("outfits").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+    const [{ data: ev }, { data: cal }] = await Promise.all([
       (supabase.from("wardrobe_events" as never) as any)
         .select("id, event_date, occasion, outfit_id, source_photo_detection_id")
         .eq("user_id", user.id).eq("event_type", "worn")
@@ -190,28 +217,6 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
         .eq("user_id", user.id)
         .gte("start_time", `${today}T00:00:00`).lt("start_time", `${today}T23:59:59`),
     ]);
-
-    const olist = (o ?? []) as Outfit[];
-    setOutfits(olist);
-    const paths = olist.map((x) => x.canvas_image_url).filter(Boolean) as string[];
-    if (paths.length) {
-      // Errors here were previously silent — createSignedUrls failing
-      // (a permissions issue, a path that no longer exists in storage)
-      // left `signed` simply empty with nothing logged, so a broken
-      // canvas thumbnail in the "My Outfits" grid had zero diagnostic
-      // trace. Logs and skips only the missing ones now, instead of
-      // failing the whole batch silently.
-      const { data: urls, error: signErr } = await supabase.storage.from("outfits").createSignedUrls(paths, 60 * 60);
-      if (signErr) console.error("[AURA my-outfits] canvas thumbnail signing failed", signErr);
-      const map: Record<string, string> = {};
-      urls?.forEach((r, idx) => {
-        if (r.signedUrl) map[paths[idx]] = r.signedUrl;
-        else if (r.error) console.error("[AURA my-outfits] no signed URL for outfit canvas", paths[idx], r.error);
-      });
-      setSigned(map);
-    } else {
-      setSigned({});
-    }
 
     setTodayCalEvents((cal ?? []) as CalEvent[]);
 
@@ -401,7 +406,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
   const toggleArchive = async (o: Outfit, archived: boolean) => {
     const { error } = await (supabase.from("outfits" as never) as any).update({ archived }).eq("id", o.id);
     if (error) { toast.error(error.message); return; }
-    setOutfits((prev) => prev.map((x) => (x.id === o.id ? { ...x, archived } as Outfit : x)));
+    outfitsCache.updateOutfit({ ...o, archived } as Outfit);
     toast.success(archived ? t("aiStylist.toastArchived") : t("aiStylist.toastRestoredToSaved"));
   };
 
@@ -445,7 +450,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
     if (outfit?.canvas_image_url) {
       try { await supabase.storage.from("outfits").remove([outfit.canvas_image_url]); } catch { /* best-effort */ }
     }
-    setOutfits((prev) => prev.filter((o) => o.id !== id));
+    outfitsCache.removeOutfit(id);
     setConfirmDelete(null);
     setDeleting(false);
     toast.success(t("aiStylist.toastOutfitDeleted"));
