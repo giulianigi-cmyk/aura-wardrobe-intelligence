@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
+import { composeAndUploadOutfitImage, type ComposeItem } from "@/lib/compose-outfit-canvas";
 import { useWardrobeItems } from "@/lib/wardrobe-query";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { suggestDailyLooks, type DailyLook } from "@/lib/suggest-daily-looks.functions";
@@ -55,6 +56,13 @@ export function Home({ go }: { go: (s: Screen) => void }) {
   const [todayLook, setTodayLook] = useState<DailyLook | null>(null);
   const [curatedLooks, setCuratedLooks] = useState<DailyLook[]>([]);
   const [looksSigned, setLooksSigned] = useState<Record<string, string>>({});
+  // Real composed outfit images (see compose-outfit-canvas.ts) —
+  // storage paths kept alongside the looks themselves, signed URLs kept
+  // separately since signed URLs expire and item thumbnails don't need
+  // the same treatment.
+  const [todayImagePath, setTodayImagePath] = useState<string | null>(null);
+  const [curatedImagePaths, setCuratedImagePaths] = useState<(string | null)[]>([]);
+  const [signedLookImages, setSignedLookImages] = useState<Record<string, string>>({});
   const [looksLoading, setLooksLoading] = useState(true);
   const [looksError, setLooksError] = useState<string | null>(null);
 
@@ -115,6 +123,7 @@ export function Home({ go }: { go: (s: Screen) => void }) {
         type CachedRow = {
           date: string; wardrobe_fingerprint: string; today_item_ids: string[];
           today_occasion: string | null; today_explanation: string | null; curated: DailyLook[] | null;
+          today_image_path: string | null; curated_image_paths: (string | null)[] | null;
         };
         let cachedRow: CachedRow | null = null;
         try {
@@ -139,10 +148,67 @@ export function Home({ go }: { go: (s: Screen) => void }) {
         const useRow = (row: CachedRow) => {
           today_ = { item_ids: row.today_item_ids ?? [], occasion: row.today_occasion ?? "", explanation: row.today_explanation ?? "" };
           curated_ = row.curated ?? [];
+          setTodayImagePath(row.today_image_path ?? null);
+          setCuratedImagePaths(row.curated_image_paths ?? []);
+        };
+
+        // Composes a real outfit image for `today` + every curated look
+        // (see compose-outfit-canvas.ts) and persists the resulting
+        // storage paths onto the SAME home_suggestions row — either as
+        // part of the fresh-generation upsert below, or as a lightweight
+        // backfill update when a row was cached before this feature
+        // existed and has valid item_ids but no images yet. Best-effort:
+        // a composition failure (a broken image URL, canvas unsupported)
+        // just leaves that image null, and the render below falls back
+        // to the plain thumbnail grid for that one look — never blocks
+        // the suggestion itself from showing.
+        const composeImagesFor = async (
+          todayLookForImage: DailyLook | null,
+          curatedForImages: DailyLook[],
+        ): Promise<{ todayPath: string | null; curatedPaths: (string | null)[] }> => {
+          const toComposeItems = async (ids: string[]): Promise<ComposeItem[]> => {
+            const picks = ids.map((id) => allItems.find((it) => it.id === id)).filter((it): it is WardrobeItem => Boolean(it));
+            const signedForPicks = await resolveWardrobeUrls(picks);
+            return picks
+              .map((it) => {
+                const path = toStoragePath(it.image_url);
+                const url = path ? signedForPicks[path] : null;
+                return url ? { id: it.id, imgUrl: url, category: it.category, style: it.style } : null;
+              })
+              .filter((x): x is ComposeItem => Boolean(x));
+          };
+
+          const todayPath = todayLookForImage?.item_ids.length
+            ? await composeAndUploadOutfitImage(user.id, await toComposeItems(todayLookForImage.item_ids))
+            : null;
+          const curatedPaths = await Promise.all(
+            curatedForImages.map(async (l) =>
+              l.item_ids.length ? await composeAndUploadOutfitImage(user.id, await toComposeItems(l.item_ids)) : null,
+            ),
+          );
+          return { todayPath, curatedPaths };
         };
 
         if (cacheStillValid(cachedRow)) {
           useRow(cachedRow!);
+          // Backfill for a row cached before this feature existed —
+          // valid item_ids, no composed image yet. Fire-and-forget: the
+          // grid fallback already covers this visit, no reason to make
+          // the person wait on it.
+          if (!cachedRow!.today_image_path && !(cachedRow!.curated_image_paths?.length)) {
+            void (async () => {
+              const { todayPath, curatedPaths } = await composeImagesFor(today_, curated_);
+              setTodayImagePath(todayPath);
+              setCuratedImagePaths(curatedPaths);
+              try {
+                await (supabase.from("home_suggestions" as never) as any)
+                  .update({ today_image_path: todayPath, curated_image_paths: curatedPaths })
+                  .eq("user_id", user.id);
+              } catch (err) {
+                console.error("[AURA home] failed to backfill suggestion images", err);
+              }
+            })();
+          }
         } else if (allItems.length >= 3) {
           try {
             const dressRules = await loadDressRules(user.id);
@@ -171,6 +237,9 @@ export function Home({ go }: { go: (s: Screen) => void }) {
             if (res.ok) {
               today_ = res.result.today;
               curated_ = res.result.curated;
+              const { todayPath, curatedPaths } = await composeImagesFor(today_, curated_);
+              setTodayImagePath(todayPath);
+              setCuratedImagePaths(curatedPaths);
               try {
                 await (supabase.from("home_suggestions" as never) as any).upsert({
                   user_id: user.id,
@@ -180,6 +249,8 @@ export function Home({ go }: { go: (s: Screen) => void }) {
                   today_occasion: today_.occasion,
                   today_explanation: today_.explanation,
                   curated: curated_,
+                  today_image_path: todayPath,
+                  curated_image_paths: curatedPaths,
                   generated_at: new Date().toISOString(),
                 } as never);
               } catch (err) {
@@ -220,6 +291,22 @@ export function Home({ go }: { go: (s: Screen) => void }) {
       }
     })();
   }, [user, itemsLoaded, allItems, weather, wxLoading, latitude, longitude]);
+
+  // Signs the composed images once their storage paths are known — kept
+  // separate from looksSigned (item thumbnails) since these are a
+  // different kind of asset (outfits bucket, not wardrobe) and don't
+  // need to be recomputed on every item-thumbnail-driven re-render.
+  useEffect(() => {
+    void (async () => {
+      const paths = [todayImagePath, ...curatedImagePaths].filter((p): p is string => Boolean(p));
+      if (!paths.length) { setSignedLookImages({}); return; }
+      const { data: urls, error } = await supabase.storage.from("outfits").createSignedUrls(paths, 60 * 60);
+      if (error) { console.error("[AURA home] failed to sign composed look images", error); return; }
+      const map: Record<string, string> = {};
+      urls?.forEach((r, i) => { if (r.signedUrl) map[paths[i]] = r.signedUrl; });
+      setSignedLookImages(map);
+    })();
+  }, [todayImagePath, curatedImagePaths]);
 
 
   const itemById = useMemo(() => {
@@ -330,16 +417,22 @@ export function Home({ go }: { go: (s: Screen) => void }) {
         ) : todayLook && todayLook.item_ids.length > 0 ? (
           <button onClick={() => go("ai")} className="block w-full text-left">
             <div className="relative overflow-hidden rounded-[2rem] shadow-luxe gradient-warm p-4">
-              <div className="grid grid-cols-2 gap-2">
-                {todayLook.item_ids.slice(0, 4).map((id) => {
-                  const src = thumbFor(id);
-                  return (
-                    <div key={id} className="aspect-square rounded-xl overflow-hidden bg-secondary/30 flex items-center justify-center">
-                      {src ? <img src={src} alt="" className="h-full w-full object-contain p-1.5" /> : null}
-                    </div>
-                  );
-                })}
-              </div>
+              {todayImagePath && signedLookImages[todayImagePath] ? (
+                <div className="rounded-xl overflow-hidden aspect-square" style={{ background: "#FFFFFF" }}>
+                  <img src={signedLookImages[todayImagePath]} alt="" className="h-full w-full object-contain" />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {todayLook.item_ids.slice(0, 4).map((id) => {
+                    const src = thumbFor(id);
+                    return (
+                      <div key={id} className="aspect-square rounded-xl overflow-hidden bg-secondary/30 flex items-center justify-center">
+                        {src ? <img src={src} alt="" className="h-full w-full object-contain p-1.5" /> : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
                            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-secondary/60 px-3 py-1.5">
                 <Sparkles size={11} />
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{todayLook.occasion || t("home.todayFallback")}</span>
@@ -431,22 +524,32 @@ export function Home({ go }: { go: (s: Screen) => void }) {
         ) : (
 
           <div className="flex gap-3 overflow-x-auto no-scrollbar px-6">
-            {curatedLooks.map((look, i) => (
-              <button key={i} onClick={() => go("ai")} className="shrink-0 w-40 text-left active:scale-[0.98] transition">
-                <div className="overflow-hidden rounded-2xl shadow-soft aspect-[3/4] bg-[#FFFFFF] p-2 grid grid-cols-2 gap-1.5">
-                  {look.item_ids.slice(0, 4).map((id) => {
-                    const src = thumbFor(id);
-                    return (
-                      <div key={id} className="rounded-lg overflow-hidden bg-secondary/30 flex items-center justify-center">
-                        {src ? <img src={src} alt="" className="h-full w-full object-contain p-1" /> : null}
+            {curatedLooks.map((look, i) => {
+              const imagePath = curatedImagePaths[i];
+              const signedImage = imagePath ? signedLookImages[imagePath] : null;
+              return (
+                <button key={i} onClick={() => go("ai")} className="shrink-0 w-40 text-left active:scale-[0.98] transition">
+                  <div className="overflow-hidden rounded-2xl shadow-soft aspect-[3/4] bg-[#FFFFFF]">
+                    {signedImage ? (
+                      <img src={signedImage} alt="" className="h-full w-full object-contain" />
+                    ) : (
+                      <div className="h-full w-full p-2 grid grid-cols-2 gap-1.5">
+                        {look.item_ids.slice(0, 4).map((id) => {
+                          const src = thumbFor(id);
+                          return (
+                            <div key={id} className="rounded-lg overflow-hidden bg-secondary/30 flex items-center justify-center">
+                              {src ? <img src={src} alt="" className="h-full w-full object-contain p-1" /> : null}
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                </div>
-                               <p className="mt-2 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{look.occasion ? (CURATED_OCCASION_KEYS[look.occasion] ? t(CURATED_OCCASION_KEYS[look.occasion]) : look.occasion) : t("home.lookFallback")}</p>
-                <p className="text-xs text-muted-foreground truncate">{look.explanation}</p>
-              </button>
-            ))}
+                    )}
+                  </div>
+                  <p className="mt-2 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{look.occasion ? (CURATED_OCCASION_KEYS[look.occasion] ? t(CURATED_OCCASION_KEYS[look.occasion]) : look.occasion) : t("home.lookFallback")}</p>
+                  <p className="text-xs text-muted-foreground truncate">{look.explanation}</p>
+                </button>
+              );
+            })}
           </div>
         )}
       </section>
