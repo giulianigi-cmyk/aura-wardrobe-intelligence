@@ -226,6 +226,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
+    try {
     const today = todayIso();
     const [{ data: ev }, { data: cal }] = await Promise.all([
       (supabase.from("wardrobe_events" as never) as any)
@@ -267,7 +268,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
         }
       }
 
-      const outfitNameById = new Map(olist.map((x) => [x.id, x.name]));
+      const outfitNameById = new Map(outfits.map((x) => [x.id, x.name]));
       setWornEntries(wornEvents.map((e) => ({
         eventId: e.id,
         date: e.event_date,
@@ -280,8 +281,19 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
       setWornEntries([]);
     }
 
-    setLoading(false);
-  }, [user]);
+    } catch (e) {
+      // Whatever goes wrong here, the screen must never be left stuck
+      // on a permanent spinner over it — that was the actual reported
+      // bug (a stale variable reference threw before setLoading(false)
+      // was ever reached). Logged for diagnosis, not surfaced as a
+      // blocking error toast: the rest of the screen (items, outfits,
+      // plans) may still be perfectly usable even if today's worn
+      // entries failed to load.
+      console.error("[AURA stylist] load failed", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, outfits]);
 
   useEffect(() => { void load(); }, [load]);
 
