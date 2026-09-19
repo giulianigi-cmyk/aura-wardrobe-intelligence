@@ -163,7 +163,11 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       "   instead — reserve them for that occasion, not Work.",
       "",
       "Each outfit: pick 3-5 items that work together (typically 1 top + 1 bottom OR",
-      "1 dress, + shoes, optionally outerwear/accessory). Match colors and style",
+      "1 dress, + shoes, optionally outerwear), PLUS accessories: whenever the",
+      "wardrobe has them, add a pair of earrings and a watch or bracelet to EVERY",
+      "look (a necklace too when the neckline leaves room for it) — jewelry is part",
+      "of the outfit, not an afterthought, and matching the metal tone (gold with",
+      "gold, silver with silver) and the occasion's formality matters. Match colors and style",
       "coherently. A dress or jumpsuit is a complete base on its own and REPLACES",
       "both top and bottom — NEVER combine a dress or jumpsuit with a separate",
       "Bottoms item (trousers, jeans, shorts, skirt) in the same look. If you pick",
@@ -350,6 +354,40 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       return bag ? [...ids, bag.id] : ids;
     };
 
+    // Jewelry "almost always": the prompt now asks for it, but — exactly like
+    // bags above — a text-only instruction is not reliable, so this tops a look
+    // up in code with earrings + one wrist piece when the wardrobe has them and
+    // the model left them out. Never removes or replaces what the model chose.
+    // Candidates must pass the same hard rules as any other piece (occasion
+    // tag; for Work, nothing evening-coded), are ranked by closeness to the
+    // look's formality, and are rotated across looks so all four don't end up
+    // with the identical pair when the wardrobe has alternatives.
+    const NO_JEWELRY_OCCASION_SIGNAL = /sport|gym|yoga|running|hiking|training|pilates|tennis|cycling|pool|piscina|swim|beach|spiaggia|mare|snorkeling/i;
+    const jewelryUse = new Map<string, number>();
+    const ensureJewelry = (occasion: string, ids: string[]): string[] => {
+      if (NO_JEWELRY_OCCASION_SIGNAL.test(occasion)) return ids;
+      const subOf = (id: string) => catalog.find((c) => c.id === id)?.subcategory ?? "";
+      const formalities = ids.map((id) => catalog.find((c) => c.id === id)?.formality).filter((f): f is number => typeof f === "number");
+      const target = formalities.length ? formalities.reduce((a, b) => a + b, 0) / formalities.length : 3;
+      const pick = (subs: string[]): string | null => {
+        const pool = catalog.filter((c) =>
+          c.category === "Accessories" && subs.includes(c.subcategory) && !ids.includes(c.id)
+          && !violatesOccasionTag(occasion, [c.id])
+          && !(occasion === "Work" && violatesWorkFormality([c.id])));
+        if (!pool.length) return null;
+        const score = (c: (typeof pool)[number]) =>
+          (jewelryUse.get(c.id) ?? 0) * 2
+          + Math.abs((c.formality ?? target) - target)
+          + (occasion === "Evening" && c.dayEvening === "day" ? 2 : 0);
+        return [...pool].sort((a, b) => score(a) - score(b))[0].id;
+      };
+      const out = [...ids];
+      const add = (id: string | null) => { if (id) { out.push(id); jewelryUse.set(id, (jewelryUse.get(id) ?? 0) + 1); } };
+      if (!out.some((id) => subOf(id) === "Earrings")) add(pick(["Earrings"]));
+      if (!out.some((id) => subOf(id) === "Watch" || subOf(id) === "Bracelet")) add(pick(["Watch", "Bracelet"]));
+      return out;
+    };
+
     const sanitize = (r: DailyLooksResult): DailyLooksResult => {
       // "today" is singular — a violation strips just the offending
       // item(s) rather than discarding the whole look (there's no second
@@ -497,8 +535,8 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
         }
       }
 
-      clean.today = { ...clean.today, item_ids: ensureBag(clean.today.occasion, clean.today.item_ids) };
-      clean.curated = clean.curated.map((l) => ({ ...l, item_ids: ensureBag(l.occasion, l.item_ids) }));
+      clean.today = { ...clean.today, item_ids: ensureJewelry(clean.today.occasion, ensureBag(clean.today.occasion, clean.today.item_ids)) };
+      clean.curated = clean.curated.map((l) => ({ ...l, item_ids: ensureJewelry(l.occasion, ensureBag(l.occasion, l.item_ids)) }));
 
       return { ok: true as const, result: clean };
 
