@@ -21,7 +21,7 @@ export type { Bucket };
 
 export type ComposeItem = { id: string; imgUrl: string; category: string | null; subcategory?: string | null };
 
-const BACKGROUND = "#ECEAE6";
+const BACKGROUND = "#FFFFFF";
 
 function loadImageEl(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
