@@ -21,7 +21,7 @@ export type { Bucket };
 
 export type ComposeItem = { id: string; imgUrl: string; category: string | null; subcategory?: string | null };
 
-const BACKGROUND = "#FFFFFF";
+const BACKGROUND = "#ECEAE6";
 
 function loadImageEl(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -137,11 +137,16 @@ export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | n
     ctx.drawImage(img, crop.sx, crop.sy, crop.sw, crop.sh, r.x, r.y, r.w, r.h);
   }
 
+  // Watermark: bottom-CENTER, not bottom-right. The Home cards clip the image
+  // with rounded corners (up to ~108 canvas px of radius on the small "Curated"
+  // cards), which cut a corner-anchored label. Centered, it can never be
+  // clipped, and 60px keeps it readable when the canvas is scaled to ~160px wide.
   ctx.save();
-  ctx.font = "italic 32px Georgia, serif";
-  ctx.fillStyle = "rgba(0,0,0,0.45)";
-  ctx.textAlign = "right";
-  ctx.fillText("aura", CANVAS_W - 24, CANVAS_H - 20);
+  ctx.font = "italic 60px Georgia, serif";
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText("aura", CANVAS_W / 2, CANVAS_H - 14);
   ctx.restore();
 
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
