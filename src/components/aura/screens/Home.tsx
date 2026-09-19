@@ -173,7 +173,7 @@ export function Home({ go }: { go: (s: Screen) => void }) {
               .map((it) => {
                 const path = toStoragePath(it.image_url);
                 const url = path ? signedForPicks[path] : null;
-                return url ? { id: it.id, imgUrl: url, category: it.category, style: it.style } : null;
+                return url ? { id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory } : null;
               })
               .filter((x): x is ComposeItem => Boolean(x));
           };
