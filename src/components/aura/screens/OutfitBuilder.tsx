@@ -47,62 +47,200 @@ type Placed = {
   z: number;
 };
 
-type Bucket = "top" | "bottom" | "dress" | "shoes" | "outer" | "acc";
-// Y positions pulled closer together than before (was a rigid, evenly
-// spaced stack) so adjacent pieces overlap slightly — a hem tucking
-// under a waistband, a jacket draping past a shoulder — the way a
-// styled flat-lay actually looks, not a vertical list of items.
-const LAYOUT_Y: Record<Bucket, number> = { outer: 0.30, top: 0.36, dress: 0.48, bottom: 0.57, shoes: 0.82, acc: 0.40 };
-const Z_BY_BUCKET: Record<Bucket, number> = { outer: 2, top: 3, dress: 3, bottom: 2, shoes: 1, acc: 4 };
-// Every bucket now has its own small horizontal offset and tilt instead
-// of dead-center/zero-rotation for everything — outerwear drapes to one
-// side as if worn open, bottoms sit a touch off-axis from the top above
-// them, shoes angle in from the opposite side of the bag. Small, fixed
-// values (not random) so the same outfit lays out the same way every
-// time, but the composition reads as arranged rather than stacked.
-const LAYOUT_X: Record<Bucket, number> = { outer: 0.62, top: 0.47, dress: 0.5, bottom: 0.51, shoes: 0.40, acc: 0.76 };
-const LAYOUT_ROTATION: Record<Bucket, number> = { outer: -6, top: -2, dress: 0, bottom: 2, shoes: 7, acc: -5 };
+// A single outfit is composed as ONE editorial-style group, not a grid
+// of independent items — see the full spec this implements for the
+// reasoning behind every choice below. The shape: find the outfit's
+// ANCHOR garment (a dress if present, otherwise the bottom/skirt —
+// pants and skirts are the vertical spine a look is built around), then
+// position everything else relative to that anchor's own position and
+// scale, so the composition adapts to whichever pieces are actually
+// present rather than reading from fixed absolute coordinates.
+type Bucket = "dress" | "bottom" | "top" | "outer" | "shoes" | "bag" | "sunglasses" | "jewelry" | "belt" | "acc";
+
 function bucketOf(it: WardrobeItem): Bucket {
-  const c = `${it.category ?? ""} ${it.style ?? ""}`.toLowerCase();
-  if (/dress|gown|jumpsuit/.test(c)) return "dress";
-  if (/shoe|boot|sneaker|sandal|loafer|heel/.test(c)) return "shoes";
-  if (/pant|trouser|jean|short|skirt|bottom/.test(c)) return "bottom";
-  if (/coat|jacket|blazer|outerwear/.test(c)) return "outer";
-  if (/shirt|top|tee|blouse|knit|sweater/.test(c)) return "top";
+  const cat = it.category ?? "";
+  const sub = (it.subcategory ?? "").toLowerCase();
+  if (cat === "Dresses" || cat === "Jumpsuits") return "dress";
+  if (cat === "Bottoms") return "bottom";
+  if (cat === "Tops") return "top";
+  if (cat === "Outerwear") return "outer";
+  if (cat === "Shoes") return "shoes";
+  if (cat === "Bags") return "bag";
+  if (cat === "Accessories") {
+    if (sub === "sunglasses") return "sunglasses";
+    if (sub === "belt") return "belt";
+    if (["earrings", "necklace", "bracelet", "ring", "brooch", "anklet", "watch"].includes(sub)) return "jewelry";
+  }
   return "acc";
 }
-function autoPlace(items: WardrobeItem[], signed: Record<string, string>): Placed[] {
-  const placed: Placed[] = [];
-  // Tracks how many pieces have already landed in each bucket, so a
-  // second accessory (or an unusual second top) doesn't land exactly on
-  // top of the first — previously EVERY accessory shared one fixed
-  // spot, meaning a bag and a necklace together were fully overlapping,
-  // indistinguishable, rather than fanned out the way a real flat-lay
-  // spreads multiple small pieces near each other.
-  const seenInBucket: Partial<Record<Bucket, number>> = {};
-  items.forEach((it, i) => {
-    const path = toStoragePath(it.image_url);
-    const url = path ? signed[path] : "";
-    if (!url) return;
-    const b = bucketOf(it);
-    const duplicateIndex = seenInBucket[b] ?? 0;
-    seenInBucket[b] = duplicateIndex + 1;
-    // Each additional piece in the same bucket fans out a little further
-    // and tilts a little more, alternating direction, instead of
-    // stacking exactly on the first.
-    const fanOut = duplicateIndex * (b === "acc" ? 0.09 : 0.05) * (duplicateIndex % 2 === 0 ? 1 : -1);
-    const rotationFan = duplicateIndex * 4 * (duplicateIndex % 2 === 0 ? 1 : -1);
-    placed.push({
-      key: `${it.id}-init-${i}-${Date.now()}`,
-      itemId: it.id,
-      imgUrl: url,
-      x: LAYOUT_X[b] + fanOut,
-      y: LAYOUT_Y[b] + duplicateIndex * 0.03,
-      scale: b === "shoes" ? 0.28 : b === "acc" ? 0.24 : 0.42,
-      rotation: LAYOUT_ROTATION[b] + rotationFan,
-      z: Z_BY_BUCKET[b] ?? 1,
-    });
+
+// Base scale as a fraction of canvas width — main garments read as
+// visibly bigger than accessories, per the requested hierarchy, not a
+// uniform size for everything.
+const BASE_SCALE: Record<Bucket, number> = {
+  dress: 0.50, bottom: 0.42, top: 0.40, outer: 0.44,
+  shoes: 0.22, bag: 0.24, sunglasses: 0.14, jewelry: 0.11, belt: 0.16, acc: 0.18,
+};
+// Small pieces render above garments so nothing important gets hidden
+// underneath a larger item; among garments, the top/outerwear sit
+// slightly above the anchor in stacking order since they're the layer
+// closest to the "front" of a real outfit.
+const Z_BY_BUCKET: Record<Bucket, number> = {
+  dress: 1, bottom: 1, top: 2, outer: 1,
+  shoes: 3, bag: 4, sunglasses: 5, jewelry: 5, belt: 3, acc: 4,
+};
+const MAX_OVERLAP_FRACTION = 0.10;
+
+/** Fans out N items sharing one bucket around a shared center point
+ *  rather than stacking them exactly on top of each other — e.g. two
+ *  jewelry pieces or two accessories land near the same zone but
+ *  offset enough to both stay legible, spacing bounded by the same
+ *  overlap cap used for the main layout. */
+function fanOutAround(n: number, scale: number, centerX: number, centerY: number, axis: "x" | "y" = "x"): { x: number; y: number }[] {
+  if (n <= 1) return [{ x: centerX, y: centerY }];
+  const step = scale * (1 - MAX_OVERLAP_FRACTION);
+  const totalSpan = step * (n - 1);
+  const start = -totalSpan / 2;
+  return Array.from({ length: n }, (_, i) => {
+    const offset = start + i * step;
+    return axis === "x" ? { x: centerX + offset, y: centerY } : { x: centerX, y: centerY + offset };
   });
+}
+
+function autoPlace(items: WardrobeItem[], signed: Record<string, string>): Placed[] {
+  const withUrls = items
+    .map((it, i) => {
+      const path = toStoragePath(it.image_url);
+      const url = path ? signed[path] : "";
+      return url ? { it, url, i, bucket: bucketOf(it) } : null;
+    })
+    .filter((x): x is { it: WardrobeItem; url: string; i: number; bucket: Bucket } => x !== null);
+
+  if (!withUrls.length) return [];
+
+  const byBucket = new Map<Bucket, typeof withUrls>();
+  for (const entry of withUrls) {
+    const list = byBucket.get(entry.bucket) ?? [];
+    list.push(entry);
+    byBucket.set(entry.bucket, list);
+  }
+
+  // The anchor: a dress/jumpsuit takes priority (it IS the outfit's
+  // main garment), otherwise the bottom (pants/skirt — the vertical
+  // spine a look is built around), otherwise the top stands in as its
+  // own anchor for looks with no bottom on the canvas at all.
+  const anchorBucket: Bucket = byBucket.has("dress") ? "dress" : byBucket.has("bottom") ? "bottom" : "top";
+  const anchorScale = BASE_SCALE[anchorBucket];
+  // Slight off-center placement (not dead 0.5) — an editorial
+  // composition reads as intentionally arranged rather than a
+  // mechanically centered grid.
+  const anchorX = 0.46;
+  const anchorY = anchorBucket === "top" ? 0.42 : 0.54;
+
+  const placed: Placed[] = [];
+  const place = (entry: { it: WardrobeItem; url: string; i: number }, x: number, y: number, scale: number, z: number) => {
+    placed.push({ key: `${entry.it.id}-init-${entry.i}-${Date.now()}`, itemId: entry.it.id, imgUrl: entry.url, x, y, scale, rotation: 0, z });
+  };
+
+  // Anchor itself.
+  const anchorEntries = byBucket.get(anchorBucket) ?? [];
+  anchorEntries.forEach((entry, idx) => {
+    const positions = fanOutAround(anchorEntries.length, anchorScale, anchorX, anchorY, "x");
+    place(entry, positions[idx].x, positions[idx].y, anchorScale, Z_BY_BUCKET[anchorBucket]);
+  });
+
+  // Top, when the anchor is the bottom (a dress already covers this
+  // role) — positioned just above the anchor with a controlled overlap
+  // at the touching edge, per "leggera sovrapposizione o sfalsatura",
+  // and a small horizontal offset rather than perfectly centered so the
+  // pairing reads as arranged, not stamped.
+  if (anchorBucket === "bottom" && byBucket.has("top")) {
+    const topEntries = byBucket.get("top")!;
+    const topScale = BASE_SCALE.top;
+    const overlapGap = (anchorScale / 2 + topScale / 2) * (1 - MAX_OVERLAP_FRACTION * 1.2);
+    const topY = anchorY - overlapGap;
+    const positions = fanOutAround(topEntries.length, topScale, anchorX + 0.03, topY, "x");
+    topEntries.forEach((entry, idx) => place(entry, positions[idx].x, positions[idx].y, topScale, Z_BY_BUCKET.top));
+  }
+
+  // Outerwear — beside the top/anchor, slightly behind it in stacking
+  // order (see Z_BY_BUCKET) so a jacket reads as draped alongside the
+  // look rather than floating separately from it.
+  if (byBucket.has("outer")) {
+    const outerEntries = byBucket.get("outer")!;
+    const outerScale = BASE_SCALE.outer;
+    const topY = anchorBucket === "bottom" && byBucket.has("top") ? anchorY - (anchorScale / 2 + BASE_SCALE.top / 2) * 0.85 : anchorY - anchorScale * 0.15;
+    const positions = fanOutAround(outerEntries.length, outerScale, anchorX + anchorScale * 0.55, topY, "y");
+    outerEntries.forEach((entry, idx) => place(entry, positions[idx].x, positions[idx].y, outerScale, Z_BY_BUCKET.outer));
+  }
+
+  // Shoes — below the anchor, near where "feet" would be.
+  if (byBucket.has("shoes")) {
+    const shoeEntries = byBucket.get("shoes")!;
+    const shoeScale = BASE_SCALE.shoes;
+    const shoeY = anchorY + anchorScale / 2 + shoeScale * 0.55;
+    const positions = fanOutAround(shoeEntries.length, shoeScale, anchorX, shoeY, "x");
+    shoeEntries.forEach((entry, idx) => place(entry, positions[idx].x, positions[idx].y, shoeScale, Z_BY_BUCKET.shoes));
+  }
+
+  // Bag — lateral, central-to-lower zone, pushed clear of the anchor's
+  // own horizontal footprint so it never lands on top of a garment.
+  if (byBucket.has("bag")) {
+    const bagEntries = byBucket.get("bag")!;
+    const bagScale = BASE_SCALE.bag;
+    const bagX = anchorX - anchorScale / 2 - bagScale * 0.6;
+    const bagY = anchorY + anchorScale * 0.12;
+    const positions = fanOutAround(bagEntries.length, bagScale, bagX, bagY, "y");
+    bagEntries.forEach((entry, idx) => place(entry, positions[idx].x, positions[idx].y, bagScale, Z_BY_BUCKET.bag));
+  }
+
+  // Belt — near the anchor's waist (the top edge of the bottom, or the
+  // dress's own midpoint when there's no separate bottom).
+  if (byBucket.has("belt")) {
+    const beltEntries = byBucket.get("belt")!;
+    const beltScale = BASE_SCALE.belt;
+    const beltY = anchorBucket === "bottom" ? anchorY - anchorScale * 0.42 : anchorY;
+    const positions = fanOutAround(beltEntries.length, beltScale, anchorX + anchorScale * 0.35, beltY, "y");
+    beltEntries.forEach((entry, idx) => place(entry, positions[idx].x, positions[idx].y, beltScale, Z_BY_BUCKET.belt));
+  }
+
+  // Sunglasses — upper zone, above wherever the top/anchor's "top edge"
+  // sits, since that's where a face/head would be in a worn look.
+  if (byBucket.has("sunglasses")) {
+    const glassesEntries = byBucket.get("sunglasses")!;
+    const glassesScale = BASE_SCALE.sunglasses;
+    const topEdgeY = anchorBucket === "bottom" && byBucket.has("top")
+      ? anchorY - (anchorScale / 2 + BASE_SCALE.top / 2) * (1 - MAX_OVERLAP_FRACTION * 1.2) - BASE_SCALE.top / 2
+      : anchorY - anchorScale / 2;
+    const glassesY = Math.max(0.08, topEdgeY - glassesScale * 0.7);
+    const positions = fanOutAround(glassesEntries.length, glassesScale, anchorX + anchorScale * 0.2, glassesY, "x");
+    glassesEntries.forEach((entry, idx) => place(entry, positions[idx].x, positions[idx].y, glassesScale, Z_BY_BUCKET.sunglasses));
+  }
+
+  // Jewelry — near the top's neckline / upper-lateral zone (earrings,
+  // necklace, watch, bracelet, ring, brooch, anklet all share this
+  // bucket; distributed rather than stacked when there's more than one).
+  if (byBucket.has("jewelry")) {
+    const jewelryEntries = byBucket.get("jewelry")!;
+    const jewelryScale = BASE_SCALE.jewelry;
+    const neckY = anchorBucket === "bottom" && byBucket.has("top")
+      ? anchorY - (anchorScale / 2 + BASE_SCALE.top / 2) * (1 - MAX_OVERLAP_FRACTION * 1.2)
+      : anchorY - anchorScale * 0.3;
+    const positions = fanOutAround(jewelryEntries.length, jewelryScale, anchorX - anchorScale * 0.25, neckY, "x");
+    jewelryEntries.forEach((entry, idx) => place(entry, positions[idx].x, positions[idx].y, jewelryScale, Z_BY_BUCKET.jewelry));
+  }
+
+  // Anything left over (scarf, hat, cap, gloves, hair accessory, tie —
+  // any Accessories subcategory not given its own zone above)
+  // distributed around the periphery rather than dropped at a single
+  // shared point.
+  if (byBucket.has("acc")) {
+    const accEntries = byBucket.get("acc")!;
+    const accScale = BASE_SCALE.acc;
+    const positions = fanOutAround(accEntries.length, accScale, anchorX + anchorScale * 0.5, anchorY + anchorScale * 0.35, "y");
+    accEntries.forEach((entry, idx) => place(entry, positions[idx].x, positions[idx].y, accScale, Z_BY_BUCKET.acc));
+  }
+
   return placed;
 }
 
@@ -419,36 +557,14 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         .map((id: string) => byId.get(id))
         .filter((it: WardrobeItem | undefined): it is WardrobeItem => Boolean(it));
 
-      const bucketOf = (it: WardrobeItem): "top" | "bottom" | "dress" | "shoes" | "outer" | "acc" => {
-        const c = `${it.category ?? ""} ${it.style ?? ""}`.toLowerCase();
-        if (/dress|gown|jumpsuit/.test(c)) return "dress";
-        if (/shoe|boot|sneaker|sandal|loafer|heel/.test(c)) return "shoes";
-        if (/pant|trouser|jean|short|skirt|bottom/.test(c)) return "bottom";
-        if (/coat|jacket|blazer|outerwear/.test(c)) return "outer";
-        if (/shirt|top|tee|blouse|knit|sweater/.test(c)) return "top";
-        return "acc";
-      };
-      const layoutY = { outer: 0.28, top: 0.34, dress: 0.5, bottom: 0.6, shoes: 0.85, acc: 0.45 };
-      const zByBucket = { outer: 2, top: 3, dress: 3, bottom: 2, shoes: 1, acc: 4 };
-
-      const placedNext: Placed[] = [];
-      picks.forEach((it: WardrobeItem, i: number) => {
-        const path = toStoragePath(it.image_url);
-        const url = path ? signed[path] : "";
-        if (!url) return;
-        const b = bucketOf(it);
-        zSeqRef.current += 1;
-        placedNext.push({
-          key: `${it.id}-ai-${i}-${Date.now()}`,
-          itemId: it.id,
-          imgUrl: url,
-          x: b === "acc" ? 0.75 : 0.5,
-          y: layoutY[b],
-          scale: b === "shoes" ? 0.28 : b === "acc" ? 0.24 : 0.42,
-          rotation: 0,
-          z: zByBucket[b] ?? 1,
-        });
-      });
+      // Reuses the SAME positioning function every other placement path
+      // uses (reopening a saved outfit, "create outfit from this item",
+      // manual add) — this used to duplicate an older, separate copy of
+      // the layout logic inline here, which meant a fix to autoPlace's
+      // positioning never actually reached AI Suggest, the most-used
+      // path of all. One function, one behavior, everywhere now.
+      const placedNext = autoPlace(picks, signed);
+      placedNext.forEach((p) => { zSeqRef.current += 1; p.z += zSeqRef.current; });
 
       if (!placedNext.length) {
         toast.error(t("outfitBuilder.selectedItemsMissingImages"));
@@ -883,7 +999,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
                     className="w-full h-auto pointer-events-none"
                     crossOrigin="anonymous"
                     data-item-key={p.key}
-                    style={{ display: "block" }}
+                    style={{ display: "block", maxHeight: "88cqmin", objectFit: "contain" }}
                   />
                   {isSel && (
                     <>
