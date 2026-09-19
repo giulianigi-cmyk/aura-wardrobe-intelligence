@@ -14,14 +14,14 @@
  *  Plain Canvas 2D API (no DOM clone), so it can compose headlessly.
  */
 import { supabase } from "@/integrations/supabase/client";
-import { bucketOf, layoutOutfit, CANVAS_W, CANVAS_H, type Bucket } from "@/lib/outfit-layout";
+import { bucketOf, layoutOutfit, CANVAS_W, CANVAS_H, type Bucket, type LayoutRect } from "@/lib/outfit-layout";
 
 export { bucketOf };
 export type { Bucket };
 
 export type ComposeItem = { id: string; imgUrl: string; category: string | null; subcategory?: string | null };
 
-const BACKGROUND = "#ECEAE6";
+const BACKGROUND = "#FFFFFF";
 
 function loadImageEl(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -89,12 +89,14 @@ function visibleCrop(img: HTMLImageElement): Crop {
   }
 }
 
-/** Composes already-signed item image URLs into one 4:5 outfit image.
- *  Returns null (never throws) if any image fails to load, so callers can
- *  fall back to their plain grid instead of breaking the flow. */
-export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | null> {
-  if (!items.length) return null;
+type Prepared = { r: LayoutRect; img: HTMLImageElement; crop: Crop }[];
 
+/** Loads every image, trims its transparent padding and runs the layout.
+ *  Deterministic: the same items always give the same rectangles, which is
+ *  what lets the canvas editor re-derive the exact arrangement of a look
+ *  that Home composed (see computeBuilderLayout). Returns null on any load
+ *  failure (logged, never thrown). */
+async function prepareLayout(items: ComposeItem[]): Promise<Prepared | null> {
   let images: HTMLImageElement[];
   try {
     const dataUrls = await Promise.all(items.map((p) => toDataUrl(p.imgUrl)));
@@ -116,12 +118,59 @@ export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | n
   // layoutOutfit returns rects by id; map back to the loaded image + crop.
   // (ids are unique per outfit; if an id repeats, fall back to order.)
   const used = new Set<number>();
-  const drawList = rects.map((r) => {
+  return rects.map((r) => {
     let idx = items.findIndex((it, i) => it.id === r.id && !used.has(i));
     if (idx < 0) idx = 0;
     used.add(idx);
     return { r, img: images[idx], crop: crops[idx] };
-  }).sort((a, b) => a.r.z - b.r.z);
+  });
+}
+
+/** One entry of an OutfitBuilder layout (same shape as outfits.layout). */
+export type BuilderLayoutEntry = { itemId: string; x: number; y: number; scale: number; rotation: number; z: number };
+
+/** The EXACT arrangement Home composes, expressed in OutfitBuilder's
+ *  coordinates, so opening a look on the canvas never moves a garment.
+ *
+ *  Home's canvas is 4:5, the builder's default is 1:1: the whole
+ *  composition is scaled by 0.8 and centred inside the square (same
+ *  relative positions and sizes, just with side margins). The builder
+ *  draws each image UNtrimmed while Home draws the trimmed visible area,
+ *  so every rectangle is expanded back to the full image to keep the
+ *  visible pixels in the same place. */
+export async function computeBuilderLayout(items: ComposeItem[]): Promise<BuilderLayoutEntry[] | null> {
+  if (!items.length) return null;
+  const prepared = await prepareLayout(items);
+  if (!prepared) return null;
+  const k = CANVAS_H > 0 ? CANVAS_W / CANVAS_H : 1; // 4:5 → 0.8
+  const offX = (CANVAS_W - CANVAS_W * k) / 2;
+  return prepared.map(({ r, img, crop }) => {
+    const fullW = (r.w * img.naturalWidth) / crop.sw;
+    const fullH = (r.h * img.naturalHeight) / crop.sh;
+    const fullLeft = r.x - (r.w * crop.sx) / crop.sw;
+    const fullTop = r.y - (r.h * crop.sy) / crop.sh;
+    const cx = fullLeft + fullW / 2;
+    const cy = fullTop + fullH / 2;
+    return {
+      itemId: r.id,
+      x: (offX + k * cx) / CANVAS_W,
+      y: (k * cy) / CANVAS_W, // builder 1:1 canvas: height == width
+      scale: (k * fullW) / CANVAS_W,
+      rotation: 0,
+      z: r.z,
+    };
+  });
+}
+
+/** Composes already-signed item image URLs into one 4:5 outfit image.
+ *  Returns null (never throws) if any image fails to load, so callers can
+ *  fall back to their plain grid instead of breaking the flow. */
+export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | null> {
+  if (!items.length) return null;
+
+  const prepared = await prepareLayout(items);
+  if (!prepared) return null;
+  const drawList = [...prepared].sort((a, b) => a.r.z - b.r.z);
 
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_W;
