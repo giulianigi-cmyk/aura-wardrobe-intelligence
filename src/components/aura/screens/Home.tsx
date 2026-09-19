@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 import { composeAndUploadOutfitImage, type ComposeItem } from "@/lib/compose-outfit-canvas";
+import { OutfitPreviewSheet } from "@/components/aura/OutfitPreviewSheet";
 import { useWardrobeItems } from "@/lib/wardrobe-query";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { suggestDailyLooks, type DailyLook } from "@/lib/suggest-daily-looks.functions";
@@ -65,6 +66,8 @@ export function Home({ go, openAvatarTryOn, openBuilder }: { go: (s: Screen) => 
   const [signedLookImages, setSignedLookImages] = useState<Record<string, string>>({});
   const [looksLoading, setLooksLoading] = useState(true);
   const [looksError, setLooksError] = useState<string | null>(null);
+  // Look opened full-screen by tapping a card (see OutfitPreviewSheet).
+  const [preview, setPreview] = useState<{ look: DailyLook; imagePath: string | null } | null>(null);
 
   // Shared cache (see src/lib/wardrobe-query.ts) — replaces this
   // screen's own independent full-table fetch. `pieces`/`worn`/`recent`
@@ -415,7 +418,7 @@ export function Home({ go, openAvatarTryOn, openBuilder }: { go: (s: Screen) => 
             <Loader2 className="animate-spin text-muted-foreground" />
           </div>
         ) : todayLook && todayLook.item_ids.length > 0 ? (
-          <button onClick={() => go("ai")} className="block w-full text-left">
+          <button onClick={() => setPreview({ look: todayLook, imagePath: todayImagePath })} className="block w-full text-left">
             <div className="relative overflow-hidden rounded-[2rem] shadow-luxe gradient-warm p-4">
               {todayImagePath && signedLookImages[todayImagePath] ? (
                 <div className="rounded-xl overflow-hidden aspect-[4/5]" style={{ background: "#FFFFFF" }}>
@@ -528,7 +531,7 @@ export function Home({ go, openAvatarTryOn, openBuilder }: { go: (s: Screen) => 
               const imagePath = curatedImagePaths[i];
               const signedImage = imagePath ? signedLookImages[imagePath] : null;
               return (
-                <button key={i} onClick={() => go("ai")} className="shrink-0 w-40 text-left active:scale-[0.98] transition">
+                <button key={i} onClick={() => setPreview({ look, imagePath: imagePath ?? null })} className="shrink-0 w-40 text-left active:scale-[0.98] transition">
                   <div className="overflow-hidden rounded-2xl shadow-soft aspect-[4/5] bg-[#FFFFFF]">
                     {signedImage ? (
                       <img src={signedImage} alt="" className="h-full w-full object-contain" />
@@ -589,6 +592,32 @@ export function Home({ go, openAvatarTryOn, openBuilder }: { go: (s: Screen) => 
           </div>
         )}
       </section>
+
+      {preview && (
+        <OutfitPreviewSheet
+          look={preview.look}
+          imageUrl={preview.imagePath ? signedLookImages[preview.imagePath] ?? null : null}
+          imagePath={preview.imagePath}
+          thumbs={preview.look.item_ids.map((id) => thumbFor(id))}
+          composeItems={(() => {
+            const list: ComposeItem[] = [];
+            for (const id of preview.look.item_ids) {
+              const it = itemById[id];
+              const url = thumbFor(id);
+              if (it && url) list.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory });
+            }
+            return list;
+          })()}
+          onEditOnCanvas={(layout) => {
+            const look = preview.look;
+            setPreview(null);
+            openBuilder({ itemIds: look.item_ids, occasion: look.occasion || undefined, layout });
+          }}
+          onClose={() => setPreview(null)}
+          onTryOn={(ids) => { setPreview(null); openAvatarTryOn(ids); }}
+          onSaved={() => setOutfitsCount((c) => c + 1)}
+        />
+      )}
     </div>
 
   );
