@@ -43,16 +43,16 @@ const BOX: Record<Bucket, { w: number; h: number }> = {
   sunglasses: { w: 0.28, h: 0.10 },
   headwear: { w: 0.22, h: 0.12 },
   earrings: { w: 0.12, h: 0.12 },
-  necklace: { w: 0.24, h: 0.14 },
+  necklace: { w: 0.20, h: 0.12 },
   brooch: { w: 0.07, h: 0.07 },
   wrist: { w: 0.10, h: 0.15 }, // watch, bracelet, ring, gloves
   anklet: { w: 0.14, h: 0.06 },
-  belt: { w: 0.36, h: 0.06 },
+  belt: { w: 0.20, h: 0.09 },
   acc: { w: 0.22, h: 0.16 },
 };
 const TOP_AS_ANCHOR = { w: 0.50, h: 0.45 };
 
-const Z: Record<Bucket, number> = { outer: 1, dress: 2, bottom: 2, belt: 3, top: 4, shoes: 5, bag: 5, sunglasses: 5, headwear: 5, earrings: 5, necklace: 6, brooch: 6, wrist: 5, anklet: 5, acc: 5 };
+const Z: Record<Bucket, number> = { outer: 1, dress: 2, bottom: 2, belt: 5, top: 4, shoes: 5, bag: 5, sunglasses: 5, headwear: 5, earrings: 5, necklace: 5, brooch: 6, wrist: 5, anklet: 5, acc: 5 };
 
 export function bucketOf(category: string | null, subcategory?: string | null): Bucket {
   const sub = (subcategory ?? "").toLowerCase();
@@ -178,7 +178,7 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
 
   // Torso = where the garment covering the chest sits. Every body-anchored
   // accessory below is positioned relative to it, the way it is worn:
-  // head-level things beside the neckline, necklace ON the neckline, wrist
+  // head-level things and the necklace beside the neckline, wrist
   // things at hip height beside the legs (where the hands hang).
   const torso = topRects.length
     ? union(topRects)
@@ -188,19 +188,23 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
         ? A
         : { l: A.l, r: A.r, t: MY, b: A.t }; // bottom only: virtual torso above the waist
   const torsoW = torso.r - torso.l, torsoH = torso.b - torso.t;
-  const torsoCx = (torso.l + torso.r) / 2;
   const wristTop =
     anchorBucket === "dress" ? A.t + 0.42 * aH
     : anchorBucket === "bottom" ? (topRects.length ? torso.b + 0.03 * H : A.t + 0.10 * H)
     : A.b - 0.15 * H;
 
-  // ── Belt: full waist width, on the waistband (only with dress / bottom) ──
+  // ── Belt: beside the garment (left of the trousers / dress at waist height), never
+  //    laid on top of it; with a coat on the left, in the bottom-left corner ──
   const beltList = by.get("belt") ?? [];
-  const beltOnWaist = beltList.length > 0 && anchorBucket !== "top";
-  if (beltOnWaist) {
-    const waistY = anchorBucket === "bottom" ? A.t + 0.04 * H : A.t + 0.38 * aH;
-    const bw = Math.min(BOX.belt.w, (0.9 * aW) / W);
-    placeGroup(beltList, "belt", { w: bw, h: BOX.belt.h }, anchorCx, waistY, "y");
+  const beltBeside = beltList.length > 0 && anchorBucket !== "top";
+  if (beltBeside) {
+    const bw = BOX.belt.w * W;
+    if (outer) {
+      placeGroup(beltList, "belt", BOX.belt, 0.17 * W, 0.81 * H, "y");
+    } else {
+      const beltY = anchorBucket === "bottom" ? A.t + 0.11 * H : A.t + 0.38 * aH;
+      placeGroup(beltList, "belt", BOX.belt, Math.max(MX + bw / 2, A.l - bw / 2 - 0.02 * W), beltY, "y");
+    }
   }
 
   // ── Shoes: free bottom-right corner, ≤ ~20% overlap with the anchor ──
@@ -234,15 +238,32 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
     const ew = BOX.earrings.w * W;
     placeGroup(by.get("earrings")!, "earrings", BOX.earrings, torso.l - ew / 2 - 0.02 * W, (mh) => MY + mh / 2 + 0.01 * H);
   }
-  const wristList = [...(by.get("wrist") ?? []), ...(outer ? by.get("headwear") ?? [] : [])];
-  if (has("headwear") && !outer) {
+  // Necklace: never laid ON the garment. Beside the torso at neckline height on the
+  // free side (right first); if there is no room there (top up-right of the trousers),
+  // in the top band on the left; with a coat on the left, in the bottom-left corner.
+  let necklaceSide: "right" | "left" | "corner" | null = null;
+  if (has("necklace")) {
+    const rightFree = W - MX - (torso.r + 0.02 * W);
+    necklaceSide = rightFree >= 0.16 * W ? "right" : outer ? "corner" : "left";
+  }
+  // A hat / hair accessory normally takes the top-left slot; it moves to the wrist
+  // cluster when that slot (or the coat's side) is already taken.
+  const hatWithWrist = outer || necklaceSide === "left";
+  const wristList = [...(by.get("wrist") ?? []), ...(hatWithWrist ? by.get("headwear") ?? [] : [])];
+  if (has("headwear") && !hatWithWrist) {
     placeGroup(by.get("headwear")!, "headwear", BOX.headwear, 0.22 * W, (mh) => MY + mh / 2 + 0.01 * H);
   }
 
-  // ── On the body: necklace on the neckline, brooch on the chest ──
+  // ── Necklace (beside the torso, see above) and brooch (on the chest) ──
   if (has("necklace")) {
-    const nb = { w: Math.min(BOX.necklace.w, (0.6 * torsoW) / W), h: BOX.necklace.h };
-    placeGroup(by.get("necklace")!, "necklace", nb, torsoCx, (mh) => torso.t + mh / 2 + 0.02 * torsoH);
+    if (necklaceSide === "right") {
+      const bw = Math.min(0.20, (W - MX - (torso.r + 0.02 * W)) / W);
+      placeGroup(by.get("necklace")!, "necklace", { w: bw, h: 0.12 }, torso.r + 0.02 * W + (bw * W) / 2, (mh) => torso.t + mh / 2 + 0.02 * H);
+    } else if (necklaceSide === "left") {
+      placeGroup(by.get("necklace")!, "necklace", { w: 0.20, h: 0.11 }, 0.19 * W, (mh) => MY + mh / 2 + 0.01 * H);
+    } else {
+      placeGroup(by.get("necklace")!, "necklace", { w: 0.16, h: 0.07 }, 0.17 * W, 0.905 * H);
+    }
   }
   if (has("brooch")) {
     placeGroup(by.get("brooch")!, "brooch", BOX.brooch, torso.l + 0.3 * torsoW, torso.t + 0.30 * torsoH);
@@ -264,7 +285,7 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
     }
   }
 
-  const accList = [...(by.get("acc") ?? []), ...(beltList.length && !beltOnWaist ? beltList : [])];
+  const accList = [...(by.get("acc") ?? []), ...(beltList.length && !beltBeside ? beltList : [])];
   if (accList.length) placeGroup(accList, "acc", BOX.acc, 0.17 * W, 0.83 * H, "y");
 
   // Bottoms left over when a dress is the anchor are intentionally not drawn
