@@ -1,10 +1,10 @@
 /** Shared outfit-canvas composition — the SAME auto-placement logic
- *  OutfitBuilder.tsx uses (bucket-by-category, slight rotation/offset
- *  per bucket for a styled flat-lay look rather than a rigid stack —
- *  see OutfitBuilder.tsx for the full reasoning), extracted here so
- *  Home.tsx's "Today's Edit" and curated looks can compose the SAME
- *  kind of real outfit image instead of showing a plain grid of
- *  separate item photos.
+ *  OutfitBuilder.tsx uses (zone-per-bucket, no rotation, row spacing
+ *  computed so same-bucket items overlap by at most 10% of their own
+ *  width rather than a fixed guessed offset — see OutfitBuilder.tsx for
+ *  the full reasoning), extracted here so Home.tsx's "Today's Edit" and
+ *  curated looks can compose the SAME kind of real outfit image instead
+ *  of showing a plain grid of separate item photos.
  *
  *  Deliberately implemented with the plain Canvas 2D API
  *  (drawImage/rotate/translate) rather than OutfitBuilder's
@@ -17,45 +17,156 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 
-export type Bucket = "top" | "bottom" | "dress" | "shoes" | "outer" | "acc";
+export type Bucket = "dress" | "bottom" | "top" | "outer" | "shoes" | "bag" | "sunglasses" | "jewelry" | "belt" | "acc";
 
-const LAYOUT_Y: Record<Bucket, number> = { outer: 0.30, top: 0.36, dress: 0.48, bottom: 0.57, shoes: 0.82, acc: 0.40 };
-const LAYOUT_X: Record<Bucket, number> = { outer: 0.62, top: 0.47, dress: 0.5, bottom: 0.51, shoes: 0.40, acc: 0.76 };
-const LAYOUT_ROTATION: Record<Bucket, number> = { outer: -6, top: -2, dress: 0, bottom: 2, shoes: 7, acc: -5 };
-const Z_BY_BUCKET: Record<Bucket, number> = { outer: 2, top: 3, dress: 3, bottom: 2, shoes: 1, acc: 4 };
+// Mirrors OutfitBuilder.tsx's autoPlace exactly (same anchor-relative
+// composition logic, same scale/z tables) so a composed Home suggestion
+// and a manually-built outfit read as the same kind of editorial
+// composition, not two different visual styles for what's conceptually
+// the same feature. See OutfitBuilder.tsx for the full reasoning.
+const BASE_SCALE: Record<Bucket, number> = {
+  dress: 0.50, bottom: 0.42, top: 0.40, outer: 0.44,
+  shoes: 0.22, bag: 0.24, sunglasses: 0.14, jewelry: 0.11, belt: 0.16, acc: 0.18,
+};
+const Z_BY_BUCKET: Record<Bucket, number> = {
+  dress: 1, bottom: 1, top: 2, outer: 1,
+  shoes: 3, bag: 4, sunglasses: 5, jewelry: 5, belt: 3, acc: 4,
+};
+const MAX_OVERLAP_FRACTION = 0.10;
+// Extra safety this headless renderer can afford that the interactive
+// canvas can't (that one only knows an image's real aspect ratio once
+// it's already loaded in the DOM, at layout time this doesn't yet
+// exist) — every image here IS already loaded by the time we place it,
+// so an unusually tall garment photo can be capped by its OWN real
+// aspect ratio, not just its nominal width-based scale, guaranteeing it
+// never reads as taller than the canvas even in an extreme case.
+const MAX_HEIGHT_FRACTION = 0.88;
 
-export function bucketOf(category: string | null, style: unknown): Bucket {
-  const c = `${category ?? ""} ${Array.isArray(style) ? style.join(" ") : style ?? ""}`.toLowerCase();
-  if (/dress|gown|jumpsuit/.test(c)) return "dress";
-  if (/shoe|boot|sneaker|sandal|loafer|heel/.test(c)) return "shoes";
-  if (/pant|trouser|jean|short|skirt|bottom/.test(c)) return "bottom";
-  if (/coat|jacket|blazer|outerwear/.test(c)) return "outer";
-  if (/shirt|top|tee|blouse|knit|sweater/.test(c)) return "top";
+export function bucketOf(category: string | null, subcategory?: string | null): Bucket {
+  const sub = (subcategory ?? "").toLowerCase();
+  if (category === "Dresses" || category === "Jumpsuits") return "dress";
+  if (category === "Bottoms") return "bottom";
+  if (category === "Tops") return "top";
+  if (category === "Outerwear") return "outer";
+  if (category === "Shoes") return "shoes";
+  if (category === "Bags") return "bag";
+  if (category === "Accessories") {
+    if (sub === "sunglasses") return "sunglasses";
+    if (sub === "belt") return "belt";
+    if (["earrings", "necklace", "bracelet", "ring", "brooch", "anklet", "watch"].includes(sub)) return "jewelry";
+  }
   return "acc";
 }
 
-export type ComposeItem = { id: string; imgUrl: string; category: string | null; style?: unknown };
+export type ComposeItem = { id: string; imgUrl: string; category: string | null; subcategory?: string | null };
 
-type PlacedForCompose = { imgUrl: string; x: number; y: number; scale: number; rotation: number; z: number };
+type PlacedForCompose = { imgUrl: string; x: number; y: number; scale: number; z: number };
+
+function fanOutAround(n: number, scale: number, centerX: number, centerY: number, axis: "x" | "y" = "x"): { x: number; y: number }[] {
+  if (n <= 1) return [{ x: centerX, y: centerY }];
+  const step = scale * (1 - MAX_OVERLAP_FRACTION);
+  const totalSpan = step * (n - 1);
+  const start = -totalSpan / 2;
+  return Array.from({ length: n }, (_, i) => {
+    const offset = start + i * step;
+    return axis === "x" ? { x: centerX + offset, y: centerY } : { x: centerX, y: centerY + offset };
+  });
+}
 
 function autoPlaceForCompose(items: ComposeItem[]): PlacedForCompose[] {
+  const withBucket = items.map((it) => ({ it, bucket: bucketOf(it.category, it.subcategory) }));
+  const byBucket = new Map<Bucket, ComposeItem[]>();
+  for (const { it, bucket } of withBucket) {
+    const list = byBucket.get(bucket) ?? [];
+    list.push(it);
+    byBucket.set(bucket, list);
+  }
+  if (!withBucket.length) return [];
+
+  const anchorBucket: Bucket = byBucket.has("dress") ? "dress" : byBucket.has("bottom") ? "bottom" : "top";
+  const anchorScale = BASE_SCALE[anchorBucket];
+  const anchorX = 0.46;
+  const anchorY = anchorBucket === "top" ? 0.42 : 0.54;
+
   const placed: PlacedForCompose[] = [];
-  const seenInBucket: Partial<Record<Bucket, number>> = {};
-  items.forEach((it) => {
-    const b = bucketOf(it.category, it.style);
-    const duplicateIndex = seenInBucket[b] ?? 0;
-    seenInBucket[b] = duplicateIndex + 1;
-    const fanOut = duplicateIndex * (b === "acc" ? 0.09 : 0.05) * (duplicateIndex % 2 === 0 ? 1 : -1);
-    const rotationFan = duplicateIndex * 4 * (duplicateIndex % 2 === 0 ? 1 : -1);
-    placed.push({
-      imgUrl: it.imgUrl,
-      x: LAYOUT_X[b] + fanOut,
-      y: LAYOUT_Y[b] + duplicateIndex * 0.03,
-      scale: b === "shoes" ? 0.28 : b === "acc" ? 0.24 : 0.42,
-      rotation: LAYOUT_ROTATION[b] + rotationFan,
-      z: Z_BY_BUCKET[b] ?? 1,
-    });
-  });
+  const place = (it: ComposeItem, x: number, y: number, scale: number, z: number) => {
+    placed.push({ imgUrl: it.imgUrl, x, y, scale, z });
+  };
+
+  const anchorEntries = byBucket.get(anchorBucket) ?? [];
+  const anchorPositions = fanOutAround(anchorEntries.length, anchorScale, anchorX, anchorY, "x");
+  anchorEntries.forEach((it, idx) => place(it, anchorPositions[idx].x, anchorPositions[idx].y, anchorScale, Z_BY_BUCKET[anchorBucket]));
+
+  if (anchorBucket === "bottom" && byBucket.has("top")) {
+    const topEntries = byBucket.get("top")!;
+    const topScale = BASE_SCALE.top;
+    const overlapGap = (anchorScale / 2 + topScale / 2) * (1 - MAX_OVERLAP_FRACTION * 1.2);
+    const topY = anchorY - overlapGap;
+    const positions = fanOutAround(topEntries.length, topScale, anchorX + 0.03, topY, "x");
+    topEntries.forEach((it, idx) => place(it, positions[idx].x, positions[idx].y, topScale, Z_BY_BUCKET.top));
+  }
+
+  if (byBucket.has("outer")) {
+    const outerEntries = byBucket.get("outer")!;
+    const outerScale = BASE_SCALE.outer;
+    const topY = anchorBucket === "bottom" && byBucket.has("top") ? anchorY - (anchorScale / 2 + BASE_SCALE.top / 2) * 0.85 : anchorY - anchorScale * 0.15;
+    const positions = fanOutAround(outerEntries.length, outerScale, anchorX + anchorScale * 0.55, topY, "y");
+    outerEntries.forEach((it, idx) => place(it, positions[idx].x, positions[idx].y, outerScale, Z_BY_BUCKET.outer));
+  }
+
+  if (byBucket.has("shoes")) {
+    const shoeEntries = byBucket.get("shoes")!;
+    const shoeScale = BASE_SCALE.shoes;
+    const shoeY = anchorY + anchorScale / 2 + shoeScale * 0.55;
+    const positions = fanOutAround(shoeEntries.length, shoeScale, anchorX, shoeY, "x");
+    shoeEntries.forEach((it, idx) => place(it, positions[idx].x, positions[idx].y, shoeScale, Z_BY_BUCKET.shoes));
+  }
+
+  if (byBucket.has("bag")) {
+    const bagEntries = byBucket.get("bag")!;
+    const bagScale = BASE_SCALE.bag;
+    const bagX = anchorX - anchorScale / 2 - bagScale * 0.6;
+    const bagY = anchorY + anchorScale * 0.12;
+    const positions = fanOutAround(bagEntries.length, bagScale, bagX, bagY, "y");
+    bagEntries.forEach((it, idx) => place(it, positions[idx].x, positions[idx].y, bagScale, Z_BY_BUCKET.bag));
+  }
+
+  if (byBucket.has("belt")) {
+    const beltEntries = byBucket.get("belt")!;
+    const beltScale = BASE_SCALE.belt;
+    const beltY = anchorBucket === "bottom" ? anchorY - anchorScale * 0.42 : anchorY;
+    const positions = fanOutAround(beltEntries.length, beltScale, anchorX + anchorScale * 0.35, beltY, "y");
+    beltEntries.forEach((it, idx) => place(it, positions[idx].x, positions[idx].y, beltScale, Z_BY_BUCKET.belt));
+  }
+
+  if (byBucket.has("sunglasses")) {
+    const glassesEntries = byBucket.get("sunglasses")!;
+    const glassesScale = BASE_SCALE.sunglasses;
+    const topEdgeY = anchorBucket === "bottom" && byBucket.has("top")
+      ? anchorY - (anchorScale / 2 + BASE_SCALE.top / 2) * (1 - MAX_OVERLAP_FRACTION * 1.2) - BASE_SCALE.top / 2
+      : anchorY - anchorScale / 2;
+    const glassesY = Math.max(0.08, topEdgeY - glassesScale * 0.7);
+    const positions = fanOutAround(glassesEntries.length, glassesScale, anchorX + anchorScale * 0.2, glassesY, "x");
+    glassesEntries.forEach((it, idx) => place(it, positions[idx].x, positions[idx].y, glassesScale, Z_BY_BUCKET.sunglasses));
+  }
+
+  if (byBucket.has("jewelry")) {
+    const jewelryEntries = byBucket.get("jewelry")!;
+    const jewelryScale = BASE_SCALE.jewelry;
+    const neckY = anchorBucket === "bottom" && byBucket.has("top")
+      ? anchorY - (anchorScale / 2 + BASE_SCALE.top / 2) * (1 - MAX_OVERLAP_FRACTION * 1.2)
+      : anchorY - anchorScale * 0.3;
+    const positions = fanOutAround(jewelryEntries.length, jewelryScale, anchorX - anchorScale * 0.25, neckY, "x");
+    jewelryEntries.forEach((it, idx) => place(it, positions[idx].x, positions[idx].y, jewelryScale, Z_BY_BUCKET.jewelry));
+  }
+
+  if (byBucket.has("acc")) {
+    const accEntries = byBucket.get("acc")!;
+    const accScale = BASE_SCALE.acc;
+    const positions = fanOutAround(accEntries.length, accScale, anchorX + anchorScale * 0.5, anchorY + anchorScale * 0.35, "y");
+    accEntries.forEach((it, idx) => place(it, positions[idx].x, positions[idx].y, accScale, Z_BY_BUCKET.acc));
+  }
+
   return placed;
 }
 
@@ -127,15 +238,22 @@ export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | n
     .sort((a, b) => a.p.z - b.p.z);
 
   for (const { p, img } of drawOrder) {
-    const w = CANVAS_SIZE * p.scale;
-    const h = w * (img.naturalHeight / img.naturalWidth || 1);
+    let w = CANVAS_SIZE * p.scale;
+    let h = w * (img.naturalHeight / img.naturalWidth || 1);
+    // Real aspect-ratio cap: an unusually tall garment photo (a maxi
+    // dress, a long coat) could otherwise exceed a sensible height even
+    // at a normal width-based scale — shrink proportionally so height
+    // never exceeds the cap, rather than letting it run past the
+    // canvas the way the previous version could.
+    const maxH = CANVAS_SIZE * MAX_HEIGHT_FRACTION;
+    if (h > maxH) {
+      const shrink = maxH / h;
+      w *= shrink;
+      h = maxH;
+    }
     const cx = CANVAS_SIZE * p.x;
     const cy = CANVAS_SIZE * p.y;
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate((p.rotation * Math.PI) / 180);
-    ctx.drawImage(img, -w / 2, -h / 2, w, h);
-    ctx.restore();
+    ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
   }
 
   // Same small "aura" watermark OutfitBuilder's canvas carries, so a
