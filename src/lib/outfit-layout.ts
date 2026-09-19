@@ -14,7 +14,10 @@
  *  (cell ratio 4:5, grid 0-1, ±0.03).
  */
 
-export type Bucket = "dress" | "bottom" | "top" | "outer" | "shoes" | "bag" | "sunglasses" | "jewelry" | "belt" | "acc";
+export type Bucket =
+  | "dress" | "bottom" | "top" | "outer" | "shoes" | "bag" | "belt" | "acc"
+  // body-anchored accessories: each one is placed where it is worn (see layoutOutfit)
+  | "sunglasses" | "headwear" | "earrings" | "necklace" | "brooch" | "wrist" | "anklet";
 
 export const CANVAS_W = 1080;
 export const CANVAS_H = 1350; // 4:5
@@ -34,13 +37,18 @@ const BOX: Record<Bucket, { w: number; h: number }> = {
   shoes: { w: 0.34, h: 0.14 },
   bag: { w: 0.32, h: 0.30 },
   sunglasses: { w: 0.28, h: 0.10 },
-  jewelry: { w: 0.13, h: 0.13 },
+  headwear: { w: 0.22, h: 0.12 },
+  earrings: { w: 0.12, h: 0.12 },
+  necklace: { w: 0.24, h: 0.14 },
+  brooch: { w: 0.07, h: 0.07 },
+  wrist: { w: 0.10, h: 0.15 }, // watch, bracelet, ring, gloves
+  anklet: { w: 0.14, h: 0.06 },
   belt: { w: 0.36, h: 0.06 },
   acc: { w: 0.22, h: 0.16 },
 };
 const TOP_AS_ANCHOR = { w: 0.50, h: 0.45 };
 
-const Z: Record<Bucket, number> = { outer: 1, dress: 2, bottom: 2, belt: 3, top: 4, shoes: 5, bag: 5, sunglasses: 5, jewelry: 5, acc: 5 };
+const Z: Record<Bucket, number> = { outer: 1, dress: 2, bottom: 2, belt: 3, top: 4, shoes: 5, bag: 5, sunglasses: 5, headwear: 5, earrings: 5, necklace: 6, brooch: 6, wrist: 5, anklet: 5, acc: 5 };
 
 export function bucketOf(category: string | null, subcategory?: string | null): Bucket {
   const sub = (subcategory ?? "").toLowerCase();
@@ -53,7 +61,12 @@ export function bucketOf(category: string | null, subcategory?: string | null): 
   if (category === "Accessories") {
     if (sub === "sunglasses") return "sunglasses";
     if (sub === "belt") return "belt";
-    if (["earrings", "necklace", "bracelet", "ring", "brooch", "anklet", "watch"].includes(sub)) return "jewelry";
+    if (sub === "earrings") return "earrings";
+    if (sub === "necklace") return "necklace";
+    if (sub === "brooch") return "brooch";
+    if (sub === "anklet") return "anklet";
+    if (["watch", "bracelet", "ring", "gloves"].includes(sub)) return "wrist";
+    if (["hat", "cap", "hair accessory"].includes(sub)) return "headwear";
   }
   return "acc";
 }
@@ -149,13 +162,32 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
   if (outer) placeGroup(by.get("outer")!, "outer", BOX.outer, 0.22 * W, 0.50 * H);
 
   // ── Top: diagonal up-right, waist overlap ≈ 45% of its own height ──
+  let topRects: LayoutRect[] = [];
   if (tops.length) {
     if (anchorBucket === "bottom") {
-      placeGroup(tops, "top", BOX.top, anchorCx + 0.26 * W, () => A.t - 0.05 * topH);
+      topRects = placeGroup(tops, "top", BOX.top, anchorCx + 0.26 * W, () => A.t - 0.05 * topH);
     } else {
-      placeGroup(tops, "top", BOX.top, 0.72 * W, () => MY + topH / 2 + 0.02 * H);
+      topRects = placeGroup(tops, "top", BOX.top, 0.72 * W, () => MY + topH / 2 + 0.02 * H);
     }
   }
+
+  // Torso = where the garment covering the chest sits. Every body-anchored
+  // accessory below is positioned relative to it, the way it is worn:
+  // head-level things beside the neckline, necklace ON the neckline, wrist
+  // things at hip height beside the legs (where the hands hang).
+  const torso = topRects.length
+    ? union(topRects)
+    : anchorBucket === "dress"
+      ? { l: A.l, r: A.r, t: A.t, b: A.t + 0.5 * aH }
+      : anchorBucket === "top"
+        ? A
+        : { l: A.l, r: A.r, t: MY, b: A.t }; // bottom only: virtual torso above the waist
+  const torsoW = torso.r - torso.l, torsoH = torso.b - torso.t;
+  const torsoCx = (torso.l + torso.r) / 2;
+  const wristTop =
+    anchorBucket === "dress" ? A.t + 0.42 * aH
+    : anchorBucket === "bottom" ? (topRects.length ? torso.b + 0.03 * H : A.t + 0.10 * H)
+    : A.b - 0.15 * H;
 
   // ── Belt: full waist width, on the waistband (only with dress / bottom) ──
   const beltList = by.get("belt") ?? [];
@@ -167,29 +199,66 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
   }
 
   // ── Shoes: free bottom-right corner, ≤ ~20% overlap with the anchor ──
+  let shoeRects: LayoutRect[] = [];
   if (has("shoes")) {
-    const ws = BOX.shoes.w * W * (by.get("shoes")!.length > 1 ? GROUP_SHRINK : 1);
+    const shoeBox = outer ? { w: 0.30, h: 0.13 } : BOX.shoes; // narrower when the coat takes the left side
+    const ws = shoeBox.w * W * (by.get("shoes")!.length > 1 ? GROUP_SHRINK : 1);
     const cx = Math.min(W - MX - ws / 2, A.r + ws / 2 - 0.2 * ws);
     // Several pairs: stack them in the corner instead of fanning sideways (a sideways
     // fan would push the first pair back under the anchor).
-    placeGroup(by.get("shoes")!, "shoes", BOX.shoes, Math.max(cx, 0.75 * W), (outer ? 0.84 : 0.80) * H, by.get("shoes")!.length > 1 ? "y" : "x");
+    shoeRects = placeGroup(by.get("shoes")!, "shoes", shoeBox, Math.max(cx, 0.75 * W), (outer ? 0.86 : 0.80) * H, by.get("shoes")!.length > 1 ? "y" : "x");
   }
 
   // ── Bag: free side, slightly tucked against the anchor ──
   if (has("bag")) {
     const bw = BOX.bag.w * W;
-    if (outer) placeGroup(by.get("bag")!, "bag", BOX.bag, W - MX - bw / 2, 0.68 * H, "y");
+    if (outer) placeGroup(by.get("bag")!, "bag", BOX.bag, W - MX - bw / 2, 0.67 * H, "y");
     else placeGroup(by.get("bag")!, "bag", BOX.bag, Math.max(MX + bw / 2, A.l - 0.3 * bw), 0.58 * H, "y");
   }
 
-  // ── Sunglasses / jewelry / other accessories: corners ──
+  // ── Head-level: sunglasses, earrings, headwear — the top band, beside the neckline ──
   if (has("sunglasses")) {
-    if (outer) placeGroup(by.get("sunglasses")!, "sunglasses", BOX.sunglasses, 0.80 * W, 0.49 * H);
-    else placeGroup(by.get("sunglasses")!, "sunglasses", { w: 0.26, h: 0.10 }, 0.18 * W, 0.22 * H);
+    // beside the torso, stacked under the earrings; with a coat on the left, up in the top band
+    if (outer) placeGroup(by.get("sunglasses")!, "sunglasses", BOX.sunglasses, 0.22 * W, (mh) => MY + mh / 2);
+    else {
+      const gw = 0.22 * W;
+      placeGroup(by.get("sunglasses")!, "sunglasses", { w: 0.22, h: 0.09 }, Math.max(MX + gw / 2, A.l - 0.45 * gw), 0.22 * H);
+    }
   }
-  if (has("jewelry")) {
-    placeGroup(by.get("jewelry")!, "jewelry", BOX.jewelry, 0.34 * W, (mh) => MY + mh / 2);
+  if (has("earrings")) {
+    const ew = BOX.earrings.w * W;
+    placeGroup(by.get("earrings")!, "earrings", BOX.earrings, torso.l - ew / 2 - 0.02 * W, (mh) => MY + mh / 2 + 0.01 * H);
   }
+  const wristList = [...(by.get("wrist") ?? []), ...(outer ? by.get("headwear") ?? [] : [])];
+  if (has("headwear") && !outer) {
+    placeGroup(by.get("headwear")!, "headwear", BOX.headwear, 0.22 * W, (mh) => MY + mh / 2 + 0.01 * H);
+  }
+
+  // ── On the body: necklace on the neckline, brooch on the chest ──
+  if (has("necklace")) {
+    const nb = { w: Math.min(BOX.necklace.w, (0.6 * torsoW) / W), h: BOX.necklace.h };
+    placeGroup(by.get("necklace")!, "necklace", nb, torsoCx, (mh) => torso.t + mh / 2 + 0.02 * torsoH);
+  }
+  if (has("brooch")) {
+    placeGroup(by.get("brooch")!, "brooch", BOX.brooch, torso.l + 0.3 * torsoW, torso.t + 0.30 * torsoH);
+  }
+
+  // ── Wrist things (watch / bracelet / ring / gloves): hip height, beside the legs ──
+  if (wristList.length) {
+    const cx = Math.min(W - MX - 0.10 * W, Math.max(A.r + 0.09 * W, MX + 0.10 * W));
+    placeGroup(wristList, "wrist", BOX.wrist, cx, (mh) => wristTop + mh / 2, "x");
+  }
+
+  // ── Anklet: just above the shoes ──
+  if (has("anklet")) {
+    if (shoeRects.length) {
+      const S = union(shoeRects);
+      placeGroup(by.get("anklet")!, "anklet", BOX.anklet, (S.l + S.r) / 2, (mh) => S.t - mh / 2 - 0.01 * H);
+    } else {
+      placeGroup(by.get("anklet")!, "anklet", BOX.anklet, 0.75 * W, 0.86 * H);
+    }
+  }
+
   const accList = [...(by.get("acc") ?? []), ...(beltList.length && !beltOnWaist ? beltList : [])];
   if (accList.length) placeGroup(accList, "acc", BOX.acc, 0.17 * W, 0.83 * H, "y");
 
