@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useTranslation } from "react-i18next";
 import { Bell, Search, Sparkles, TrendingUp, MapPin, Loader2 } from "lucide-react";
-import type { Screen } from "../AuraApp";
+import type { Screen, BuilderInit } from "../AuraApp";
 import { useProfile } from "@/hooks/use-profile";
 import { useLocation } from "@/hooks/use-location";
 import { useWeather } from "@/hooks/use-weather";
@@ -30,7 +30,7 @@ const CURATED_OCCASION_KEYS: Record<string, string> = {
   Evening: "home.occasionEvening",
 };
 
-export function Home({ go }: { go: (s: Screen) => void }) {
+export function Home({ go, openAvatarTryOn, openBuilder }: { go: (s: Screen) => void; openAvatarTryOn: (itemIds?: string[]) => void; openBuilder: (init: BuilderInit) => void }) {
   const { t } = useTranslation();
   const unreadCount = useUnreadNotifications();
   const { user } = useAuth();
