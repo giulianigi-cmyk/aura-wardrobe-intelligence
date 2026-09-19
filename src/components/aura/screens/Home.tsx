@@ -418,7 +418,7 @@ export function Home({ go }: { go: (s: Screen) => void }) {
           <button onClick={() => go("ai")} className="block w-full text-left">
             <div className="relative overflow-hidden rounded-[2rem] shadow-luxe gradient-warm p-4">
               {todayImagePath && signedLookImages[todayImagePath] ? (
-                <div className="rounded-xl overflow-hidden aspect-square" style={{ background: "#FFFFFF" }}>
+                <div className="rounded-xl overflow-hidden aspect-[4/5]" style={{ background: "#FFFFFF" }}>
                   <img src={signedLookImages[todayImagePath]} alt="" className="h-full w-full object-contain" />
                 </div>
               ) : (
@@ -529,7 +529,7 @@ export function Home({ go }: { go: (s: Screen) => void }) {
               const signedImage = imagePath ? signedLookImages[imagePath] : null;
               return (
                 <button key={i} onClick={() => go("ai")} className="shrink-0 w-40 text-left active:scale-[0.98] transition">
-                  <div className="overflow-hidden rounded-2xl shadow-soft aspect-[3/4] bg-[#FFFFFF]">
+                  <div className="overflow-hidden rounded-2xl shadow-soft aspect-[4/5] bg-[#FFFFFF]">
                     {signedImage ? (
                       <img src={signedImage} alt="" className="h-full w-full object-contain" />
                     ) : (
