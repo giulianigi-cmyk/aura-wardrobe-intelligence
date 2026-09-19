@@ -26,12 +26,16 @@ export type LayoutInput = { id: string; bucket: Bucket; /** height / width of th
 export type LayoutRect = { id: string; bucket: Bucket; /** top-left, canvas px */ x: number; y: number; w: number; h: number; z: number };
 
 const MARGIN = 0.04; // min distance from canvas edge (fraction)
+/** Bottom strip kept EMPTY for the "aura" watermark (drawn bottom-centre by
+ *  compose-outfit-canvas.ts, its glyphs span y ≈ .97-.99). No garment or
+ *  accessory may enter it: everything is clamped to y ≤ 1 − BOTTOM_RESERVED. */
+export const BOTTOM_RESERVED = 0.055;
 const GROUP_SHRINK = 0.75; // when several items share one slot
 
 /** Max box per bucket: [max width, max height], fractions of canvas W / H. */
 const BOX: Record<Bucket, { w: number; h: number }> = {
   dress: { w: 0.46, h: 0.80 },
-  bottom: { w: 0.42, h: 0.70 },
+  bottom: { w: 0.42, h: 0.69 },
   top: { w: 0.42, h: 0.37 },
   outer: { w: 0.42, h: 0.72 },
   shoes: { w: 0.34, h: 0.14 },
@@ -77,6 +81,7 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
   if (!items.length) return [];
   const MX = MARGIN * W;
   const MY = MARGIN * H;
+  const MB = BOTTOM_RESERVED * H; // bottom limit, see BOTTOM_RESERVED
   const by = new Map<Bucket, LayoutInput[]>();
   for (const it of items) by.set(it.bucket, [...(by.get(it.bucket) ?? []), it]);
   const has = (b: Bucket) => (by.get(b)?.length ?? 0) > 0;
@@ -112,7 +117,7 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
       const off = cursor + span / 2;
       cursor += span;
       const px = clampC(axis === "x" ? cx + off : cx, s.w, MX, W - MX);
-      const py = clampC(axis === "y" ? cyv + off : cyv, s.h, MY, H - MY);
+      const py = clampC(axis === "y" ? cyv + off : cyv, s.h, MY, H - MB);
       rects.push({ id: it.id, bucket, x: px - s.w / 2, y: py - s.h / 2, w: s.w, h: s.h, z });
     });
     out.push(...rects);
@@ -128,7 +133,7 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
   // No garment at all (only accessories): simple 2-column grid.
   if (!anchorBucket) {
     const cols = 2, rows = Math.ceil(items.length / cols);
-    const cw = (W - 2 * MX) / cols, ch = (H - 2 * MY) / Math.max(rows, 1);
+    const cw = (W - 2 * MX) / cols, ch = (H - MY - MB) / Math.max(rows, 1);
     items.forEach((it, i) => {
       const s = sizeOf(it, { w: (cw * 0.85) / W, h: (ch * 0.85) / H }, 1);
       const c = i % cols, r = Math.floor(i / cols);
