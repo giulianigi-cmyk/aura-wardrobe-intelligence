@@ -38,6 +38,7 @@ export const OPEN_LAYER_NEEDS_BASE_PROMPT_RULE =
   "OPEN LAYER RULE: an open-front cardigan, wrap top, duster, or any other knit/cover-up that doesn't close over the chest must ALWAYS be paired with a base layer underneath — a tank, cami, t-shirt, blouse, or long-sleeve top, chosen for the temperature and season (light tank/cami in heat, long sleeve or a fitted knit in cold). " +
   "Never propose that kind of open layer as the only top in the outfit. If the wardrobe has no suitable base layer available, don't use that open piece at all rather than leaving it worn alone.";
 
+
 /** Crystals, Swarovski, rhinestones, diamonds, sequins: a piece decorated with them is an
  *  EVENING piece. This is read from the Material field (and styleTags/subcategory as a
  *  fallback), so trousers with Swarovski, a sequinned top or a crystal clutch are recognised
