@@ -30,6 +30,9 @@ export type LayoutInput = {
    *  used to size each piece by its REAL-WORLD dimension (see realCm) */
   subcategory?: string | null;
   length?: string | null;
+  /** share of the visible bounding box that is actually opaque (0-1). A bag photographed with a long
+   *  thin strap has a big, mostly empty box: without this its body came out tiny. */
+  fill?: number | null;
 };
 export type LayoutRect = { id: string; bucket: Bucket; /** top-left, canvas px */ x: number; y: number; w: number; h: number; z: number };
 
@@ -47,7 +50,7 @@ const BOX: Record<Bucket, { w: number; h: number }> = {
   top: { w: 0.42, h: 0.37 },
   outer: { w: 0.42, h: 0.72 },
   shoes: { w: 0.34, h: 0.14 },
-  bag: { w: 0.36, h: 0.32 },
+  bag: { w: 0.40, h: 0.34 },
   sunglasses: { w: 0.28, h: 0.10 },
   headwear: { w: 0.22, h: 0.12 },
   earrings: { w: 0.12, h: 0.12 },
@@ -134,7 +137,7 @@ const REFERENCE: Partial<Record<Bucket, { cm: number; min: number; max: number }
   dress: { cm: 130, min: 0.6, max: 1 },
   top: { cm: 62, min: 0.72, max: 1.2 },
   outer: { cm: 100, min: 0.55, max: 1.1 },
-  bag: { cm: 30, min: 0.75, max: 1.25 },
+  bag: { cm: 30, min: 0.8, max: 1.2 },
   shoes: { cm: 28, min: 0.85, max: 1.1 },
 };
 function realScale(it: LayoutInput): number {
@@ -143,7 +146,7 @@ function realScale(it: LayoutInput): number {
   if (!ref || cm == null) return 1;
   // Bags: a clutch is smaller than a tote, but only SOFTLY so (a real 24 cm crossbody is not
   // 20% smaller than a 30 cm shoulder bag on a flat-lay board) — they used to come out too small.
-  const ratio = it.bucket === "bag" ? Math.pow(cm / ref.cm, 0.6) : cm / ref.cm;
+  const ratio = it.bucket === "bag" ? Math.pow(cm / ref.cm, 0.4) : cm / ref.cm;
   return Math.min(ref.max, Math.max(ref.min, ratio));
 }
 
@@ -189,7 +192,12 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
   /** Size = fit inside the bucket box using the real aspect ratio. */
   const sizeOf = (it: LayoutInput, box: Box, shrink: number) => {
     const aspect = it.aspect > 0 ? it.aspect : 1;
-    const f = realScale(it);
+    // A bag whose box is mostly empty (thin strap, chain, long handles) is enlarged so that its BODY
+    // reaches the size a compact bag would (up to +35%).
+    const strapK = it.bucket === "bag" && it.fill != null && it.fill > 0 && it.fill < 0.6
+      ? Math.min(1.35, Math.sqrt(0.6 / Math.max(it.fill, 0.25)))
+      : 1;
+    const f = realScale(it) * strapK;
     // Garments: the real LENGTH sets the height cap (a mini skirt is short, a maxi long);
     // the width cap stays put so wide pieces can't overflow. Bags and shoes: the real
     // WIDTH is what matters, so both caps follow it.
@@ -400,16 +408,16 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
     if (outer) {
       placeGroup(by.get("bag")!, "bag", BOX.bag, W - MX - bw / 2, 0.67 * H, "y");
     } else {
-      // The bag sits beside the anchor, tucked ~30% of its own width under the garment's edge (the
+      // The bag sits beside the anchor, tucked ~40% of its own width under the garment's edge (the
       // editorial boards do the same). It only shrinks a little (never below 85%) when the strip on
-      // the left is narrow — it used to be squeezed down to 70% and came out too small.
-      const kFit = Math.max(0.85, Math.min(1, (A.l - MX) / (0.7 * bw)));
+      // the left is narrow — it used to be squeezed down and came out too small.
+      const kFit = Math.max(0.85, Math.min(1, (A.l - MX) / (0.6 * bw)));
       const bwk = bw * kFit;
       const bagBoxK = { w: BOX.bag.w * kFit, h: BOX.bag.h * kFit };
       // Vertically: at its usual height, but never on top of the belt drawn beside the garment.
       const bagH = Math.max(...by.get("bag")!.map((it) => sizeOf(it, bagBoxK, bagShrink).h));
       const belowBelt = beltRects.length ? union(beltRects).b + 0.03 * H + bagH / 2 : 0;
-      placeGroup(by.get("bag")!, "bag", bagBoxK, Math.max(MX + bwk / 2, A.l - 0.2 * bwk), Math.max(0.58 * H, belowBelt), "y");
+      placeGroup(by.get("bag")!, "bag", bagBoxK, Math.max(MX + bwk / 2, A.l - 0.1 * bwk), Math.max(0.58 * H, belowBelt), "y");
     }
   }
 
