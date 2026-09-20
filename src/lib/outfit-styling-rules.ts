@@ -37,3 +37,40 @@ export const ACCESSORY_OCCASION_PROMPT_RULE =
 export const OPEN_LAYER_NEEDS_BASE_PROMPT_RULE =
   "OPEN LAYER RULE: an open-front cardigan, wrap top, duster, or any other knit/cover-up that doesn't close over the chest must ALWAYS be paired with a base layer underneath — a tank, cami, t-shirt, blouse, or long-sleeve top, chosen for the temperature and season (light tank/cami in heat, long sleeve or a fitted knit in cold). " +
   "Never propose that kind of open layer as the only top in the outfit. If the wardrobe has no suitable base layer available, don't use that open piece at all rather than leaving it worn alone.";
+
+/** Crystals, Swarovski, rhinestones, diamonds, sequins: a piece decorated with them is an
+ *  EVENING piece. This is read from the Material field (and styleTags/subcategory as a
+ *  fallback), so trousers with Swarovski, a sequinned top or a crystal clutch are recognised
+ *  as such by every engine — not only when the word happens to be in the subcategory. */
+export const EMBELLISHED_SIGNAL = /swarovski|crystal|cristall|rhinestone|strass|diamond|diamant|sequin|paillette|lurex/i;
+
+const JEWELRY_SUBCATEGORIES = new Set(["earrings", "necklace", "bracelet", "ring", "brooch", "anklet", "watch"]);
+
+/** True for a garment, shoe, bag or non-jewelry accessory that is embellished. Jewelry itself
+ *  is excluded on purpose: earrings with stones are fine at any hour of the day. */
+export function isEmbellishedPiece(item: {
+  subcategory?: string | null; styleTags?: string[] | null; material?: string[] | null;
+}): boolean {
+  const sub = (item.subcategory ?? "").toLowerCase();
+  if (JEWELRY_SUBCATEGORIES.has(sub)) return false;
+  const text = `${sub} ${(item.styleTags ?? []).join(" ")} ${(item.material ?? []).join(" ")}`;
+  return EMBELLISHED_SIGNAL.test(text);
+}
+
+const EVENING_LIKE_OCCASION = /evening|sera|serata|cocktail|gala|party|festa|wedding|matrimonio|black.?tie|formal|concert|concerto|night|club|dinner|cena/i;
+const DAYTIME_BUSINESS = /work|business|lavoro|office|ufficio/i;
+
+/** Whether an embellished piece is welcome in a look for this occasion (free text). An empty
+ *  occasion is left to the prompt. A business dinner is still a business setting: no sparkle. */
+export function allowsEmbellished(occasion: string | null | undefined, daySegment?: string | null): boolean {
+  if (daySegment === "evening") return true;
+  const o = (occasion ?? "").trim();
+  if (!o) return true;
+  if (DAYTIME_BUSINESS.test(o)) return false;
+  return EVENING_LIKE_OCCASION.test(o);
+}
+
+export const EMBELLISHED_EVENING_PROMPT_RULE =
+  "EMBELLISHED PIECES: a garment, shoe or bag decorated with crystals, Swarovski, rhinestones, diamonds or sequins (see its material and styleTags) is an EVENING piece \u2014 " +
+  "trousers with Swarovski are an evening look, not an everyday one. Use it only for Evening, Formal, cocktail, party or gala looks, and never for Work, everyday, Weekend, Travel or any daytime look. " +
+  "Jewelry with stones (earrings, necklace, watch, bracelet) is fine at any time of day.";
