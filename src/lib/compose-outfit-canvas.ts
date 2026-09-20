@@ -50,6 +50,25 @@ async function toDataUrl(url: string): Promise<string> {
   });
 }
 
+/** Loaded-image cache, keyed by signed URL. The same pieces are loaded again and
+ *  again (Home compose, the viewer, every manual "add piece" on the canvas), and
+ *  each load is a network fetch + decode: caching makes re-layouts near-instant.
+ *  Bounded, and a failed load is never cached. */
+const imageCache = new Map<string, Promise<HTMLImageElement>>();
+function loadCachedImage(url: string): Promise<HTMLImageElement> {
+  let p = imageCache.get(url);
+  if (!p) {
+    p = toDataUrl(url).then(loadImageEl);
+    imageCache.set(url, p);
+    p.catch(() => imageCache.delete(url));
+    if (imageCache.size > 80) {
+      const oldest = imageCache.keys().next().value;
+      if (oldest !== undefined) imageCache.delete(oldest);
+    }
+  }
+  return p;
+}
+
 type Crop = { sx: number; sy: number; sw: number; sh: number };
 
 /** Bounding box of the non-transparent pixels (alpha > 16), scanned on a
@@ -102,8 +121,7 @@ type Prepared = { r: LayoutRect; img: HTMLImageElement; crop: Crop }[];
 async function prepareLayout(items: ComposeItem[]): Promise<Prepared | null> {
   let images: HTMLImageElement[];
   try {
-    const dataUrls = await Promise.all(items.map((p) => toDataUrl(p.imgUrl)));
-    images = await Promise.all(dataUrls.map((d) => loadImageEl(d)));
+    images = await Promise.all(items.map((p) => loadCachedImage(p.imgUrl)));
   } catch (e) {
     console.error("[AURA compose-outfit-canvas] one or more images failed to load", e);
     return null;
@@ -133,20 +151,25 @@ async function prepareLayout(items: ComposeItem[]): Promise<Prepared | null> {
 export type BuilderLayoutEntry = { itemId: string; x: number; y: number; scale: number; rotation: number; z: number };
 
 /** The EXACT arrangement Home composes, expressed in OutfitBuilder's
- *  coordinates, so opening a look on the canvas never moves a garment.
+ *  coordinates, so opening a look on the canvas never moves a garment —
+ *  and so pieces added by hand land at the same sizes and places the
+ *  automatic composition uses.
  *
- *  Home's canvas is 4:5, the builder's default is 1:1: the whole
- *  composition is scaled by 0.8 and centred inside the square (same
- *  relative positions and sizes, just with side margins). The builder
- *  draws each image UNtrimmed while Home draws the trimmed visible area,
- *  so every rectangle is expanded back to the full image to keep the
- *  visible pixels in the same place. */
-export async function computeBuilderLayout(items: ComposeItem[]): Promise<BuilderLayoutEntry[] | null> {
+ *  Home's canvas is 4:5. The builder's is 1:1 (or 9:16): the whole
+ *  composition is scaled to fit inside it and centred (same relative
+ *  positions and sizes, just with margins). `canvasAspect` is the builder
+ *  canvas's height / width (1 for 1:1, 16/9 for 9:16). The builder draws
+ *  each image UNtrimmed while Home draws the trimmed visible area, so every
+ *  rectangle is expanded back to the full image to keep the visible pixels
+ *  in the same place. */
+export async function computeBuilderLayout(items: ComposeItem[], canvasAspect = 1): Promise<BuilderLayoutEntry[] | null> {
   if (!items.length) return null;
   const prepared = await prepareLayout(items);
   if (!prepared) return null;
-  const k = CANVAS_H > 0 ? CANVAS_W / CANVAS_H : 1; // 4:5 → 0.8
-  const offX = (CANVAS_W - CANVAS_W * k) / 2;
+  const canvasH = canvasAspect * CANVAS_W; // builder canvas height, in width units
+  const k = Math.min(1, canvasH / CANVAS_H); // fit the 4:5 composition inside it
+  const offX = (CANVAS_W - k * CANVAS_W) / 2;
+  const offY = (canvasH - k * CANVAS_H) / 2;
   return prepared.map(({ r, img, crop }) => {
     const fullW = (r.w * img.naturalWidth) / crop.sw;
     const fullH = (r.h * img.naturalHeight) / crop.sh;
@@ -157,7 +180,7 @@ export async function computeBuilderLayout(items: ComposeItem[]): Promise<Builde
     return {
       itemId: r.id,
       x: (offX + k * cx) / CANVAS_W,
-      y: (k * cy) / CANVAS_W, // builder 1:1 canvas: height == width
+      y: (offY + k * cy) / canvasH,
       scale: (k * fullW) / CANVAS_W,
       rotation: 0,
       z: r.z,
