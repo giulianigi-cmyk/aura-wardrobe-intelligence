@@ -24,8 +24,11 @@ export const MATERIAL_OPTIONS = [
   "Viscose", "Modal", "Lyocell", "Cupro",
   "Polyester", "Polyamide", "Elastane", "Acrylic",
   "Denim", "Leather", "Suede", "Shearling", "Down",
-  "Metal", "Gold", "Silver", "Steel", "Brass", "Pearl", "Rubber", "Canvas",
+    "Metal", "Gold", "Silver", "Steel", "Brass", "Pearl", "Rubber", "Canvas",
+  // Decorations that make a piece read as EVENING (see outfit-styling-rules.ts → isEmbellishedPiece)
+  "Swarovski", "Crystals", "Rhinestones", "Diamonds", "Sequins",
   "Synthetic",
+
 ];
 export const CURRENCY_OPTIONS = ["EUR", "USD", "GBP"];
 
