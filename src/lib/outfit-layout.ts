@@ -167,6 +167,10 @@ export function bucketOf(category: string | null, subcategory?: string | null): 
 
 type Box = { w: number; h: number };
 
+/** Spacing factor for pieces fanned out inside one slot: tiny accessories keep a hair of air
+ *  between them, bigger pieces (two pairs of shoes, two tops) may touch slightly. */
+const spanKOf = (bucket: Bucket): number => (bucket === "wrist" || bucket === "earrings" ? 1.06 : 0.95);
+
 export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): LayoutRect[] {
   if (!items.length) return [];
   const MX = MARGIN * W;
@@ -203,16 +207,20 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
     const maxH = Math.max(...sizes.map((s) => s.h));
     const cyv = typeof cy === "function" ? cy(maxH) : cy;
     const rects: LayoutRect[] = [];
-    let cursor = 0;
-    const total = sizes.reduce((a, s) => a + (axis === "x" ? s.w : s.h) * 0.95, 0) - (axis === "x" ? sizes[sizes.length - 1].w : sizes[sizes.length - 1].h) * 0.05;
-    cursor = -total / 2;
+    // small pieces sharing a slot (watch + bracelet, a pair of earrings…) sit side by side without touching
+    const spanK = spanKOf(bucket);
+    const spans = sizes.map((sz) => (axis === "x" ? sz.w : sz.h) * spanK);
+    const total = spans.reduce((a, v) => a + v, 0);
+    // move the group as a unit so it fits inside the margins (clamping item by item would squash neighbours together)
+    const cxg = axis === "x" ? Math.min(W - MX - total / 2, Math.max(MX + total / 2, cx)) : cx;
+    const cyg = axis === "y" ? Math.min(H - MB - total / 2, Math.max(MY + total / 2, cyv)) : cyv;
+    let cursor = -total / 2;
     list.forEach((it, i) => {
       const s = sizes[i];
-      const span = (axis === "x" ? s.w : s.h) * 0.95;
-      const off = cursor + span / 2;
-      cursor += span;
-      const px = clampC(axis === "x" ? cx + off : cx, s.w, MX, W - MX);
-      const py = clampC(axis === "y" ? cyv + off : cyv, s.h, MY, H - MB);
+      const off = cursor + spans[i] / 2;
+      cursor += spans[i];
+      const px = clampC(axis === "x" ? cxg + off : cxg, s.w, MX, W - MX);
+      const py = clampC(axis === "y" ? cyg + off : cyg, s.h, MY, H - MB);
       rects.push({ id: it.id, bucket, x: px - s.w / 2, y: py - s.h / 2, w: s.w, h: s.h, z });
     });
     out.push(...rects);
@@ -302,10 +310,77 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
     }
   }
 
-  // ── Shoes: free bottom-right corner, ≤ ~20% overlap with the anchor ──
+  // Necklace: never laid ON the garment. Beside the torso at neckline height on the
+  // free side (right first); if there is no room there (top up-right of the trousers),
+  // in the top band on the left; with a coat on the left, in the bottom-left corner.
+  let necklaceSide: "right" | "left" | "corner" | null = null;
+  if (has("necklace")) {
+    const rightFree = W - MX - (torso.r + 0.02 * W);
+    necklaceSide = rightFree >= 0.16 * W ? "right" : outer ? "corner" : "left";
+  }
+  // A hat / hair accessory normally takes the top-left slot; it moves to the wrist
+  // cluster when that slot (or the coat's side) is already taken.
+  const hatWithWrist = outer || necklaceSide === "left";
+  const wristList = [...(by.get("wrist") ?? []), ...(hatWithWrist ? by.get("headwear") ?? [] : [])];
+
+  // ── Right column, when a coat takes the left ──
+  // Necklace (on a dress), watch/bracelet, bag and shoes all live in the free right-hand
+  // strip. Placed independently they land on top of each other (watch on the bag, bag on
+  // the boots), so they are STACKED top → bottom instead: necklace at the neckline, shoes
+  // at the bottom, what is in between spread out, everything scaled down together if the
+  // strip is too short — and never wider than the strip allows.
+  const shoeBox = outer ? { w: 0.30, h: 0.13 } : BOX.shoes; // narrower when the coat takes the left side
+  const columnEntries: { list: LayoutInput[]; bucket: Bucket; box: Box; axis: "x" | "y" }[] = [];
+  if (outer) {
+    if (necklaceSide === "right") {
+      columnEntries.push({ list: by.get("necklace")!, bucket: "necklace", box: { w: Math.min(0.20, (W - MX - (torso.r + 0.02 * W)) / W), h: 0.12 }, axis: "x" });
+    }
+    if (wristList.length) columnEntries.push({ list: wristList, bucket: "wrist", box: BOX.wrist, axis: "x" });
+    if (has("bag")) columnEntries.push({ list: by.get("bag")!, bucket: "bag", box: BOX.bag, axis: "y" });
+    if (has("shoes")) columnEntries.push({ list: by.get("shoes")!, bucket: "shoes", box: shoeBox, axis: by.get("shoes")!.length > 1 ? "y" : "x" });
+  }
+  const useColumn = columnEntries.length >= 2;
   let shoeRects: LayoutRect[] = [];
-  if (has("shoes")) {
-    const shoeBox = outer ? { w: 0.30, h: 0.13 } : BOX.shoes; // narrower when the coat takes the left side
+  if (useColumn) {
+    const n = columnEntries.length;
+    const scaled = (b: Box, k: number): Box => ({ w: b.w * k, h: b.h * k });
+    const shrinkOf = (l: LayoutInput[]) => (l.length > 1 ? GROUP_SHRINK : 1);
+    const groupSize = (e: (typeof columnEntries)[number], k: number) => {
+      const sz = e.list.map((it) => sizeOf(it, scaled(e.box, k), shrinkOf(e.list)));
+      const sk = spanKOf(e.bucket);
+      return e.axis === "y"
+        ? { w: Math.max(...sz.map((q) => q.w)), h: sz.reduce((a, q) => a + q.h * sk, 0) }
+        : { w: sz.reduce((a, q) => a + q.w * sk, 0), h: Math.max(...sz.map((q) => q.h)) };
+    };
+    // 1) fit the strip's width (≤ ~25% overlap with the anchor)
+    const stripW = Math.max(0.16 * W, (W - MX - A.r) / 0.75);
+    let ks = columnEntries.map((e) => Math.min(1, stripW / groupSize(e, 1).w));
+    // 2) fit its height
+    const colTop = topRects.length ? Math.max(...topRects.map((r) => r.y + r.h)) + 0.02 * H : necklaceSide === "right" ? torso.t : wristTop;
+    const colBottom = 0.92 * H;
+    const gapMin = 0.02 * H;
+    let hs = columnEntries.map((e, i) => groupSize(e, ks[i]).h);
+    const sum = () => hs.reduce((a, h) => a + h, 0);
+    if (sum() + gapMin * (n - 1) > colBottom - colTop) {
+      const k = Math.max(0.6, (colBottom - colTop - gapMin * (n - 1)) / sum());
+      ks = ks.map((x) => x * k);
+      hs = columnEntries.map((e, i) => groupSize(e, ks[i]).h);
+    }
+    // 3) top-aligned with even gaps, last entry (shoes) sitting on the bottom line
+    const gap = Math.min(Math.max(gapMin, (colBottom - colTop - sum()) / (n - 1)), 0.10 * H);
+    let cursor = colTop;
+    columnEntries.forEach((e, i) => {
+      const isLast = i === n - 1;
+      const top = isLast ? Math.max(cursor, colBottom - hs[i]) : cursor;
+      const gw = groupSize(e, ks[i]).w;
+      const rects = placeGroup(e.list, e.bucket, scaled(e.box, ks[i]), W - MX - gw / 2, top + hs[i] / 2, e.axis);
+      if (e.bucket === "shoes") shoeRects = rects;
+      cursor = top + hs[i] + gap;
+    });
+  }
+
+  // ── Shoes: free bottom-right corner, ≤ ~20% overlap with the anchor ──
+  if (has("shoes") && !useColumn) {
     const shoeShrink = by.get("shoes")!.length > 1 ? GROUP_SHRINK : 1;
     const ws = Math.max(...by.get("shoes")!.map((it) => sizeOf(it, shoeBox, shoeShrink).w));
     const cx = Math.min(W - MX - ws / 2, A.r + ws / 2 - 0.2 * ws);
@@ -315,11 +390,19 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
   }
 
   // ── Bag: free side, slightly tucked against the anchor ──
-  if (has("bag")) {
+  if (has("bag") && !useColumn) {
     const bagShrink = by.get("bag")!.length > 1 ? GROUP_SHRINK : 1;
     const bw = Math.max(...by.get("bag")!.map((it) => sizeOf(it, BOX.bag, bagShrink).w));
-    if (outer) placeGroup(by.get("bag")!, "bag", BOX.bag, W - MX - bw / 2, 0.67 * H, "y");
-    else placeGroup(by.get("bag")!, "bag", BOX.bag, Math.max(MX + bw / 2, A.l - 0.3 * bw), 0.58 * H, "y");
+    if (outer) {
+      placeGroup(by.get("bag")!, "bag", BOX.bag, W - MX - bw / 2, 0.67 * H, "y");
+    } else {
+      // Tuck it only slightly under the anchor's edge (≈12% of its width); when the strip on the
+      // left is too narrow for that, make the bag a little smaller (never below 70%) rather
+      // than piling it onto the garment.
+      const kFit = Math.max(0.7, Math.min(1, (A.l - MX) / (0.88 * bw)));
+      const bwk = bw * kFit;
+      placeGroup(by.get("bag")!, "bag", { w: BOX.bag.w * kFit, h: BOX.bag.h * kFit }, Math.max(MX + bwk / 2, A.l - 0.38 * bwk), 0.58 * H, "y");
+    }
   }
 
   // ── Head-level: sunglasses, earrings, headwear — the top band, beside the neckline ──
@@ -335,24 +418,12 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
     const ew = BOX.earrings.w * W;
     placeGroup(by.get("earrings")!, "earrings", BOX.earrings, torso.l - ew / 2 - 0.02 * W, (mh) => MY + mh / 2 + 0.01 * H);
   }
-  // Necklace: never laid ON the garment. Beside the torso at neckline height on the
-  // free side (right first); if there is no room there (top up-right of the trousers),
-  // in the top band on the left; with a coat on the left, in the bottom-left corner.
-  let necklaceSide: "right" | "left" | "corner" | null = null;
-  if (has("necklace")) {
-    const rightFree = W - MX - (torso.r + 0.02 * W);
-    necklaceSide = rightFree >= 0.16 * W ? "right" : outer ? "corner" : "left";
-  }
-  // A hat / hair accessory normally takes the top-left slot; it moves to the wrist
-  // cluster when that slot (or the coat's side) is already taken.
-  const hatWithWrist = outer || necklaceSide === "left";
-  const wristList = [...(by.get("wrist") ?? []), ...(hatWithWrist ? by.get("headwear") ?? [] : [])];
   if (has("headwear") && !hatWithWrist) {
     placeGroup(by.get("headwear")!, "headwear", BOX.headwear, 0.22 * W, (mh) => MY + mh / 2 + 0.01 * H);
   }
 
   // ── Necklace (beside the torso, see above) and brooch (on the chest) ──
-  if (has("necklace")) {
+  if (has("necklace") && !(useColumn && necklaceSide === "right")) {
     if (necklaceSide === "right") {
       const bw = Math.min(0.20, (W - MX - (torso.r + 0.02 * W)) / W);
       placeGroup(by.get("necklace")!, "necklace", { w: bw, h: 0.12 }, torso.r + 0.02 * W + (bw * W) / 2, (mh) => torso.t + mh / 2 + 0.02 * H);
@@ -367,7 +438,7 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
   }
 
   // ── Wrist things (watch / bracelet / ring / gloves): hip height, beside the legs ──
-  if (wristList.length) {
+  if (wristList.length && !useColumn) {
     const cx = Math.min(W - MX - 0.10 * W, Math.max(A.r + 0.09 * W, MX + 0.10 * W));
     placeGroup(wristList, "wrist", BOX.wrist, cx, (mh) => wristTop + mh / 2, "x");
   }
