@@ -22,7 +22,15 @@ export type Bucket =
 export const CANVAS_W = 1080;
 export const CANVAS_H = 1350; // 4:5
 
-export type LayoutInput = { id: string; bucket: Bucket; /** height / width of the visible garment */ aspect: number };
+export type LayoutInput = {
+  id: string; bucket: Bucket;
+  /** height / width of the visible garment */
+  aspect: number;
+  /** wardrobe subcategory ("Skirt", "Shirt", "Sneakers", …) and length ("Mini" | "Midi" | "Maxi" | "Short" | "Long" …):
+   *  used to size each piece by its REAL-WORLD dimension (see realCm) */
+  subcategory?: string | null;
+  length?: string | null;
+};
 export type LayoutRect = { id: string; bucket: Bucket; /** top-left, canvas px */ x: number; y: number; w: number; h: number; z: number };
 
 const MARGIN = 0.04; // min distance from canvas edge (fraction)
@@ -53,6 +61,88 @@ const BOX: Record<Bucket, { w: number; h: number }> = {
 const TOP_AS_ANCHOR = { w: 0.50, h: 0.45 };
 
 const Z: Record<Bucket, number> = { outer: 1, dress: 2, bottom: 2, belt: 5, top: 4, shoes: 5, bag: 5, sunglasses: 5, headwear: 5, earrings: 5, necklace: 5, brooch: 6, wrist: 5, anklet: 5, acc: 5 };
+
+/** Real-world size, in cm, of the dimension that matters for each kind of piece:
+ *  garments → their length (height), bags → width, shoes → length. Unknown → null
+ *  (the plain bucket box is used). This is what keeps a mini skirt short, a maxi
+ *  skirt long, a shirt bigger than a tank top, a tote bigger than a clutch. */
+export function realCm(bucket: Bucket, subcategory?: string | null, length?: string | null): number | null {
+  const sub = (subcategory ?? "").toLowerCase();
+  const len = (length ?? "").toLowerCase();
+  const has = (...words: string[]) => words.some((w) => sub.includes(w));
+  switch (bucket) {
+    case "top":
+      if (len === "cropped" || has("crop")) return 42;
+      if (len === "longline" || has("tunic")) return 80;
+      if (has("tank", "camisole", "vest top")) return 55;
+      if (has("bodysuit")) return 58;
+      if (has("shirt") && !has("t-shirt", "tshirt", "sweatshirt")) return 70;
+      if (has("blouse")) return 64;
+      if (has("hoodie", "sweatshirt")) return 66;
+      if (has("sweater", "cardigan", "knit")) return 64;
+      return 62; // T-shirt, polo, generic
+    case "bottom":
+      if (has("skirt")) return len === "mini" ? 40 : len === "midi" ? 75 : len === "maxi" ? 100 : 80;
+      if (has("bermuda")) return 52;
+      if (has("shorts")) return 42;
+      return 100; // trousers, jeans, leggings, cargo, joggers
+    case "dress":
+      if (has("playsuit", "romper")) return 80;
+      if (has("jumpsuit")) return 150;
+      return len === "mini" ? 90 : len === "midi" ? 115 : len === "maxi" ? 140 : 120;
+    case "outer":
+      if (len === "short") return 60;
+      if (len === "mid") return 85;
+      if (len === "long") return 110;
+      if (has("blazer")) return 75;
+      if (has("coat", "trench")) return 110;
+      if (has("parka")) return 100;
+      if (has("puffer")) return 90;
+      if (has("cape")) return 80;
+      if (has("shacket", "rain jacket")) return 70;
+      if (has("windbreaker")) return 65;
+      if (has("jacket", "vest")) return 60;
+      return 90;
+    case "bag":
+      if (has("tote")) return 40;
+      if (has("hobo")) return 32;
+      if (has("shoulder", "satchel", "backpack")) return 30;
+      if (has("top handle")) return 28;
+      if (has("bucket")) return 26;
+      if (has("crossbody")) return 24;
+      if (has("clutch")) return 25;
+      if (has("belt bag")) return 22;
+      return 30;
+    case "shoes":
+      if (has("over-the-knee")) return 34;
+      if (has("knee boots")) return 32;
+      if (has("boots")) return 29;
+      if (has("sneakers", "running", "loafers")) return 28;
+      if (has("flats", "pumps", "mules")) return 25;
+      return 27;
+    default:
+      return null;
+  }
+}
+
+/** How much a piece is scaled versus its bucket's reference box: cm / reference cm,
+ *  clamped so nothing leaves the composition (reference = long trousers, a T-shirt,
+ *  a maxi-ish dress, a 100 cm coat, a 30 cm bag, a 28 cm shoe — the pieces the
+ *  editorial boards were measured on). */
+const REFERENCE: Partial<Record<Bucket, { cm: number; min: number; max: number }>> = {
+  bottom: { cm: 100, min: 0.38, max: 1 },
+  dress: { cm: 130, min: 0.6, max: 1 },
+  top: { cm: 62, min: 0.72, max: 1.2 },
+  outer: { cm: 100, min: 0.55, max: 1.1 },
+  bag: { cm: 30, min: 0.6, max: 1.2 },
+  shoes: { cm: 28, min: 0.85, max: 1.1 },
+};
+function realScale(it: LayoutInput): number {
+  const ref = REFERENCE[it.bucket];
+  const cm = realCm(it.bucket, it.subcategory, it.length);
+  if (!ref || cm == null) return 1;
+  return Math.min(ref.max, Math.max(ref.min, cm / ref.cm));
+}
 
 export function bucketOf(category: string | null, subcategory?: string | null): Bucket {
   const sub = (subcategory ?? "").toLowerCase();
@@ -92,7 +182,12 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
   /** Size = fit inside the bucket box using the real aspect ratio. */
   const sizeOf = (it: LayoutInput, box: Box, shrink: number) => {
     const aspect = it.aspect > 0 ? it.aspect : 1;
-    const w = Math.min(box.w * W * shrink, (box.h * H * shrink) / aspect);
+    const f = realScale(it);
+    // Garments: the real LENGTH sets the height cap (a mini skirt is short, a maxi long);
+    // the width cap stays put so wide pieces can't overflow. Bags and shoes: the real
+    // WIDTH is what matters, so both caps follow it.
+    const byLength = it.bucket === "top" || it.bucket === "bottom" || it.bucket === "dress" || it.bucket === "outer";
+    const w = Math.min(box.w * W * shrink * (byLength ? 1 : f), (box.h * H * shrink * f) / aspect);
     return { w, h: w * aspect };
   };
 
@@ -211,7 +306,8 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
   let shoeRects: LayoutRect[] = [];
   if (has("shoes")) {
     const shoeBox = outer ? { w: 0.30, h: 0.13 } : BOX.shoes; // narrower when the coat takes the left side
-    const ws = shoeBox.w * W * (by.get("shoes")!.length > 1 ? GROUP_SHRINK : 1);
+    const shoeShrink = by.get("shoes")!.length > 1 ? GROUP_SHRINK : 1;
+    const ws = Math.max(...by.get("shoes")!.map((it) => sizeOf(it, shoeBox, shoeShrink).w));
     const cx = Math.min(W - MX - ws / 2, A.r + ws / 2 - 0.2 * ws);
     // Several pairs: stack them in the corner instead of fanning sideways (a sideways
     // fan would push the first pair back under the anchor).
@@ -220,7 +316,8 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
 
   // ── Bag: free side, slightly tucked against the anchor ──
   if (has("bag")) {
-    const bw = BOX.bag.w * W;
+    const bagShrink = by.get("bag")!.length > 1 ? GROUP_SHRINK : 1;
+    const bw = Math.max(...by.get("bag")!.map((it) => sizeOf(it, BOX.bag, bagShrink).w));
     if (outer) placeGroup(by.get("bag")!, "bag", BOX.bag, W - MX - bw / 2, 0.67 * H, "y");
     else placeGroup(by.get("bag")!, "bag", BOX.bag, Math.max(MX + bw / 2, A.l - 0.3 * bw), 0.58 * H, "y");
   }
@@ -287,6 +384,17 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
 
   const accList = [...(by.get("acc") ?? []), ...(beltList.length && !beltBeside ? beltList : [])];
   if (accList.length) placeGroup(accList, "acc", BOX.acc, 0.17 * W, 0.83 * H, "y");
+
+  // Short pieces (a mini skirt, shorts) make a short composition: centre it vertically
+  // in the free area instead of leaving it top-heavy. A full-length outfit already fills
+  // the area, so its shift is ~0 and nothing changes for it.
+  if (out.length) {
+    const t = Math.min(...out.map((r) => r.y));
+    const b = Math.max(...out.map((r) => r.y + r.h));
+    const want = (MY + (H - MB)) / 2 - (t + b) / 2;
+    const dy = Math.min(H - MB - b, Math.max(MY - t, want));
+    if (Math.abs(dy) > 0.5) for (const r of out) r.y += dy;
+  }
 
   // Bottoms left over when a dress is the anchor are intentionally not drawn
   // (a dress + trousers flat-lay reads as a collision, same as before).
