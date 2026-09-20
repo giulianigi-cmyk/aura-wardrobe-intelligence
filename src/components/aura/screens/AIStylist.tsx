@@ -1,4 +1,4 @@
-import { Copy, Loader2, Share2, Sparkles, Search, Calendar as CalendarIcon, Trash2, Check, X, Archive, ArchiveRestore, Plus, Pencil } from "lucide-react";
+import { Copy, Loader2, Share2, Sparkles, Search, Calendar as CalendarIcon, Trash2, Check, X, Archive, ArchiveRestore, Plus, Pencil, LayoutGrid, User } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { updateTripOutfitPlanItems } from "@/lib/trips.functions";
@@ -10,6 +10,7 @@ import type { Outfit, WardrobeItem } from "@/lib/aura-types";
 import { useAuth } from "@/hooks/use-auth";
 import { ShareOutfitSheet } from "../ShareOutfitSheet";
 import { ItemImageViewer } from "../ItemImageViewer";
+import { OutfitViewerSheet } from "../OutfitViewerSheet";
 import { useLocation } from "@/hooks/use-location";
 import { useWeather } from "@/hooks/use-weather";
 import { describeWeather } from "@/lib/weather";
@@ -47,6 +48,15 @@ type WornEntry = {
   photoUrl: string | null;
 };
 type CalEvent = { id: string; title: string | null; start_time: string; all_day: boolean };
+
+/** A look opened in the shared outfit viewer (canvas / pieces / photo, avatar, save, calendar, share). */
+type ViewingLook = {
+  itemIds: string[]; title?: string; occasion?: string | null; notes?: string | null;
+  photoUrl?: string | null; canvasPath?: string | null; outfitId?: string | null;
+  savedLayout?: { itemId: string; x: number; y: number; scale: number; rotation: number; z: number }[] | null;
+  /** how "open on canvas" behaves for a saved outfit (its own editor entry) */
+  onEdit?: () => void;
+};
 
 type OutfitTab = "upcoming" | "worn" | "myOutfitPhotos" | "saved" | "archive";
 
@@ -198,6 +208,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
   const [aiBusy, setAiBusy] = useState(false);
   const [query, setQuery] = useState("");
   const [shareFor, setShareFor] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<ViewingLook | null>(null);
   const [assignFor, setAssignFor] = useState<Outfit | null>(null);
   const [assignDate, setAssignDate] = useState<string>(() => todayIso());
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -430,6 +441,12 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
     // canvas falls back to its original auto-placement in that case.
     layout: (o as unknown as { layout?: { itemId: string; x: number; y: number; scale: number; rotation: number; z: number }[] | null }).layout ?? null,
   });
+  const viewOutfit = (o: Outfit) => setViewing({
+    itemIds: o.item_ids, title: o.name, occasion: o.occasion?.[0] ?? null, notes: o.notes ?? null,
+    canvasPath: o.canvas_image_url ?? null, outfitId: o.id,
+    savedLayout: (o as unknown as { layout?: ViewingLook["savedLayout"] }).layout ?? null,
+    onEdit: () => openOutfit(o),
+  });
   const duplicateOutfit = (o: Outfit) => openBuilder({
     itemIds: o.item_ids, name: `${o.name} Copy`, occasion: o.occasion?.[0],
     notes: o.notes ?? undefined,
@@ -567,6 +584,22 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
     setUpcomingPickerFor(null);
     void persistUpcomingItems(planId, [...plan.item_ids, itemId]);
   };
+
+  /** "Canvas" + "Avatar" shortcuts under a look's thumbnails. */
+  const lookButtons = (look: ViewingLook) => (
+    <div className="mt-2 flex gap-2">
+      <button
+        type="button"
+        onClick={() => setViewing(look)}
+        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 active:scale-[0.98]"
+      ><LayoutGrid size={12} /> {t("outfitViewer.canvas", { defaultValue: "Canvas" })}</button>
+      <button
+        type="button"
+        onClick={() => openAvatarTryOn(look.itemIds)}
+        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 active:scale-[0.98]"
+      ><User size={12} /> {t("outfitViewer.onAvatar", { defaultValue: "Avatar" })}</button>
+    </div>
+  );
 
   const ItemThumbs = ({ ids, size = "h-16 w-16" }: { ids: string[]; size?: string }) => (
     <div className="flex gap-2 overflow-x-auto no-scrollbar">
@@ -776,6 +809,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
                       {upcomingBusyPlanId === p.id ? <Loader2 size={14} className="animate-spin" /> : <Plus size={16} />}
                     </button>
                   </div>
+                  {lookButtons({ itemIds: p.item_ids, title: `${dateLabel(p.date)}${p.occasion ? ` · ${p.occasion}` : ""}`, occasion: p.occasion, notes: p.notes })}
                 </div>
               ))}
             </div>
@@ -805,6 +839,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
                     </div>
                   </div>
                   <ItemThumbs ids={w.itemIds} size="h-14 w-14" />
+                  {lookButtons({ itemIds: w.itemIds, title: `${dateLabel(w.date)}${w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}`, occasion: w.occasion, photoUrl: w.photoUrl })}
                 </div>
               ))}
             </div>
@@ -834,9 +869,16 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
                     </div>
                   </div>
                   {w.photoUrl && (
-                    <img src={w.photoUrl} alt="" className="w-full rounded-xl mb-2 aspect-[4/5] object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setViewing({ itemIds: w.itemIds, title: `${dateLabel(w.date)}${w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}`, occasion: w.occasion, photoUrl: w.photoUrl })}
+                      className="block w-full mb-2 active:scale-[0.99]"
+                    >
+                      <img src={w.photoUrl} alt="" className="w-full rounded-xl aspect-[4/5] object-cover" />
+                    </button>
                   )}
                   <ItemThumbs ids={w.itemIds} size="h-14 w-14" />
+                  {lookButtons({ itemIds: w.itemIds, title: `${dateLabel(w.date)}${w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}`, occasion: w.occasion, photoUrl: w.photoUrl })}
                 </div>
               ))}
             </div>
@@ -866,7 +908,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
                   const url = o.canvas_image_url ? signed[o.canvas_image_url] : null;
                   return (
                     <div key={o.id} className="animate-fade-up relative rounded-2xl overflow-hidden border border-border/60 bg-card shadow-soft">
-                      <button onClick={() => openOutfit(o)} className="block w-full text-left active:scale-[0.98]">
+                      <button onClick={() => viewOutfit(o)} className="block w-full text-left active:scale-[0.98]">
                         <div className="aspect-square" style={{ background: "#FFFFFF" }}>
                           {url ? (
                             <img src={url} alt={o.name} className="w-full h-full object-contain p-2" />
@@ -907,7 +949,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
                         ><Trash2 size={14} /></button>
                       )}
                       <div className="p-3">
-                        <button onClick={() => openOutfit(o)} className="block w-full text-left">
+                        <button onClick={() => viewOutfit(o)} className="block w-full text-left">
                           <p className="font-serif text-base truncate">{o.name}</p>
                           <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{t("aiStylist.piecesCount", { count: o.item_ids.length })}</p>
                         </button>
@@ -1019,6 +1061,27 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
       })()}
 
       {shareFor && <ShareOutfitSheet outfitId={shareFor} onClose={() => setShareFor(null)} />}
+
+      {viewing && (
+        <OutfitViewerSheet
+          itemIds={viewing.itemIds}
+          title={viewing.title}
+          occasion={viewing.occasion}
+          notes={viewing.notes}
+          photoUrl={viewing.photoUrl}
+          canvasPath={viewing.canvasPath}
+          outfitId={viewing.outfitId}
+          savedLayout={viewing.savedLayout}
+          onClose={() => setViewing(null)}
+          onTryOn={(ids) => { setViewing(null); openAvatarTryOn(ids); }}
+          onEditOnCanvas={(layout) => {
+            const v = viewing;
+            setViewing(null);
+            if (v.onEdit) v.onEdit();
+            else openBuilder({ itemIds: v.itemIds, occasion: v.occasion ?? undefined, layout });
+          }}
+        />
+      )}
 
       {editingWorn && (
         <div className="fixed inset-0 z-[70] bg-background flex flex-col animate-fade-in">
