@@ -49,7 +49,7 @@ const BOX: Record<Bucket, { w: number; h: number }> = {
   bottom: { w: 0.42, h: 0.69 },
   top: { w: 0.42, h: 0.37 },
   outer: { w: 0.42, h: 0.72 },
-  shoes: { w: 0.34, h: 0.14 },
+  shoes: { w: 0.36, h: 0.20 },
   bag: { w: 0.40, h: 0.34 },
   sunglasses: { w: 0.28, h: 0.10 },
   headwear: { w: 0.22, h: 0.12 },
@@ -192,9 +192,9 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
   /** Size = fit inside the bucket box using the real aspect ratio. */
   const sizeOf = (it: LayoutInput, box: Box, shrink: number) => {
     const aspect = it.aspect > 0 ? it.aspect : 1;
-    // A bag whose box is mostly empty (thin strap, chain, long handles) is enlarged so that its BODY
-    // reaches the size a compact bag would (up to +35%).
-    const strapK = it.bucket === "bag" && it.fill != null && it.fill > 0 && it.fill < 0.6
+    // A bag or shoe whose box is mostly empty (thin strap, chain, long handles, a strappy stiletto
+    // sandal) is enlarged so that its BODY reaches the size a compact one would (up to +35%).
+    const strapK = (it.bucket === "bag" || it.bucket === "shoes") && it.fill != null && it.fill > 0 && it.fill < 0.6
       ? Math.min(1.35, Math.sqrt(0.6 / Math.max(it.fill, 0.25)))
       : 1;
     const f = realScale(it) * strapK;
@@ -341,7 +341,7 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
   // the boots), so they are STACKED top → bottom instead: necklace at the neckline, shoes
   // at the bottom, what is in between spread out, everything scaled down together if the
   // strip is too short — and never wider than the strip allows.
-  const shoeBox = outer ? { w: 0.30, h: 0.13 } : BOX.shoes; // narrower when the coat takes the left side
+  const shoeBox = outer ? { w: 0.32, h: 0.18 } : BOX.shoes; // narrower when the coat takes the left side
   const columnEntries: { list: LayoutInput[]; bucket: Bucket; box: Box; axis: "x" | "y" }[] = [];
   if (outer) {
     if (necklaceSide === "right") {
