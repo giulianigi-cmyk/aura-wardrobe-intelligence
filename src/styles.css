@@ -73,7 +73,10 @@
   html, body, #root { height: 100%; }
   body {
     background-color: var(--color-background);
-    color: var(--color-foreground);
+    /* Text is the warm grey of the "This is an assessment…" note (muted-foreground),
+       not near-black. Titles below (headings + .font-serif) keep the dark foreground,
+       and any element with an explicit text-* class keeps that colour. */
+    color: var(--color-muted-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     letter-spacing: -0.01em;
@@ -92,7 +95,17 @@
   }
   /* Wardrobe images are flattened onto white at upload time (see AddItem.tsx),
      so image elements no longer need a global background-color safety net. */
-  .font-serif { font-family: var(--font-serif); letter-spacing: -0.02em; }
+  h1, h2, h3, h4, h5, h6 { color: var(--color-foreground); }
+  .font-serif { font-family: var(--font-serif); letter-spacing: -0.02em; color: var(--color-foreground); }
+}
+
+/* Body copy written as "almost black" (foreground at 70–90%) reads as grey too,
+   like the rest of the text. Unlayered on purpose so it wins over the utilities. */
+.text-foreground\/70,
+.text-foreground\/80,
+.text-foreground\/85,
+.text-foreground\/90 {
+  color: var(--color-muted-foreground);
 }
 
 
