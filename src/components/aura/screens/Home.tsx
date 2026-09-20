@@ -176,7 +176,7 @@ export function Home({ go, openAvatarTryOn, openBuilder }: { go: (s: Screen) => 
               .map((it) => {
                 const path = toStoragePath(it.image_url);
                 const url = path ? signedForPicks[path] : null;
-                return url ? { id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory } : null;
+                return url ? { id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length } : null;
               })
               .filter((x): x is ComposeItem => Boolean(x));
           };
