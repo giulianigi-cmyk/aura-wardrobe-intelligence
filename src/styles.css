@@ -66,6 +66,9 @@
   --border: oklch(0.88 0.015 75);
   --input: oklch(0.88 0.015 75);
   --ring: oklch(0.62 0.025 60);
+  /* Filled buttons / active pills: beige with warm-grey text (see the unlayered rules below) */
+  --button-beige: oklch(0.86 0.032 75);
+  --button-ink: oklch(0.42 0.02 60);
 }
 
 @layer base {
@@ -73,9 +76,9 @@
   html, body, #root { height: 100%; }
   body {
     background-color: var(--color-background);
-    /* Text is the warm grey of the "This is an assessment…" note (muted-foreground),
-       not near-black. Titles below (headings + .font-serif) keep the dark foreground,
-       and any element with an explicit text-* class keeps that colour. */
+    /* ALL writing — titles included — is the warm grey of the "This is an assessment…"
+       note (muted-foreground), not near-black. The unlayered rules below also turn the
+       explicit near-black text classes grey. */
     color: var(--color-muted-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
@@ -95,17 +98,36 @@
   }
   /* Wardrobe images are flattened onto white at upload time (see AddItem.tsx),
      so image elements no longer need a global background-color safety net. */
-  h1, h2, h3, h4, h5, h6 { color: var(--color-foreground); }
-  .font-serif { font-family: var(--font-serif); letter-spacing: -0.02em; color: var(--color-foreground); }
+  .font-serif { font-family: var(--font-serif); letter-spacing: -0.02em; }
 }
 
-/* Body copy written as "almost black" (foreground at 70–90%) reads as grey too,
-   like the rest of the text. Unlayered on purpose so it wins over the utilities. */
+/* ── Grey writing, beige buttons ───────────────────────────────────────────
+   Unlayered on purpose: these win over the utility classes on every screen at once. */
+
+/* Every explicitly near-black text class reads as the same warm grey. */
+.text-foreground,
+.text-primary,
 .text-foreground\/70,
 .text-foreground\/80,
 .text-foreground\/85,
 .text-foreground\/90 {
   color: var(--color-muted-foreground);
+}
+
+/* Outlined buttons: grey outline instead of a black one. */
+.border-foreground {
+  border-color: var(--color-muted-foreground);
+}
+
+/* Filled buttons and active pills: beige with warm-grey text instead of black with
+   cream text. Targets the element that pairs a solid foreground/primary background
+   with background-coloured text; toggles, dots and progress bars keep their colour. */
+.bg-foreground.text-background,
+.bg-primary.text-primary-foreground {
+  background-color: var(--button-beige);
+  color: var(--button-ink);
+  outline: 1px solid oklch(0.78 0.03 75 / 0.55);
+  outline-offset: -1px;
 }
 
 
