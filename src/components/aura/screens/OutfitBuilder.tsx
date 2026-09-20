@@ -124,7 +124,7 @@ async function autoPlaceLayout(items: WardrobeItem[], signed: Record<string, str
     const url = path ? signed[path] : "";
     if (!url || urlById.has(it.id)) continue;
     urlById.set(it.id, url);
-    compose.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory });
+    compose.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length });
   }
   if (!compose.length) return [];
   const layout = await computeBuilderLayout(compose, canvasAspect).catch(() => null);
@@ -456,9 +456,9 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         if (seen.has(p.itemId)) continue;
         seen.add(p.itemId);
         const w = byId.get(p.itemId);
-        if (w) compose.push({ id: w.id, imgUrl: p.imgUrl, category: w.category, subcategory: w.subcategory });
+        if (w) compose.push({ id: w.id, imgUrl: p.imgUrl, category: w.category, subcategory: w.subcategory, length: w.length });
       }
-      compose.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory });
+      compose.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length });
       const layout = await computeBuilderLayout(compose, canvasAspectOf(ratio));
       const mine = layout?.find((l) => l.itemId === it.id);
       if (mine) {
@@ -1117,7 +1117,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
               stamp, and at the old size it was unreadable. */}
           <div className="absolute bottom-3 right-4 pointer-events-none select-none">
             <span
-              className="font-serif italic tracking-tight text-black/70"
+              className="font-serif italic tracking-tight text-muted-foreground"
               style={{ fontSize: "clamp(16px, 4.5cqmin, 34px)" }}
             >aura</span>
           </div>
