@@ -128,6 +128,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       BELT_BODYCON_PROMPT_RULE,
       ACCESSORY_OCCASION_PROMPT_RULE,
     OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
+      EMBELLISHED_EVENING_PROMPT_RULE,
       "",
       "You are a personal stylist. Compose REAL outfits using ONLY items from the",
       "user's own wardrobe catalog below. Never invent an item id.",
@@ -238,7 +239,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       return Object.entries(SLOT_LIMITS).some(([cat, limit]) => (counts[cat] ?? 0) > limit);
     };
 
-    const EVENING_SIGNAL = /rhinestone|embellish|diamant|strappy|metallic|clutch|cocktail|sequin|paillette/i;
+        const EVENING_SIGNAL = /embellish|strappy|metallic|clutch|cocktail/i;
     /** Hard exclusion for "Work": evening-coded pieces never pass, enforced
      *  in code — not just requested in the prompt. */
     const violatesWorkFormality = (ids: string[]): boolean =>
@@ -247,6 +248,9 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
         if (!item) return false;
         const text = `${item.subcategory} ${(item.styleTags ?? []).join(" ")}`;
         if (EVENING_SIGNAL.test(text)) return true;
+        // crystals / Swarovski / rhinestones / diamonds / sequins in the MATERIAL field (or tags) too
+        if (EMBELLISHED_SIGNAL.test(`${text} ${(item.material ?? []).join(" ")}`) && item.category !== "Accessories") return true;
+
                 if (item.dayEvening === "evening" && (item.formality ?? 0) >= 4) return true;
         return false;
       });
@@ -301,6 +305,15 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     // styled outfit. The taxonomy already separates the two at
     // classification time (subcategory "Running Shoes" vs "Sneakers" —
     // see ai-analyze.functions.ts), so this just has to trust that field.
+    // An embellished piece (crystals, Swarovski, rhinestones, diamonds, sequins) is an evening piece:
+    // it may appear in the Evening look and nowhere else — not in Work, Weekend or today's everyday
+    // look. Enforced in code, like the weather: the prompt asks, this makes sure.
+    const violatesEmbellishedByDay = (occasion: string, ids: string[]): boolean =>
+      occasion !== "Evening" && ids.some((id) => {
+        const item = catalog.find((c) => c.id === id);
+        return item ? isEmbellishedPiece(item) : false;
+      });
+
     const violatesStylingFootwear = (ids: string[]): boolean =>
       ids.some((id) => catalog.find((c) => c.id === id)?.subcategory === "Running Shoes");
 
@@ -336,6 +349,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       if (l.occasion === "Work" && violatesWorkModesty(l.item_ids)) return false;
       if (violatesDressPlusBottoms(l.item_ids)) return false;
       if (violatesWeather(l.item_ids)) return false;
+      if (violatesEmbellishedByDay(l.occasion, l.item_ids)) return false;
       if (violatesStylingFootwear(l.item_ids)) return false;
       if (violatesOccasionTag(l.occasion, l.item_ids)) return false;
       if (seen.some((s) => jaccard(l.item_ids, s) >= TOO_SIMILAR)) return false;
@@ -373,6 +387,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       const fitting = allBags.filter((c) =>
         !violatesOccasionTag(occasion, [c.id])
         && !(occasion === "Work" && violatesWorkFormality([c.id]))
+        && !violatesEmbellishedByDay(occasion, [c.id])
         && !violatesWeather([c.id]));
       const pool = fitting.length ? fitting : allBags; // a woman's look never ends up with no bag at all
       if (!pool.length) return ids;
@@ -441,6 +456,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
         ...r.today,
         item_ids: todayIds.filter((id) => {
           if (violatesWeather([id]) || violatesStylingFootwear([id])) return false;
+          if (violatesEmbellishedByDay(r.today.occasion, [id])) return false; // today is an everyday look
           // If a dress/jumpsuit is present, drop any separate Bottoms item
           // instead of the whole look — a dress alone is still valid,
           // while removing it would leave an incomplete outfit.
