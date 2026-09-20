@@ -19,6 +19,27 @@
 export const HOT_THRESHOLD_C = 26;
 export const COLD_THRESHOLD_C = 10;
 
+// From here up (still below HOT) the genuinely WINTER pieces are out: wool and other heavy
+// cold-weather fabrics, and boots. A wool skirt with ankle boots on a 23°C September day is
+// not a "mild" choice, it is the wrong season — but a light knit or a sweater is still
+// plausible at 22-25°C, which is why only the strong winter signals below apply in this
+// band and the broader HEAVY_SIGNAL (sweaters, sweatshirts, hoodies…) keeps waiting for HOT.
+export const WARM_HEAVY_THRESHOLD_C = 22;
+export const WARM_HEAVY_SIGNAL =
+  /coat|cappotto|piumino|parka|overcoat|puffer|shearling|montone|wool|lana|felted|fleece|boots?\b|stivali|stivaletti|tweed|corduroy|velluto a coste|flannel|flanella|cashmere|cachemire/i;
+
+/** Coarse temperature band, used to key the Home look cache: a look composed in the
+ *  cool of the morning must not survive an afternoon that turned hot (that is how a
+ *  wool skirt and ankle boots ended up on a 29°C "Today's edit"). "na" = no reading. */
+export function tempBucket(temperature: number | null | undefined): "na" | "cold" | "cool" | "mild" | "warm" | "hot" {
+  if (temperature == null || Number.isNaN(temperature)) return "na";
+  if (temperature <= COLD_THRESHOLD_C) return "cold";
+  if (temperature < MILD_COOL_THRESHOLD_C) return "cool";
+  if (temperature < WARM_HEAVY_THRESHOLD_C) return "mild";
+  if (temperature < HOT_THRESHOLD_C) return "warm";
+  return "hot";
+}
+
 // Milder than HOT/COLD_THRESHOLD_C on purpose — those exclude outright (a
 // wool coat at 32°C), these only inform a PREFERENCE between two
 // otherwise-equal choices (a long-sleeve top isn't wrong at 21°C, just a
@@ -72,7 +93,8 @@ export function violatesWeatherRule(item: WeatherCheckableItem, temperature: num
   if (temperature == null) return false;
   const hot = temperature >= HOT_THRESHOLD_C;
   const cold = temperature <= COLD_THRESHOLD_C;
-  if (!hot && !cold) return false;
+  const warmHeavy = temperature >= WARM_HEAVY_THRESHOLD_C;
+  if (!hot && !cold && !warmHeavy) return false;
 
   const text = `${item.category ?? ""} ${item.subcategory ?? ""} ${(item.styleTags ?? []).join(" ")} ${(item.material ?? []).join(" ")}`;
   // season is stored as a comma-joined multi-value string (e.g.
@@ -85,6 +107,7 @@ export function violatesWeatherRule(item: WeatherCheckableItem, temperature: num
     if (season.includes("winter")) return true;
     if (HEAVY_SIGNAL.test(text)) return true;
   }
+  if (warmHeavy && WARM_HEAVY_SIGNAL.test(text)) return true;
   if (cold) {
     if (season.includes("summer") && LIGHT_SIGNAL.test(text)) return true;
     // Structured signal, not just text pattern-matching: an item
