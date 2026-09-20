@@ -3,18 +3,23 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { X, Check, Loader2, Sparkles, User, Calendar as CalendarIcon, LayoutGrid } from "lucide-react";
+import { X, Check, Loader2, Sparkles, User, Calendar as CalendarIcon, LayoutGrid, Share2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { saveOutfitPlan } from "@/lib/outfit-plan.functions";
 import { useOutfitPlansCacheActions } from "@/lib/outfit-plans-query";
 import type { DailyLook } from "@/lib/suggest-daily-looks.functions";
+import { ShareOutfitSheet } from "./ShareOutfitSheet";
 import { computeBuilderLayout, type BuilderLayoutEntry, type ComposeItem } from "@/lib/compose-outfit-canvas";
 
 /** Full-screen view of one Home look (Today's edit or a Curated card),
  *  opened by tapping the card. Shows the composed canvas large and offers
- *  the three things a person actually wants to do with it:
+ *  the things a person actually wants to do with it:
  *   - Save it to "My outfits";
+ *   - Share it (a friend's private chat, the feed, or outside AURA:
+ *     WhatsApp, Instagram, …) through the same ShareOutfitSheet the
+ *     saved-outfits list uses — sharing needs a saved outfit, so it is
+ *     saved first if it isn't yet;
  *   - Try it on their avatar (hands the item ids to the existing
  *     AvatarTryOn flow, which starts generating right away);
  *   - Put it on a day in the calendar (same outfit_plans path the
@@ -46,42 +51,66 @@ export function OutfitPreviewSheet({
 
   const [opening, setOpening] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [shareFor, setShareFor] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarDate, setCalendarDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [savingCalendar, setSavingCalendar] = useState(false);
 
+  /** Inserts the outfit once (with its image + exact layout) and returns its id;
+   *  later calls return the same id. Null on failure (a toast is shown). */
+  const persistOutfit = async (): Promise<string | null> => {
+    if (savedId) return savedId;
+    if (!user) return null;
+    // The composed image lives under a per-day cache path that the Home
+    // regenerates; copy it to its own file so the saved outfit keeps its
+    // picture. Falls back to the original path if the copy is refused.
+    let canvasPath: string | null = imagePath;
+    if (imagePath) {
+      const copyTo = `${user.id}/outfit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+      const { error: copyErr } = await supabase.storage.from("outfits").copy(imagePath, copyTo);
+      if (!copyErr) canvasPath = copyTo;
+    }
+    // Save the real arrangement too, so reopening this outfit on the canvas
+    // shows the garments exactly where Home put them instead of re-guessing.
+    const layout = await computeBuilderLayout(composeItems).catch(() => null);
+    const day = new Date().toLocaleDateString(i18n.language, { day: "numeric", month: "short" });
+    const { data, error } = await (supabase.from("outfits" as never) as any).insert({
+      user_id: user.id,
+      item_ids: look.item_ids,
+      canvas_image_url: canvasPath,
+      layout,
+      name: `${look.occasion || "Look"} · ${day}`,
+      occasion: look.occasion ? [look.occasion] : [],
+    }).select("id").single();
+    if (error || !data) { toast.error(error?.message ?? t("avatar.saveFailed")); return null; }
+    const id = (data as { id: string }).id;
+    setSavedId(id);
+    setSaved(true);
+    onSaved?.();
+    return id;
+  };
+
   const saveOutfit = async () => {
-    if (!user || saved || saving) return;
+    if (saved || saving) return;
     setSaving(true);
     try {
-      // The composed image lives under a per-day cache path that the Home
-      // regenerates; copy it to its own file so the saved outfit keeps its
-      // picture. Falls back to the original path if the copy is refused.
-      let canvasPath: string | null = imagePath;
-      if (imagePath) {
-        const copyTo = `${user.id}/outfit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
-        const { error: copyErr } = await supabase.storage.from("outfits").copy(imagePath, copyTo);
-        if (!copyErr) canvasPath = copyTo;
-      }
-      // Save the real arrangement too, so reopening this outfit on the canvas
-      // shows the garments exactly where Home put them instead of re-guessing.
-      const layout = await computeBuilderLayout(composeItems).catch(() => null);
-      const day = new Date().toLocaleDateString(i18n.language, { day: "numeric", month: "short" });
-      const { error } = await supabase.from("outfits").insert({
-        user_id: user.id,
-        item_ids: look.item_ids,
-        canvas_image_url: canvasPath,
-        layout: layout as never,
-        name: `${look.occasion || "Look"} · ${day}`,
-        occasion: look.occasion ? [look.occasion] : [],
-      } as never);
-      if (error) { toast.error(error.message); return; }
-      setSaved(true);
-      onSaved?.();
-      toast.success(t("avatar.savedToOutfits"));
+      if (await persistOutfit()) toast.success(t("avatar.savedToOutfits"));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const shareOutfit = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const id = await persistOutfit();
+      if (id) setShareFor(id);
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -150,6 +179,11 @@ export function OutfitPreviewSheet({
             {saved ? t("avatar.savedToOutfits") : t("avatar.save")}
           </button>
           <button
+            onClick={() => void shareOutfit()}
+            disabled={sharing}
+            className="w-full h-12 rounded-full border border-border flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.25em] active:scale-[0.98] disabled:opacity-60"
+          >{sharing ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={13} />} {t("shareOutfitSheet.share")}</button>
+          <button
             onClick={() => onTryOn(look.item_ids)}
             className="w-full h-12 rounded-full border border-border flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.25em] active:scale-[0.98]"
           ><User size={13} /> {t("avatar.tryOnCta")}</button>
@@ -164,6 +198,8 @@ export function OutfitPreviewSheet({
           ><CalendarIcon size={13} /> {t("shareOutfitSheet.addToCalendar")}</button>
         </div>
       </div>
+
+      {shareFor && <ShareOutfitSheet outfitId={shareFor} onClose={() => setShareFor(null)} />}
 
       {showCalendar && (
         <div className="fixed inset-0 z-[70] bg-background/95 backdrop-blur flex items-end">
