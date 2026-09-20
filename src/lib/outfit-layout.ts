@@ -47,7 +47,7 @@ const BOX: Record<Bucket, { w: number; h: number }> = {
   top: { w: 0.42, h: 0.37 },
   outer: { w: 0.42, h: 0.72 },
   shoes: { w: 0.34, h: 0.14 },
-  bag: { w: 0.32, h: 0.30 },
+  bag: { w: 0.36, h: 0.32 },
   sunglasses: { w: 0.28, h: 0.10 },
   headwear: { w: 0.22, h: 0.12 },
   earrings: { w: 0.12, h: 0.12 },
@@ -134,14 +134,17 @@ const REFERENCE: Partial<Record<Bucket, { cm: number; min: number; max: number }
   dress: { cm: 130, min: 0.6, max: 1 },
   top: { cm: 62, min: 0.72, max: 1.2 },
   outer: { cm: 100, min: 0.55, max: 1.1 },
-  bag: { cm: 30, min: 0.6, max: 1.2 },
+  bag: { cm: 30, min: 0.75, max: 1.25 },
   shoes: { cm: 28, min: 0.85, max: 1.1 },
 };
 function realScale(it: LayoutInput): number {
   const ref = REFERENCE[it.bucket];
   const cm = realCm(it.bucket, it.subcategory, it.length);
   if (!ref || cm == null) return 1;
-  return Math.min(ref.max, Math.max(ref.min, cm / ref.cm));
+  // Bags: a clutch is smaller than a tote, but only SOFTLY so (a real 24 cm crossbody is not
+  // 20% smaller than a 30 cm shoulder bag on a flat-lay board) — they used to come out too small.
+  const ratio = it.bucket === "bag" ? Math.pow(cm / ref.cm, 0.6) : cm / ref.cm;
+  return Math.min(ref.max, Math.max(ref.min, ratio));
 }
 
 export function bucketOf(category: string | null, subcategory?: string | null): Bucket {
@@ -300,13 +303,14 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
   //    laid on top of it; with a coat on the left, in the bottom-left corner ──
   const beltList = by.get("belt") ?? [];
   const beltBeside = beltList.length > 0 && anchorBucket !== "top";
+  let beltRects: LayoutRect[] = [];
   if (beltBeside) {
     const bw = BOX.belt.w * W;
     if (outer) {
-      placeGroup(beltList, "belt", BOX.belt, 0.17 * W, 0.81 * H, "y");
+      beltRects = placeGroup(beltList, "belt", BOX.belt, 0.17 * W, 0.81 * H, "y");
     } else {
       const beltY = anchorBucket === "bottom" ? A.t + 0.11 * H : A.t + 0.38 * aH;
-      placeGroup(beltList, "belt", BOX.belt, Math.max(MX + bw / 2, A.l - bw / 2 - 0.02 * W), beltY, "y");
+      beltRects = placeGroup(beltList, "belt", BOX.belt, Math.max(MX + bw / 2, A.l - bw / 2 - 0.02 * W), beltY, "y");
     }
   }
 
@@ -396,12 +400,16 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
     if (outer) {
       placeGroup(by.get("bag")!, "bag", BOX.bag, W - MX - bw / 2, 0.67 * H, "y");
     } else {
-      // Tuck it only slightly under the anchor's edge (≈12% of its width); when the strip on the
-      // left is too narrow for that, make the bag a little smaller (never below 70%) rather
-      // than piling it onto the garment.
-      const kFit = Math.max(0.7, Math.min(1, (A.l - MX) / (0.88 * bw)));
+      // The bag sits beside the anchor, tucked ~30% of its own width under the garment's edge (the
+      // editorial boards do the same). It only shrinks a little (never below 85%) when the strip on
+      // the left is narrow — it used to be squeezed down to 70% and came out too small.
+      const kFit = Math.max(0.85, Math.min(1, (A.l - MX) / (0.7 * bw)));
       const bwk = bw * kFit;
-      placeGroup(by.get("bag")!, "bag", { w: BOX.bag.w * kFit, h: BOX.bag.h * kFit }, Math.max(MX + bwk / 2, A.l - 0.38 * bwk), 0.58 * H, "y");
+      const bagBoxK = { w: BOX.bag.w * kFit, h: BOX.bag.h * kFit };
+      // Vertically: at its usual height, but never on top of the belt drawn beside the garment.
+      const bagH = Math.max(...by.get("bag")!.map((it) => sizeOf(it, bagBoxK, bagShrink).h));
+      const belowBelt = beltRects.length ? union(beltRects).b + 0.03 * H + bagH / 2 : 0;
+      placeGroup(by.get("bag")!, "bag", bagBoxK, Math.max(MX + bwk / 2, A.l - 0.2 * bwk), Math.max(0.58 * H, belowBelt), "y");
     }
   }
 
