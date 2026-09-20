@@ -26,6 +26,7 @@ import {
   nativeShareFile, shareLinks,
 } from "@/lib/aura-share";
 import { suggestOutfitAI } from "@/lib/ai-suggest-outfit.functions";
+import { computeBuilderLayout, type ComposeItem } from "@/lib/compose-outfit-canvas";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { logWardrobeEvent } from "@/lib/wardrobe-events";
 import { submitOutfitFeedback } from "@/lib/outfit-feedback.functions";
@@ -105,6 +106,35 @@ function fanOutAround(n: number, scale: number, centerX: number, centerY: number
     const offset = start + i * step;
     return axis === "x" ? { x: centerX + offset, y: centerY } : { x: centerX, y: centerY + offset };
   });
+}
+
+/** Height / width of the canvas for a given ratio (1:1 → 1, 9:16 → 16/9). */
+const canvasAspectOf = (r: Ratio): number => (r === "9:16" ? 16 / 9 : 1);
+
+/** Places a whole outfit with the SAME layout the automatic Home canvases use
+ *  (outfit-layout.ts): every piece sized from its real proportions inside a
+ *  per-category box, and put in its zone relative to the trousers / dress —
+ *  not "enormous" or "tiny". The legacy `autoPlace` below is only the fallback
+ *  if the images can't be measured. */
+async function autoPlaceLayout(items: WardrobeItem[], signed: Record<string, string>, canvasAspect: number): Promise<Placed[]> {
+  const compose: ComposeItem[] = [];
+  const urlById = new Map<string, string>();
+  for (const it of items) {
+    const path = toStoragePath(it.image_url);
+    const url = path ? signed[path] : "";
+    if (!url || urlById.has(it.id)) continue;
+    urlById.set(it.id, url);
+    compose.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory });
+  }
+  if (!compose.length) return [];
+  const layout = await computeBuilderLayout(compose, canvasAspect).catch(() => null);
+  if (!layout) return autoPlace(items, signed);
+  const stamp = Date.now();
+  return layout.map((l, i) => ({
+    key: `${l.itemId}-auto-${i}-${stamp}`,
+    itemId: l.itemId, imgUrl: urlById.get(l.itemId) ?? "",
+    x: l.x, y: l.y, scale: l.scale, rotation: l.rotation, z: l.z,
+  })).filter((p) => p.imgUrl);
 }
 
 function autoPlace(items: WardrobeItem[], signed: Record<string, string>): Placed[] {
@@ -370,9 +400,9 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
           // silently dropping it.
           const placedIds = new Set(nextPlaced.map((p) => p.itemId));
           const missing = picks.filter((it) => !placedIds.has(it.id));
-          if (missing.length) nextPlaced = [...nextPlaced, ...autoPlace(missing, signedMap)];
+          if (missing.length) nextPlaced = [...nextPlaced, ...(await autoPlaceLayout(missing, signedMap, canvasAspectOf(ratio)))];
         } else {
-          nextPlaced = autoPlace(picks, signedMap);
+          nextPlaced = await autoPlaceLayout(picks, signedMap, canvasAspectOf(ratio));
         }
         if (nextPlaced.length) {
           zSeqRef.current = Math.max(zSeqRef.current, ...nextPlaced.map((p) => p.z)) + 1;
@@ -403,19 +433,52 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
   const currentTemp = weather?.current.temperature ?? null;
   const wDesc = weather ? describeWeather(weather.current.weatherCode, weather.current.isDay) : null;
 
-  const addItem = useCallback((it: WardrobeItem) => {
+  const placedRef = useRef<Placed[]>([]);
+  placedRef.current = placed;
+
+  const addItem = useCallback(async (it: WardrobeItem) => {
     const path = toStoragePath(it.image_url);
     const url = path ? signed[path] : null;
     if (!url) { toast.error(t("outfitBuilder.itemNoImage")); return; }
     const key = `${it.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    setPickerOpen(false);
+
+    // Right size and zone, not a fixed 42%-in-the-middle: ask the automatic
+    // composition where this piece goes next to what is already on the canvas
+    // and take ITS rectangle for the new piece only (pieces already placed —
+    // possibly moved by hand — are left exactly where they are).
+    let pos = { x: 0.5, y: 0.5, scale: 0.42 };
+    try {
+      const byId = new Map(allItems.map((w) => [w.id, w]));
+      const compose: ComposeItem[] = [];
+      const seen = new Set<string>([it.id]);
+      for (const p of placedRef.current) {
+        if (seen.has(p.itemId)) continue;
+        seen.add(p.itemId);
+        const w = byId.get(p.itemId);
+        if (w) compose.push({ id: w.id, imgUrl: p.imgUrl, category: w.category, subcategory: w.subcategory });
+      }
+      compose.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory });
+      const layout = await computeBuilderLayout(compose, canvasAspectOf(ratio));
+      const mine = layout?.find((l) => l.itemId === it.id);
+      if (mine) {
+        // With no garment on the canvas yet (a lone accessory, say) there is no
+        // outfit to be "in the right zone" of: keep the right SIZE, put it in the middle.
+        const hasGarment = compose.some((c) => ["Dresses", "Jumpsuits", "Bottoms", "Tops"].includes(c.category ?? ""));
+        pos = hasGarment ? { x: mine.x, y: mine.y, scale: mine.scale } : { x: 0.5, y: 0.5, scale: mine.scale };
+      }
+    } catch (e) {
+      console.error("[AURA builder] sizing a manually added piece failed, using the default", e);
+    }
+
     zSeqRef.current += 1;
+    const z = zSeqRef.current;
     setPlaced((prev) => [
       ...prev,
-      { key, itemId: it.id, imgUrl: url, x: 0.5, y: 0.5, scale: 0.42, rotation: 0, z: zSeqRef.current },
+      { key, itemId: it.id, imgUrl: url, x: pos.x, y: pos.y, scale: pos.scale, rotation: 0, z },
     ]);
     setSelectedKey(key);
-    setPickerOpen(false);
-  }, [signed]);
+  }, [signed, allItems, ratio]);
 
   const removeSelected = useCallback(() => {
     if (!selectedKey) return;
@@ -563,7 +626,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
       // the layout logic inline here, which meant a fix to autoPlace's
       // positioning never actually reached AI Suggest, the most-used
       // path of all. One function, one behavior, everywhere now.
-      const placedNext = autoPlace(picks, signed);
+      const placedNext = await autoPlaceLayout(picks, signed, canvasAspectOf(ratio));
       placedNext.forEach((p) => { zSeqRef.current += 1; p.z += zSeqRef.current; });
 
       if (!placedNext.length) {
