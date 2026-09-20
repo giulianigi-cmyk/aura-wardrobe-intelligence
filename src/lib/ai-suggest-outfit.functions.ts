@@ -6,7 +6,7 @@ import { parseAiJson } from "./ai-json";
 import { isItemAtAnyLocation } from "./wardrobe-location";
 import { isItemAllowedByDressPreferences, hasAnyPreference, type DressPreferences } from "./dress-preferences";
 import { anyItemViolatesWeather, violatesSleeveClimate, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
-import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE } from "./outfit-styling-rules";
+import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
 
 const ItemSchema = z.object({
@@ -364,6 +364,7 @@ export async function suggestOutfitCore(params: {
     "For a 'Work' occasion specifically, exclude anything sequinned, sparkly, feathered, fringed, or overtly evening/party-coded (check the material and styleTags fields), exclude cocktail or evening dresses, and exclude very short skirts (mini-length). Separately, exclude genuinely bare-shoulder construction — off-shoulder, bardot, halter, strapless, one-shoulder, bandeau (check subcategory and styleTags for these terms) — but a plain sleeveless top or dress (sleeveLength: Sleeveless, no other bare-shoulder signal) is completely normal workwear and must NOT be excluded just for having no sleeves; judge it on formality/coverage like any other piece. Also treat dayEvening \"evening\" or formality 4-5 as a strong signal the piece belongs in an Evening look, not Work — these read as going-out wear, not workwear, even if the color looks fine on paper.",
     "Color palette by occasion, when choosing between otherwise-equal options: 'Formal'/'Business Formal' favors navy, grey, black, black-and-white; 'Work'/'Business Casual' favors khaki, light grey, navy, brown as a base with bordeaux, olive, camel, or light blue as accents; 'Smart Casual'/'Weekend' allows one clearly colorful statement piece against a simple base. This is a preference between similarly-fitting options, not a hard exclusion — don't reject an otherwise great outfit purely for using an off-palette color.",
     "Sequins, sparkle, or lurex/metallic fabric are for evening only — never pick a sequinned or sparkly piece for a Day segment, regardless of occasion, even outside a Work context specifically.",
+    EMBELLISHED_EVENING_PROMPT_RULE,
     "Use each item's subcategory when present to judge fit-for-purpose: e.g. in hot weather prefer sandals/flats over boots; in rain or cold prefer boots over sandals; for formal occasions prefer pumps/heels over sneakers. When subcategory is empty, judge from category alone.",
     "A 'Running Shoes' subcategory item is built for running, not for everyday city walking — never pick it for a non-Sport occasion unless it is the only shoe available in the catalog. For a Sport/gym/running occasion specifically, it's the right choice.",
     "A gilet or waistcoat (vest) is never worn directly against skin with nothing underneath — always pair it with a shirt, t-shirt, or top layered beneath it. A tailored suit waistcoat additionally expects a blazer/jacket over it for a complete formal look, not worn as the outermost layer on its own.",
@@ -403,7 +404,7 @@ export async function suggestOutfitCore(params: {
     }
     return Object.entries(SLOT_LIMITS).some(([cat, limit]) => (counts[cat] ?? 0) > limit);
   };
-      const EVENING_SIGNAL = /rhinestone|embellish|diamant|strappy|sequin|paillette|feather|piuma|fringe|frange|tulle/i;
+      const EVENING_SIGNAL = new RegExp(`embellish|strappy|feather|piuma|fringe|frange|tulle|${EMBELLISHED_SIGNAL.source}`, "i");
   // Sleeveless is NOT bare shoulders — a plain sleeveless tank/top is a
   // completely normal piece of workwear at the right formality. Bare
   // shoulders is specifically about garment construction that exposes
@@ -523,9 +524,16 @@ export async function suggestOutfitCore(params: {
   const violatesEveningSunglasses = (ids: string[]): boolean =>
     isEvening && ids.some((id) => catalog.find((c) => c.id === id)?.subcategory === "Sunglasses");
 
+  // An embellished piece (crystals, Swarovski, rhinestones, diamonds, sequins — read from the Material
+  // field) is an evening piece: only for an evening-type occasion or the evening segment of a day.
+  const violatesEmbellished = (ids: string[]): boolean =>
+    !allowsEmbellished(params.occasion, params.daySegment)
+    && ids.some((id) => { const item = catalog.find((c) => c.id === id); return item ? isEmbellishedPiece(item) : false; });
+
   const isValidResult = (ids: string[]): boolean => {
     if (!ids.length) return false;
     if (hasSlotViolation(ids)) return false;
+    if (violatesEmbellished(ids)) return false;
     if (isWorkOccasion && violatesWorkRules(ids)) return false;
     if (violatesWeather(ids)) return false;
     if (missingMandatoryBag(ids)) return false;
@@ -609,6 +617,7 @@ export async function suggestOutfitCore(params: {
           // this is preferable to a materially wrong suggestion.
           item_ids = item_ids.filter((id) => {
             if (violatesWeather([id])) return false;
+            if (violatesEmbellished([id])) return false;
             if (isWorkOccasion && violatesWorkRules([id])) return false;
             if (violatesFootwearRule([id])) return false;
             if (violatesOccasionTag([id])) return false;
@@ -633,7 +642,13 @@ export async function suggestOutfitCore(params: {
     // which deliberately bypasses the soft variety filtering — but it must
     // NOT bypass the caller's hard exclusions (see hardExcludedItemIds).
     const hardExcluded = new Set(params.hardExcludedItemIds ?? []);
-    const pickable = (c: { id: string }) => !hardExcluded.has(c.id) && !item_ids.includes(c.id);
+    // ...and it must not bypass the weather / evening-piece / Work rules either: without this the
+    // "add shoes if missing" step below would put back the very ankle boots the sanitize step had just
+    // removed for a 29°C day, simply because they were the first pair of shoes in the catalog.
+    const pickable = (c: { id: string }) =>
+      !hardExcluded.has(c.id) && !item_ids.includes(c.id)
+      && !violatesWeather([c.id]) && !violatesEmbellished([c.id])
+      && !(isWorkOccasion && violatesWorkRules([c.id]));
 
     if (missingMandatoryBag(item_ids)) {
       const bag = catalog.find((c) => c.category === "Bags" && pickable(c));
@@ -667,7 +682,7 @@ export async function suggestOutfitCore(params: {
     // doesn't itself violate the footwear or occasion-tag rules.
     if (!item_ids.some((id) => catalog.find((c) => c.id === id)?.category === "Shoes")) {
       const shoe = catalog.find((c) =>
-        c.category === "Shoes" && !violatesFootwearRule([c.id]) && !violatesOccasionTag([c.id]) && !item_ids.includes(c.id)
+        c.category === "Shoes" && !violatesFootwearRule([c.id]) && !violatesOccasionTag([c.id]) && pickable(c)
       );
       if (shoe) item_ids = [...item_ids, shoe.id];
     }
