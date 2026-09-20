@@ -3,8 +3,10 @@ import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
 import { listOpenWeatherProposals, resolveWeatherProposal } from "@/lib/plan-weather.functions";
 import { WeatherProposalCard, type WeatherProposal } from "../WeatherProposalCard";
-import { ArrowLeft, Loader2, Check, Plus, X, Trash2, Briefcase, Palmtree, Shuffle, CalendarDays, Sun, Moon, Luggage, Sparkles, AlertCircle, Info, Copy, Pencil, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Loader2, Check, Plus, X, Trash2, Briefcase, Palmtree, Shuffle, CalendarDays, Sun, Moon, Luggage, Sparkles, AlertCircle, Info, Copy, Pencil, Image as ImageIcon, LayoutGrid } from "lucide-react";
 import { PiecePicker } from "../PiecePicker";
+import { OutfitViewerSheet } from "../OutfitViewerSheet";
+import { TripEssentialsCopySheet } from "../TripEssentialsCopySheet";
 import { toast } from "sonner";
 import type { Screen } from "../AuraApp";
 import { getTrip, deleteTrip, updateTripOutfitPlanItems, deleteTripOutfitPlan, type Trip, type TripDestination, type TripType, type DaySegment } from "@/lib/trips.functions";
@@ -68,11 +70,14 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
    *  guardaroba" button inside it goes to the wardrobe for real edits,
    *  since the full item sheet lives there and isn't reachable directly. */
   const [previewItem, setPreviewItem] = useState<WardrobeItem | null>(null);
+  /** A trip look opened in the shared outfit viewer (canvas / pieces, avatar, save, calendar, share). */
+  const [viewingLook, setViewingLook] = useState<{ itemIds: string[]; title: string; occasion: string | null } | null>(null);
   const [generating, setGenerating] = useState(false);
   const [genResult, setGenResult] = useState<{ generated: number; failed: { date: string; daySegment: string; reason: string }[]; unclassifiedExcluded: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [addingEssential, setAddingEssential] = useState(false);
+  const [copyingEssentials, setCopyingEssentials] = useState(false);
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [addingActivity, setAddingActivity] = useState(false);
@@ -666,10 +671,25 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
             </div>
           </div>
         ) : (
-          <button
-            onClick={() => setAddingEssential(true)}
-            className="mt-3 w-full h-11 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center justify-center gap-2"
-          ><Plus size={13} /> {t("tripDetail.addItem")}</button>
+          <div className="mt-3 space-y-2">
+            <button
+              onClick={() => setAddingEssential(true)}
+              className="w-full h-11 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center justify-center gap-2"
+            ><Plus size={13} /> {t("tripDetail.addItem")}</button>
+            <button
+              onClick={() => setCopyingEssentials(true)}
+              className="w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2"
+            ><Copy size={13} /> {t("tripDetail.copyFromTrip", { defaultValue: "Copy from another trip" })}</button>
+          </div>
+        )}
+
+        {copyingEssentials && (
+          <TripEssentialsCopySheet
+            toTripId={trip.id}
+            currentEssentials={essentials}
+            onClose={() => setCopyingEssentials(false)}
+            onCopied={(added) => setEssentials((prev) => [...prev, ...added])}
+          />
         )}
       </section>
 
@@ -1271,10 +1291,16 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
                             );
                           })}
                         </div>
-                        <button
-                          onClick={() => openAvatarTryOn(op.item_ids)}
-                          className="mt-2 h-9 px-4 rounded-full border border-foreground/15 bg-secondary/40 inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.25em] active:scale-[0.98] transition"
-                        ><Sparkles size={12} /> {t("avatar.tryOnCta")}</button>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <button
+                            onClick={() => setViewingLook({ itemIds: op.item_ids, title: `${a.activity_type} · ${fmtDate(a.activity_date)}`, occasion: op.occasion ?? a.activity_type })}
+                            className="h-9 px-4 rounded-full border border-foreground/15 bg-secondary/40 inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.25em] active:scale-[0.98] transition"
+                          ><LayoutGrid size={12} /> {t("outfitViewer.canvas", { defaultValue: "Canvas" })}</button>
+                          <button
+                            onClick={() => openAvatarTryOn(op.item_ids)}
+                            className="h-9 px-4 rounded-full border border-foreground/15 bg-secondary/40 inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.25em] active:scale-[0.98] transition"
+                          ><Sparkles size={12} /> {t("avatar.tryOnCta")}</button>
+                        </div>
                       </>
                     ) : (
                       <p className="text-[11px] text-muted-foreground">{t("tripDetail.noOutfitYet")}</p>
@@ -1317,6 +1343,21 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
           <p className="mt-2 text-[11px] text-muted-foreground text-center">{t("tripDetail.noActivitiesHint")}</p>
         )}
       </section>
+
+      {viewingLook && (
+        <OutfitViewerSheet
+          itemIds={viewingLook.itemIds}
+          title={viewingLook.title}
+          occasion={viewingLook.occasion}
+          onClose={() => setViewingLook(null)}
+          onTryOn={(ids) => { setViewingLook(null); openAvatarTryOn(ids); }}
+          onEditOnCanvas={(layout) => {
+            const look = viewingLook;
+            setViewingLook(null);
+            openBuilder({ itemIds: look.itemIds, name: look.title, occasion: look.occasion ?? undefined, layout });
+          }}
+        />
+      )}
 
       {previewItem && (
         <div
