@@ -22,6 +22,9 @@ export type { Bucket };
 export type ComposeItem = { id: string; imgUrl: string; category: string | null; subcategory?: string | null };
 
 const BACKGROUND = "#FFFFFF";
+const SIGNATURE_FONT = 'italic 400 100px "Cormorant Garamond", "Times New Roman", serif';
+const SIGNATURE_COLOR = "#1a1613"; // app --foreground
+
 
 function loadImageEl(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -186,17 +189,26 @@ export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | n
     ctx.drawImage(img, crop.sx, crop.sy, crop.sw, crop.sh, r.x, r.y, r.w, r.h);
   }
 
-  // Watermark: bottom-CENTER, not bottom-right. The Home cards clip the image
-  // with rounded corners (up to ~108 canvas px of radius on the small "Curated"
-  // cards), which cut a corner-anchored label. Centered, it can never be
-  // clipped, and 60px keeps it readable when the canvas is scaled to ~160px wide.
+    // Signature: the same "aura" wordmark as the Splash screen — Cormorant Garamond
+  // italic, near-black (the app's --foreground). Bottom-CENTER, not bottom-right:
+  // the Home cards clip the image with rounded corners (up to ~108 canvas px of
+  // radius on the small "Curated" cards), which cut a corner-anchored label.
+  // It sits inside the strip outfit-layout.ts keeps empty (BOTTOM_RESERVED).
+  try {
+    await document.fonts.load(SIGNATURE_FONT);
+  } catch {
+    /* font not available: falls back to the serif stack below */
+  }
   ctx.save();
-  ctx.font = "italic 60px Georgia, serif";
-  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.font = SIGNATURE_FONT;
+  ctx.fillStyle = SIGNATURE_COLOR;
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
-  ctx.fillText("aura", CANVAS_W / 2, CANVAS_H - 14);
+  // tight tracking like the wordmark (tracking-tight); ignored where unsupported
+  (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = "-2px";
+  ctx.fillText("aura", CANVAS_W / 2, CANVAS_H - 18);
   ctx.restore();
+
 
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
 }
