@@ -3,8 +3,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateText } from "ai";
 import { z } from "zod";
 import { parseAiJson } from "./ai-json";
-import { BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
-import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE } from "./outfit-styling-rules";
+import { BLAZER_WARMTH_PROMPT_RULE, violatesWeatherRule } from "./outfit-weather-rules";
+import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE } from "./outfit-styling-rules";
 import { isItemAllowedByDressPreferences, coversLegs, coversArms, type DressPreferences } from "./dress-preferences";
 import { isItemAtLocation } from "./wardrobe-location";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
@@ -298,6 +298,7 @@ export const stylistChat = createServerFn({ method: "POST" })
       BLAZER_WARMTH_PROMPT_RULE,
       BELT_BODYCON_PROMPT_RULE,
       ACCESSORY_OCCASION_PROMPT_RULE,
+      EMBELLISHED_EVENING_PROMPT_RULE,
     OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
       "WEDDING GUEST ETIQUETTE: if the user is attending a wedding as a guest (not the couple themselves), avoid recommending white, ivory or cream (reserved for the bride) and avoid an all-red look; avoid all-black unless it's explicitly an evening wedding. This is a social norm, not a hard rule like the dressing rules above — but treat it seriously.",
       "KEEP-THIS-PIECE REQUESTS: if the person explicitly says to keep a specific piece from your last suggestion (e.g. 'I want to use this dress but with a bolder accessory', 'keep the dress, change the shoes') — that piece's item_id is a HARD constraint for this turn, not a preference to weigh against other options. Re-read your own previous message to find the exact item_id for the piece they mean, and always include that exact item_id again in this reply's item_ids. Only change the category(ies) they actually asked to change; never swap out the piece they explicitly said to keep, even if a different piece would otherwise look better.",
@@ -434,6 +435,20 @@ export const stylistChat = createServerFn({ method: "POST" })
       const hasOccasionAlternative = (category: string, subcategory: string | undefined): boolean =>
         catalog.some((c) => c.category === category && (subcategory ? c.subcategory === subcategory : true) && !violatesOccasionTag(c.id));
 
+      // Weather used to be prompt-only in this chat — the one engine with no code-level check — so a
+      // wool piece or ankle boots could still be proposed on a hot day. Same shared rule as every other
+      // engine (outfit-weather-rules.ts); only fires when a real temperature was given AND the wardrobe
+      // has a same-category piece that does not break it (never a blanket ban on something the person
+      // explicitly asked about when there is nothing else).
+      const violatesWeatherId = (id: string): boolean => {
+        const item = catalog.find((c) => c.id === id);
+        return item ? violatesWeatherRule(item, data.temperature ?? null) : false;
+      };
+      const hasWeatherAlternative = (category: string): boolean =>
+        catalog.some((c) => c.category === category && !violatesWeatherRule(c, data.temperature ?? null));
+      const weatherViolationIn = (ids: string[]): boolean =>
+        ids.some((id) => violatesWeatherId(id) && hasWeatherAlternative(catalog.find((c) => c.id === id)?.category ?? ""));
+
       const hasFootwearViolation = (ids: string[]): boolean =>
         ids.some((id) => violatesRunningRule(id) || violatesSlideRule(id));
       const hasAnyItemViolation = (ids: string[]): boolean =>
@@ -450,6 +465,10 @@ export const stylistChat = createServerFn({ method: "POST" })
         if (!cats.has("Bags")) missing.push("a bag");
         const footwearViolation = hasFootwearViolation(finalItemIds);
         const occasionTagViolation = finalItemIds.some((id) => violatesOccasionTag(id) && hasOccasionAlternative(catalog.find((c) => c.id === id)?.category ?? "", undefined));
+        const weatherViolation = weatherViolationIn(finalItemIds);
+        if (weatherViolation) {
+          missing.push(`a different piece for whichever item is wrong for the real temperature (${Math.round(data.temperature as number)}°C) — wool or other heavy winter fabric, or boots, from 22°C up; a bare/light piece when it is cold — swap it for a suitable alternative from the wardrobe`);
+        }
         if (footwearViolation) {
           const runningPicked = finalItemIds.some(violatesRunningRule);
           const slidesPicked = finalItemIds.some(violatesSlideRule);
@@ -478,7 +497,8 @@ export const stylistChat = createServerFn({ method: "POST" })
             const repairedIds = repaired.item_ids.filter((id) => validIds.has(id)).slice(0, 6);
             const repairFixedFootwear = !footwearViolation || !hasFootwearViolation(repairedIds);
             const repairFixedOccasion = !occasionTagViolation || !repairedIds.some((id) => violatesOccasionTag(id) && hasOccasionAlternative(catalog.find((c) => c.id === id)?.category ?? "", undefined));
-            if (repairedIds.length >= finalItemIds.length && repairFixedFootwear && repairFixedOccasion) {
+            const repairFixedWeather = !weatherViolation || !weatherViolationIn(repairedIds);
+            if (repairedIds.length >= finalItemIds.length && repairFixedFootwear && repairFixedOccasion && repairFixedWeather) {
               finalItemIds = repairedIds;
               finalReply = repaired.reply;
             }
@@ -513,6 +533,19 @@ export const stylistChat = createServerFn({ method: "POST" })
         if (!violatesOccasionTag(id)) continue;
         const category = catalog.find((c) => c.id === id)?.category ?? "";
         const replacement = catalog.find((c) => c.category === category && !violatesOccasionTag(c.id) && !finalItemIds.includes(c.id));
+        if (replacement) {
+          finalItemIds = finalItemIds.filter((x) => x !== id).concat(replacement.id);
+        }
+      }
+
+      // Same last-resort swap for a surviving weather violation (e.g. ankle boots or a wool skirt on a
+      // 29°C day): replace it with a same-category piece that suits the temperature, rather than
+      // shipping the wrong pick.
+      for (const id of finalItemIds) {
+        if (!violatesWeatherId(id)) continue;
+        const category = catalog.find((c) => c.id === id)?.category ?? "";
+        const replacement = catalog.find((c) =>
+          c.category === category && !violatesWeatherId(c.id) && !violatesOccasionTag(c.id) && !finalItemIds.includes(c.id));
         if (replacement) {
           finalItemIds = finalItemIds.filter((x) => x !== id).concat(replacement.id);
         }
