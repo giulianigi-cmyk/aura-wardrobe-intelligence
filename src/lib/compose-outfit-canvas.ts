@@ -23,7 +23,7 @@ export type ComposeItem = { id: string; imgUrl: string; category: string | null;
 
 const BACKGROUND = "#FFFFFF";
 const SIGNATURE_FONT = 'italic 400 100px "Cormorant Garamond", "Times New Roman", serif';
-const SIGNATURE_COLOR = "#1a1613"; // app --foreground
+const SIGNATURE_COLOR = "#6b6159"; // app text grey (muted-foreground)
 
 
 function loadImageEl(url: string): Promise<HTMLImageElement> {
@@ -213,7 +213,7 @@ export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | n
   }
 
     // Signature: the same "aura" wordmark as the Splash screen — Cormorant Garamond
-  // italic, near-black (the app's --foreground). Bottom-CENTER, not bottom-right:
+  // italic, in the app's text grey. Bottom-CENTER, not bottom-right:
   // the Home cards clip the image with rounded corners (up to ~108 canvas px of
   // radius on the small "Curated" cards), which cut a corner-anchored label.
   // It sits inside the strip outfit-layout.ts keeps empty (BOTTOM_RESERVED).
