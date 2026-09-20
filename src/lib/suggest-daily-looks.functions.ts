@@ -150,6 +150,10 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       "layering or boots in ANY look, including Work. If it's cold or rainy, no",
       "bare tanks or thin sandals in ANY look, including Evening. Weather is a",
       "hard constraint like formality, not a decorative detail for \"today\" only.",
+      "From 22°C up there is NO wool or other heavy winter fabric (wool, cashmere, tweed, fleece,",
+      "corduroy, flannel) and NO boots of any kind in ANY look — a wool skirt with ankle boots on a",
+      "warm day is the wrong season even if the piece is not tagged winter. Choose light fabrics",
+      "(cotton, linen, silk, viscose, light knit) and open or light footwear (sandals, flats, loafers, sneakers).",
       "",
       "   Formality and day/evening context outrank color or style match — a",
       "   great color pairing never justifies the wrong occasion.",
@@ -168,7 +172,10 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       "look (a necklace too when the neckline leaves room for it) — jewelry is part",
       "of the outfit, not an afterthought, and matching the metal tone (gold with",
       "gold, silver with silver) and the occasion's formality matters. Match colors and style",
-      "coherently. A dress or jumpsuit is a complete base on its own and REPLACES",
+      "coherently. BAG: choose the bag that suits the outfit — calm in colour and close in",
+      "formality to the rest; a clutch, or a patterned/busy bag, only for Evening or when it",
+      "genuinely matches the look, never just the first bag in the list. A dress or jumpsuit is",
+      "a complete base on its own and REPLACES",
       "both top and bottom — NEVER combine a dress or jumpsuit with a separate",
       "Bottoms item (trousers, jeans, shorts, skirt) in the same look. If you pick",
       "a dress or jumpsuit, do not also pick anything from the Bottoms category.",
@@ -345,13 +352,46 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     // otherwise-good look instead of simply completing it.
     const NO_BAG_OCCASION_SIGNAL = /sport|gym|yoga|running|hiking|training|pilates|tennis|cycling|pool|piscina|swim|beach|spiaggia|mare|snorkeling/i;
     const catalogHasBag = catalog.some((c) => c.category === "Bags");
+    // Which bag gets appended matters as much as having one: it used to be simply the FIRST bag
+    // in the catalog, which is how the same busy clutch ended up on an everyday look with a
+    // skirt and a bodysuit ("goes with nothing"). Now it is chosen: right for the occasion (a
+    // clutch is an evening bag), close to the look's formality, quiet in colour (a patterned or
+    // loud bag only when nothing calmer exists), matching the look's own colours when it can,
+    // and rotated so the four looks don't all get the same one.
+    const NEUTRAL_COLOR = /black|nero|white|bianco|cream|ivory|ecru|off.?white|beige|tan|camel|nude|taupe|brown|marrone|grey|gray|grigio|navy|blu notte|silver|argento|gold|oro/i;
+    const bagUse = new Map<string, number>();
     const ensureBag = (occasion: string, ids: string[]): string[] => {
       if (gender !== "Woman") return ids;
       if (!catalogHasBag) return ids;
       if (NO_BAG_OCCASION_SIGNAL.test(occasion)) return ids;
       if (ids.some((id) => catalog.find((c) => c.id === id)?.category === "Bags")) return ids;
-      const bag = catalog.find((c) => c.category === "Bags" && !ids.includes(c.id));
-      return bag ? [...ids, bag.id] : ids;
+      const look = ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => Boolean(c));
+      const fs = look.map((c) => c.formality).filter((f): f is number => typeof f === "number");
+      const target = fs.length ? fs.reduce((a, b) => a + b, 0) / fs.length : 3;
+      const lookColors = look.flatMap((c) => (c.colors ?? []).map((x) => x.toLowerCase()));
+      const allBags = catalog.filter((c) => c.category === "Bags" && !ids.includes(c.id));
+      const fitting = allBags.filter((c) =>
+        !violatesOccasionTag(occasion, [c.id])
+        && !(occasion === "Work" && violatesWorkFormality([c.id]))
+        && !violatesWeather([c.id]));
+      const pool = fitting.length ? fitting : allBags; // a woman's look never ends up with no bag at all
+      if (!pool.length) return ids;
+      const score = (c: (typeof pool)[number]) => {
+        let sc = (bagUse.get(c.id) ?? 0) * 2;
+        sc += Math.abs((c.formality ?? target) - target);
+        if (/clutch/i.test(c.subcategory) && occasion !== "Evening") sc += 6;
+        if (occasion === "Evening" && c.dayEvening === "day") sc += 2;
+        if (occasion !== "Evening" && c.dayEvening === "evening") sc += 3;
+        const cols = c.colors ?? [];
+        const busy = cols.length >= 3 || cols.some((x) => /multi|pattern|print|stamp/i.test(x));
+        if (busy) sc += 4;
+        else if (cols.length && !cols.every((x) => NEUTRAL_COLOR.test(x))) sc += 1.5;
+        if (cols.some((x) => lookColors.includes(x.toLowerCase()))) sc -= 1;
+        return sc;
+      };
+      const best = [...pool].sort((a, b) => score(a) - score(b))[0];
+      bagUse.set(best.id, (bagUse.get(best.id) ?? 0) + 1);
+      return [...ids, best.id];
     };
 
     // Jewelry "almost always": the prompt now asks for it, but — exactly like
@@ -461,16 +501,31 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       // sentence making no specific claims only if that retry also
       // doesn't produce a complete look — an honest generic sentence
       // beats one confidently wrong about what's shown.
-      const hasTorsoCoverage = (ids: string[]) => ids.some((id) => {
-        const item = catalog.find((c) => c.id === id);
-        return item?.category === "Tops" || item?.category === "Dresses" || item?.category === "Jumpsuits";
-      });
-      if (!hasTorsoCoverage(clean.today.item_ids)) {
+      const catOf = (id: string) => catalog.find((c) => c.id === id)?.category;
+      // A complete outfit = something on the torso AND legs (a dress/jumpsuit covers both, otherwise a
+      // top + a bottom) AND shoes when the wardrobe has any. sanitize() above only STRIPS a piece
+      // that breaks a hard rule (say a wool skirt or boots on a hot day): without this check a
+      // bodysuit with no skirt and no shoes would be shown as "today's look".
+      const catalogHasShoes = catalog.some((c) => c.category === "Shoes");
+      const isCompleteLook = (ids: string[]) => {
+        const cats = ids.map(catOf);
+        const fullBody = cats.includes("Dresses") || cats.includes("Jumpsuits");
+        const torso = fullBody || cats.includes("Tops");
+        const legs = fullBody || cats.includes("Bottoms");
+        const feet = !catalogHasShoes || cats.includes("Shoes");
+        return torso && legs && feet;
+      };
+      const proposedToday = parsed.today.item_ids.filter((id) => validIds.has(id));
+      const strippedToday = proposedToday.filter((id) => !clean.today.item_ids.includes(id));
+      if (!isCompleteLook(clean.today.item_ids) || strippedToday.length > 0) {
         try {
+          const rejected = strippedToday.length
+            ? ` These pieces were REJECTED because they are wrong for today's weather (${wx}) and must not come back: ${JSON.stringify(strippedToday)}.`
+            : "";
           const missingPieceRetrySystem = [
             system,
             "",
-            `IMPORTANT — this is a retry. The "today" look you just proposed has no top, dress, or jumpsuit in it — only these pieces survived: ${JSON.stringify(clean.today.item_ids)}. Propose a corrected, COMPLETE "today" look for the same weather and occasion, following every rule above, that actually includes a proper top (or a dress/jumpsuit instead of separate top+bottom). Reuse the pieces above where they still make sense; replace or drop anything that doesn't once a top is added.`,
+            `IMPORTANT — this is a retry. The "today" look you just proposed is not a complete, wearable outfit for today's weather.${rejected} Only these pieces survived: ${JSON.stringify(clean.today.item_ids)}. Propose a corrected, COMPLETE "today" look — a top plus a bottom (or a dress/jumpsuit instead), shoes, and a bag/accessories where the wardrobe has them — following every rule above, especially the weather. Reuse the surviving pieces where they still make sense and replace the rejected ones with a lighter, season-appropriate alternative from the catalog (light fabric, open or light footwear when it is warm). The explanation must describe ONLY the pieces you actually list.`,
           ].join("\n");
           const TodayRetrySchema = z.object({ today: LookSchema });
           const retryText = (await generateText({
@@ -479,7 +534,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
             messages: [{ role: "user", content: userContent }],
           })).text;
           const retryParsed = parseAiJson(retryText, TodayRetrySchema);
-          if (isValidCuratedLook(retryParsed.today, []) && hasTorsoCoverage(retryParsed.today.item_ids)) {
+          if (isValidCuratedLook(retryParsed.today, []) && isCompleteLook(retryParsed.today.item_ids)) {
             clean.today = retryParsed.today;
           } else {
             clean.today = { ...clean.today, explanation: "A pared-back edit from your closet, put together for today's weather." };
