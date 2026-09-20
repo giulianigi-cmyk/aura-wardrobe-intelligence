@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Plus, X, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, X, Loader2, Trash2, Copy } from "lucide-react";
 import { toast } from "sonner";
 import type { Screen } from "../AuraApp";
 import {
   listEssentialPresets, createEssentialPreset, deleteEssentialPreset,
-  addPresetItem, removePresetItem,
+  addPresetItem, removePresetItem, replacePresetItems,
   type EssentialPreset, type EssentialPresetItem,
 } from "@/lib/essentials.functions";
 
 type PresetWithItems = EssentialPreset & { items: EssentialPresetItem[] };
+
+const keyOf = (it: { category: string | null; name: string }) => `${(it.category ?? "").trim().toLowerCase()}|${it.name.trim().toLowerCase()}`;
+const toInput = (it: EssentialPresetItem) => ({ category: it.category, name: it.name, quantity: it.quantity, alwaysInclude: it.always_include });
 
 export function EssentialPresets({ go }: { go: (s: Screen) => void }) {
   const { t } = useTranslation();
@@ -21,6 +24,8 @@ export function EssentialPresets({ go }: { go: (s: Screen) => void }) {
   const [newItemName, setNewItemName] = useState("");
   const [newItemCategory, setNewItemCategory] = useState("");
   const [addingItem, setAddingItem] = useState(false);
+  const [copyChooserFor, setCopyChooserFor] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = () => {
     listEssentialPresets()
@@ -49,6 +54,44 @@ export function EssentialPresets({ go }: { go: (s: Screen) => void }) {
       toast.success(t("essentialPresets.presetRemoved"));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("essentialPresets.couldntRemovePreset"));
+    }
+  };
+
+  /** Two trips (work vs leisure) share most of their list and differ in a few things:
+   *  duplicate a whole list, then just edit the difference. */
+  const duplicatePreset = async (p: PresetWithItems) => {
+    setBusyId(p.id);
+    try {
+      const suffix = t("essentialPresets.copySuffix", { defaultValue: "copy" });
+      const res = await createEssentialPreset({ data: { name: `${p.name} ${suffix}`.slice(0, 60), items: p.items.map(toInput) } });
+      toast.success(t("essentialPresets.duplicated", { defaultValue: "List duplicated — edit it to fit the new trip" }));
+      load();
+      setOpenId(res.preset.id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("essentialPresets.couldntCreatePreset"));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  /** Adds to this list everything from another list that isn't on it already. */
+  const copyItemsFrom = async (target: PresetWithItems, source: PresetWithItems) => {
+    const have = new Set(target.items.map(keyOf));
+    const toAdd = source.items.filter((it) => !have.has(keyOf(it)));
+    setCopyChooserFor(null);
+    if (!toAdd.length) {
+      toast(t("essentialPresets.nothingNew", { defaultValue: "Everything from that list is already here" }));
+      return;
+    }
+    setBusyId(target.id);
+    try {
+      await replacePresetItems({ data: { presetId: target.id, items: [...target.items, ...toAdd].map(toInput) } });
+      toast.success(t("essentialPresets.itemsCopied", { count: toAdd.length, defaultValue: "{{count}} items added" }));
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("essentialPresets.couldntAddItem"));
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -114,11 +157,19 @@ export function EssentialPresets({ go }: { go: (s: Screen) => void }) {
                     <p className="font-serif text-lg">{p.name}</p>
                     <p className="text-[11px] text-muted-foreground">{t("essentialPresets.itemsCount", { count: p.items.length })}</p>
                   </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); removePreset(p.id); }}
-                    aria-label={t("essentialPresets.deleteAria", { name: p.name })}
-                    className="h-8 w-8 rounded-full bg-secondary/60 flex items-center justify-center active:scale-90"
-                  ><Trash2 size={13} /></button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); void duplicatePreset(p); }}
+                      disabled={busyId === p.id}
+                      aria-label={t("essentialPresets.duplicateAria", { name: p.name, defaultValue: "Duplicate {{name}}" })}
+                      className="h-8 w-8 rounded-full bg-secondary/60 flex items-center justify-center active:scale-90 disabled:opacity-50"
+                    >{busyId === p.id ? <Loader2 size={13} className="animate-spin" /> : <Copy size={13} />}</button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removePreset(p.id); }}
+                      aria-label={t("essentialPresets.deleteAria", { name: p.name })}
+                      className="h-8 w-8 rounded-full bg-secondary/60 flex items-center justify-center active:scale-90"
+                    ><Trash2 size={13} /></button>
+                  </div>
                 </button>
                 {isOpen && (
                   <div className="px-4 pb-4 space-y-2 border-t border-border/40 pt-3">
@@ -157,6 +208,39 @@ export function EssentialPresets({ go }: { go: (s: Screen) => void }) {
                         {addingItem ? <Loader2 size={12} className="animate-spin" /> : <Plus size={14} />}
                       </button>
                     </div>
+
+                    {presets.length > 1 && (
+                      <div className="pt-2">
+                        {copyChooserFor === p.id ? (
+                          <div className="rounded-2xl bg-secondary/40 p-3 space-y-2">
+                            <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+                              {t("essentialPresets.copyFromList", { defaultValue: "Copy items from…" })}
+                            </p>
+                            {presets.filter((o) => o.id !== p.id).map((o) => (
+                              <button
+                                key={o.id}
+                                onClick={() => void copyItemsFrom(p, o)}
+                                disabled={busyId === p.id}
+                                className="w-full flex items-center justify-between rounded-full bg-background px-4 py-2.5 text-left disabled:opacity-60"
+                              >
+                                <span className="text-sm truncate">{o.name}</span>
+                                <span className="text-[10px] uppercase tracking-widest text-muted-foreground shrink-0 ml-2">
+                                  {t("essentialPresets.itemsCount", { count: o.items.length })}
+                                </span>
+                              </button>
+                            ))}
+                            <button onClick={() => setCopyChooserFor(null)} className="w-full h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.25em]">
+                              {t("tripDetail.cancel")}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setCopyChooserFor(p.id)}
+                            className="w-full h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.25em] flex items-center justify-center gap-2"
+                          ><Copy size={13} /> {t("essentialPresets.copyItemsFrom", { defaultValue: "Copy items from another list" })}</button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
