@@ -212,7 +212,7 @@ export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | n
     ctx.drawImage(img, crop.sx, crop.sy, crop.sw, crop.sh, r.x, r.y, r.w, r.h);
   }
 
-    // Signature: the same "aura" wordmark as the Splash screen — Cormorant Garamond
+  // Signature: the same "aura" wordmark as the Splash screen — Cormorant Garamond
   // italic, in the app's text grey. Bottom-CENTER, not bottom-right:
   // the Home cards clip the image with rounded corners (up to ~108 canvas px of
   // radius on the small "Curated" cards), which cut a corner-anchored label.
@@ -231,7 +231,6 @@ export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | n
   (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = "-2px";
   ctx.fillText("aura", CANVAS_W / 2, CANVAS_H - 18);
   ctx.restore();
-
 
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
 }
