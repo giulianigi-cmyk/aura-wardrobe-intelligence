@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 import { composeAndUploadOutfitImage, type ComposeItem } from "@/lib/compose-outfit-canvas";
-import { OutfitPreviewSheet } from "@/components/aura/OutfitPreviewSheet";
+import { OutfitViewerSheet } from "@/components/aura/OutfitViewerSheet";
 import { useWardrobeItems } from "@/lib/wardrobe-query";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { suggestDailyLooks, type DailyLook } from "@/lib/suggest-daily-looks.functions";
@@ -594,20 +594,12 @@ export function Home({ go, openAvatarTryOn, openBuilder }: { go: (s: Screen) => 
       </section>
 
       {preview && (
-        <OutfitPreviewSheet
-          look={preview.look}
-          imageUrl={preview.imagePath ? signedLookImages[preview.imagePath] ?? null : null}
-          imagePath={preview.imagePath}
-          thumbs={preview.look.item_ids.map((id) => thumbFor(id))}
-          composeItems={(() => {
-            const list: ComposeItem[] = [];
-            for (const id of preview.look.item_ids) {
-              const it = itemById[id];
-              const url = thumbFor(id);
-              if (it && url) list.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory });
-            }
-            return list;
-          })()}
+        <OutfitViewerSheet
+          itemIds={preview.look.item_ids}
+          occasion={preview.look.occasion}
+          explanation={preview.look.explanation}
+          canvasPath={preview.imagePath}
+          canvasUrl={preview.imagePath ? signedLookImages[preview.imagePath] ?? null : null}
           onEditOnCanvas={(layout) => {
             const look = preview.look;
             setPreview(null);
