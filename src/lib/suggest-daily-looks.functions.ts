@@ -239,7 +239,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       return Object.entries(SLOT_LIMITS).some(([cat, limit]) => (counts[cat] ?? 0) > limit);
     };
 
-        const EVENING_SIGNAL = /embellish|strappy|metallic|clutch|cocktail/i;
+    const EVENING_SIGNAL = /embellish|strappy|metallic|clutch|cocktail/i;
     /** Hard exclusion for "Work": evening-coded pieces never pass, enforced
      *  in code — not just requested in the prompt. */
     const violatesWorkFormality = (ids: string[]): boolean =>
@@ -250,7 +250,6 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
         if (EVENING_SIGNAL.test(text)) return true;
         // crystals / Swarovski / rhinestones / diamonds / sequins in the MATERIAL field (or tags) too
         if (EMBELLISHED_SIGNAL.test(`${text} ${(item.material ?? []).join(" ")}`) && item.category !== "Accessories") return true;
-
                 if (item.dayEvening === "evening" && (item.formality ?? 0) >= 4) return true;
         return false;
       });
