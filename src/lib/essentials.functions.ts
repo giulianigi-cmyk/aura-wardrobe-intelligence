@@ -281,3 +281,47 @@ export const removeTripEssential = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
+
+const CopyEssentialsSchema = z.object({
+  toTripId: z.string().uuid(),
+  items: z.array(z.object({
+    category: z.string().trim().max(60).nullable().optional(),
+    name: z.string().trim().min(1).max(100),
+    quantity: z.number().int().min(1).max(99).default(1),
+  })).min(1).max(300),
+});
+
+/** Copies chosen essentials (typically picked from ANOTHER trip's list) into
+ *  this trip, as an independent snapshot with everything reset to "to pack".
+ *  Two trips (work vs leisure) usually share most of the list and differ in a
+ *  few things, so this saves re-typing the shared part. Anything already on
+ *  the destination list (same name + category, case-insensitive) is skipped,
+ *  never duplicated, and the rows actually added are returned so the UI can
+ *  append them without a reload. */
+export const copyEssentialsToTrip = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => CopyEssentialsSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: trip } = await (supabase.from("trips" as never) as any).select("id").eq("id", data.toTripId).eq("user_id", userId).maybeSingle();
+    if (!trip) throw new Error("Trip not found");
+
+    const keyOf = (category: string | null | undefined, name: string) => `${(category ?? "").trim().toLowerCase()}|${name.trim().toLowerCase()}`;
+    const { data: existing, error: existingErr } = await (supabase.from("trip_essentials" as never) as any)
+      .select("category, name").eq("trip_id", data.toTripId);
+    if (existingErr) throw new Error(existingErr.message);
+    const seen = new Set(((existing ?? []) as { category: string | null; name: string }[]).map((e) => keyOf(e.category, e.name)));
+
+    const toInsert: { trip_id: string; category: string | null; name: string; quantity: number; status: "to_pack" }[] = [];
+    for (const it of data.items) {
+      const k = keyOf(it.category, it.name);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      toInsert.push({ trip_id: data.toTripId, category: it.category || null, name: it.name, quantity: it.quantity, status: "to_pack" });
+    }
+    if (!toInsert.length) return { added: 0, skipped: data.items.length, items: [] as TripEssential[] };
+
+    const { data: rows, error } = await (supabase.from("trip_essentials" as never) as any).insert(toInsert).select("*");
+    if (error) throw new Error(error.message);
+    return { added: toInsert.length, skipped: data.items.length - toInsert.length, items: (rows ?? []) as TripEssential[] };
+  });
