@@ -4,7 +4,7 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
-import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE } from "./outfit-styling-rules";
+import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece } from "./outfit-styling-rules";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 
 const ItemSchema = z.object({
