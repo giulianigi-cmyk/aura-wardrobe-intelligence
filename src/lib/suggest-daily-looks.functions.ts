@@ -373,6 +373,45 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     // and rotated so the four looks don't all get the same one.
     const NEUTRAL_COLOR = /black|nero|white|bianco|cream|ivory|ecru|off.?white|beige|tan|camel|nude|taupe|brown|marrone|grey|gray|grigio|navy|blu notte|silver|argento|gold|oro/i;
     const bagUse = new Map<string, number>();
+
+    // Shoes are part of every look. The today-look already gets a completeness retry, but a curated
+    // look (Work, Weekend, Evening) could come back from the model with a dress and no shoes at all
+    // ("a cream dress with a bag, a belt and a watch, and bare feet"). Same idea as the bag and the
+    // jewelry: the model asked, code makes sure — the pair is CHOSEN (weather, occasion tag, Work rules,
+    // no evening-embellished pair by day, closeness to the look's formality, heels for Evening but not
+    // high heels for Work) and rotated so the four looks don't all get the same pair.
+    const NO_SHOES_OCCASION_SIGNAL = /pool|piscina|swim|beach|spiaggia|mare|snorkeling/i;
+    const shoeUse = new Map<string, number>();
+    const ensureShoes = (occasion: string, ids: string[]): string[] => {
+      const allShoes = catalog.filter((c) => c.category === "Shoes");
+      if (!allShoes.length) return ids;
+      if (NO_SHOES_OCCASION_SIGNAL.test(occasion)) return ids;
+      if (ids.some((id) => catalog.find((c) => c.id === id)?.category === "Shoes")) return ids;
+      const fs = ids.map((id) => catalog.find((c) => c.id === id)?.formality).filter((f): f is number => typeof f === "number");
+      const target = fs.length ? fs.reduce((a, b) => a + b, 0) / fs.length : 3;
+      const strict = allShoes.filter((c) =>
+        !violatesWeather([c.id]) && !violatesStylingFootwear([c.id]) && !violatesOccasionTag(occasion, [c.id])
+        && !violatesEmbellishedByDay(occasion, [c.id])
+        && !(occasion === "Work" && (violatesWorkFormality([c.id]) || violatesWorkModesty([c.id]))));
+      const relaxed = allShoes.filter((c) => !violatesWeather([c.id]) && !violatesStylingFootwear([c.id]));
+      const pool = strict.length ? strict : relaxed; // never a look with no shoes if a suitable pair exists
+      if (!pool.length) return ids;
+      const score = (c: (typeof pool)[number]) => {
+        let sc = (shoeUse.get(c.id) ?? 0) * 2;
+        sc += Math.abs((c.formality ?? target) - target);
+        // heel height is not sent to this engine: read it from the shoe type / tags
+        const heeled = /pump|wedge|stiletto|slingback|heel/i.test(`${c.subcategory} ${(c.styleTags ?? []).join(" ")}`);
+        if (occasion === "Evening" && heeled) sc -= 1;
+        if (occasion === "Weekend" && heeled) sc += 1.5;
+        if (occasion === "Evening" && c.dayEvening === "day") sc += 2;
+        if (occasion !== "Evening" && c.dayEvening === "evening") sc += 3;
+        return sc;
+      };
+      const best = [...pool].sort((a, b) => score(a) - score(b))[0];
+      shoeUse.set(best.id, (shoeUse.get(best.id) ?? 0) + 1);
+      return [...ids, best.id];
+    };
+
     const ensureBag = (occasion: string, ids: string[]): string[] => {
       if (gender !== "Woman") return ids;
       if (!catalogHasBag) return ids;
@@ -605,8 +644,8 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
         }
       }
 
-      clean.today = { ...clean.today, item_ids: ensureJewelry(clean.today.occasion, ensureBag(clean.today.occasion, clean.today.item_ids)) };
-      clean.curated = clean.curated.map((l) => ({ ...l, item_ids: ensureJewelry(l.occasion, ensureBag(l.occasion, l.item_ids)) }));
+      clean.today = { ...clean.today, item_ids: ensureJewelry(clean.today.occasion, ensureBag(clean.today.occasion, ensureShoes(clean.today.occasion, clean.today.item_ids))) };
+      clean.curated = clean.curated.map((l) => ({ ...l, item_ids: ensureJewelry(l.occasion, ensureBag(l.occasion, ensureShoes(l.occasion, l.item_ids))) }));
 
       return { ok: true as const, result: clean };
 
