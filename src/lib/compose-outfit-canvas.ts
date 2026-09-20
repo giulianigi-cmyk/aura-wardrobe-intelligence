@@ -69,7 +69,7 @@ function loadCachedImage(url: string): Promise<HTMLImageElement> {
   return p;
 }
 
-type Crop = { sx: number; sy: number; sw: number; sh: number };
+type Crop = { sx: number; sy: number; sw: number; sh: number; /** opaque share of the box, 0-1 */ fill?: number };
 
 /** Bounding box of the non-transparent pixels (alpha > 16), scanned on a
  *  downscaled copy for speed. Fully opaque images (JPEG, white bg) return
@@ -87,10 +87,11 @@ function visibleCrop(img: HTMLImageElement): Crop {
     if (!cx) return full;
     cx.drawImage(img, 0, 0, w, h);
     const { data } = cx.getImageData(0, 0, w, h);
-    let minX = w, minY = h, maxX = -1, maxY = -1;
+    let minX = w, minY = h, maxX = -1, maxY = -1, opaque = 0;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         if (data[(y * w + x) * 4 + 3] > 16) {
+          opaque++;
           if (x < minX) minX = x;
           if (x > maxX) maxX = x;
           if (y < minY) minY = y;
@@ -105,6 +106,7 @@ function visibleCrop(img: HTMLImageElement): Crop {
     return {
       sx: Math.floor(minX / k), sy: Math.floor(minY / k),
       sw: Math.min(img.naturalWidth, Math.ceil(bw / k)), sh: Math.min(img.naturalHeight, Math.ceil(bh / k)),
+      fill: Math.min(1, opaque / (bw * bh)),
     };
   } catch {
     return full;
@@ -135,6 +137,7 @@ async function prepareLayout(items: ComposeItem[]): Promise<Prepared | null> {
       aspect: crops[i].sh / crops[i].sw || 1,
       subcategory: it.subcategory ?? null,
       length: it.length ?? null,
+      fill: crops[i].fill ?? null,
     })),
     CANVAS_W, CANVAS_H,
   );
@@ -246,8 +249,8 @@ export async function composeAndUploadOutfitImage(userId: string, items: Compose
   const path = `${userId}/home-suggestion-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
   const { error } = await supabase.storage.from("outfits").upload(path, blob, {
     contentType: "image/png",
-    upsert: false,
     cacheControl: "3600",
+    upsert: false,
   });
   if (error) {
     console.error("[AURA compose-outfit-canvas] upload failed", error);
