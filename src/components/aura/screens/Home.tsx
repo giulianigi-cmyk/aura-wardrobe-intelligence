@@ -16,6 +16,7 @@ import { OutfitViewerSheet } from "@/components/aura/OutfitViewerSheet";
 import { useWardrobeItems } from "@/lib/wardrobe-query";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { suggestDailyLooks, type DailyLook } from "@/lib/suggest-daily-looks.functions";
+import { tempBucket } from "@/lib/outfit-weather-rules";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 import { WardrobeLocationExpiryBanner } from "@/components/aura/WardrobeLocationExpiryBanner";
 import i18n, { type SupportedLanguage } from "@/i18n/config";
@@ -121,7 +122,12 @@ export function Home({ go, openAvatarTryOn, openBuilder }: { go: (s: Screen) => 
           const t = (it as unknown as { updated_at?: string }).updated_at ?? it.created_at;
           return t && t > max ? t : max;
         }, "");
-        const fingerprint = `${allItems.length}:${latestEdit}`;
+                // The temperature BAND is part of the cache key: a look composed in the cool of the
+        // morning must not survive an afternoon that turned hot (a wool skirt with ankle
+        // boots on a 29°C day). It only changes when the day crosses a band, so it does not
+        // regenerate on every degree.
+        const fingerprint = `${allItems.length}:${latestEdit}:${tempBucket(weather?.current.temperature)}`;
+
 
         type CachedRow = {
           date: string; wardrobe_fingerprint: string; today_item_ids: string[];
