@@ -19,7 +19,7 @@ import { bucketOf, layoutOutfit, CANVAS_W, CANVAS_H, type Bucket, type LayoutRec
 export { bucketOf };
 export type { Bucket };
 
-export type ComposeItem = { id: string; imgUrl: string; category: string | null; subcategory?: string | null };
+export type ComposeItem = { id: string; imgUrl: string; category: string | null; subcategory?: string | null; length?: string | null };
 
 const BACKGROUND = "#FFFFFF";
 const SIGNATURE_FONT = 'italic 400 100px "Cormorant Garamond", "Times New Roman", serif';
@@ -133,6 +133,8 @@ async function prepareLayout(items: ComposeItem[]): Promise<Prepared | null> {
       id: it.id,
       bucket: bucketOf(it.category, it.subcategory),
       aspect: crops[i].sh / crops[i].sw || 1,
+      subcategory: it.subcategory ?? null,
+      length: it.length ?? null,
     })),
     CANVAS_W, CANVAS_H,
   );
@@ -212,7 +214,7 @@ export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | n
     ctx.drawImage(img, crop.sx, crop.sy, crop.sw, crop.sh, r.x, r.y, r.w, r.h);
   }
 
-  // Signature: the same "aura" wordmark as the Splash screen — Cormorant Garamond
+    // Signature: the same "aura" wordmark as the Splash screen — Cormorant Garamond
   // italic, in the app's text grey. Bottom-CENTER, not bottom-right:
   // the Home cards clip the image with rounded corners (up to ~108 canvas px of
   // radius on the small "Curated" cards), which cut a corner-anchored label.
@@ -231,6 +233,7 @@ export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | n
   (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = "-2px";
   ctx.fillText("aura", CANVAS_W / 2, CANVAS_H - 18);
   ctx.restore();
+
 
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
 }
