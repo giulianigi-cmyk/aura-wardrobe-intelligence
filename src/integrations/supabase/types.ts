@@ -359,9 +359,11 @@ export type Database = {
       home_suggestions: {
         Row: {
           curated: Json | null
+          curated_image_paths: string[] | null
           date: string
           generated_at: string
           today_explanation: string | null
+          today_image_path: string | null
           today_item_ids: string[]
           today_occasion: string | null
           user_id: string
@@ -369,9 +371,11 @@ export type Database = {
         }
         Insert: {
           curated?: Json | null
+          curated_image_paths?: string[] | null
           date: string
           generated_at?: string
           today_explanation?: string | null
+          today_image_path?: string | null
           today_item_ids?: string[]
           today_occasion?: string | null
           user_id: string
@@ -379,9 +383,11 @@ export type Database = {
         }
         Update: {
           curated?: Json | null
+          curated_image_paths?: string[] | null
           date?: string
           generated_at?: string
           today_explanation?: string | null
+          today_image_path?: string | null
           today_item_ids?: string[]
           today_occasion?: string | null
           user_id?: string
