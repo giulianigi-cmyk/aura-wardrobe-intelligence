@@ -69,6 +69,9 @@
   /* Filled buttons / active pills: beige with warm-grey text (see the unlayered rules below) */
   --button-beige: oklch(0.86 0.032 75);
   --button-ink: oklch(0.42 0.02 60);
+  /* Titles (headings and the serif display type, incl. the "aura" wordmark) are a notch darker
+     than the warm-grey body writing */
+  --title-ink: oklch(0.4 0.02 60);
 }
 
 @layer base {
@@ -112,6 +115,14 @@
 .text-foreground\/85,
 .text-foreground\/90 {
   color: var(--color-muted-foreground);
+}
+
+/* Titles — headings and the serif display type ("aura" on the opening screen, "Today's edit",
+   the onboarding headlines) — read a notch darker than the warm-grey body text. Serif lines that
+   are explicitly muted (a greeting, the canvas watermark) keep the lighter grey. Placed BEFORE the
+   button rules below so a filled button always keeps its own text colour. */
+:is(h1, h2, h3, .font-serif):not(.text-muted-foreground) {
+  color: var(--title-ink);
 }
 
 /* Outlined buttons: grey outline instead of a black one. */
