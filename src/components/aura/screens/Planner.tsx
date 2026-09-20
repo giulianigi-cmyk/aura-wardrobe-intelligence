@@ -1,8 +1,8 @@
-import { ChevronLeft, ChevronRight, X, Plus, Loader2, Sparkles, Cloud, Trash2, Luggage } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Plus, Loader2, Sparkles, Cloud, Trash2, Luggage, LayoutGrid, User } from "lucide-react";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import type { Screen, StylistChatInit } from "../AuraApp";
+import type { Screen, StylistChatInit, BuilderInit } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "@/hooks/use-location";
@@ -20,6 +20,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { listOpenWeatherProposals, resolveWeatherProposal } from "@/lib/plan-weather.functions";
 import { WeatherProposalCard, type WeatherProposal } from "../WeatherProposalCard";
 import { ItemImageViewer } from "../ItemImageViewer";
+import { OutfitViewerSheet } from "../OutfitViewerSheet";
 import i18n from "@/i18n/config";
 
 type OutfitPlan = Tables<"outfit_plans"> & { status?: string | null };
@@ -75,10 +76,11 @@ function itemMatchesKeywords(it: WardrobeItem, keywords: string[], materials: st
 const DOW = ["M", "T", "W", "T", "F", "S", "S"];
 const getLocalizedDow = (t: (k: string) => string) => (t("planner.dowLetters") as string).split(",");
 
-export function Planner({ go, openStylistChat, openBuilder, focus }: {
+export function Planner({ go, openStylistChat, openBuilder, openAvatarTryOn, focus }: {
   go: (s: Screen) => void;
   openStylistChat: (init: NonNullable<StylistChatInit>) => void;
-  openBuilder: (init: { itemIds: string[]; occasion?: string } | null) => void;
+  openBuilder: (init: BuilderInit) => void;
+  openAvatarTryOn: (itemIds?: string[]) => void;
   /** Deep-link target from a weather_change notification. */
   focus?: { date: string; planId?: string | null } | null;
 }) {
@@ -427,6 +429,7 @@ export function Planner({ go, openStylistChat, openBuilder, focus }: {
           calendarEvents={eventsByDate[selectedDate] ?? []}
           openStylistChat={openStylistChat}
           openBuilder={openBuilder}
+          openAvatarTryOn={openAvatarTryOn}
           items={items}
           signed={signed}
           weather={dailyByDate[selectedDate] ?? null}
@@ -450,14 +453,15 @@ type Slot = { type: "general" } | { type: "event"; event: ImportedEvent };
 const slotKey = (s: Slot) => (s.type === "general" ? "general" : `event:${s.event.id}`);
 
 function DayDetail({
-  date, plans, calendarEvents, openStylistChat, openBuilder, items, signed, weather, currentTempC,
+  date, plans, calendarEvents, openStylistChat, openBuilder, openAvatarTryOn, items, signed, weather, currentTempC,
   proposals, onProposalResolved, onClose, onSaved, onDismissEvent,
 }: {
   date: string;
   plans: OutfitPlan[];
   calendarEvents: ImportedEvent[];
   openStylistChat: (init: NonNullable<StylistChatInit>) => void;
-  openBuilder: (init: { itemIds: string[]; occasion?: string } | null) => void;
+  openBuilder: (init: BuilderInit) => void;
+  openAvatarTryOn: (itemIds?: string[]) => void;
   items: WardrobeItem[];
   signed: Record<string, string>;
   weather: DailyForecast | null;
@@ -485,6 +489,8 @@ function DayDetail({
   const hasMultipleSlots = calendarEvents.length > 0 || plans.length > 0;
   const [activeSlot, setActiveSlot] = useState<Slot | null>(hasMultipleSlots ? null : { type: "general" });
   const [viewerImage, setViewerImage] = useState<{ src: string; alt: string } | null>(null);
+  // The whole look as a canvas (auto-composed, like Home), with pieces / avatar / save / share
+  const [viewingLook, setViewingLook] = useState<{ itemIds: string[]; occasion: string | null; notes: string | null } | null>(null);
 
   const plan = !activeSlot ? null : activeSlot.type === "general" ? generalPlan : planForEvent(activeSlot.event.id);
   const activeEventId = activeSlot?.type === "event" ? activeSlot.event.id : null;
@@ -722,6 +728,22 @@ function DayDetail({
   const dayProposals = proposals.filter((n) => n.data?.date === date);
 
 
+  /** "Canvas" + "Avatar" shortcuts under a planned / worn look's thumbnails. */
+  const lookViewButtons = (p: OutfitPlan) => (
+    <div className="mt-2 flex gap-2">
+      <button
+        type="button"
+        onClick={() => setViewingLook({ itemIds: p.item_ids, occasion: p.occasion ?? null, notes: p.notes ?? null })}
+        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 active:scale-[0.98]"
+      ><LayoutGrid size={12} /> {t("outfitViewer.canvas", { defaultValue: "Canvas" })}</button>
+      <button
+        type="button"
+        onClick={() => openAvatarTryOn(p.item_ids)}
+        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 active:scale-[0.98]"
+      ><User size={12} /> {t("outfitViewer.onAvatar", { defaultValue: "Avatar" })}</button>
+    </div>
+  );
+
   const SlotRow = ({ label, sublabel, slotPlan, onOpen, onAsk, onDismiss, removedFromSource }: {
     label: string; sublabel: string | null; slotPlan: OutfitPlan | null; onOpen: () => void; onAsk: () => void;
     onDismiss?: () => void; removedFromSource?: boolean;
@@ -755,6 +777,7 @@ function DayDetail({
         )}
       </div>
       {slotPlan ? (
+        <>
         <div className="mt-2 flex gap-1.5 overflow-x-auto no-scrollbar w-full">
           {slotPlan.item_ids.map((id) => {
             const it = items.find((i) => i.id === id);
@@ -774,6 +797,8 @@ function DayDetail({
             );
           })}
         </div>
+        {lookViewButtons(slotPlan)}
+        </>
       ) : (
         <div className="mt-2 flex gap-2">
           <button onClick={onOpen} className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em]">{t("planner.choosePieces")}</button>
@@ -887,6 +912,7 @@ function DayDetail({
                         );
                       })}
                     </div>
+                    {lookViewButtons(plan)}
                   </div>
                   {(plan.occasion || plan.notes) && (
                     <div className="rounded-2xl bg-secondary/40 p-4 space-y-2">
@@ -1044,6 +1070,22 @@ function DayDetail({
       )}
       {viewerImage && (
         <ItemImageViewer src={viewerImage.src} alt={viewerImage.alt} onClose={() => setViewerImage(null)} />
+      )}
+      {viewingLook && (
+        <OutfitViewerSheet
+          itemIds={viewingLook.itemIds}
+          title={dateLabel}
+          occasion={viewingLook.occasion}
+          notes={viewingLook.notes}
+          onClose={() => setViewingLook(null)}
+          onTryOn={(ids) => { setViewingLook(null); onClose(); openAvatarTryOn(ids); }}
+          onEditOnCanvas={(layout) => {
+            const look = viewingLook;
+            setViewingLook(null);
+            onClose();
+            openBuilder({ itemIds: look.itemIds, occasion: look.occasion ?? undefined, layout });
+          }}
+        />
       )}
     </div>
   );
