@@ -315,7 +315,7 @@ function Inner() {
         {mountedTabs.has("planner") && (
           <div className={`absolute inset-0 ${screen === "planner" ? "" : "hidden"}`}>
             <ErrorBoundary onReset={() => go("home")}>
-              <Planner go={go} openStylistChat={openStylistChat} openBuilder={openBuilder} focus={plannerFocus} />
+              <Planner go={go} openStylistChat={openStylistChat} openBuilder={openBuilder} openAvatarTryOn={openAvatarTryOn} focus={plannerFocus} />
             </ErrorBoundary>
           </div>
         )}
