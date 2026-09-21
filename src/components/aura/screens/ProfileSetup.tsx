@@ -199,12 +199,11 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
                   />
                   {usernameChecking && <Loader2 size={14} className="animate-spin text-muted-foreground" />}
                 </div>
-                <p className="text-[11px] text-muted-foreground h-4">
-                  {username.length === 0 ? t("profileSetup.usernameRules") :
-                    !usernameValid ? t("profileSetup.usernameRules") :
-                    usernameChecking ? t("profileSetup.checking") :
-                    usernameAvailable === true ? t("profileSetup.available") :
-                    usernameAvailable === false ? t("profileSetup.alreadyTaken") : ""}
+                <p
+                  aria-live="polite"
+                  className={`text-[11px] min-h-4 ${usernameHintIsError ? "text-destructive" : "text-muted-foreground"}`}
+                >
+                  {usernameHint}
                 </p>
               </div>
             </div>
