@@ -404,6 +404,8 @@ export const confirmDetectedItems = createServerFn({ method: "POST" })
           closure: it.closure || null,
           gender: it.gender || null,
           style_tags: it.style_tags,
+          model: it.model || null,
+          bag_size_class: it.bag_size_class || null,
          price: it.price ?? null,
           currency: it.price != null ? it.currency || null : null,
           size: it.size || null,
