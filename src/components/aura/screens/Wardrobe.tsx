@@ -18,6 +18,7 @@ import type { FractionalBox } from "@/components/aura/ItemCropAdjuster";
 import { compressImageForUpload } from "@/lib/image-compress";
 import { trimWhiteMargins } from "@/lib/auto-crop";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useTranslation } from "react-i18next";
 import type { Screen, BuilderInit } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
@@ -105,7 +106,9 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [movingSelection, setMovingSelection] = useState(false);
   const [bulkMovePicker, setBulkMovePicker] = useState(false);
+  const bulkMovePickerCanClose = useSheetCanClose(bulkMovePicker);
   const [detail, setDetail] = useState<WardrobeItem | null>(null);
+  const detailCanClose = useSheetCanClose(!!detail);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showLoaned, setShowLoaned] = useState(false);
   const [loansByItemId, setLoansByItemId] = useState<Record<string, WardrobeLoan>>({});
@@ -1055,7 +1058,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
       {detail && (
         <div
           className="fixed inset-0 z-[60] bg-background/85 backdrop-blur flex items-end sm:items-center justify-center"
-          onClick={() => { setDetail(null); setEditing(false); setConfirmDelete(false); }}
+          onClick={() => { if (!detailCanClose) return; setDetail(null); setEditing(false); setConfirmDelete(false); }}
         >
          <div
             onClick={(e) => e.stopPropagation()}
@@ -1669,7 +1672,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
       )}
 
       {bulkMovePicker && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => !movingSelection && setBulkMovePicker(false)}>
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => bulkMovePickerCanClose && !movingSelection && setBulkMovePicker(false)}>
           <div onClick={(e) => e.stopPropagation()} className="w-full bg-card rounded-t-3xl border-t border-border p-5 space-y-2">
             <p className="font-serif italic text-lg">{t("wardrobe.moveSelectionTitle", { count: selectedIds.size })}</p>
             {locations.map((loc) => (
