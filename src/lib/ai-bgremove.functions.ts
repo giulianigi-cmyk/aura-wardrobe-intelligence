@@ -29,6 +29,14 @@ export async function removeBackgroundCore(imageDataUrl: string): Promise<{ ok: 
     const form = new FormData();
     form.append("image_file", dataUrlToBlob(imageDataUrl), "upload.png");
     form.append("size", "auto");
+    // Previously left on "auto" (remove.bg's own foreground-type guess),
+    // which is a real cause of the reported problem: a garment that's a
+    // similar tone to skin/background, or shot with a person partially
+    // in frame, can get misclassified — losing real parts of the item
+    // or leaving it semi-transparent where it shouldn't be. Telling the
+    // API explicitly that every photo here is a clothing/accessory
+    // product (never a person) removes that guess entirely.
+    form.append("type", "product");
 
     const resp = await fetch("https://api.remove.bg/v1.0/removebg", {
       method: "POST",
