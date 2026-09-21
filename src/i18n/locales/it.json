@@ -1508,7 +1508,12 @@
     "shareLibraryDetail": "I tuoi capi — brand, prezzo, tag e foto — diventano visibili e riutilizzabili da altri membri, in forma anonima: nessuno saprà che vengono da te. I dati personali (il tuo nome, quanto spesso indossi le cose, dove le tieni) non vengono mai condivisi. Puoi disattivarlo in qualsiasi momento dal tuo profilo; i capi già importati da altri restano nel loro guardaroba.",
     "back": "Indietro",
     "enterAura": "Entra in AURA",
-    "continue": "Continua"
+    "continue": "Continua",
+    "usernameInvalidChars": "Usa solo lettere minuscole, numeri e _",
+    "usernameTooShort": "Il nome utente deve avere almeno 3 caratteri.",
+    "usernameTooLong": "Il nome utente non può superare 20 caratteri.",
+    "needFullName": "Inserisci il tuo nome per continuare.",
+    "needUsername": "Scegli un nome utente disponibile per continuare."
   },
   "colorAnalysis": {
     "backAria": "Indietro",

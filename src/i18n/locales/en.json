@@ -1510,7 +1510,12 @@
     "shareLibraryDetail": "Your pieces — brand, price, tags and photo — become visible and reusable by other members, anonymously: nobody will know they came from you. Personal data (your name, how often you wear things, where you keep them) is never shared. You can turn this off at any time in your profile; pieces others already imported stay in their own closet.",
     "back": "Back",
     "enterAura": "Enter AURA",
-    "continue": "Continue"
+    "continue": "Continue",
+    "usernameInvalidChars": "Use only lowercase letters, numbers and _",
+    "usernameTooShort": "Username must be at least 3 characters.",
+    "usernameTooLong": "Username cannot be longer than 20 characters.",
+    "needFullName": "Enter your name to continue.",
+    "needUsername": "Pick an available username to continue."
   },
   "colorAnalysis": {
     "backAria": "Back",

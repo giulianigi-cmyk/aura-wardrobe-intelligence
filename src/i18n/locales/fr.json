@@ -1430,7 +1430,12 @@
     "shareLibraryDetail": "Vos pièces — marque, prix, étiquettes et photo — deviennent visibles et réutilisables par d'autres membres, de façon anonyme : personne ne saura qu'elles viennent de vous. Les données personnelles (votre nom, la fréquence d'utilisation, où vous les rangez) ne sont jamais partagées. Vous pouvez désactiver cela à tout moment dans votre profil ; les pièces déjà importées par d'autres restent dans leur propre garde-robe.",
     "back": "Retour",
     "enterAura": "Entrer dans AURA",
-    "continue": "Continuer"
+    "continue": "Continuer",
+    "usernameInvalidChars": "Utilise uniquement des minuscules, des chiffres et _",
+    "usernameTooShort": "Le nom d’utilisateur doit contenir au moins 3 caractères.",
+    "usernameTooLong": "Le nom d’utilisateur ne peut pas dépasser 20 caractères.",
+    "needFullName": "Saisis ton nom pour continuer.",
+    "needUsername": "Choisis un nom d’utilisateur disponible pour continuer."
   },
   "colorAnalysis": {
     "backAria": "Retour",
