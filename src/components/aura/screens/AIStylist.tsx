@@ -1,5 +1,6 @@
 import { Copy, Loader2, Share2, Sparkles, Search, Calendar as CalendarIcon, Trash2, Check, X, Archive, ArchiveRestore, Plus, Pencil, LayoutGrid, User } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useServerFn } from "@tanstack/react-start";
 import { updateTripOutfitPlanItems } from "@/lib/trips.functions";
 import { useTranslation } from "react-i18next";
@@ -210,6 +211,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
   const [shareFor, setShareFor] = useState<string | null>(null);
   const [viewing, setViewing] = useState<ViewingLook | null>(null);
   const [assignFor, setAssignFor] = useState<Outfit | null>(null);
+  const assignForCanClose = useSheetCanClose(!!assignFor);
   const [assignDate, setAssignDate] = useState<string>(() => todayIso());
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -226,6 +228,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
   const { data: locationsData } = useWardrobeLocations();
   const locations = locationsData?.locations ?? [];
   const [weeklySheetOpen, setWeeklySheetOpen] = useState(false);
+  const weeklySheetCanClose = useSheetCanClose(weeklySheetOpen);
   const [weeklyDays, setWeeklyDays] = useState<7 | 14>(7);
     // Multi-select on purpose (see suggestOutfitCore's locationIdsOverride):
   // a trip means both the main wardrobe and a second home can be
@@ -561,7 +564,9 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
   const updatePlanItems = useServerFn(updateTripOutfitPlanItems);
   const [upcomingBusyPlanId, setUpcomingBusyPlanId] = useState<string | null>(null);
   const [upcomingPickerFor, setUpcomingPickerFor] = useState<string | null>(null);
+  const pickerCanClose = useSheetCanClose(!!(pickerForPlan || upcomingPickerFor || wornPickerFor));
   const [detailItemId, setDetailItemId] = useState<string | null>(null);
+  const detailItemCanClose = useSheetCanClose(!!detailItemId);
 
   const persistUpcomingItems = async (planId: string, nextIds: string[]) => {
     setUpcomingBusyPlanId(planId);
@@ -1036,7 +1041,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
         const src = path ? itemSigned[path] : null;
         const label = it.colors?.[0] ?? it.color ?? it.category ?? "";
         return (
-          <div className="fixed inset-0 z-[70] bg-background/80 backdrop-blur flex items-end sm:items-center sm:justify-center" onClick={() => setDetailItemId(null)}>
+          <div className="fixed inset-0 z-[70] bg-background/80 backdrop-blur flex items-end sm:items-center sm:justify-center" onClick={() => detailItemCanClose && setDetailItemId(null)}>
             <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm bg-card rounded-t-3xl sm:rounded-3xl border-t sm:border border-border p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
               <div className="flex justify-end">
                 <button onClick={() => setDetailItemId(null)} aria-label={t("aiStylist.closeAria")} className="h-8 w-8 rounded-full bg-secondary/60 flex items-center justify-center active:scale-90"><X size={14} /></button>
@@ -1169,7 +1174,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
       )}
 
       {assignFor && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => setAssignFor(null)}>
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => assignForCanClose && setAssignFor(null)}>
           <div onClick={(e) => e.stopPropagation()} className="w-full bg-card rounded-t-3xl border-t border-border p-5 space-y-3">
             <p className="font-serif italic text-lg">{t("aiStylist.assignToADate")}</p>
             <input
@@ -1188,7 +1193,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
 
       {(pickerForPlan || upcomingPickerFor || wornPickerFor) && (() => {
         const activePlanId = (pickerForPlan ?? upcomingPickerFor ?? wornPickerFor) as string;
-        const closePicker = () => { setPickerForPlan(null); setUpcomingPickerFor(null); setWornPickerFor(null); };
+        const closePicker = () => { if (!pickerCanClose) return; setPickerForPlan(null); setUpcomingPickerFor(null); setWornPickerFor(null); };
         const currentIds = new Set(
           pickerForPlan
             ? (editedItems[pickerForPlan] ?? plans.find((p) => p.id === pickerForPlan)?.item_ids ?? [])
@@ -1264,7 +1269,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
       })()}
 
       {weeklySheetOpen && (
-               <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => !weeklyGenerating && setWeeklySheetOpen(false)}>
+      <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => weeklySheetCanClose && !weeklyGenerating && setWeeklySheetOpen(false)}>
                     <div onClick={(e) => e.stopPropagation()} className="w-full bg-card rounded-t-3xl border-t border-border p-5 pb-[calc(2.5rem+env(safe-area-inset-bottom))] space-y-4 max-h-[85vh] overflow-y-auto">
 
             <p className="font-serif italic text-lg">{t("aiStylist.createWorkOutfits")}</p>
