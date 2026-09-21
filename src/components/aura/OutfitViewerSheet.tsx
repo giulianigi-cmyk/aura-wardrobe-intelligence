@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
@@ -67,6 +68,7 @@ export function OutfitViewerSheet({
   const [canvasState, setCanvasState] = useState<"loading" | "ready" | "failed">(canvasUrlProp ? "ready" : "loading");
   const blobRef = useRef<Blob | null>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const lightboxCanClose = useSheetCanClose(!!lightbox);
 
   const [savedId, setSavedId] = useState<string | null>(outfitId ?? null);
   const [saving, setSaving] = useState(false);
@@ -334,7 +336,7 @@ export function OutfitViewerSheet({
       </div>
 
       {lightbox && (
-        <div className="fixed inset-0 z-[75] bg-black/75 flex items-center justify-center p-6" onClick={() => setLightbox(null)}>
+        <div className="fixed inset-0 z-[75] bg-black/75 flex items-center justify-center p-6" onClick={() => lightboxCanClose && setLightbox(null)}>
           <div className="w-full max-w-sm rounded-3xl overflow-hidden aspect-square" style={{ background: "#FFFFFF" }}>
             <img src={lightbox} alt="" className="h-full w-full object-contain p-4" />
           </div>
