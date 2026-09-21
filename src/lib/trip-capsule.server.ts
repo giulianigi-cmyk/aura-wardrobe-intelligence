@@ -335,9 +335,9 @@ export type Requirement = {
   // has none; a Requirement with either time missing is never grouped
   // with a neighbor (see groupIntoOutfitStates' own conservative
   // default), so this addition changes nothing for pre-existing trips.
-  startTime: string | null;
-  endTime: string | null;
-  location: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  location?: string | null;
 };
 
 const MIN_MEMORY_EVIDENCE = 2;
