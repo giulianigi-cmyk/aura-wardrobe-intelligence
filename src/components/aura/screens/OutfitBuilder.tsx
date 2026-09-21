@@ -768,10 +768,6 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         canvasWidth: targetW,
         canvasHeight: targetH,
         backgroundColor: "#FFFFFF",
-        // Every image is already inlined as a (now downscaled) data URL
-        // by this point, so this is a safety net against html-to-image's
-        // own internal processing hanging, not a network fetch timeout.
-        timeout: 15000,
       });
       const blob = dataUrlToBlob(dataUrl);
       return { blob, dataUrl };

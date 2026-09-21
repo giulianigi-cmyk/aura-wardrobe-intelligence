@@ -52,6 +52,8 @@ type ScanItem = {
   closure: string;
   gender: string;
   styleTags: string[];
+  model: string;
+  bagSizeClass: string;
 };
 
 
