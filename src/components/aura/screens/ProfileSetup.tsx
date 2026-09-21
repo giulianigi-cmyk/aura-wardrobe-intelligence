@@ -318,6 +318,12 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
         {err && <p className="mt-4 text-xs text-red-700">{err}</p>}
       </div>
 
+      {!canAdvance() && blockReason() && (
+        <p className="px-8 pb-1 text-[11px] text-muted-foreground text-right" aria-live="polite">
+          {blockReason()}
+        </p>
+      )}
+
       <div className="px-8 pb-10 pt-2 flex items-center justify-between">
         <button
           onClick={() => setStep(s => Math.max(0, s - 1))}
