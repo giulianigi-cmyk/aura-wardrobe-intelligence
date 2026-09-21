@@ -74,6 +74,31 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
 
   const identityComplete = fullName.trim().length > 1 && usernameValid && usernameAvailable === true;
 
+  // Messaggio esplicito sotto il campo username: spiega sempre perché non si può procedere.
+  const usernameHint = (() => {
+    if (username.length === 0) return t("profileSetup.usernameRules");
+    if (/[^a-z0-9_]/.test(username)) return t("profileSetup.usernameInvalidChars");
+    if (username.length < 3) return t("profileSetup.usernameTooShort");
+    if (username.length > 20) return t("profileSetup.usernameTooLong");
+    if (usernameChecking) return t("profileSetup.checking");
+    if (usernameAvailable === true) return t("profileSetup.available");
+    if (usernameAvailable === false) return t("profileSetup.alreadyTaken");
+    return "";
+  })();
+  const usernameHintIsError =
+    username.length > 0 && (!usernameValid || usernameAvailable === false);
+
+  const blockReason = () => {
+    if (step !== 1) return null;
+    if (fullName.trim().length <= 1) return t("profileSetup.needFullName");
+    if (!usernameValid || usernameAvailable !== true) {
+      if (usernameChecking) return t("profileSetup.checking");
+      // Evita di ripetere lo stesso testo già mostrato sotto il campo.
+      return usernameHint ? null : t("profileSetup.needUsername");
+    }
+    return null;
+  };
+
   const canAdvance = () => {
     if (step === 0) return language !== "";
     if (step === 1) return identityComplete;
@@ -86,8 +111,7 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
   const finish = async () => {
     setSaving(true); setErr(null);
     const patch: any = {
-      full_name: fullName.trim(),
-      username,
+      full_name: fullName.trim() || null,
       birth_date: birthDate || null,
       gender: gender || null,
       language: language || null,
@@ -96,6 +120,9 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
       share_wardrobe_to_library: shareLibrary,
       setup_complete: true,
     };
+    // Lo username è facoltativo: lo salviamo solo se valido e disponibile
+    // (così "Salta" può funzionare senza bloccare l'utente).
+    if (usernameValid && usernameAvailable === true) patch.username = username;
     const { error } = await update(patch);
     if (error) { setErr(error); setSaving(false); return; }
     if (avatar) await uploadAvatar(avatar);
@@ -113,7 +140,8 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
           <span className="text-[10px] uppercase tracking-[0.4em] text-muted-foreground">AURA</span>
         </div>
         <button
-          onClick={() => (identityComplete ? finish() : setErr(t("profileSetup.pickUsernameFirst")))}
+          onClick={() => { setErr(null); void finish(); }}
+          disabled={saving}
           className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground"
         >{t("profileSetup.skip")}</button>
       </header>
@@ -172,12 +200,11 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
                   />
                   {usernameChecking && <Loader2 size={14} className="animate-spin text-muted-foreground" />}
                 </div>
-                <p className="text-[11px] text-muted-foreground h-4">
-                  {username.length === 0 ? t("profileSetup.usernameRules") :
-                    !usernameValid ? t("profileSetup.usernameRules") :
-                    usernameChecking ? t("profileSetup.checking") :
-                    usernameAvailable === true ? t("profileSetup.available") :
-                    usernameAvailable === false ? t("profileSetup.alreadyTaken") : ""}
+                <p
+                  aria-live="polite"
+                  className={`text-[11px] min-h-4 ${usernameHintIsError ? "text-destructive" : "text-muted-foreground"}`}
+                >
+                  {usernameHint}
                 </p>
               </div>
             </div>
@@ -291,6 +318,12 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
 
         {err && <p className="mt-4 text-xs text-red-700">{err}</p>}
       </div>
+
+      {!canAdvance() && blockReason() && (
+        <p className="px-8 pb-1 text-[11px] text-muted-foreground text-right" aria-live="polite">
+          {blockReason()}
+        </p>
+      )}
 
       <div className="px-8 pb-10 pt-2 flex items-center justify-between">
         <button
