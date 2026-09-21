@@ -1157,7 +1157,7 @@ export async function generateTripCapsuleCore({ data, context }: {
     for (const [, dayReqs] of requirementsByDate) {
       const forGrouping: ActivityForTransition[] = dayReqs.map((r) => ({
         activityId: r.activityId, daySegment: r.daySegment, dressCode: r.dressCode,
-        label: r.label, startTime: r.startTime, endTime: r.endTime, location: r.location,
+        label: r.label, startTime: r.startTime ?? null, endTime: r.endTime ?? null, location: r.location ?? null,
       }));
       for (const group of groupIntoOutfitStates(forGrouping)) {
         if (group.activityIds.length < 2) continue;
