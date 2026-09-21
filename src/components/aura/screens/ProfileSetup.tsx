@@ -110,8 +110,7 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
   const finish = async () => {
     setSaving(true); setErr(null);
     const patch: any = {
-      full_name: fullName.trim(),
-      username,
+      full_name: fullName.trim() || null,
       birth_date: birthDate || null,
       gender: gender || null,
       language: language || null,
