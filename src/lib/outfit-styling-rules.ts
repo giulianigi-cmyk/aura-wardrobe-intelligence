@@ -75,3 +75,35 @@ export const EMBELLISHED_EVENING_PROMPT_RULE =
   "EMBELLISHED PIECES: a garment, shoe or bag decorated with crystals, Swarovski, rhinestones, diamonds or sequins (see its material and styleTags) is an EVENING piece \u2014 " +
   "trousers with Swarovski are an evening look, not an everyday one. Use it only for Evening, Formal, cocktail, party or gala looks, and never for Work, everyday, Weekend, Travel or any daytime look. " +
   "Jewelry with stones (earrings, necklace, watch, bracelet) is fine at any time of day.";
+
+/** A piece the person tagged ONLY for one of these situations (Wardrobe → edit → Occasion) is
+ *  situational: it must not surface in an unrelated look just because it also matches colour or
+ *  formality. "Resort" is included on purpose — a bag or sandal tagged only Resort is a holiday piece. */
+export const SPECIALIZED_OCCASION_TAGS = ["Travel", "Sport", "Resort"];
+
+/** A beach / holiday bag: straw, raffia, wicker, rattan, a basket. Read from subcategory, styleTags and
+ *  material (there is no dedicated "beach" attribute). Fine for Weekend, Travel, Resort or an everyday
+ *  summer look — never for Work, business, Evening or Formal. */
+export const BEACH_BAG_SIGNAL = /raffia|rafia|straw|paglia|wicker|rattan|seagrass|beach|spiaggia|basket|cestino/i;
+export function isBeachBag(item: {
+  category?: string | null; subcategory?: string | null; styleTags?: string[] | null; material?: string[] | null;
+}): boolean {
+  if (item.category !== "Bags") return false;
+  const text = `${item.subcategory ?? ""} ${(item.styleTags ?? []).join(" ")} ${(item.material ?? []).join(" ")}`;
+  return BEACH_BAG_SIGNAL.test(text);
+}
+
+/** Technical outdoor footwear (hiking / trekking / mountain / snow boots): sport-and-mountain gear, not
+ *  something to wear to the office, to dinner or to a formal event. */
+export const TECHNICAL_FOOTWEAR_SIGNAL = /hiking|trekking|hiker|mountain|montagna|scarpon|\bski\b|snow|outdoor|lug.?sole/i;
+export function isTechnicalFootwear(item: {
+  category?: string | null; subcategory?: string | null; styleTags?: string[] | null; style?: string | string[] | null;
+}): boolean {
+  if (item.category !== "Shoes") return false;
+  const style = Array.isArray(item.style) ? item.style.join(" ") : item.style ?? "";
+  return TECHNICAL_FOOTWEAR_SIGNAL.test(`${item.subcategory ?? ""} ${(item.styleTags ?? []).join(" ")} ${style}`);
+}
+
+export const WORK_ACCESSORY_PROMPT_RULE =
+  "WORK / BUSINESS / EVENING / FORMAL: never use a beach or holiday bag (straw, raffia, wicker, basket) or technical outdoor footwear (hiking, trekking, mountain or snow boots) in these looks. " +
+  "Every outfit is COMPLETE: a top AND a bottom (or a dress/jumpsuit), plus shoes — never return a look without trousers/skirt/shorts when the wardrobe has any.";
