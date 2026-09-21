@@ -93,7 +93,8 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
     if (fullName.trim().length <= 1) return t("profileSetup.needFullName");
     if (!usernameValid || usernameAvailable !== true) {
       if (usernameChecking) return t("profileSetup.checking");
-      return usernameHint || t("profileSetup.needUsername");
+      // Evita di ripetere lo stesso testo già mostrato sotto il campo.
+      return usernameHint ? null : t("profileSetup.needUsername");
     }
     return null;
   };
