@@ -193,6 +193,36 @@ export const prepareAvatarTryOn = createServerFn({ method: "POST" })
     };
   });
 
+/** Ownership binding for an in-flight FASHN prediction id.
+ *
+ *  FASHN's prediction ids are opaque to AURA and nothing persists which
+ *  user started which run until finalizeAvatarTryOn writes the cache row,
+ *  so a status check had no way to tell whose job it was polling — any
+ *  signed-in caller passing someone else's id would get back that
+ *  person's composited biometric image. Instead of adding a table for a
+ *  value that lives ~90 seconds, startTryOnStep hands back a short HMAC
+ *  over (userId, predictionId) which checkTryOnStep must present and
+ *  which only the server can produce. Keyed on FASHN_API_KEY: a
+ *  server-only secret that is never sent to the browser and is already
+ *  required for this flow to work at all. */
+async function predictionHmacKey(): Promise<CryptoKey> {
+  const secret = process.env.FASHN_API_KEY;
+  if (!secret) throw new Error("Missing FASHN_API_KEY");
+  return await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+}
+
+async function signPrediction(userId: string, predictionId: string): Promise<string> {
+  const key = await predictionHmacKey();
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${userId}::${predictionId}`));
+  return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 const StepInput = z.object({
   modelImageDataUrl: z.string().min(1),
   itemId: z.string(),
