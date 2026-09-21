@@ -58,6 +58,12 @@ export const ConfirmItemSchema = z.object({
   closure: z.string().nullable().optional(),
   gender: z.string().nullable().optional(),
   style_tags: z.array(z.string()).default([]),
+  // Present in AddItem.tsx's single-piece flow but missing here until
+  // now — a photographed batch item couldn't record a model name or a
+  // bag's size class at all, unlike the same product added one at a
+  // time.
+  model: z.string().nullable().optional(),
+  bag_size_class: z.string().nullable().optional(),
   // Computed client-side (see visual-embedding.ts) right before
   // confirming — optional so a batch confirmed before this existed, or
   // one where the embedding model failed for a given item, still saves
