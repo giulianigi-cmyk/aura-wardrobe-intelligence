@@ -267,18 +267,27 @@ export const startTryOnStep = createServerFn({ method: "POST" })
         .filter(Boolean).join(" ") || undefined,
     });
     if (!result.ok) return { ok: false as const, error: result.error };
-    return { ok: true as const, predictionId: result.predictionId };
+    return {
+      ok: true as const,
+      predictionId: result.predictionId,
+      predictionToken: await signPrediction(context.userId, result.predictionId),
+    };
   });
 
-const CheckInput = z.object({ predictionId: z.string() });
+const CheckInput = z.object({ predictionId: z.string(), predictionToken: z.string().min(1) });
 
 /** One chain step, poll half — call this every ~2s from the client until
  *  done is true or ok is false. A single fast status check, never an
- *  internal wait. */
+ *  internal wait. Requires the token issued by startTryOnStep so a caller
+ *  can only poll predictions they themselves started. */
 export const checkTryOnStep = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => CheckInput.parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const expected = await signPrediction(context.userId, data.predictionId);
+    if (expected !== data.predictionToken) {
+      return { ok: false as const, error: "Prediction not found." };
+    }
     return await checkFashnStatus(data.predictionId);
   });
 
