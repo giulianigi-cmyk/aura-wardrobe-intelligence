@@ -449,6 +449,7 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
         length: string | null; fit: string | null; heel_height: string | null; toe_shape: string | null;
         closure: string | null; gender: string | null; style_tags: string[];
         model: string | null; bag_size_class: string | null;
+        embedding: number[] | null;
       }> = [];
 
       for (let i = 0; i < finalToSave.length; i++) {

@@ -52,6 +52,8 @@ type ScanItem = {
   closure: string;
   gender: string;
   styleTags: string[];
+  model: string;
+  bagSizeClass: string;
 };
 
 
@@ -130,6 +132,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           formality: number | null; dayEvening: string; sleeveLength: string;
           length: string; fit: string; heelHeight: string; toeShape: string;
           closure: string; gender: string; styleTags: string[];
+          model: string; bagSizeClass: string;
         };
         try {
           const r = await analyze({ data: { imageDataUrl: seg.imageDataUrl } });
@@ -143,6 +146,8 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
             formality: r.formality ?? null, dayEvening: r.dayEvening || "", sleeveLength: r.sleeveLength || "",
             length: r.length || "", fit: r.fit || "", heelHeight: r.heelHeight || "", toeShape: r.toeShape || "",
             closure: r.closure || "", gender: r.gender || "", styleTags: r.styleTags ?? [],
+            model: (r as { model?: string }).model ?? "",
+            bagSizeClass: (r as { bagSizeClass?: string }).bagSizeClass ?? "",
           };
         } catch (e) {
           console.warn("[AURA outfit-scan] analyze failed for segment", i, e);
@@ -226,6 +231,8 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           closure: meta.closure,
           gender: meta.gender,
           styleTags: meta.styleTags,
+          model: meta.model,
+          bagSizeClass: meta.bagSizeClass,
         });
       }
 

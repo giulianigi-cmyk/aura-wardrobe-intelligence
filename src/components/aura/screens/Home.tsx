@@ -184,7 +184,7 @@ export function Home({ go, openAvatarTryOn, openBuilder }: { go: (s: Screen) => 
                 const url = path ? signedForPicks[path] : null;
                 return url ? { id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length } : null;
               })
-              .filter((x): x is ComposeItem => Boolean(x));
+              .filter((x): x is NonNullable<typeof x> => x != null);
           };
 
           const todayPath = todayLookForImage?.item_ids.length
