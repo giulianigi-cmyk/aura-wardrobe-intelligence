@@ -179,6 +179,19 @@ export const generateWeeklyOutfits = createServerFn({ method: "POST" })
     });
 
     const weatherByDate = new Map(data.dailyWeather.map((d) => [d.date, d]));
+    // A Work day is lived in the DAYTIME: the plain average of min and max (a 17°/28° September day
+    // reads as ~22°) let boots and wool through on an afternoon that reaches 28°. Weight the day's high.
+    const daytimeTemp = (w: { tempMin: number; tempMax: number }) => Math.round(w.tempMin * 0.25 + w.tempMax * 0.75);
+    // No forecast for a date (beyond the forecast range, or the client sent fewer days): use the nearest
+    // forecast day's temperature rather than NO weather check at all — that gap is what let winter boots
+    // through. The condition stays unknown in that case (never invented).
+    const nearestForecast = (date: string) => {
+      if (!data.dailyWeather.length) return undefined;
+      const t = new Date(`${date}T00:00:00`).getTime();
+      return [...data.dailyWeather].sort(
+        (a, b) => Math.abs(new Date(`${a.date}T00:00:00`).getTime() - t) - Math.abs(new Date(`${b.date}T00:00:00`).getTime() - t),
+      )[0];
+    };
 
     const usedThisBatch: string[] = [];
     const created: { date: string }[] = [];
@@ -201,11 +214,12 @@ export const generateWeeklyOutfits = createServerFn({ method: "POST" })
       }
 
       const w = weatherByDate.get(date);
+      const wForRules = w ?? nearestForecast(date);
       const occasionHint = eventTitleByDate.get(date) ? `Work · ${eventTitleByDate.get(date)}` : "Work";
 
       const result = await suggestOutfitCore({
         supabase, userId,
-        temperature: w ? (w.tempMin + w.tempMax) / 2 : null,
+        temperature: wForRules ? daytimeTemp(wForRules) : null,
         condition: w ? describeWeather(w.weatherCode).label : null,
         occasion: occasionHint,
         dressRules,
