@@ -15,6 +15,13 @@
       "when": 1789974407331,
       "tag": "0001_harden_update_policies_and_revoke_anon_definer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789974560982,
+      "tag": "0002_revoke_authenticated_execute_internal_definer_fns",
+      "breakpoints": true
     }
   ]
 }
