@@ -70,6 +70,22 @@ async function dataUrlToFile(dataUrl: string, filename: string): Promise<File> {
 export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: string }) {
   const { t } = useTranslation();
   const { user } = useAuth();
+  // Same query AddItem.tsx's single-piece flow already uses for its own
+  // brand-autocomplete — fetched once here, passed to every card, so a
+  // brand already saved anywhere in the wardrobe suggests itself the
+  // same way it does there. Was simply missing from this multi-upload
+  // flow before.
+  const [existingBrands, setExistingBrands] = useState<string[]>([]);
+  useEffect(() => {
+    if (!user) return;
+    void supabase.from("wardrobe_items").select("brand").eq("user_id", user.id).not("brand", "is", null)
+      .then(({ data }) => {
+        const brands = Array.from(new Set(((data ?? []) as { brand: string | null }[])
+          .map((r) => r.brand?.trim())
+          .filter((b): b is string => Boolean(b))));
+        setExistingBrands(brands.sort((a, b) => a.localeCompare(b)));
+      });
+  }, [user]);
   const wardrobeCache = useWardrobeCacheActions();
   const load = useServerFn(listDetectedItems);
   const confirm = useServerFn(confirmDetectedItems);
@@ -202,6 +218,8 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
               closure: it.closure ?? "",
               gender: it.gender ?? "",
               styleTags: it.style_tags ?? [],
+              model: "",
+              bagSizeClass: "",
               dedupe,
               included: dedupe.verdict !== "certain",
               bgRemoved: false,
@@ -232,6 +250,40 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
   const [removingBgId, setRemovingBgId] = useState<string | null>(null);
   const [copyFromId, setCopyFromId] = useState<string | null>(null);
   const [copyTargets, setCopyTargets] = useState<Set<string>>(new Set());
+  // Which of the source piece's own fields get copied over — previously
+  // every field copied unconditionally, color included, which was the
+  // actual problem reported: loading several colorways of the same
+  // item together meant color got silently overwritten to match
+  // whichever piece was used as the source. Color starts UNCHECKED;
+  // everything else defaults to checked, matching the old behavior,
+  // but every field is now a real choice, not a given. purchaseDate is
+  // new here too — genuinely useful to copy when a batch was bought on
+  // the same shopping trip, which the old fixed field list never
+  // offered at all.
+  const COPYABLE_FIELDS: { key: keyof Draft; labelKey: string }[] = [
+    { key: "category", labelKey: "batchReview.fieldCategory" },
+    { key: "subcategory", labelKey: "batchReview.fieldSubcategory" },
+    { key: "colors", labelKey: "batchReview.fieldColor" },
+    { key: "materials", labelKey: "batchReview.fieldMaterial" },
+    { key: "seasons", labelKey: "batchReview.fieldSeason" },
+    { key: "brand", labelKey: "batchReview.fieldBrand" },
+    { key: "styles", labelKey: "batchReview.fieldStyle" },
+    { key: "occasions", labelKey: "batchReview.fieldOccasion" },
+    { key: "price", labelKey: "batchReview.fieldPrice" },
+    { key: "currency", labelKey: "batchReview.fieldCurrency" },
+    { key: "size", labelKey: "batchReview.fieldSize" },
+    { key: "purchaseDate", labelKey: "batchReview.fieldPurchaseDate" },
+  ];
+  const [copyFields, setCopyFields] = useState<Set<keyof Draft>>(
+    new Set(COPYABLE_FIELDS.map((f) => f.key).filter((k) => k !== "colors")),
+  );
+  const toggleCopyField = (key: keyof Draft) => {
+    setCopyFields((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   const openCopySheet = (id: string) => {
     setCopyFromId(id);
@@ -249,11 +301,12 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
   const applyCopy = () => {
     const source = drafts.find((d) => d.id === copyFromId);
     if (!source || copyTargets.size === 0) { setCopyFromId(null); return; }
-    const { category, subcategory, colors, materials, seasons, brand, styles, occasions, price, currency, size } = source;
+    const patch: Partial<Draft> = {};
+    for (const { key } of COPYABLE_FIELDS) {
+      if (copyFields.has(key)) (patch as Record<string, unknown>)[key] = source[key];
+    }
     setDrafts((prev) => prev.map((d) => (
-      copyTargets.has(d.id)
-        ? { ...d, category, subcategory, colors, materials, seasons, brand, styles, occasions, price, currency, size }
-        : d
+      copyTargets.has(d.id) ? { ...d, ...patch } : d
     )));
     toast.success(t("batchReview.copiedToPieces", { count: copyTargets.size }));
     setCopyFromId(null);
@@ -395,6 +448,7 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
         sleeve_length: string | null; formality: number | null; day_evening: string | null;
         length: string | null; fit: string | null; heel_height: string | null; toe_shape: string | null;
         closure: string | null; gender: string | null; style_tags: string[];
+        model: string | null; bag_size_class: string | null;
       }> = [];
 
       for (let i = 0; i < finalToSave.length; i++) {
@@ -454,6 +508,8 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
           closure: d.closure || null,
           gender: d.gender || null,
           style_tags: d.styleTags,
+          model: d.model.trim() || null,
+          bag_size_class: d.bagSizeClass || null,
           embedding: d.embedding,
         });
       }
@@ -567,6 +623,7 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
                 imageUrl={d.cropUrl}
                 onChange={(patch) => update(d.id, patch)}
                 onRemove={() => discard(d.id)}
+                existingBrands={existingBrands}
                 footer={
                   d.photoUrl && (
                     <div className="mt-3 space-y-2">
@@ -624,6 +681,21 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
                     onClick={() => setCopyTargets(new Set(others.map((d) => d.id)))}
                     className="mt-2 self-start text-[10px] uppercase tracking-[0.2em] text-muted-foreground underline shrink-0"
                   >{t("batchReview.selectAll", { count: others.length })}</button>
+
+                  <p className="mt-4 text-[10px] uppercase tracking-[0.3em] text-muted-foreground shrink-0">{t("batchReview.whichDetailsToCopy")}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5 shrink-0">
+                    {COPYABLE_FIELDS.map(({ key, labelKey }) => {
+                      const on = copyFields.has(key);
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => toggleCopyField(key)}
+                          className={`h-8 px-3 rounded-full text-[11px] border ${on ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"}`}
+                        >{t(labelKey)}</button>
+                      );
+                    })}
+                  </div>
+
                   <div className="mt-3 flex-1 min-h-0 overflow-y-auto grid grid-cols-2 gap-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                     {others.map((d) => {
                       const on = copyTargets.has(d.id);
@@ -649,7 +721,7 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
                   </div>
                   <button
                     onClick={applyCopy}
-                    disabled={copyTargets.size === 0}
+                    disabled={copyTargets.size === 0 || copyFields.size === 0}
                     className="mt-1 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] disabled:opacity-50 shrink-0"
                   >{t("batchReview.copyToPieces", { count: copyTargets.size })}</button>
                 </div>
