@@ -56,7 +56,7 @@ export function MaterialCombobox({ options, values, onChange, label }: MaterialC
               key={v}
               className="inline-flex items-center gap-1 rounded-full bg-foreground text-background px-3 py-1 text-xs"
             >
-              {v}
+              {t(`materials.${v}`, { defaultValue: v })}
               <button
                 type="button"
                 onClick={() => toggle(v)}
@@ -92,7 +92,7 @@ export function MaterialCombobox({ options, values, onChange, label }: MaterialC
                 }}
                 className="w-full text-left rounded-full px-3 py-2 text-sm hover:bg-secondary/60 transition"
               >
-                {o}
+                {t(`materials.${o}`, { defaultValue: o })}
               </button>
             ))
           )}
