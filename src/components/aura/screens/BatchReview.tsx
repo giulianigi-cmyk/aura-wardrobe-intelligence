@@ -16,6 +16,8 @@ import { findVisualDuplicates } from "@/lib/outfit-wear.functions";
 import { clearSegmentationCache, cropItemFromSegmentation } from "@/lib/outfit-segmentation";
 import { trimWhiteMargins } from "@/lib/auto-crop";
 import { removeBackgroundClient } from "@/lib/bg-removal-client";
+import { analyzeCutoutQuality } from "@/lib/cutout-quality";
+import { removeBackground } from "@/lib/ai-bgremove.functions";
 import { compressImageForUpload } from "@/lib/image-compress";
 import type { WardrobeItem } from "@/lib/aura-types";
 
@@ -28,9 +30,6 @@ type Draft = DetectedItemDraft & {
   dedupe: DedupeResult;
   included: boolean;
   bgRemoved: boolean;
-  /** Computed once during load (see the dedup pass above) and carried
-   *  through to the confirm call — null if the model failed for this
-   *  crop, which never blocks saving the item itself. */
   embedding: number[] | null;
 };
 
@@ -70,11 +69,6 @@ async function dataUrlToFile(dataUrl: string, filename: string): Promise<File> {
 export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: string }) {
   const { t } = useTranslation();
   const { user } = useAuth();
-  // Same query AddItem.tsx's single-piece flow already uses for its own
-  // brand-autocomplete — fetched once here, passed to every card, so a
-  // brand already saved anywhere in the wardrobe suggests itself the
-  // same way it does there. Was simply missing from this multi-upload
-  // flow before.
   const [existingBrands, setExistingBrands] = useState<string[]>([]);
   useEffect(() => {
     if (!user) return;
@@ -90,6 +84,7 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
   const load = useServerFn(listDetectedItems);
   const confirm = useServerFn(confirmDetectedItems);
   const reject = useServerFn(rejectDetectedItem);
+  const removeBackgroundPremium = useServerFn(removeBackground);
   const findVisualDupes = useServerFn(findVisualDuplicates);
 
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -157,12 +152,6 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
               { category, subcategory: it.subcategory ?? undefined, colors },
               wardrobe,
             );
-            // Computed once here and reused at confirm time (see the
-            // Draft type/embedding field below) — no point running the
-            // model twice on the same crop. Also feeds the same visual
-            // dedup pass OutfitScan.tsx now does, closing the gap where
-            // batch-imported pieces got attribute-only duplicate checks
-            // even after the visual embedding infrastructure existed.
             let embedding: number[] | null = null;
             if (cropUrl) {
               try {
@@ -250,16 +239,6 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
   const [removingBgId, setRemovingBgId] = useState<string | null>(null);
   const [copyFromId, setCopyFromId] = useState<string | null>(null);
   const [copyTargets, setCopyTargets] = useState<Set<string>>(new Set());
-  // Which of the source piece's own fields get copied over — previously
-  // every field copied unconditionally, color included, which was the
-  // actual problem reported: loading several colorways of the same
-  // item together meant color got silently overwritten to match
-  // whichever piece was used as the source. Color starts UNCHECKED;
-  // everything else defaults to checked, matching the old behavior,
-  // but every field is now a real choice, not a given. purchaseDate is
-  // new here too — genuinely useful to copy when a batch was bought on
-  // the same shopping trip, which the old fixed field list never
-  // offered at all.
   const COPYABLE_FIELDS: { key: keyof Draft; labelKey: string }[] = [
     { key: "category", labelKey: "batchReview.fieldCategory" },
     { key: "subcategory", labelKey: "batchReview.fieldSubcategory" },
@@ -312,11 +291,6 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
     setCopyFromId(null);
   };
 
-  /** Downsamples to a tiny canvas and checks how much of it has real
-   *  (non-transparent, non-near-white) content. Catches the failure mode
-   *  where background removal, run on a photo that's already tightly
-   *  isolated (e.g. from segmentation), gets confused and wipes the
-   *  garment along with the "background" instead of separating them. */
   const hasVisibleContent = (dataUrl: string): Promise<boolean> =>
     new Promise((resolve) => {
       const img = new Image();
@@ -337,7 +311,7 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
         }
         resolve(filled / (size * size) > 0.02);
       };
-      img.onerror = () => resolve(true); // can't check — don't block on it
+      img.onerror = () => resolve(true);
       img.src = dataUrl;
     });
 
@@ -351,6 +325,16 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
         attempt++;
       }
       if (!bg.ok) return false;
+      const quality = await analyzeCutoutQuality(bg.imageDataUrl);
+      if (!quality.ok) {
+        console.warn(`[AURA batch-review] free result failed quality check (${quality.reason}), trying remove.bg`, id);
+        try {
+          const premium = await removeBackgroundPremium({ data: { imageDataUrl: url } });
+          if (premium.ok) bg = premium;
+        } catch (e) {
+          console.error("[AURA batch-review] remove.bg fallback failed", id, e);
+        }
+      }
       const trimmed = await trimWhiteMargins(bg.imageDataUrl);
       if (!(await hasVisibleContent(trimmed.dataUrl))) {
         console.warn("[AURA batch-review] bg removal produced a near-blank result, keeping original", id);
@@ -421,10 +405,6 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
     if (!user || toSave.length === 0) return;
     setSaving(true);
     try {
-      // Cropping often happens quickly and imperfectly — rather than
-      // making background removal a separate step the person has to
-      // remember, catch anything still missing it right here, once,
-      // right before it actually matters (the final saved photo).
       const stillNeedBg = toSave.filter((d) => !d.bgRemoved && d.cropUrl);
       if (stillNeedBg.length) {
         setBulkBgRunning(true);
@@ -436,8 +416,6 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
         }
         setBulkBgRunning(false);
       }
-      // Re-read from state: performBgRemoval updates drafts in place, and
-      // toSave was computed before this pass ran.
       const finalToSave = drafts.filter((d) => toSave.some((t) => t.id === d.id));
 
       const payload: Array<{
@@ -449,7 +427,6 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
         length: string | null; fit: string | null; heel_height: string | null; toe_shape: string | null;
         closure: string | null; gender: string | null; style_tags: string[];
         model: string | null; bag_size_class: string | null;
-        embedding: number[] | null;
       }> = [];
 
       for (let i = 0; i < finalToSave.length; i++) {
@@ -463,10 +440,6 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
         });
         if (error) throw error;
 
-        // Batches are often 50-150 photos — this is exactly where a
-        // heavy closet grid comes from, so a thumbnail here matters more
-        // than almost anywhere else in the app. Best-effort: if it fails,
-        // the grid just falls back to the full image for this one piece.
         let thumbnailPath: string | null = null;
         try {
           const thumbFile = await compressImageForUpload(file, 400, 0.75);
@@ -528,12 +501,6 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
       if (res.confirmed > 0) {
         const dupNote = skippedCount ? t("batchReview.skippedAsDuplicates", { count: skippedCount }) : "";
         toast.success(t("batchReview.addedToCloset", { count: res.confirmed }) + dupNote);
-        // The server doesn't hand back full wardrobe_items rows for a
-        // batch confirm (just id/ok/error per item), so there isn't
-        // enough here to optimistically construct them client-side —
-        // targeted invalidation instead, per the rule for cases where an
-        // optimistic write could go wrong. Every screen reading the
-        // shared cache refetches on its next mount/focus.
         wardrobeCache.invalidate();
       }
       const failedItems = res.results.filter((r) => !r.ok);
