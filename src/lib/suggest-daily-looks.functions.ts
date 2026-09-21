@@ -4,7 +4,7 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
-import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece } from "./outfit-styling-rules";
+import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear } from "./outfit-styling-rules";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 
 const ItemSchema = z.object({
@@ -251,6 +251,8 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
         // crystals / Swarovski / rhinestones / diamonds / sequins in the MATERIAL field (or tags) too
         if (EMBELLISHED_SIGNAL.test(`${text} ${(item.material ?? []).join(" ")}`) && item.category !== "Accessories") return true;
                 if (item.dayEvening === "evening" && (item.formality ?? 0) >= 4) return true;
+        // a straw / raffia / basket bag and hiking-mountain boots are not workwear
+        if (isBeachBag(item) || isTechnicalFootwear(item)) return true;
         return false;
       });
 
@@ -322,7 +324,6 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     // Work look. "General" (today's everyday look) is intentionally
     // exempt: it's not tied to one of the three named occasions, so
     // there's no specific occasion to check the tag against.
-    const SPECIALIZED_OCCASION_TAGS = ["Travel", "Sport"];
     const violatesOccasionTag = (occasion: string, ids: string[]): boolean => {
       if (occasion === "General") return false;
       return ids.some((id) => {
@@ -335,7 +336,15 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       });
     };
 
-        const REQUIRED_OCCASIONS = ["Work", "Weekend", "Evening"] as const;
+        // A beach / holiday bag (straw, raffia, wicker, basket) is for Weekend or everyday summer looks —
+    // never for Work (see violatesWorkFormality) or an Evening look.
+    const violatesBeachBagByDay = (occasion: string, ids: string[]): boolean =>
+      (occasion === "Work" || occasion === "Evening") && ids.some((id) => {
+        const item = catalog.find((c) => c.id === id);
+        return item ? isBeachBag(item) : false;
+      });
+
+    const REQUIRED_OCCASIONS = ["Work", "Weekend", "Evening"] as const;
 
     /** Single-look validation, reused both by the first pass and by the
      *  retry below — same hard rules, just callable per-look against a
@@ -349,6 +358,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       if (violatesDressPlusBottoms(l.item_ids)) return false;
       if (violatesWeather(l.item_ids)) return false;
       if (violatesEmbellishedByDay(l.occasion, l.item_ids)) return false;
+      if (violatesBeachBagByDay(l.occasion, l.item_ids)) return false;
       if (violatesStylingFootwear(l.item_ids)) return false;
       if (violatesOccasionTag(l.occasion, l.item_ids)) return false;
       if (seen.some((s) => jaccard(l.item_ids, s) >= TOO_SIMILAR)) return false;
@@ -426,6 +436,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
         !violatesOccasionTag(occasion, [c.id])
         && !(occasion === "Work" && violatesWorkFormality([c.id]))
         && !violatesEmbellishedByDay(occasion, [c.id])
+        && !violatesBeachBagByDay(occasion, [c.id])
         && !violatesWeather([c.id]));
       const pool = fitting.length ? fitting : allBags; // a woman's look never ends up with no bag at all
       if (!pool.length) return ids;
