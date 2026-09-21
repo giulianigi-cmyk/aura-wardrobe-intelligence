@@ -23,7 +23,7 @@ export const MATERIAL_OPTIONS = [
   "Cotton", "Linen", "Silk", "Wool", "Merino", "Cashmere", "Mohair", "Alpaca",
   "Viscose", "Modal", "Lyocell", "Cupro",
   "Polyester", "Polyamide", "Elastane", "Acrylic",
-  "Denim", "Leather", "Suede", "Shearling", "Down",
+  "Denim", "Leather", "Suede", "Velvet", "Shearling", "Down",
   "Metal", "Gold", "Silver", "Steel", "Brass", "Pearl", "Rubber", "Canvas",
   // Decorations that make a piece read as EVENING (see outfit-styling-rules.ts → isEmbellishedPiece)
   "Swarovski", "Crystals", "Rhinestones", "Diamonds", "Sequins",
