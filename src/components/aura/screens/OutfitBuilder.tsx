@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useTranslation } from "react-i18next";
 import { uploadOutfitThumb } from "@/lib/outfit-thumb";
 import { toPng } from "html-to-image";
@@ -297,14 +298,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
   const [placed, setPlaced] = useState<Placed[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerSheetCanClose, setPickerSheetCanClose] = useState(false);
-  useEffect(() => {
-    if (pickerOpen) {
-      setPickerSheetCanClose(false);
-      const timer = setTimeout(() => setPickerSheetCanClose(true), 350);
-      return () => clearTimeout(timer);
-    }
-  }, [pickerOpen]);
+  const pickerSheetCanClose = useSheetCanClose(pickerOpen);
   const [occasion, setOccasion] = useState<string>("");
   const [name, setName] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
@@ -314,14 +308,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
     | { blob: Blob; dataUrl: string; signedUrl: string | null }
   >(null);
     const [shareOpen, setShareOpen] = useState(false);
-    const [shareSheetCanClose, setShareSheetCanClose] = useState(false);
-    useEffect(() => {
-      if (shareOpen) {
-        setShareSheetCanClose(false);
-        const timer = setTimeout(() => setShareSheetCanClose(true), 350);
-        return () => clearTimeout(timer);
-      }
-    }, [shareOpen]);
+    const shareSheetCanClose = useSheetCanClose(shareOpen);
   const [savedOutfitId, setSavedOutfitId] = useState<string | null>(init?.outfitId ?? null);
   const [calendarOpen, setCalendarOpen] = useState(false);
   // Guards against the same mobile Safari quirk fixed earlier in
@@ -333,15 +320,11 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
   // that opened it, before the date or Save button inside was ever
   // touched. That's consistent with the report: no success or error
   // toast at all, because the save button never actually got pressed.
-  const [calendarSheetCanClose, setCalendarSheetCanClose] = useState(false);
-
-  useEffect(() => {
-    if (calendarOpen) {
-      setCalendarSheetCanClose(false);
-      const timer = setTimeout(() => setCalendarSheetCanClose(true), 350);
-      return () => clearTimeout(timer);
-    }
-  }, [calendarOpen]);
+  // Now uses the shared useSheetCanClose hook (see
+  // hooks/use-sheet-can-close.ts) instead of its own ad-hoc timer —
+  // that shared version also correctly skips the delay entirely on
+  // desktop Web, which this original implementation didn't.
+  const calendarSheetCanClose = useSheetCanClose(calendarOpen);
   const [calendarDate, setCalendarDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [addingToCalendar, setAddingToCalendar] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
