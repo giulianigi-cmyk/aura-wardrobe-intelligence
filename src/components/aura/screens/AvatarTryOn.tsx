@@ -85,7 +85,7 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
 
     for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
       await sleep(POLL_INTERVAL_MS);
-      const status = await checkStep({ data: { predictionId: started.predictionId } });
+      const status = await checkStep({ data: { predictionId: started.predictionId, predictionToken: started.predictionToken } });
       if (!status.ok) return { ok: false, error: status.error };
       if (status.done) return { ok: true, imageDataUrl: status.imageDataUrl };
       // not done yet — keep polling
