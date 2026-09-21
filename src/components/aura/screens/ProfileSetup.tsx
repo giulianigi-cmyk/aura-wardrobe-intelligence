@@ -119,6 +119,9 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
       share_wardrobe_to_library: shareLibrary,
       setup_complete: true,
     };
+    // Lo username è facoltativo: lo salviamo solo se valido e disponibile
+    // (così "Salta" può funzionare senza bloccare l'utente).
+    if (usernameValid && usernameAvailable === true) patch.username = username;
     const { error } = await update(patch);
     if (error) { setErr(error); setSaving(false); return; }
     if (avatar) await uploadAvatar(avatar);
