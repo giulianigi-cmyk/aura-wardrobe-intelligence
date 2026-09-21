@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Camera, Check, Loader2, Trash2 } from "lucide-react";
@@ -58,6 +58,21 @@ type ScanItem = {
 export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   const { t } = useTranslation();
   const { user } = useAuth();
+  // Same brand-autocomplete data source as AddItem.tsx and
+  // BatchReview.tsx — fetched once, passed to every detected item's
+  // card, so a brand already saved anywhere in the wardrobe suggests
+  // itself here too instead of needing to be retyped by hand.
+  const [existingBrands, setExistingBrands] = useState<string[]>([]);
+  useEffect(() => {
+    if (!user) return;
+    void supabase.from("wardrobe_items").select("brand").eq("user_id", user.id).not("brand", "is", null)
+      .then(({ data }) => {
+        const brands = Array.from(new Set(((data ?? []) as { brand: string | null }[])
+          .map((r) => r.brand?.trim())
+          .filter((b): b is string => Boolean(b))));
+        setExistingBrands(brands.sort((a, b) => a.localeCompare(b)));
+      });
+  }, [user]);
   const wardrobeCache = useWardrobeCacheActions();
   const analyze = useServerFn(analyzeWardrobeImage);
   const findVisualDupes = useServerFn(findVisualDuplicates);
@@ -135,6 +150,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
             category: "", subcategory: "", colors: [], materials: [], seasons: [], brand: "",
             formality: null, dayEvening: "", sleeveLength: "",
             length: "", fit: "", heelHeight: "", toeShape: "", closure: "", gender: "", styleTags: [],
+            model: "", bagSizeClass: "",
           };
         }
 
@@ -277,6 +293,8 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           closure: it.closure || null,
           gender: it.gender || null,
           style_tags: it.styleTags,
+          model: it.model.trim() || null,
+          bag_size_class: it.bagSizeClass || null,
           source: "outfit_scan",
         } as unknown as TablesInsert<"wardrobe_items">;
 
@@ -444,6 +462,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                 imageUrl={it.imageDataUrl}
                 onChange={(patch) => updateItem(it.key, patch)}
                 onRemove={() => removeItem(it.key)}
+                existingBrands={existingBrands}
               />
             );
           })}
