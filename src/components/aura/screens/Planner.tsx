@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, X, Plus, Loader2, Sparkles, Cloud, Trash2, Luggage, LayoutGrid, User } from "lucide-react";
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type { Screen, StylistChatInit, BuilderInit } from "../AuraApp";
@@ -546,6 +547,7 @@ function DayDetail({
     [activeItems, suggestedKeywords, suggestedMaterials],
   );
   const [wornPickerOpen, setWornPickerOpen] = useState(false);
+  const wornPickerCanClose = useSheetCanClose(wornPickerOpen);
   const [wornSelected, setWornSelected] = useState<string[]>([]);
   const toggleWorn = (id: string) =>
     setWornSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
@@ -1031,7 +1033,7 @@ function DayDetail({
       </div>
 
       {wornPickerOpen && plan && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40" onClick={(e) => { e.stopPropagation(); setWornPickerOpen(false); }}>
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40" onClick={(e) => { e.stopPropagation(); if (wornPickerCanClose) setWornPickerOpen(false); }}>
           <div
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-md h-[88vh] bg-background rounded-t-3xl flex flex-col animate-fade-up"
