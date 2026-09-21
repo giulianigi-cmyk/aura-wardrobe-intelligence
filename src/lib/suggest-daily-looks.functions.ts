@@ -1,656 +1,109 @@
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createServerFn } from "@tanstack/react-start";
-import { generateText } from "ai";
-import { z } from "zod";
-import { parseAiJson } from "./ai-json";
-import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
-import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece } from "./outfit-styling-rules";
-import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
+// Shared, non-weather styling rules — kept separate from
+// outfit-weather-rules.ts since these are about garment composition,
+// not temperature. Same reasoning as that file's own header: one rule
+// defined once, imported by every engine that composes an outfit
+// (ai-suggest-outfit.functions.ts, suggest-daily-looks.functions.ts,
+// stylist-chat.functions.ts), so a fix here never has to be repeated —
+// or worse, drift — in three different places.
 
-const ItemSchema = z.object({
-  id: z.string(),
-  category: z.string().nullable().optional(),
-  subcategory: z.string().nullable().optional(),
-  colors: z.array(z.string()).nullable().optional(),
-  style: z.array(z.string()).nullable().optional(),
-  season: z.string().nullable().optional(),
-  brand: z.string().nullable().optional(),
-  formality: z.number().nullable().optional(),
-    dayEvening: z.string().nullable().optional(),
-  styleTags: z.array(z.string()).nullable().optional(),
-   // Skirt/dress length ("Mini" | "Midi" | "Maxi"), needed to hard-enforce
-  // the "no short skirts for Work" rule below — without it, a Mini skirt
-  // and a Maxi skirt are indistinguishable to both the model and the code.
-  length: z.string().nullable().optional(),
-  sleeveLength: z.string().nullable().optional(),
-  // material/toeShape were never sent to this engine — the reason the
-  // Home weather hard-check (below) used to miss items like a wool
-  // sweater whose subcategory/styleTags didn't literally say "wool":
-  // material text wasn't even in what it could check against.
-  material: z.array(z.string()).nullable().optional(),
-  toeShape: z.string().nullable().optional(),
-  // The piece's OWN occasion tags (Wardrobe → edit → Occasion) — never
-  // sent to this engine before, so a bag tagged only "Travel" could
-  // freely surface in the Work curated look here, same gap already
-  // closed in the on-demand/weekly engine and the stylist chat.
-  occasion: z.string().nullable().optional(),
-});
+/** A belt over a bodycon/fitted dress fights the silhouette the dress
+ *  is already built to show — there's no waist definition left for a
+ *  belt to add, only a break in a line that's supposed to be
+ *  continuous. Existing softer guidance ("skip a belt on a Slim/
+ *  Tailored fit piece") wasn't being followed reliably enough in
+ *  practice, so this states the bodycon case explicitly and as a hard
+ *  rule rather than a soft preference. */
+export const BELT_BODYCON_PROMPT_RULE =
+  "BELT RULE — HARD EXCLUSION: never pair a belt with a bodycon, second-skin, or otherwise tightly fitted dress (a dress whose own subcategory, description, or fit says bodycon/fitted/second-skin, or one made of a stretch/clingy fabric worn skin-tight throughout). " +
+  "The dress's silhouette already does the defining; a belt breaks the line rather than adding one. This applies regardless of occasion or formality — a belt is never the right addition to that specific kind of dress, full stop.";
 
-const InputSchema = z.object({
+/** Every wardrobe piece — including bags, shoes and other accessories —
+ *  carries its own occasion tags, and those tags mean the same thing
+ *  for an accessory as for a top or a dress: a bag tagged only for
+ *  Weekend/Travel is exactly as wrong for an Evening look as a hoodie
+ *  would be, even though "it's just a bag" can make that feel like a
+ *  smaller violation than it actually is. */
+export const ACCESSORY_OCCASION_PROMPT_RULE =
+  "ACCESSORY OCCASION MATCHING: a bag, pair of shoes, or other accessory's own occasion tags are just as binding as they are for a top, bottom, or dress — never propose one tagged only for Weekend/Travel/Sport for a Work/Evening/Formal look, or vice-versa, purely because it 'still looks fine' physically. " +
+  "If nothing in the wardrobe has a bag tagged for the occasion at hand, say so rather than reaching for the closest large or casual bag anyway — a missing piece is more honest than a wrong one.";
 
-  temperature: z.number().nullable().optional(),
-  condition: z.string().nullable().optional(),
-  dressRules: z.string().nullable().optional(),
-  items: z.array(ItemSchema).min(3),
-});
-
-const LookSchema = z.object({
-  item_ids: z.array(z.string()),
-  occasion: z.string().min(1),
-  explanation: z.string(),
-});
-const OutputSchema = z.object({
-  today: LookSchema,
-  curated: z.array(LookSchema).min(1).max(4),
-});
-export type DailyLook = z.infer<typeof LookSchema>;
-export type DailyLooksResult = z.infer<typeof OutputSchema>;
-
-/**
- * Generates real outfit recommendations from the user's ACTUAL wardrobe in
- * a single AI call: one "today" look (weather-aware, for right now) plus
- * a small set of "curated" looks spanning a few different real occasions.
- * All items referenced must exist in the provided catalog — nothing is
- * invented. Intended to be called once per day and cached by the caller
- * (see home_suggestions table), not re-generated on every page view.
- */
-export const suggestDailyLooks = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => InputSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    if (data.items.length < 3) {
-      return { ok: false as const, error: "Not enough wardrobe pieces to compose a look yet." };
-    }
-
-    const { data: profileRow } = await (context.supabase.from("profiles" as never) as any)
-      .select("gender").eq("id", context.userId).maybeSingle();
-    const gender = (profileRow as { gender?: string | null } | null)?.gender ?? null;
-
-    // Soft personalization: read-only, never blocks generation if it
-    // fails or comes back empty (a person with no history yet, or a
-    // transient read error, should see exactly the same quality of
-    // suggestion as always — this only ever adds a nudge on top).
-    let styleMemorySection: string[] = [];
-    try {
-      const { data: memoryRows } = await context.supabase
-        .from("user_style_memory_active")
-        .select("memory_type, value, context_axis, context_value, effective_confidence, evidence_count")
-        .order("effective_confidence", { ascending: false })
-        .limit(100);
-      styleMemorySection = buildStyleMemoryPromptSection(memoryRows ?? [], ["Work", "Weekend", "Evening"]);
-    } catch (e) {
-      console.error("[AURA suggest-daily-looks] style memory read failed, continuing without it", e);
-    }
-
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
-    const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
-    const gateway = createLovableAiGatewayProvider(key);
-    const model = gateway("google/gemini-2.5-flash");
-
-    const wx = data.temperature != null
-      ? `Today's weather: ${Math.round(data.temperature)}°C, ${data.condition ?? "unknown"}.`
-      : "Today's weather: unknown.";
-
-    const catalog = data.items.slice(0, 200).map((it) => ({
-      id: it.id,
-      category: it.category ?? "",
-      subcategory: it.subcategory ?? "",
-      colors: it.colors ?? [],
-      style: it.style ?? [],
-      season: it.season ?? "",
-      brand: it.brand ?? "",
-      formality: it.formality ?? null,
-            dayEvening: it.dayEvening ?? "",
-      styleTags: it.styleTags ?? [],
-            length: it.length ?? "",
-      sleeveLength: it.sleeveLength ?? "",
-      material: it.material ?? [],
-      toeShape: it.toeShape ?? "",
-      occasion: it.occasion ?? "",
-    }));
+/** An open-front cardigan, wrap top, duster, or open knit is a LAYER,
+ *  not a complete top on its own — worn alone it leaves the torso
+ *  genuinely exposed (unlike a buttoned cardigan or a blazer over
+ *  nothing, which at least closes), not a styling choice some people
+ *  happen to prefer. This showed up as a real outfit: a wrap-front
+ *  cardigan proposed with jeans and shoes and nothing at all worn
+ *  underneath it. */
+export const OPEN_LAYER_NEEDS_BASE_PROMPT_RULE =
+  "OPEN LAYER RULE: an open-front cardigan, wrap top, duster, or any other knit/cover-up that doesn't close over the chest must ALWAYS be paired with a base layer underneath — a tank, cami, t-shirt, blouse, or long-sleeve top, chosen for the temperature and season (light tank/cami in heat, long sleeve or a fitted knit in cold). " +
+  "Never propose that kind of open layer as the only top in the outfit. If the wardrobe has no suitable base layer available, don't use that open piece at all rather than leaving it worn alone.";
 
 
-    const system = [
-      ...(data.dressRules ? [data.dressRules, ""] : []),
-      ...styleMemorySection,
-      BLAZER_WARMTH_PROMPT_RULE,
-      BELT_BODYCON_PROMPT_RULE,
-      ACCESSORY_OCCASION_PROMPT_RULE,
-    OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
-      EMBELLISHED_EVENING_PROMPT_RULE,
-      "",
-      "You are a personal stylist. Compose REAL outfits using ONLY items from the",
-      "user's own wardrobe catalog below. Never invent an item id.",
-      "",
-      "Produce TWO things:",
-      "1. \"today\": ONE outfit specifically appropriate for today's actual weather",
-      "   (see below), for a general everyday occasion.",
-      "2. \"curated\": build toward THREE specific occasions, in this order:",
-      "   \"Work\", \"Weekend\", \"Evening\". Each one is a genuinely different brief —",
-      "   Work = put-together and professional, Weekend = relaxed and casual,",
-      "   Evening = dressier or more elevated. Give each its own distinct outfit,",
-      "   built for that specific brief, not a minor variation of another one.",
-      "   Set each look's \"occasion\" field to exactly that label. Avoid reusing",
-      "   the exact same combination as \"today\" or as another curated look.",
-      "",
-      "Today's actual weather (see below) applies to EVERY look you produce —",
-      "\"today\" AND all three curated occasions, no exceptions. A look is never",
-      "\"for some future day\" or \"aspirational\": Work/Weekend/Evening must all",
-      "be wearable outside right now. If it's hot, no coats, wool knits, heavy",
-      "layering or boots in ANY look, including Work. If it's cold or rainy, no",
-      "bare tanks or thin sandals in ANY look, including Evening. Weather is a",
-      "hard constraint like formality, not a decorative detail for \"today\" only.",
-      "From 22°C up there is NO wool or other heavy winter fabric (wool, cashmere, tweed, fleece,",
-      "corduroy, flannel) and NO boots of any kind in ANY look — a wool skirt with ankle boots on a",
-      "warm day is the wrong season even if the piece is not tagged winter. Choose light fabrics",
-      "(cotton, linen, silk, viscose, light knit) and open or light footwear (sandals, flats, loafers, sneakers).",
-      "",
-      "   Formality and day/evening context outrank color or style match — a",
-      "   great color pairing never justifies the wrong occasion.",
-            "   \"Work\" must EXCLUDE: off-shoulder or bare-shoulder tops, strappy or",
-      "   embellished/rhinestone/metallic heeled sandals, clutches or evening bags,",
-      "   cocktail-style dresses, anything overtly evening-coded, shorts of any",
-      "   kind, and mini or above-the-knee skirts/dresses (length \"Mini\") — use",
-      "   knee-length or longer only. Prefer covered shoulders, closed-toe or",
-      "   block-heel shoes, structured bags for Work.",
-      "   \"Evening\" is where those bare-shoulder or dressy-sandal pieces belong",
-      "   instead — reserve them for that occasion, not Work.",
-      "",
-      "Each outfit: pick 3-5 items that work together (typically 1 top + 1 bottom OR",
-      "1 dress, + shoes, optionally outerwear), PLUS accessories: whenever the",
-      "wardrobe has them, add a pair of earrings and a watch or bracelet to EVERY",
-      "look (a necklace too when the neckline leaves room for it) — jewelry is part",
-      "of the outfit, not an afterthought, and matching the metal tone (gold with",
-      "gold, silver with silver) and the occasion's formality matters. Match colors and style",
-      "coherently. BAG: choose the bag that suits the outfit — calm in colour and close in",
-      "formality to the rest; a clutch, or a patterned/busy bag, only for Evening or when it",
-      "genuinely matches the look, never just the first bag in the list. A dress or jumpsuit is",
-      "a complete base on its own and REPLACES",
-      "both top and bottom — NEVER combine a dress or jumpsuit with a separate",
-      "Bottoms item (trousers, jeans, shorts, skirt) in the same look. If you pick",
-      "a dress or jumpsuit, do not also pick anything from the Bottoms category.",
-      "Use subcategory to judge fit-for-purpose when present (e.g. prefer",
-      "sandals over boots in hot weather; heels over sneakers for formal occasions).",
-      "NEVER use subcategory \"Running Shoes\" in any look, for any occasion — this",
-      "is a styling engine, not a workout planner. \"Sneakers\" (lifestyle) remain",
-      "fine for casual/Weekend looks.",
-      "If the wardrobe genuinely can't support a distinct, coherent look for one of",
-      "the three occasions without being repetitive or nonsensical, skip that",
-      "occasion rather than forcing a bad or near-identical combination — quality",
-      "over hitting the count of three.",
-      "A belt is a genuine styling option, not just a functional afterthought —",
-      "actively consider one from Accessories when the look has a waist to define",
-      "(high-rise bottom with a tucked/cropped top, a Relaxed/Oversized dress or",
-      "jumpsuit with no built-in waist definition). Skip it when the piece is",
-      "already fitted at the waist (Slim/Tailored) or is a Wrap style.",
-      "LAYERING — two techniques to actively consider, not just default to a",
-      "single top: (1) a denim shirt/jacket worn OPEN over a well-fitted",
-      "(Slim/Tailored/Regular, never Oversized/Cropped) tank or t-shirt; (2) a",
-      "lace bra/bralette visible under a sheer/semi-sheer shirt or sweater, an",
-      "open blazer, or a low/plunging neckline — for Weekend/Evening looks only,",
-      "never Work. Only when the wardrobe actually has pieces that fit it.",
-      "occasion: exactly \"Work\", \"Weekend\", or \"Evening\" for curated looks; any",
-      "short label for \"today\".",
-      "explanation: 1 short sentence (max 160 chars) on why it works.",
-      "",
-      "Respond with ONLY a single valid JSON object, no markdown fences, no extra text,",
-      "in exactly this shape:",
-      '{"today":{"item_ids":[],"occasion":"","explanation":""},"curated":[{"item_ids":[],"occasion":"","explanation":""}]}',
-    ].join("\n");
+/** Crystals, Swarovski, rhinestones, diamonds, sequins: a piece decorated with them is an
+ *  EVENING piece. This is read from the Material field (and styleTags/subcategory as a
+ *  fallback), so trousers with Swarovski, a sequinned top or a crystal clutch are recognised
+ *  as such by every engine — not only when the word happens to be in the subcategory. */
+export const EMBELLISHED_SIGNAL = /swarovski|crystal|cristall|rhinestone|strass|diamond|diamant|sequin|paillette|lurex/i;
 
-    const userContent = `${wx}\nWardrobe:\n${JSON.stringify(catalog)}`;
-    const validIds = new Set(catalog.map((c) => c.id));
+const JEWELRY_SUBCATEGORIES = new Set(["earrings", "necklace", "bracelet", "ring", "brooch", "anklet", "watch"]);
 
-    /** Fraction of overlap between two item sets (0 = nothing shared,
-     *  1 = identical sets). Simple, explainable, no scoring system needed. */
-    const jaccard = (a: string[], b: string[]): number => {
-      const setA = new Set(a);
-      const setB = new Set(b);
-      const intersection = [...setA].filter((x) => setB.has(x)).length;
-      const union = new Set([...setA, ...setB]).size;
-      return union === 0 ? 0 : intersection / union;
-    };
-    const TOO_SIMILAR = 0.7; // 70%+ shared items counts as "practically the same look"
+/** True for a garment, shoe, bag or non-jewelry accessory that is embellished. Jewelry itself
+ *  is excluded on purpose: earrings with stones are fine at any hour of the day. */
+export function isEmbellishedPiece(item: {
+  subcategory?: string | null; styleTags?: string[] | null; material?: string[] | null;
+}): boolean {
+  const sub = (item.subcategory ?? "").toLowerCase();
+  if (JEWELRY_SUBCATEGORIES.has(sub)) return false;
+  const text = `${sub} ${(item.styleTags ?? []).join(" ")} ${(item.material ?? []).join(" ")}`;
+  return EMBELLISHED_SIGNAL.test(text);
+}
 
-    const SLOT_LIMITS: Record<string, number> = {
-      Tops: 1, Bottoms: 1, Dresses: 1, Jumpsuits: 1, Shoes: 1, Bags: 1, Outerwear: 1,
-    };
-    /** Rejects a look with more than one item in a single-per-outfit slot
-     *  (e.g. two Bottoms, a skirt AND trousers) — structural coherence is a
-     *  hard requirement, never left to the model's judgment alone. */
-    const hasSlotViolation = (ids: string[]): boolean => {
-      const counts: Record<string, number> = {};
-      for (const id of ids) {
-        const cat = catalog.find((c) => c.id === id)?.category;
-        if (!cat) continue;
-        counts[cat] = (counts[cat] ?? 0) + 1;
-      }
-      return Object.entries(SLOT_LIMITS).some(([cat, limit]) => (counts[cat] ?? 0) > limit);
-    };
+const EVENING_LIKE_OCCASION = /evening|sera|serata|cocktail|gala|party|festa|wedding|matrimonio|black.?tie|formal|concert|concerto|night|club|dinner|cena/i;
+const DAYTIME_BUSINESS = /work|business|lavoro|office|ufficio/i;
 
-    const EVENING_SIGNAL = /embellish|strappy|metallic|clutch|cocktail/i;
-    /** Hard exclusion for "Work": evening-coded pieces never pass, enforced
-     *  in code — not just requested in the prompt. */
-    const violatesWorkFormality = (ids: string[]): boolean =>
-      ids.some((id) => {
-        const item = catalog.find((c) => c.id === id);
-        if (!item) return false;
-        const text = `${item.subcategory} ${(item.styleTags ?? []).join(" ")}`;
-        if (EVENING_SIGNAL.test(text)) return true;
-        // crystals / Swarovski / rhinestones / diamonds / sequins in the MATERIAL field (or tags) too
-        if (EMBELLISHED_SIGNAL.test(`${text} ${(item.material ?? []).join(" ")}`) && item.category !== "Accessories") return true;
-                if (item.dayEvening === "evening" && (item.formality ?? 0) >= 4) return true;
-        return false;
-      });
+/** Whether an embellished piece is welcome in a look for this occasion (free text). An empty
+ *  occasion is left to the prompt. A business dinner is still a business setting: no sparkle. */
+export function allowsEmbellished(occasion: string | null | undefined, daySegment?: string | null): boolean {
+  if (daySegment === "evening") return true;
+  const o = (occasion ?? "").trim();
+  if (!o) return true;
+  if (DAYTIME_BUSINESS.test(o)) return false;
+  return EVENING_LIKE_OCCASION.test(o);
+}
 
-    const SHORTS_SUBCATEGORIES = new Set(["Shorts", "Bermuda Shorts"]);
-    /** Hard exclusion for "Work": shorts and mini/above-the-knee skirts or
-     *  dresses never pass, enforced in code — not just requested in the
-     *  prompt, since the LLM can otherwise ignore a text-only instruction.
-     *  Mirrors the "cover legs" logic in dress-preferences.ts, but scoped
-     *  to the Work occasion specifically rather than as a global rule. */
-    const violatesWorkModesty = (ids: string[]): boolean =>
-      ids.some((id) => {
-        const item = catalog.find((c) => c.id === id);
-        if (!item) return false;
-        if (item.category === "Bottoms" && SHORTS_SUBCATEGORIES.has(item.subcategory)) return true;
-        const isSkirtBottom = item.category === "Bottoms" && item.subcategory === "Skirt";
-        const isDressOrSkirt = item.category === "Dresses" || isSkirtBottom;
-        if (isDressOrSkirt && item.length === "Mini") return true;
-        return false;
-      });
+export const EMBELLISHED_EVENING_PROMPT_RULE =
+  "EMBELLISHED PIECES: a garment, shoe or bag decorated with crystals, Swarovski, rhinestones, diamonds or sequins (see its material and styleTags) is an EVENING piece \u2014 " +
+  "trousers with Swarovski are an evening look, not an everyday one. Use it only for Evening, Formal, cocktail, party or gala looks, and never for Work, everyday, Weekend, Travel or any daytime look. " +
+  "Jewelry with stones (earrings, necklace, watch, bracelet) is fine at any time of day.";
 
-    /** Hard exclusion for EVERY occasion: a Dress or Jumpsuit already
-     *  covers top + bottom, so pairing it with a separate Bottoms item
-     *  (shorts, jeans, skirt, trousers) is never a real outfit, no matter
-     *  how well the prompt is worded — enforced in code so the model
-     *  cannot silently ignore it. */
-    const violatesDressPlusBottoms = (ids: string[]): boolean => {
-      const hasFullBody = ids.some((id) => {
-        const item = catalog.find((c) => c.id === id);
-        return item?.category === "Dresses" || item?.category === "Jumpsuits";
-      });
-      if (!hasFullBody) return false;
-      return ids.some((id) => catalog.find((c) => c.id === id)?.category === "Bottoms");
-    };
+/** A piece the person tagged ONLY for one of these situations (Wardrobe → edit → Occasion) is
+ *  situational: it must not surface in an unrelated look just because it also matches colour or
+ *  formality. "Resort" is included on purpose — a bag or sandal tagged only Resort is a holiday piece. */
+export const SPECIALIZED_OCCASION_TAGS = ["Travel", "Sport", "Resort"];
 
+/** A beach / holiday bag: straw, raffia, wicker, rattan, a basket. Read from subcategory, styleTags and
+ *  material (there is no dedicated "beach" attribute). Fine for Weekend, Travel, Resort or an everyday
+ *  summer look — never for Work, business, Evening or Formal. */
+export const BEACH_BAG_SIGNAL = /raffia|rafia|straw|paglia|wicker|rattan|seagrass|beach|spiaggia|basket|cestino/i;
+export function isBeachBag(item: {
+  category?: string | null; subcategory?: string | null; styleTags?: string[] | null; material?: string[] | null;
+}): boolean {
+  if (item.category !== "Bags") return false;
+  const text = `${item.subcategory ?? ""} ${(item.styleTags ?? []).join(" ")} ${(item.material ?? []).join(" ")}`;
+  return BEACH_BAG_SIGNAL.test(text);
+}
 
-    // Weather is a hard constraint for EVERY look (today + all curated
-    // occasions), not just "today" — enforced in code, mirroring
-    // violatesWorkFormality above. A great Work outfit is not an excuse to
-    // wear a wool coat at 39°C. See outfit-weather-rules.ts: this used to
-    // be a local, divergent copy of the same check used elsewhere — it
-    // missed material entirely and used a strict `season === "winter"`
-    // that silently never matched multi-value season tags like
-    // "Autumn, Winter". Both are fixed by using the shared function.
-    const violatesWeather = (ids: string[]): boolean => anyItemViolatesWeather(ids, catalog, data.temperature ?? null);
+/** Technical outdoor footwear (hiking / trekking / mountain / snow boots): sport-and-mountain gear, not
+ *  something to wear to the office, to dinner or to a formal event. */
+export const TECHNICAL_FOOTWEAR_SIGNAL = /hiking|trekking|hiker|mountain|montagna|scarpon|\bski\b|snow|outdoor|lug.?sole/i;
+export function isTechnicalFootwear(item: {
+  category?: string | null; subcategory?: string | null; styleTags?: string[] | null; style?: string | string[] | null;
+}): boolean {
+  if (item.category !== "Shoes") return false;
+  const style = Array.isArray(item.style) ? item.style.join(" ") : item.style ?? "";
+  return TECHNICAL_FOOTWEAR_SIGNAL.test(`${item.subcategory ?? ""} ${(item.styleTags ?? []).join(" ")} ${style}`);
+}
 
-    // Technical/running shoes are a hard exclusion from every look this
-    // engine produces — this engine styles outfits (Today's edit, Work,
-    // Weekend, Evening), never a workout fit. Formality alone doesn't
-    // catch this: a performance running shoe and a canvas lifestyle
-    // sneaker can both read as formality 1, but only one belongs in a
-    // styled outfit. The taxonomy already separates the two at
-    // classification time (subcategory "Running Shoes" vs "Sneakers" —
-    // see ai-analyze.functions.ts), so this just has to trust that field.
-    // An embellished piece (crystals, Swarovski, rhinestones, diamonds, sequins) is an evening piece:
-    // it may appear in the Evening look and nowhere else — not in Work, Weekend or today's everyday
-    // look. Enforced in code, like the weather: the prompt asks, this makes sure.
-    const violatesEmbellishedByDay = (occasion: string, ids: string[]): boolean =>
-      occasion !== "Evening" && ids.some((id) => {
-        const item = catalog.find((c) => c.id === id);
-        return item ? isEmbellishedPiece(item) : false;
-      });
-
-    const violatesStylingFootwear = (ids: string[]): boolean =>
-      ids.some((id) => catalog.find((c) => c.id === id)?.subcategory === "Running Shoes");
-
-    // A piece tagged ONLY "Travel" or ONLY "Sport" (the person's own
-    // explicit tag) is situational — it shouldn't surface in an
-    // unrelated curated look, e.g. a travel-only bag proposed for the
-    // Work look. "General" (today's everyday look) is intentionally
-    // exempt: it's not tied to one of the three named occasions, so
-    // there's no specific occasion to check the tag against.
-    const SPECIALIZED_OCCASION_TAGS = ["Travel", "Sport"];
-    const violatesOccasionTag = (occasion: string, ids: string[]): boolean => {
-      if (occasion === "General") return false;
-      return ids.some((id) => {
-        const item = catalog.find((c) => c.id === id);
-        if (!item?.occasion) return false;
-        const tags = item.occasion.split(",").map((s) => s.trim()).filter(Boolean);
-        const hasSpecialized = tags.some((tg) => SPECIALIZED_OCCASION_TAGS.includes(tg));
-        if (!hasSpecialized) return false;
-        return !tags.includes(occasion);
-      });
-    };
-
-        const REQUIRED_OCCASIONS = ["Work", "Weekend", "Evening"] as const;
-
-    /** Single-look validation, reused both by the first pass and by the
-     *  retry below — same hard rules, just callable per-look against a
-     *  running "seen" list instead of only inside one big filter chain. */
-    const isValidCuratedLook = (l: DailyLook, seen: string[][]): boolean => {
-      if (!l.item_ids.every((id) => validIds.has(id))) return false;
-      if (l.item_ids.length < 2) return false;
-      if (hasSlotViolation(l.item_ids)) return false;
-      if (l.occasion === "Work" && violatesWorkFormality(l.item_ids)) return false;
-      if (l.occasion === "Work" && violatesWorkModesty(l.item_ids)) return false;
-      if (violatesDressPlusBottoms(l.item_ids)) return false;
-      if (violatesWeather(l.item_ids)) return false;
-      if (violatesEmbellishedByDay(l.occasion, l.item_ids)) return false;
-      if (violatesStylingFootwear(l.item_ids)) return false;
-      if (violatesOccasionTag(l.occasion, l.item_ids)) return false;
-      if (seen.some((s) => jaccard(l.item_ids, s) >= TOO_SIMILAR)) return false;
-      return true;
-    };
-
-    // Bags are mandatory for Woman — the same hard rule already enforced
-    // in the on-demand/weekly outfit engine (ai-suggest-outfit.functions.ts).
-    // This curated-looks engine (Home's "Selezionati per te") runs
-    // completely independently and never inherited it, which is why an
-    // Evening look could come back with a dress, shoes, and jewelry but
-    // no bag. Appended after the fact rather than rejecting a look that's
-    // missing one — that would just trigger an unnecessary retry for an
-    // otherwise-good look instead of simply completing it.
-    const NO_BAG_OCCASION_SIGNAL = /sport|gym|yoga|running|hiking|training|pilates|tennis|cycling|pool|piscina|swim|beach|spiaggia|mare|snorkeling/i;
-    const catalogHasBag = catalog.some((c) => c.category === "Bags");
-    // Which bag gets appended matters as much as having one: it used to be simply the FIRST bag
-    // in the catalog, which is how the same busy clutch ended up on an everyday look with a
-    // skirt and a bodysuit ("goes with nothing"). Now it is chosen: right for the occasion (a
-    // clutch is an evening bag), close to the look's formality, quiet in colour (a patterned or
-    // loud bag only when nothing calmer exists), matching the look's own colours when it can,
-    // and rotated so the four looks don't all get the same one.
-    const NEUTRAL_COLOR = /black|nero|white|bianco|cream|ivory|ecru|off.?white|beige|tan|camel|nude|taupe|brown|marrone|grey|gray|grigio|navy|blu notte|silver|argento|gold|oro/i;
-    const bagUse = new Map<string, number>();
-
-    // Shoes are part of every look. The today-look already gets a completeness retry, but a curated
-    // look (Work, Weekend, Evening) could come back from the model with a dress and no shoes at all
-    // ("a cream dress with a bag, a belt and a watch, and bare feet"). Same idea as the bag and the
-    // jewelry: the model asked, code makes sure — the pair is CHOSEN (weather, occasion tag, Work rules,
-    // no evening-embellished pair by day, closeness to the look's formality, heels for Evening but not
-    // high heels for Work) and rotated so the four looks don't all get the same pair.
-    const NO_SHOES_OCCASION_SIGNAL = /pool|piscina|swim|beach|spiaggia|mare|snorkeling/i;
-    const shoeUse = new Map<string, number>();
-    const ensureShoes = (occasion: string, ids: string[]): string[] => {
-      const allShoes = catalog.filter((c) => c.category === "Shoes");
-      if (!allShoes.length) return ids;
-      if (NO_SHOES_OCCASION_SIGNAL.test(occasion)) return ids;
-      if (ids.some((id) => catalog.find((c) => c.id === id)?.category === "Shoes")) return ids;
-      const fs = ids.map((id) => catalog.find((c) => c.id === id)?.formality).filter((f): f is number => typeof f === "number");
-      const target = fs.length ? fs.reduce((a, b) => a + b, 0) / fs.length : 3;
-      const strict = allShoes.filter((c) =>
-        !violatesWeather([c.id]) && !violatesStylingFootwear([c.id]) && !violatesOccasionTag(occasion, [c.id])
-        && !violatesEmbellishedByDay(occasion, [c.id])
-        && !(occasion === "Work" && (violatesWorkFormality([c.id]) || violatesWorkModesty([c.id]))));
-      const relaxed = allShoes.filter((c) => !violatesWeather([c.id]) && !violatesStylingFootwear([c.id]));
-      const pool = strict.length ? strict : relaxed; // never a look with no shoes if a suitable pair exists
-      if (!pool.length) return ids;
-      const score = (c: (typeof pool)[number]) => {
-        let sc = (shoeUse.get(c.id) ?? 0) * 2;
-        sc += Math.abs((c.formality ?? target) - target);
-        // heel height is not sent to this engine: read it from the shoe type / tags
-        const heeled = /pump|wedge|stiletto|slingback|heel/i.test(`${c.subcategory} ${(c.styleTags ?? []).join(" ")}`);
-        if (occasion === "Evening" && heeled) sc -= 1;
-        if (occasion === "Weekend" && heeled) sc += 1.5;
-        if (occasion === "Evening" && c.dayEvening === "day") sc += 2;
-        if (occasion !== "Evening" && c.dayEvening === "evening") sc += 3;
-        return sc;
-      };
-      const best = [...pool].sort((a, b) => score(a) - score(b))[0];
-      shoeUse.set(best.id, (shoeUse.get(best.id) ?? 0) + 1);
-      return [...ids, best.id];
-    };
-
-    const ensureBag = (occasion: string, ids: string[]): string[] => {
-      if (gender !== "Woman") return ids;
-      if (!catalogHasBag) return ids;
-      if (NO_BAG_OCCASION_SIGNAL.test(occasion)) return ids;
-      if (ids.some((id) => catalog.find((c) => c.id === id)?.category === "Bags")) return ids;
-      const look = ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => Boolean(c));
-      const fs = look.map((c) => c.formality).filter((f): f is number => typeof f === "number");
-      const target = fs.length ? fs.reduce((a, b) => a + b, 0) / fs.length : 3;
-      const lookColors = look.flatMap((c) => (c.colors ?? []).map((x) => x.toLowerCase()));
-      const allBags = catalog.filter((c) => c.category === "Bags" && !ids.includes(c.id));
-      const fitting = allBags.filter((c) =>
-        !violatesOccasionTag(occasion, [c.id])
-        && !(occasion === "Work" && violatesWorkFormality([c.id]))
-        && !violatesEmbellishedByDay(occasion, [c.id])
-        && !violatesWeather([c.id]));
-      const pool = fitting.length ? fitting : allBags; // a woman's look never ends up with no bag at all
-      if (!pool.length) return ids;
-      const score = (c: (typeof pool)[number]) => {
-        let sc = (bagUse.get(c.id) ?? 0) * 2;
-        sc += Math.abs((c.formality ?? target) - target);
-        if (/clutch/i.test(c.subcategory) && occasion !== "Evening") sc += 6;
-        if (occasion === "Evening" && c.dayEvening === "day") sc += 2;
-        if (occasion !== "Evening" && c.dayEvening === "evening") sc += 3;
-        const cols = c.colors ?? [];
-        const busy = cols.length >= 3 || cols.some((x) => /multi|pattern|print|stamp/i.test(x));
-        if (busy) sc += 4;
-        else if (cols.length && !cols.every((x) => NEUTRAL_COLOR.test(x))) sc += 1.5;
-        if (cols.some((x) => lookColors.includes(x.toLowerCase()))) sc -= 1;
-        return sc;
-      };
-      const best = [...pool].sort((a, b) => score(a) - score(b))[0];
-      bagUse.set(best.id, (bagUse.get(best.id) ?? 0) + 1);
-      return [...ids, best.id];
-    };
-
-    // Jewelry "almost always": the prompt now asks for it, but — exactly like
-    // bags above — a text-only instruction is not reliable, so this tops a look
-    // up in code with earrings + one wrist piece when the wardrobe has them and
-    // the model left them out. Never removes or replaces what the model chose.
-    // Candidates must pass the same hard rules as any other piece (occasion
-    // tag; for Work, nothing evening-coded), are ranked by closeness to the
-    // look's formality, and are rotated across looks so all four don't end up
-    // with the identical pair when the wardrobe has alternatives.
-    const NO_JEWELRY_OCCASION_SIGNAL = /sport|gym|yoga|running|hiking|training|pilates|tennis|cycling|pool|piscina|swim|beach|spiaggia|mare|snorkeling/i;
-    const jewelryUse = new Map<string, number>();
-    const ensureJewelry = (occasion: string, ids: string[]): string[] => {
-      if (NO_JEWELRY_OCCASION_SIGNAL.test(occasion)) return ids;
-      const subOf = (id: string) => catalog.find((c) => c.id === id)?.subcategory ?? "";
-      const formalities = ids.map((id) => catalog.find((c) => c.id === id)?.formality).filter((f): f is number => typeof f === "number");
-      const target = formalities.length ? formalities.reduce((a, b) => a + b, 0) / formalities.length : 3;
-      const pick = (subs: string[]): string | null => {
-        const pool = catalog.filter((c) =>
-          c.category === "Accessories" && subs.includes(c.subcategory) && !ids.includes(c.id)
-          && !violatesOccasionTag(occasion, [c.id])
-          && !(occasion === "Work" && violatesWorkFormality([c.id])));
-        if (!pool.length) return null;
-        const score = (c: (typeof pool)[number]) =>
-          (jewelryUse.get(c.id) ?? 0) * 2
-          + Math.abs((c.formality ?? target) - target)
-          + (occasion === "Evening" && c.dayEvening === "day" ? 2 : 0);
-        return [...pool].sort((a, b) => score(a) - score(b))[0].id;
-      };
-      const out = [...ids];
-      const add = (id: string | null) => { if (id) { out.push(id); jewelryUse.set(id, (jewelryUse.get(id) ?? 0) + 1); } };
-      if (!out.some((id) => subOf(id) === "Earrings")) add(pick(["Earrings"]));
-      if (!out.some((id) => subOf(id) === "Watch" || subOf(id) === "Bracelet")) add(pick(["Watch", "Bracelet"]));
-      return out;
-    };
-
-    const sanitize = (r: DailyLooksResult): DailyLooksResult => {
-      // "today" is singular — a violation strips just the offending
-      // item(s) rather than discarding the whole look (there's no second
-      // candidate to fall back to for "today").
-      const todayIds = r.today.item_ids.filter((id) => validIds.has(id));
-      const todayHasFullBody = todayIds.some((id) => {
-        const item = catalog.find((c) => c.id === id);
-        return item?.category === "Dresses" || item?.category === "Jumpsuits";
-      });
-      const today = {
-        ...r.today,
-        item_ids: todayIds.filter((id) => {
-          if (violatesWeather([id]) || violatesStylingFootwear([id])) return false;
-          if (violatesEmbellishedByDay(r.today.occasion, [id])) return false; // today is an everyday look
-          // If a dress/jumpsuit is present, drop any separate Bottoms item
-          // instead of the whole look — a dress alone is still valid,
-          // while removing it would leave an incomplete outfit.
-          if (todayHasFullBody && catalog.find((c) => c.id === id)?.category === "Bottoms") return false;
-          return true;
-        }),
-      };
-      const seen = [today.item_ids];
-      const curated: DailyLook[] = [];
-      for (const l of r.curated) {
-        if (isValidCuratedLook(l, seen)) {
-          curated.push(l);
-          seen.push(l.item_ids);
-        }
-      }
-      return { today, curated };
-    };
-
-    try {
-      let text: string;
-      try {
-        text = (await generateText({ model, system, messages: [{ role: "user", content: userContent }] })).text;
-      } catch (err) {
-        console.error("[AURA daily-looks] first call failed", err);
-        text = "";
-      }
-
-      let parsed: DailyLooksResult;
-      try {
-        parsed = parseAiJson(text, OutputSchema);
-      } catch {
-        const r2 = await generateText({
-          model,
-          system,
-          messages: [
-            { role: "user", content: userContent },
-            { role: "assistant", content: text || "(no response)" },
-            { role: "user", content: "That was not a single valid JSON object matching the required shape. Reply again with ONLY the JSON object, nothing else." },
-          ],
-        });
-        parsed = parseAiJson(r2.text, OutputSchema);
-      }
-
-          const clean = sanitize(parsed);
-      if (clean.today.item_ids.length < 2) {
-        return { ok: false as const, error: "Couldn't compose a valid look from your wardrobe." };
-      }
-
-      // Guards against the explanation text describing a piece that
-      // isn't actually in the final item_ids — either because sanitize
-      // just filtered it out, or because the model wrote about a piece
-      // in prose without ever having put a matching id in item_ids to
-      // begin with (a real, observed failure mode: "featuring a minimal
-      // tank" in the sentence while the returned ids were only trousers,
-      // sandals and a bag). Gets ONE targeted retry to actually complete
-      // the look, the same idea as the missing-occasions retry just
-      // below, scoped to this one specific gap instead. Falls back to a
-      // sentence making no specific claims only if that retry also
-      // doesn't produce a complete look — an honest generic sentence
-      // beats one confidently wrong about what's shown.
-      const catOf = (id: string) => catalog.find((c) => c.id === id)?.category;
-      // A complete outfit = something on the torso AND legs (a dress/jumpsuit covers both, otherwise a
-      // top + a bottom) AND shoes when the wardrobe has any. sanitize() above only STRIPS a piece
-      // that breaks a hard rule (say a wool skirt or boots on a hot day): without this check a
-      // bodysuit with no skirt and no shoes would be shown as "today's look".
-      const catalogHasShoes = catalog.some((c) => c.category === "Shoes");
-      const isCompleteLook = (ids: string[]) => {
-        const cats = ids.map(catOf);
-        const fullBody = cats.includes("Dresses") || cats.includes("Jumpsuits");
-        const torso = fullBody || cats.includes("Tops");
-        const legs = fullBody || cats.includes("Bottoms");
-        const feet = !catalogHasShoes || cats.includes("Shoes");
-        return torso && legs && feet;
-      };
-      const proposedToday = parsed.today.item_ids.filter((id) => validIds.has(id));
-      const strippedToday = proposedToday.filter((id) => !clean.today.item_ids.includes(id));
-      if (!isCompleteLook(clean.today.item_ids) || strippedToday.length > 0) {
-        try {
-          const rejected = strippedToday.length
-            ? ` These pieces were REJECTED because they are wrong for today's weather (${wx}) and must not come back: ${JSON.stringify(strippedToday)}.`
-            : "";
-          const missingPieceRetrySystem = [
-            system,
-            "",
-            `IMPORTANT — this is a retry. The "today" look you just proposed is not a complete, wearable outfit for today's weather.${rejected} Only these pieces survived: ${JSON.stringify(clean.today.item_ids)}. Propose a corrected, COMPLETE "today" look — a top plus a bottom (or a dress/jumpsuit instead), shoes, and a bag/accessories where the wardrobe has them — following every rule above, especially the weather. Reuse the surviving pieces where they still make sense and replace the rejected ones with a lighter, season-appropriate alternative from the catalog (light fabric, open or light footwear when it is warm). The explanation must describe ONLY the pieces you actually list.`,
-          ].join("\n");
-          const TodayRetrySchema = z.object({ today: LookSchema });
-          const retryText = (await generateText({
-            model,
-            system: missingPieceRetrySystem,
-            messages: [{ role: "user", content: userContent }],
-          })).text;
-          const retryParsed = parseAiJson(retryText, TodayRetrySchema);
-          if (isValidCuratedLook(retryParsed.today, []) && isCompleteLook(retryParsed.today.item_ids)) {
-            clean.today = retryParsed.today;
-          } else {
-            clean.today = { ...clean.today, explanation: "A pared-back edit from your closet, put together for today's weather." };
-          }
-        } catch (err) {
-          console.error("[AURA daily-looks] today-completion retry failed", err);
-          clean.today = { ...clean.today, explanation: "A pared-back edit from your closet, put together for today's weather." };
-        }
-      }
-
-      // Retry once for any required occasion that didn't survive sanitize
-      // — either the model skipped it or a hard filter rejected it. Gives
-      // the wardrobe a second, more targeted shot before settling for a
-      // partial set of looks.
-      const missingOccasions = REQUIRED_OCCASIONS.filter(
-        (occ) => !clean.curated.some((l) => l.occasion === occ),
-      );
-
-      if (missingOccasions.length > 0) {
-        const seenSoFar = [clean.today.item_ids, ...clean.curated.map((l) => l.item_ids)];
-        const retrySystem = [
-          system,
-          "",
-          `IMPORTANT — this is a retry. Produce ONLY curated looks for these missing occasions: ${missingOccasions.join(", ")}. Do not repeat "today" or any curated look already produced.`,
-        ].join("\n");
-        // No .max() here on purpose — it used to reject the ENTIRE retry
-        // the moment the model returned even one look more than strictly
-        // missing (a "too_big" schema failure), discarding valid looks
-        // along with it. The loop below already filters to only the
-        // occasions actually missing and only valid looks, so an extra
-        // look from the model is simply ignored there instead of being
-        // treated as a reason to throw everything away.
-        const RetryOutputSchema = z.object({
-          curated: z.array(LookSchema).min(1),
-        });
-
-        try {
-          const retryText = (await generateText({
-            model,
-            system: retrySystem,
-            messages: [{ role: "user", content: userContent }],
-          })).text;
-          const retryParsed = parseAiJson(retryText, RetryOutputSchema);
-          for (const l of retryParsed.curated) {
-            if ((missingOccasions as string[]).includes(l.occasion) && isValidCuratedLook(l, seenSoFar)) {
-              clean.curated.push(l);
-              seenSoFar.push(l.item_ids);
-            }
-          }
-        } catch (err) {
-          console.error("[AURA daily-looks] retry failed", err);
-          // Best-effort: fall through with whatever survived the first pass.
-        }
-      }
-
-      clean.today = { ...clean.today, item_ids: ensureJewelry(clean.today.occasion, ensureBag(clean.today.occasion, ensureShoes(clean.today.occasion, clean.today.item_ids))) };
-      clean.curated = clean.curated.map((l) => ({ ...l, item_ids: ensureJewelry(l.occasion, ensureBag(l.occasion, ensureShoes(l.occasion, l.item_ids))) }));
-
-      return { ok: true as const, result: clean };
-
-    } catch (err) {
-      console.error("[AURA daily-looks] failed", err);
-      return { ok: false as const, error: err instanceof Error ? err.message : "Generation failed" };
-    }
-  });
+export const WORK_ACCESSORY_PROMPT_RULE =
+  "WORK / BUSINESS / EVENING / FORMAL: never use a beach or holiday bag (straw, raffia, wicker, basket) or technical outdoor footwear (hiking, trekking, mountain or snow boots) in these looks. " +
+  "Every outfit is COMPLETE: a top AND a bottom (or a dress/jumpsuit), plus shoes \u2014 never return a look without trousers/skirt/shorts when the wardrobe has any.";
