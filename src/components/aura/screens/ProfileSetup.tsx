@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Camera, Check, Loader2, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "@/hooks/use-profile";
+import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { USERNAME_RE } from "@/lib/community";
 import i18n, { SUPPORTED_LANGUAGES, LANGUAGE_LABELS, type SupportedLanguage } from "@/i18n/config";
@@ -29,6 +30,7 @@ const GENDER_KEYS: Record<string, string> = {
 export function ProfileSetup({ onDone }: { onDone: () => void }) {
   const { t } = useTranslation();
   const { update, uploadAvatar } = useProfile();
+  const { session } = useAuth();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -37,6 +39,9 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
   const [username, setUsername] = useState("");
   const [usernameChecking, setUsernameChecking] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  // true when the availability check itself FAILED (no session yet, network, permissions): it used to be
+  // swallowed as "unknown" and the step stayed blocked with no explanation.
+  const [usernameCheckFailed, setUsernameCheckFailed] = useState(false);
   const [birthDate, setBirthDate] = useState<string>("");
   const [gender, setGender] = useState<string>("");
   const [language, setLanguage] = useState<SupportedLanguage | "">("");
@@ -48,16 +53,35 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
 
   const usernameValid = USERNAME_RE.test(username);
 
+  // username_available is granted to signed-in users only (security migration), so it is called ONLY
+  // with an active session — an anonymous call is refused by Postgres ("permission denied"). The check
+  // re-runs when the session token appears/refreshes, retries once on a failure, and reports it.
+  const accessToken = session?.access_token ?? null;
   useEffect(() => {
+    setUsernameCheckFailed(false);
     if (!usernameValid) { setUsernameAvailable(null); return; }
+    if (!accessToken) { setUsernameAvailable(null); return; } // wait for the session
+    let cancelled = false;
     setUsernameChecking(true);
     const t = setTimeout(async () => {
-      const { data, error } = await supabase.rpc("username_available", { _username: username });
+      let res = await supabase.rpc("username_available", { _username: username });
+      if (res.error && !cancelled) {
+        // one refresh + retry: the token may have expired between renders
+        await supabase.auth.refreshSession();
+        res = await supabase.rpc("username_available", { _username: username });
+      }
+      if (cancelled) return;
       setUsernameChecking(false);
-      setUsernameAvailable(error ? null : Boolean(data));
+      if (res.error) {
+        console.error("[AURA profile-setup] username_available failed", res.error);
+        setUsernameAvailable(null);
+        setUsernameCheckFailed(true);
+      } else {
+        setUsernameAvailable(Boolean(res.data));
+      }
     }, 400);
-    return () => { clearTimeout(t); setUsernameChecking(false); };
-  }, [username, usernameValid]);
+    return () => { cancelled = true; clearTimeout(t); setUsernameChecking(false); };
+  }, [username, usernameValid, accessToken]);
 
   const toggle = (list: string[], setList: (v: string[]) => void, v: string) =>
     setList(list.includes(v) ? list.filter(x => x !== v) : [...list, v]);
@@ -83,10 +107,11 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
     if (usernameChecking) return t("profileSetup.checking");
     if (usernameAvailable === true) return t("profileSetup.available");
     if (usernameAvailable === false) return t("profileSetup.alreadyTaken");
+    if (usernameCheckFailed) return t("profileSetup.usernameCheckError", "Couldn't check this username. Check your connection and try again.");
     return "";
   })();
   const usernameHintIsError =
-    username.length > 0 && (!usernameValid || usernameAvailable === false);
+    username.length > 0 && (!usernameValid || usernameAvailable === false || usernameCheckFailed);
 
   const blockReason = () => {
     if (step !== 1) return null;
