@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ColorPicker } from "@/components/aura/ColorPicker";
@@ -56,6 +57,15 @@ export type DetectedItemDraft = {
   closure: string;
   gender: string;
   styleTags: string[];
+  // Present in AddItem.tsx's single-piece flow but previously missing
+  // here entirely — the same product needing two different sets of
+  // fields depending on how many photos it was uploaded with. Both are
+  // freely editable by hand here, unlike AddItem's `composition` field
+  // (also single-upload-only), which is populated exclusively by the
+  // URL-import flow's page scraping and has no manual-entry form even
+  // there — nothing to make consistent, since it isn't a real gap.
+  model: string;
+  bagSizeClass: string;
 };
 
 export function DetectedItemCard({
@@ -64,15 +74,25 @@ export function DetectedItemCard({
   onChange,
   onRemove,
   footer,
+  existingBrands,
 }: {
   item: DetectedItemDraft;
   imageUrl: string | null;
   onChange: (patch: Partial<DetectedItemDraft>) => void;
   onRemove?: () => void;
   footer?: React.ReactNode;
+  /** Brands already saved in the user's own wardrobe, for the same
+   *  autocomplete AddItem.tsx's single-piece flow already has — fetched
+   *  once by the parent (OutfitScan/BatchReview) and passed down here,
+   *  rather than every card in a batch re-querying the same list. Was
+   *  simply missing here before: multi-upload had no suggestions at
+   *  all, meaning a brand already typed once for a previous piece had
+   *  to be retyped by hand for every other piece in the same batch. */
+  existingBrands?: string[];
 }) {
   const { t } = useTranslation();
   const subs = subcategoriesFor(item.category);
+  const [brandFocused, setBrandFocused] = useState(false);
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4 relative">
@@ -308,15 +328,62 @@ export function DetectedItemCard({
         </div>
       </div>
 
-      <div className="mt-3">
+      <div className="mt-3 relative">
         <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("detectedItem.brand")}</p>
         <input
           value={item.brand}
           onChange={(e) => onChange({ brand: e.target.value })}
+          onFocus={() => setBrandFocused(true)}
+          onBlur={() => setTimeout(() => setBrandFocused(false), 150)}
           placeholder={t("detectedItem.brandPlaceholder")}
           className="mt-2 w-full bg-secondary/60 rounded-full px-4 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
         />
+        {brandFocused && item.brand.trim().length > 0 && (() => {
+          const q = item.brand.trim().toLowerCase();
+          const suggestions = (existingBrands ?? [])
+            .filter((b) => b.toLowerCase().includes(q) && b.toLowerCase() !== q)
+            .slice(0, 5);
+          if (!suggestions.length) return null;
+          return (
+            <div className="absolute left-0 right-0 top-full mt-1 z-10 rounded-2xl border border-border bg-card shadow-luxe overflow-hidden">
+              {suggestions.map((b) => (
+                <button
+                  key={b}
+                  onClick={() => { onChange({ brand: b }); setBrandFocused(false); }}
+                  className="w-full text-left px-4 py-2.5 text-sm border-b border-border/40 last:border-b-0 active:bg-secondary/40"
+                >{b}</button>
+              ))}
+            </div>
+          );
+        })()}
       </div>
+
+      <div className="mt-3">
+        <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("addItem.modelLabel")}</p>
+        <input
+          value={item.model}
+          onChange={(e) => onChange({ model: e.target.value })}
+          placeholder={t("addItem.modelPlaceholder")}
+          className="mt-2 w-full bg-secondary/60 rounded-full px-4 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
+        />
+      </div>
+
+      {item.category === "Bags" && (
+        <div className="mt-3">
+          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("addItem.bagSizeLabel")}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {(["mini", "small", "medium", "large", "jumbo"] as const).map((opt) => (
+              <button
+                key={opt}
+                onClick={() => onChange({ bagSizeClass: item.bagSizeClass === opt ? "" : opt })}
+                className={`rounded-full px-3 py-1.5 text-xs ${
+                  item.bagSizeClass === opt ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"
+                }`}
+              >{t(`addItem.bagSizeOptions.${opt}`)}</button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-3">
         <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("detectedItem.style")}</p>
