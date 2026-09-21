@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
 import { listOpenWeatherProposals, resolveWeatherProposal } from "@/lib/plan-weather.functions";
@@ -70,12 +71,14 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
    *  guardaroba" button inside it goes to the wardrobe for real edits,
    *  since the full item sheet lives there and isn't reachable directly. */
   const [previewItem, setPreviewItem] = useState<WardrobeItem | null>(null);
+  const previewItemCanClose = useSheetCanClose(!!previewItem);
   /** A trip look opened in the shared outfit viewer (canvas / pieces, avatar, save, calendar, share). */
   const [viewingLook, setViewingLook] = useState<{ itemIds: string[]; title: string; occasion: string | null } | null>(null);
   const [generating, setGenerating] = useState(false);
   const [genResult, setGenResult] = useState<{ generated: number; failed: { date: string; daySegment: string; reason: string }[]; unclassifiedExcluded: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const confirmDeleteCanClose = useSheetCanClose(confirmDelete);
   const [addingEssential, setAddingEssential] = useState(false);
   const [copyingEssentials, setCopyingEssentials] = useState(false);
   const [newName, setNewName] = useState("");
@@ -117,6 +120,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
   const [loadingCalendarEvents, setLoadingCalendarEvents] = useState(false);
   const [importingEventId, setImportingEventId] = useState<string | null>(null);
   const [reuseOffer, setReuseOffer] = useState<{ activityId: string; activityType: string; itemIds: string[]; occasion: string | null; date: string } | null>(null);
+  const reuseOfferCanClose = useSheetCanClose(!!reuseOffer);
   const [linkingOutfit, setLinkingOutfit] = useState(false);
   // Open weather proposals for this trip's plans, keyed by activity.
   const [proposals, setProposals] = useState<WeatherProposal[]>([]);
@@ -460,6 +464,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
    *  draft, so overwriting it needs an explicit confirmation instead of
    *  the silent overwrite a merely-"planned" draft gets. */
   const [confirmRegenerateWorn, setConfirmRegenerateWorn] = useState<{ activityId: string; activityType: string } | null>(null);
+  const confirmRegenerateWornCanClose = useSheetCanClose(!!confirmRegenerateWorn);
 
   /** Regenerates just this activity's look — the wardrobe pool is read
    *  live server-side, so a piece added today is immediately eligible. */
@@ -1092,7 +1097,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
       {confirmRegenerateWorn && (
         <div
           className="fixed inset-0 z-[80] bg-background/70 backdrop-blur-sm flex items-center justify-center px-6"
-          onClick={() => setConfirmRegenerateWorn(null)}
+          onClick={() => confirmRegenerateWornCanClose && setConfirmRegenerateWorn(null)}
         >
           <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xs rounded-2xl border border-border bg-card p-5 shadow-luxe">
             <p className="font-serif text-lg text-center">{t("tripDetail.regenerateWornTitle")}</p>
@@ -1118,7 +1123,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
       )}
 
       {reuseOffer && (
-        <div className="fixed inset-0 z-[80] bg-background/70 backdrop-blur-sm flex items-center justify-center px-6" onClick={() => !linkingOutfit && confirmReuseOutfit(false)}>
+        <div className="fixed inset-0 z-[80] bg-background/70 backdrop-blur-sm flex items-center justify-center px-6" onClick={() => reuseOfferCanClose && !linkingOutfit && confirmReuseOutfit(false)}>
           <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xs rounded-2xl border border-border bg-card p-5 shadow-luxe">
             <p className="font-serif text-lg text-center">{t("tripDetail.foundExistingOutfitTitle")}</p>
             <p className="text-xs text-muted-foreground text-center mt-1">{t("tripDetail.foundExistingOutfitHint", { name: reuseOffer.activityType })}</p>
@@ -1362,7 +1367,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
       {previewItem && (
         <div
           className="fixed inset-0 z-[85] bg-background/80 backdrop-blur-sm flex items-center justify-center px-6"
-          onClick={() => setPreviewItem(null)}
+          onClick={() => previewItemCanClose && setPreviewItem(null)}
         >
           <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-3xl border border-border bg-card overflow-hidden shadow-luxe">
             <div className="relative aspect-square" style={{ background: "#FFFFFF" }}>
@@ -1400,7 +1405,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
       )}
 
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 bg-background/70 backdrop-blur-sm flex items-center justify-center px-6" onClick={() => setConfirmDelete(false)}>
+        <div className="fixed inset-0 z-50 bg-background/70 backdrop-blur-sm flex items-center justify-center px-6" onClick={() => confirmDeleteCanClose && setConfirmDelete(false)}>
           <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xs rounded-2xl border border-destructive/40 bg-card p-5 shadow-luxe">
             <p className="font-serif text-lg text-center">{t("tripDetail.deleteThisTrip")}</p>
             <p className="text-xs text-muted-foreground text-center mt-1">{t("tripDetail.cannotBeUndone")}</p>
