@@ -106,4 +106,4 @@ export function isTechnicalFootwear(item: {
 
 export const WORK_ACCESSORY_PROMPT_RULE =
   "WORK / BUSINESS / EVENING / FORMAL: never use a beach or holiday bag (straw, raffia, wicker, basket) or technical outdoor footwear (hiking, trekking, mountain or snow boots) in these looks. " +
-  "Every outfit is COMPLETE: a top AND a bottom (or a dress/jumpsuit), plus shoes — never return a look without trousers/skirt/shorts when the wardrobe has any.";
+  "Every outfit is COMPLETE: a top AND a bottom (or a dress/jumpsuit), plus shoes \u2014 never return a look without trousers/skirt/shorts when the wardrobe has any.";
