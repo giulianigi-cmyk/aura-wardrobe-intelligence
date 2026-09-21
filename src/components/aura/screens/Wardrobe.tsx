@@ -13,6 +13,8 @@ import { migrateLegacyTaxonomy } from "@/lib/migrate-legacy-taxonomy.functions";
 import { reanalyzeWardrobeBatch } from "@/lib/reanalyze-wardrobe.functions";
 import { lendItem, listActiveLoans, returnLoan, type WardrobeLoan } from "@/lib/wardrobe-loans.functions";
 import { removeBackgroundClient } from "@/lib/bg-removal-client";
+import { analyzeCutoutQuality } from "@/lib/cutout-quality";
+import { removeBackground } from "@/lib/ai-bgremove.functions";
 import { ItemCropAdjuster } from "@/components/aura/ItemCropAdjuster";
 import type { FractionalBox } from "@/components/aura/ItemCropAdjuster";
 import { compressImageForUpload } from "@/lib/image-compress";
@@ -38,15 +40,6 @@ import {
   OCCASION_OPTIONS,
   MATERIAL_OPTIONS,
   CURRENCY_OPTIONS,
-  SLEEVE_LENGTH_OPTIONS,
-  FIT_OPTIONS,
-  HEEL_HEIGHT_OPTIONS,
-  TOE_SHAPE_OPTIONS,
-  CLOSURE_OPTIONS,
-  subcategoriesFor,
-  attributeAppliesTo,
-  lengthAppliesTo,
-  lengthOptionsFor,
 } from "@/lib/wardrobe-options";
 import { listLocations, moveItemsToLocation } from "@/lib/wardrobe-locations.functions";
 import type { WardrobeLocation } from "@/lib/wardrobe-location";
@@ -70,25 +63,12 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
   go: (s: Screen) => void;
   gapFilter?: "price" | "purchase_date" | null;
   onClearGapFilter?: () => void;
-  /** Opens the outfit canvas editor — used here for "Create outfit from
-   *  this", which pins the tapped item as mandatory (anchorItemId) and
-   *  auto-triggers AI Suggest around it, same mechanism Insights already
-   *  used for its "hasn't been worn" nudge, just reachable on demand
-   *  from any item now instead of only that one prompt. */
   openBuilder: (init: BuilderInit) => void;
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { latitude, longitude, city } = useLocation();
   const { data: weather } = useWeather(latitude, longitude);
-  // Shared cache (see src/lib/wardrobe-query.ts) — replaces this screen's
-  // own independent fetch. The query itself handles fetch-on-mount,
-  // caching across tab switches, and background refresh; `setItems`
-  // below is a compatibility shim so every existing optimistic update
-  // in this file (map/filter over `prev`) keeps working completely
-  // unchanged — it now writes into the SAME cache Home/AIStylist/
-  // Planner will read from once they're migrated too, instead of a
-  // local-only state array only this screen could see.
   const queryClient = useQueryClient();
   const itemsQuery = useWardrobeItems();
   const items = itemsQuery.data ?? [];
@@ -137,6 +117,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
   const migrateLegacy = useServerFn(migrateLegacyTaxonomy);
   const fetchLocations = useServerFn(listLocations);
   const moveItems = useServerFn(moveItemsToLocation);
+  const removeBackgroundPremium = useServerFn(removeBackground);
   const reanalyzeBatch = useServerFn(reanalyzeWardrobeBatch);
   const lendItemFn = useServerFn(lendItem);
   const fetchActiveLoans = useServerFn(listActiveLoans);
@@ -158,32 +139,13 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
     iconicity: "" as Iconicity | "",
     model: "" as string,
     bagSizeClass: "" as string,
-    // Taxonomy attributes the outfit engines read (type, length, sleeve, fit, heel, toe, closure,
-    // formality, day/evening). They could be set when a piece was added but never edited afterwards.
-    subcategory: "" as string,
-    length: "" as string,
-    sleeveLength: "" as string,
-    fit: "" as string,
-    heelHeight: "" as string,
-    toeShape: "" as string,
-    closure: "" as string,
-    formality: null as number | null,
-    dayEvening: "" as string,
   });
-  // Shared cache (see valuation-query.ts) — replaces this screen's own
-  // independent fetch; Insights.tsx reads from the same key. The hook's
-  // own placeholderData means this is never actually undefined at
-  // runtime; the ?? fallback below only satisfies the type.
   const { data: valuationConfigData } = useValuationConfig();
   const valuationConfig = valuationConfigData ?? EMPTY_VALUATION_CONFIG;
 
   const openEdit = () => {
     if (!detail) return;
-    const raw = detail as unknown as {
-      current_retail_price?: number | null; historical_retail_price?: number | null; iconicity?: Iconicity | null; model?: string | null; bag_size_class?: string | null;
-      subcategory?: string | null; length?: string | null; sleeve_length?: string | null; fit?: string | null;
-      heel_height?: string | null; toe_shape?: string | null; closure?: string | null; formality?: number | null; day_evening?: string | null;
-    };
+    const raw = detail as unknown as { current_retail_price?: number | null; historical_retail_price?: number | null; iconicity?: Iconicity | null; model?: string | null; bag_size_class?: string | null };
     setEdit({
       brand: detail.brand ?? "",
       size: detail.size ?? "",
@@ -201,15 +163,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
       iconicity: raw.iconicity ?? "",
       model: raw.model ?? "",
       bagSizeClass: raw.bag_size_class ?? "",
-      subcategory: raw.subcategory ?? "",
-      length: raw.length ?? "",
-      sleeveLength: raw.sleeve_length ?? "",
-      fit: raw.fit ?? "",
-      heelHeight: raw.heel_height ?? "",
-      toeShape: raw.toe_shape ?? "",
-      closure: raw.closure ?? "",
-      formality: raw.formality ?? null,
-      dayEvening: raw.day_evening ?? "",
     });
     setEditing(true);
   };
@@ -217,9 +170,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
     const toggleChip = (arr: string[], setter: (v: string[]) => void, v: string) =>
     setter(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
-  // All Seasons means "no specific season applies" — it can never be
-  // true at the same time as a specific one being selected, in either
-  // direction of the toggle.
   const toggleSeasonChip = (arr: string[], setter: (v: string[]) => void, v: string) => {
     if (v === "All Seasons") {
       setter(arr.includes(v) ? [] : ["All Seasons"]);
@@ -240,9 +190,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
       const historicalRetailNum = edit.historicalRetailPrice.trim() === "" ? null : Number(edit.historicalRetailPrice);
       if (historicalRetailNum != null && !Number.isFinite(historicalRetailNum)) throw new Error(t("wardrobe.invalidPrice"));
 
-      // Only the fields AI ever classifies get tracked here — price,
-      // size and purchase date are never AI-assigned, so there's nothing
-      // for a future re-classification pass to accidentally revert.
       const sameArray = (a: string[], b: string[] | null | undefined) => {
         const bb = b ?? [];
         return a.length === bb.length && a.every((v) => bb.includes(v));
@@ -255,19 +202,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
       if (!sameArray(edit.styles, splitCsv(detail.style))) changedFields.push("style");
       if (!sameArray(edit.occasions, splitCsv(detail.occasion))) changedFields.push("occasion");
       if (!sameArray(edit.materials, Array.isArray(detail.material) ? detail.material : [])) changedFields.push("material");
-      const rawNow = detail as unknown as {
-        subcategory?: string | null; length?: string | null; sleeve_length?: string | null; fit?: string | null;
-        heel_height?: string | null; toe_shape?: string | null; closure?: string | null; formality?: number | null; day_evening?: string | null;
-      };
-      if (edit.subcategory !== (rawNow.subcategory ?? "")) changedFields.push("subcategory");
-      if (edit.length !== (rawNow.length ?? "")) changedFields.push("length");
-      if (edit.sleeveLength !== (rawNow.sleeve_length ?? "")) changedFields.push("sleeve_length");
-      if (edit.fit !== (rawNow.fit ?? "")) changedFields.push("fit");
-      if (edit.heelHeight !== (rawNow.heel_height ?? "")) changedFields.push("heel_height");
-      if (edit.toeShape !== (rawNow.toe_shape ?? "")) changedFields.push("toe_shape");
-      if (edit.closure !== (rawNow.closure ?? "")) changedFields.push("closure");
-      if (edit.formality !== (rawNow.formality ?? null)) changedFields.push("formality");
-      if (edit.dayEvening !== (rawNow.day_evening ?? "")) changedFields.push("day_evening");
 
       const existingEdited = (detail as unknown as { user_edited_fields?: string[] }).user_edited_fields ?? [];
       const userEditedFields = changedFields.length
@@ -295,15 +229,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
         iconicity: edit.iconicity || null,
         model: edit.model.trim() || null,
         bag_size_class: edit.bagSizeClass || null,
-        subcategory: edit.subcategory || null,
-        length: edit.length || null,
-        sleeve_length: edit.sleeveLength || null,
-        fit: edit.fit || null,
-        heel_height: edit.heelHeight || null,
-        toe_shape: edit.toeShape || null,
-        closure: edit.closure || null,
-        formality: edit.formality,
-        day_evening: edit.dayEvening || null,
         user_edited_fields: userEditedFields,
       };
       const { data, error } = await supabase
@@ -353,6 +278,16 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
       if (!bg.ok) {
         toast.error(t("wardrobe.toastBgRemoveFailed"));
         return;
+      }
+      const quality = await analyzeCutoutQuality(bg.imageDataUrl);
+      if (!quality.ok) {
+        console.warn(`[AURA wardrobe] free result failed quality check (${quality.reason}), trying remove.bg`);
+        try {
+          const premium = await removeBackgroundPremium({ data: { imageDataUrl: dataUrl } });
+          if (premium.ok) bg = premium;
+        } catch (e) {
+          console.error("[AURA wardrobe] remove.bg fallback failed", e);
+        }
       }
 
       const blob = await (await fetch(bg.imageDataUrl)).blob();
@@ -581,10 +516,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
     }
   };
 
-  // Revoking always asks where the item physically goes (even with a
-  // single location, so the choice is explicit rather than silently
-  // assumed) - passing null only when the person truly has no locations
-  // set up at all yet, in which case there's nothing to choose between.
   const returnDetailItem = async (locationId: string | null) => {
     if (!detail) return;
     const loan = loansByItemId[detail.id];
@@ -673,12 +604,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
         setItems((data ?? []) as WardrobeItem[]);
       }
 
-      // Second pass, same button: fills in visual embeddings for pieces
-      // that don't have one yet — every piece added before this feature
-      // existed, plus anything the earlier fire-and-forget attempt in
-      // AddItem.tsx's save() failed on. Runs client-side (free, see the
-      // cost discussion behind this feature), one item at a time, so it
-      // never blocks the UI thread for long stretches.
       const embedToastId = "backfill-visual-embeddings";
       try {
         const { data: allIds } = await supabase.from("wardrobe_items")
@@ -698,9 +623,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
               if (!path) continue;
               const { data: urlData } = await supabase.storage.from("wardrobe").createSignedUrl(path, 300);
               if (!urlData?.signedUrl) continue;
-              // Fetched and inlined as a data URL — the embedding model
-              // needs pixel data it can decode locally, not a remote URL
-              // it would have to fetch itself (and couldn't, cross-origin).
               const resp = await fetch(urlData.signedUrl);
               const blob = await resp.blob();
               const dataUrl: string = await new Promise((resolve, reject) => {
@@ -737,11 +659,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
     }
   };
 
-  // Only sign items whose path isn't already resolved — re-signing every
-  // single item (300+ for an established wardrobe) each time the array
-  // changes even by ONE item (the common case: saving a new piece
-  // prepends it here) was adding real, avoidable latency right when the
-  // person was mid-flow adding something.
   useEffect(() => {
     if (!items.length) { setSigned({}); return; }
     let cancelled = false;
@@ -770,20 +687,12 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
     return () => window.removeEventListener("aura:wardrobe-item-created", onCreated);
   }, [user?.id]);
 
-  // The shared query (useWardrobeItems, see wardrobe-query.ts) now owns
-  // the actual fetch — it runs automatically on mount when there's a
-  // user, and serves from cache instantly on every later remount within
-  // its staleTime instead of hitting the network again. Error reporting
-  // is preserved here since the old fetch showed a toast on failure and
-  // callers elsewhere in this file still expect that.
   useEffect(() => {
     if (itemsQuery.error) {
       console.error("[AURA wardrobe] load error", itemsQuery.error);
       toast.error(`${t("wardrobe.toastLoadFailed")} — ${itemsQuery.error instanceof Error ? itemsQuery.error.message : String(itemsQuery.error)}`);
     }
   }, [itemsQuery.error, t]);
-
-
 
   useEffect(() => {
     if (!user) return;
@@ -808,13 +717,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
     [items],
   );
 
-  // Mirrors the exact gate in reanalyzeWardrobeBatch — this badge
-  // undercounted before (only checked formality), so it could show 0
-  // pending while season/occasion/day_evening were still genuinely
-  // missing on plenty of items. Was previously recomputed inline in the
-  // JSX on every render (unmemoized) — for a wardrobe with hundreds of
-  // pieces that's real, avoidable work on every re-render, not just
-  // when items actually change.
   const unclassifiedCount = useMemo(
     () => items.filter((it) =>
       it.formality == null || !it.occasion || !it.season || !it.day_evening
@@ -834,9 +736,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
     return items.filter(i => {
       const isArchived = Boolean((i as unknown as { archived?: boolean }).archived);
       const isLoaned = Boolean((i as unknown as { active_loan_id?: string | null }).active_loan_id);
-      // Loaned and Archived are separate, mutually exclusive views, same
-      // pattern as each other - a loaned piece isn't physically here to
-      // browse in the main closet any more than an archived one is.
       if (showLoaned) return isLoaned;
       if (showArchived) return isArchived;
       const locId = (i as unknown as { location_id?: string | null }).location_id ?? null;
@@ -863,18 +762,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
           {(() => {
             const hasPending = migrating || unclassifiedCount > 0;
             return (
-              // Fixed h-12 w-12 in BOTH states, on purpose: this button
-              // used to grow (icon-only -> icon+text) the moment
-              // unclassifiedCount arrived from the async items fetch,
-              // right after this screen first renders. That resize
-              // shifted the "+" button next to it a few pixels to the
-              // right at exactly the moment a person might already be
-              // tapping where "+" used to be — reported as "+ needs
-              // several taps," though the button itself was never
-              // actually unresponsive, it had just moved out from under
-              // the tap. A small corner badge conveys the same "N items
-              // need updating" information without ever changing this
-              // button's footprint, so neither it nor "+" ever move.
               <button
                 onClick={() => void runLegacyMigration()}
                 disabled={migrating}
@@ -940,8 +827,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
         onChoose={(choice) => { setAddSheetOpen(false); go(choice); }}
       />
 
-
-      {/* Weather / season banner */}
       <div className="mx-6 mt-4 rounded-2xl bg-card border border-border/60 p-4 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{season} · {city ?? t("wardrobe.yourArea")}</p>
@@ -1535,12 +1420,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
                     {ITEM_CATEGORIES.map((c) => (
                       <button
                         key={c}
-                        onClick={() => setEdit((s) => (
-                          c === s.category
-                            ? s
-                            // a different category: the attributes that only make sense for the old one are cleared
-                            : { ...s, category: c, subcategory: "", length: "", sleeveLength: "", fit: "", heelHeight: "", toeShape: "", closure: "" }
-                        ))}
+                        onClick={() => setEdit((s) => ({ ...s, category: c }))}
                         className={`rounded-full px-3 py-1.5 text-xs ${
                           edit.category === c ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"
                         }`}
@@ -1549,73 +1429,9 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
                   </div>
                 </div>
 
-                {/* Type, length, sleeve, fit, heel, toe, closure: same options as when a piece is added. */}
-                {(() => {
-                  const singleChoice = (label: string, options: string[], value: string, onPick: (v: string) => void) => (
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{label}</p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {options.map((o) => (
-                          <button
-                            key={o}
-                            onClick={() => onPick(value === o ? "" : o)}
-                            className={`rounded-full px-3 py-1.5 text-xs ${
-                              value === o ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"
-                            }`}
-                          >{o}</button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                  return (
-                    <>
-                      {subcategoriesFor(edit.category).length > 0 && singleChoice(
-                        t("addItem.typeLabel"), subcategoriesFor(edit.category), edit.subcategory,
-                        (v) => setEdit((s) => ({
-                          ...s, subcategory: v,
-                          length: lengthOptionsFor(s.category, v).includes(s.length) ? s.length : "",
-                        })),
-                      )}
-                      {lengthAppliesTo(edit.category, edit.subcategory) && singleChoice(
-                        t("addItem.lengthLabel"), lengthOptionsFor(edit.category, edit.subcategory), edit.length,
-                        (v) => setEdit((s) => ({ ...s, length: v })),
-                      )}
-                      {attributeAppliesTo("sleeveLength", edit.category) && singleChoice(
-                        t("addItem.sleeveLabel"), SLEEVE_LENGTH_OPTIONS, edit.sleeveLength,
-                        (v) => setEdit((s) => ({ ...s, sleeveLength: v })),
-                      )}
-                      {attributeAppliesTo("fit", edit.category) && singleChoice(
-                        t("addItem.fitLabel"), FIT_OPTIONS, edit.fit,
-                        (v) => setEdit((s) => ({ ...s, fit: v })),
-                      )}
-                      {attributeAppliesTo("heelHeight", edit.category) && singleChoice(
-                        t("addItem.heelLabel"), HEEL_HEIGHT_OPTIONS, edit.heelHeight,
-                        (v) => setEdit((s) => ({ ...s, heelHeight: v })),
-                      )}
-                      {attributeAppliesTo("toeShape", edit.category) && singleChoice(
-                        t("addItem.toeShapeLabel"), TOE_SHAPE_OPTIONS, edit.toeShape,
-                        (v) => setEdit((s) => ({ ...s, toeShape: v })),
-                      )}
-                      {attributeAppliesTo("closure", edit.category) && singleChoice(
-                        t("addItem.closureLabel"), CLOSURE_OPTIONS, edit.closure,
-                        (v) => setEdit((s) => ({ ...s, closure: v })),
-                      )}
-                    </>
-                  );
-                })()}
-
                 <ColorPicker
                   value={edit.colors}
                   onChange={(next) => setEdit((s) => ({ ...s, colors: next }))}
-                />
-
-                {/* Material right after the colours: it used to sit at the very bottom of a long form, under
-                    the floating Save bar, so it was easy to never reach it (and to never add e.g. Swarovski). */}
-                <MaterialCombobox
-                  label={t("wardrobe.materialLabel")}
-                  options={MATERIAL_OPTIONS}
-                  values={edit.materials}
-                  onChange={(v) => setEdit((s) => ({ ...s, materials: v }))}
                 />
 
                 {([
@@ -1642,44 +1458,12 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
                   </div>
                 ))}
 
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("addItem.formalityLabel")}</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">{t("addItem.formalityHint")}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {(["addItem.formality1", "addItem.formality2", "addItem.formality3", "addItem.formality4", "addItem.formality5"] as const).map((label, i) => {
-                      const level = i + 1;
-                      return (
-                        <button
-                          key={label}
-                          onClick={() => setEdit((s) => ({ ...s, formality: s.formality === level ? null : level }))}
-                          className={`rounded-full px-3 py-1.5 text-xs ${
-                            edit.formality === level ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"
-                          }`}
-                        >{t(label)}</button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("addItem.dayEveningLabel")}</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">{t("addItem.dayEveningHint")}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {([
-                      ["day", "addItem.dayEveningDay"],
-                      ["evening", "addItem.dayEveningEvening"],
-                      ["both", "addItem.dayEveningBoth"],
-                    ] as const).map(([value, labelKey]) => (
-                      <button
-                        key={value}
-                        onClick={() => setEdit((s) => ({ ...s, dayEvening: s.dayEvening === value ? "" : value }))}
-                        className={`rounded-full px-3 py-1.5 text-xs ${
-                          edit.dayEvening === value ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"
-                        }`}
-                      >{t(labelKey)}</button>
-                    ))}
-                  </div>
-                </div>
+                <MaterialCombobox
+                  label={t("wardrobe.materialLabel")}
+                  options={MATERIAL_OPTIONS}
+                  values={edit.materials}
+                  onChange={(v) => setEdit((s) => ({ ...s, materials: v }))}
+                />
 
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("wardrobe.priceLabel")}</p>
@@ -1794,10 +1578,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
                   </div>
                 </div>
 
-                {/* Save / Cancel: pinned to the very bottom of the sheet. It used to float 96px ABOVE the bottom
-                    (bottom-24), which on a short window sat in the middle of the form, covered the rows under it
-                    and made the form look like it ended after "Category". */}
-                <div className="grid grid-cols-2 gap-2 pt-3 sticky bottom-0 z-50 bg-card -mx-5 px-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-border/60">
+                                <div className="grid grid-cols-2 gap-2 pt-2 sticky bottom-24 z-50 bg-card pb-1 rounded-2xl shadow-luxe -mx-1 px-1">
                   <button
                     onClick={() => setEditing(false)}
                     disabled={savingEdit}
