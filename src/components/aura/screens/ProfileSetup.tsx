@@ -74,6 +74,30 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
 
   const identityComplete = fullName.trim().length > 1 && usernameValid && usernameAvailable === true;
 
+  // Messaggio esplicito sotto il campo username: spiega sempre perché non si può procedere.
+  const usernameHint = (() => {
+    if (username.length === 0) return t("profileSetup.usernameRules");
+    if (/[^a-z0-9_]/.test(username)) return t("profileSetup.usernameInvalidChars");
+    if (username.length < 3) return t("profileSetup.usernameTooShort");
+    if (username.length > 20) return t("profileSetup.usernameTooLong");
+    if (usernameChecking) return t("profileSetup.checking");
+    if (usernameAvailable === true) return t("profileSetup.available");
+    if (usernameAvailable === false) return t("profileSetup.alreadyTaken");
+    return "";
+  })();
+  const usernameHintIsError =
+    username.length > 0 && (!usernameValid || usernameAvailable === false);
+
+  const blockReason = () => {
+    if (step !== 1) return null;
+    if (fullName.trim().length <= 1) return t("profileSetup.needFullName");
+    if (!usernameValid || usernameAvailable !== true) {
+      if (usernameChecking) return t("profileSetup.checking");
+      return usernameHint || t("profileSetup.needUsername");
+    }
+    return null;
+  };
+
   const canAdvance = () => {
     if (step === 0) return language !== "";
     if (step === 1) return identityComplete;
