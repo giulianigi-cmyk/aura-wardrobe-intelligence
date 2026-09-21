@@ -6,7 +6,7 @@ import { parseAiJson } from "./ai-json";
 import { isItemAtAnyLocation } from "./wardrobe-location";
 import { isItemAllowedByDressPreferences, hasAnyPreference, type DressPreferences } from "./dress-preferences";
 import { anyItemViolatesWeather, violatesSleeveClimate, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
-import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished } from "./outfit-styling-rules";
+import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
 
 const ItemSchema = z.object({
@@ -365,6 +365,7 @@ export async function suggestOutfitCore(params: {
     "Color palette by occasion, when choosing between otherwise-equal options: 'Formal'/'Business Formal' favors navy, grey, black, black-and-white; 'Work'/'Business Casual' favors khaki, light grey, navy, brown as a base with bordeaux, olive, camel, or light blue as accents; 'Smart Casual'/'Weekend' allows one clearly colorful statement piece against a simple base. This is a preference between similarly-fitting options, not a hard exclusion — don't reject an otherwise great outfit purely for using an off-palette color.",
     "Sequins, sparkle, or lurex/metallic fabric are for evening only — never pick a sequinned or sparkly piece for a Day segment, regardless of occasion, even outside a Work context specifically.",
     EMBELLISHED_EVENING_PROMPT_RULE,
+    WORK_ACCESSORY_PROMPT_RULE,
     "Use each item's subcategory when present to judge fit-for-purpose: e.g. in hot weather prefer sandals/flats over boots; in rain or cold prefer boots over sandals; for formal occasions prefer pumps/heels over sneakers. When subcategory is empty, judge from category alone.",
     "A 'Running Shoes' subcategory item is built for running, not for everyday city walking — never pick it for a non-Sport occasion unless it is the only shoe available in the catalog. For a Sport/gym/running occasion specifically, it's the right choice.",
     "A gilet or waistcoat (vest) is never worn directly against skin with nothing underneath — always pair it with a shirt, t-shirt, or top layered beneath it. A tailored suit waistcoat additionally expects a blazer/jacket over it for a complete formal look, not worn as the outermost layer on its own.",
@@ -423,8 +424,22 @@ export async function suggestOutfitCore(params: {
       const text = `${item.subcategory ?? ""} ${(item.styleTags ?? []).join(" ")} ${(item.material ?? []).join(" ")}`;
       if (EVENING_SIGNAL.test(text)) return true;
       if (["Tops", "Dresses", "Jumpsuits"].includes(item.category ?? "") && BARE_SHOULDER_SIGNAL.test(text)) return true;
+      // hiking / mountain boots are gear, not workwear
+      if (isTechnicalFootwear(item)) return true;
+      // shorts and mini skirts/dresses: the prompt asks for it, this makes sure
+      if (item.category === "Bottoms" && /shorts/i.test(item.subcategory ?? "")) return true;
+      const isSkirtOrDress = item.category === "Dresses" || (item.category === "Bottoms" && item.subcategory === "Skirt");
+      if (isSkirtOrDress && (item.length ?? "") === "Mini") return true;
       return false;
     });
+
+  // Beach / holiday bags (straw, raffia, wicker, basket) belong to Weekend, Travel, Resort or an everyday
+  // summer look — never to Work, business, Evening or Formal.
+  const BEACH_BAG_BLOCKED_OCCASION = /work|business|lavoro|office|ufficio|evening|sera|serata|cocktail|gala|wedding|matrimonio|black.?tie|formal|dinner|cena/i;
+  const violatesBeachBag = (ids: string[]): boolean =>
+    BEACH_BAG_BLOCKED_OCCASION.test(params.occasion ?? "") || params.daySegment === "evening"
+      ? ids.some((id) => { const item = catalog.find((c) => c.id === id); return item ? isBeachBag(item) : false; })
+      : false;
 
   // Weather is a hard constraint for EVERY occasion, not just Work — see
   // outfit-weather-rules.ts (unica fonte di verità, condivisa con Home).
@@ -439,10 +454,11 @@ export async function suggestOutfitCore(params: {
   // handbag genuinely has no place, and never required when the wardrobe
   // simply has no eligible bag at all (nothing to enforce).
   const NO_BAG_OCCASION_SIGNAL = /sport|gym|yoga|running|hiking|training|pilates|tennis|cycling|pool|piscina|swim|beach|spiaggia|mare|snorkeling/i;
-  const catalogHasBag = catalog.some((c) => c.category === "Bags");
   const missingMandatoryBag = (ids: string[]): boolean => {
     if (params.gender !== "Woman") return false;
-    if (!catalogHasBag) return false;
+    // only counts when the wardrobe has a bag that is actually allowed for this look (not a Travel-only
+    // or beach bag for Work): otherwise every attempt would be "invalid" for a reason it cannot fix
+    if (!catalog.some((c) => c.category === "Bags" && usableAddition(c))) return false;
     if (NO_BAG_OCCASION_SIGNAL.test(params.occasion ?? "")) return false;
     return !ids.some((id) => catalog.find((c) => c.id === id)?.category === "Bags");
   };
@@ -460,16 +476,15 @@ export async function suggestOutfitCore(params: {
     return ids.some((id) => catalog.find((c) => c.id === id)?.subcategory === "Running Shoes");
   };
 
-  // A piece the person has explicitly tagged as "Travel" or "Sport" only
-  // (via Wardrobe → edit → Occasion) is situational — it shouldn't leak
-  // into a Work, Evening, or Formal look just because it also happens to
-  // fit color/formality. Only fires when the item's occasion tags are
-  // SET and specifically one of these two situational tags without also
-  // including the target occasion — an item with no occasion tags at
-  // all, or one tagged broadly (e.g. "Everyday"), is never excluded by
-  // this: most of a wardrobe isn't tagged per-occasion and shouldn't be
-  // penalized for it.
-  const SPECIALIZED_OCCASION_TAGS = ["Travel", "Sport"];
+  // A piece the person has explicitly tagged as "Travel", "Sport" or
+  // "Resort" only (via Wardrobe → edit → Occasion) is situational — it
+  // shouldn't leak into a Work, Evening, or Formal look just because it
+  // also happens to fit color/formality. Only fires when the item's
+  // occasion tags are SET and specifically one of these situational tags
+  // without also including the target occasion — an item with no occasion
+  // tags at all, or one tagged broadly (e.g. "Everyday"), is never
+  // excluded by this: most of a wardrobe isn't tagged per-occasion and
+  // shouldn't be penalized for it.
   const targetOccasionBase = (params.occasion ?? "").split(/[·-]/)[0].trim();
   const violatesOccasionTag = (ids: string[]): boolean =>
     ids.some((id) => {
@@ -530,10 +545,35 @@ export async function suggestOutfitCore(params: {
     !allowsEmbellished(params.occasion, params.daySegment)
     && ids.some((id) => { const item = catalog.find((c) => c.id === id); return item ? isEmbellishedPiece(item) : false; });
 
+  // Anything the last-resort completion steps may ADD to a look must pass every hard rule, exactly like
+  // a piece the model picked itself. The bag/shoe fallbacks used to skip the occasion tag and the
+  // beach/technical checks, which is how a Travel-only or straw bag ended up in a Work outfit.
+  const hardExcluded = new Set(params.hardExcludedItemIds ?? []);
+  const usableAddition = (c: { id: string }): boolean =>
+    !hardExcluded.has(c.id)
+    && !violatesWeather([c.id]) && !violatesEmbellished([c.id])
+    && !violatesOccasionTag([c.id]) && !violatesBeachBag([c.id])
+    && !(isWorkOccasion && violatesWorkRules([c.id]));
+
+  // STRUCTURE: an outfit is a top AND a bottom (or a dress/jumpsuit) — plus shoes, checked further down.
+  // Nothing verified this before: when a hard rule stripped the trousers (or the model forgot them) the
+  // look shipped as "a shirt, loafers and a bag". Not required for swim/sport, which use other categories.
+  const structureRequired = !NO_BAG_OCCASION_SIGNAL.test(params.occasion ?? "");
+  const catOfId = (id: string) => catalog.find((c) => c.id === id)?.category ?? "";
+  const hasFullBody = (ids: string[]) => ids.some((id) => catOfId(id) === "Dresses" || catOfId(id) === "Jumpsuits");
+  const missingLegs = (ids: string[]): boolean =>
+    structureRequired && !hasFullBody(ids) && !ids.some((id) => catOfId(id) === "Bottoms")
+    && catalog.some((c) => c.category === "Bottoms" && usableAddition(c));
+  const missingTorso = (ids: string[]): boolean =>
+    structureRequired && !hasFullBody(ids) && !ids.some((id) => catOfId(id) === "Tops")
+    && catalog.some((c) => c.category === "Tops" && usableAddition(c));
+
   const isValidResult = (ids: string[]): boolean => {
     if (!ids.length) return false;
     if (hasSlotViolation(ids)) return false;
     if (violatesEmbellished(ids)) return false;
+    if (violatesBeachBag(ids)) return false;
+    if (missingLegs(ids) || missingTorso(ids)) return false;
     if (isWorkOccasion && violatesWorkRules(ids)) return false;
     if (violatesWeather(ids)) return false;
     if (missingMandatoryBag(ids)) return false;
@@ -588,7 +628,7 @@ export async function suggestOutfitCore(params: {
       try {
         const retry = await generateText({
           model,
-          system: system + "\n\nIMPORTANT — your previous answer broke a hard rule above (either more than one item in the same slot, an evening-coded/bare-shoulder piece for a Work occasion, an item excluded by the person's stated dress preferences, a piece unsuitable for the actual temperature — e.g. a wool/heavy piece when it's hot, or a bare/light piece when it's cold — a long-sleeve top when a short-sleeve one was available and it's mild-to-warm out, or the reverse when it's mild-to-cool — sunglasses in an evening look — or missing the mandatory bag for a women's outfit). Try again, respecting every rule strictly this time.",
+          system: system + "\n\nIMPORTANT — your previous answer broke a hard rule above (either more than one item in the same slot, an evening-coded/bare-shoulder piece for a Work occasion, an item excluded by the person's stated dress preferences, a piece unsuitable for the actual temperature — e.g. a wool/heavy piece when it's hot, or a bare/light piece when it's cold — a long-sleeve top when a short-sleeve one was available and it's mild-to-warm out, or the reverse when it's mild-to-cool — sunglasses in an evening look — or missing the mandatory bag for a women's outfit, or a beach/holiday bag or hiking boots in a Work/business/evening look, or an outfit without a bottom (trousers/skirt) or without a top). Try again, respecting every rule strictly this time.",
           messages: [{ role: "user", content: userContent }],
         });
         const retryParsed = parseAiJson(retry.text, OutputSchema);
@@ -618,6 +658,7 @@ export async function suggestOutfitCore(params: {
           item_ids = item_ids.filter((id) => {
             if (violatesWeather([id])) return false;
             if (violatesEmbellished([id])) return false;
+            if (violatesBeachBag([id])) return false;
             if (isWorkOccasion && violatesWorkRules([id])) return false;
             if (violatesFootwearRule([id])) return false;
             if (violatesOccasionTag([id])) return false;
@@ -630,6 +671,14 @@ export async function suggestOutfitCore(params: {
       }
     }
 
+    // Final sweep: whatever happened above (the retry call can fail to parse and leave the first answer
+    // untouched), no piece that breaks a hard rule survives. The piece the caller made mandatory is kept.
+    item_ids = item_ids.filter((id) =>
+      id === params.mustIncludeItemId
+      || (!violatesWeather([id]) && !violatesEmbellished([id]) && !violatesBeachBag([id])
+        && !(isWorkOccasion && violatesWorkRules([id])) && !violatesFootwearRule([id])
+        && !violatesOccasionTag([id]) && !violatesEveningSunglasses([id])));
+
     // Last resort, after the retry/sanitize logic above has already run:
     // if the outfit is still missing its mandatory bag (the model simply
     // never included one), append the best available one directly rather
@@ -641,50 +690,49 @@ export async function suggestOutfitCore(params: {
     // Every last-resort completion below picks straight out of `catalog`,
     // which deliberately bypasses the soft variety filtering — but it must
     // NOT bypass the caller's hard exclusions (see hardExcludedItemIds).
-    const hardExcluded = new Set(params.hardExcludedItemIds ?? []);
-    // ...and it must not bypass the weather / evening-piece / Work rules either: without this the
-    // "add shoes if missing" step below would put back the very ankle boots the sanitize step had just
-    // removed for a 29°C day, simply because they were the first pair of shoes in the catalog.
-    const pickable = (c: { id: string }) =>
-      !hardExcluded.has(c.id) && !item_ids.includes(c.id)
-      && !violatesWeather([c.id]) && !violatesEmbellished([c.id])
-      && !(isWorkOccasion && violatesWorkRules([c.id]));
+    // ...and it must not bypass the weather / evening-piece / Work / occasion-tag / beach-bag rules either:
+    // without this the "add shoes if missing" step below would put back the very ankle boots the sanitize
+    // step had just removed for a 29°C day, simply because they were the first pair of shoes in the catalog.
+    const pickable = (c: { id: string }) => !item_ids.includes(c.id) && usableAddition(c);
 
-    if (missingMandatoryBag(item_ids)) {
-      const bag = catalog.find((c) => c.category === "Bags" && pickable(c));
-      if (bag) item_ids = [...item_ids, bag.id];
+    // Which piece gets appended matters as much as adding one: not "the first in the list" but the one
+    // closest in formality to what the look already contains.
+    const pickBest = (category: string, extra: (c: (typeof catalog)[number]) => boolean = () => true) => {
+      const pool = catalog.filter((c) => c.category === category && pickable(c) && extra(c));
+      if (!pool.length) return null;
+      const fs = item_ids.map((id) => catalog.find((c) => c.id === id)?.formality).filter((f): f is number => typeof f === "number");
+      const target = fs.length ? fs.reduce((a, b) => a + b, 0) / fs.length : 3;
+      return [...pool].sort((a, b) => Math.abs((a.formality ?? target) - target) - Math.abs((b.formality ?? target) - target))[0];
+    };
+
+    // Structure first (a bottom, a top), then shoes, then the bag — each chosen against the rules above.
+    if (missingLegs(item_ids)) {
+      const bottom = pickBest("Bottoms");
+      if (bottom) item_ids = [...item_ids, bottom.id];
+    }
+    if (missingTorso(item_ids)) {
+      const top = pickBest("Tops");
+      if (top) item_ids = [...item_ids, top.id];
     }
 
-    // If a running-shoe violation survived the sanitize step above (it
-    // only strips, it doesn't replace), swap in a proper alternative
-    // rather than leaving the outfit without shoes at all.
-      if (violatesFootwearRule(item_ids)) {
-      const replacement = catalog.find((c) => c.category === "Shoes" && c.subcategory !== "Running Shoes" && pickable(c));
+    // If a running-shoe violation survived the sanitize step above (it only strips, it doesn't replace),
+    // swap in a proper alternative rather than leaving the outfit without shoes at all.
+    if (violatesFootwearRule(item_ids)) {
+      const replacement = pickBest("Shoes", (c) => c.subcategory !== "Running Shoes");
       if (replacement) item_ids = [...item_ids, replacement.id];
     }
 
+    // Shoes are part of the STRUCTURE rule described in the prompt, but nothing ever verified a Shoes item
+    // was present at all: an outfit missing shoes entirely (the model never included one, or the sanitize
+    // step stripped one for a weather/work violation without anything replacing it) shipped as "valid".
     if (!item_ids.some((id) => catalog.find((c) => c.id === id)?.category === "Shoes")) {
-      const shoe = catalog.find((c) =>
-        c.category === "Shoes" && !violatesFootwearRule([c.id]) && !violatesOccasionTag([c.id]) && pickable(c)
-      );
+      const shoe = pickBest("Shoes", (c) => !violatesFootwearRule([c.id]));
       if (shoe) item_ids = [...item_ids, shoe.id];
     }
 
-
-    // Shoes are part of the STRUCTURE rule described in the prompt, but
-    // — unlike the mandatory-bag case above — nothing ever actually
-    // verified a Shoes item was present at all, only that IF one was
-    // present it didn't violate the running-shoe/slide rules. An outfit
-    // missing shoes entirely (the model just never included one, or the
-    // sanitize step above stripped one for a weather/work violation
-    // without anything replacing it) shipped as "valid" every time. Same
-    // append-if-missing pattern as the bag fallback: prefer a shoe that
-    // doesn't itself violate the footwear or occasion-tag rules.
-    if (!item_ids.some((id) => catalog.find((c) => c.id === id)?.category === "Shoes")) {
-      const shoe = catalog.find((c) =>
-        c.category === "Shoes" && !violatesFootwearRule([c.id]) && !violatesOccasionTag([c.id]) && pickable(c)
-      );
-      if (shoe) item_ids = [...item_ids, shoe.id];
+    if (missingMandatoryBag(item_ids)) {
+      const bag = pickBest("Bags");
+      if (bag) item_ids = [...item_ids, bag.id];
     }
 
     return {
