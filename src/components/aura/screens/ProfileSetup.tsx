@@ -139,7 +139,8 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
           <span className="text-[10px] uppercase tracking-[0.4em] text-muted-foreground">AURA</span>
         </div>
         <button
-          onClick={() => (identityComplete ? finish() : setErr(t("profileSetup.pickUsernameFirst")))}
+          onClick={() => { setErr(null); void finish(); }}
+          disabled={saving}
           className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground"
         >{t("profileSetup.skip")}</button>
       </header>
