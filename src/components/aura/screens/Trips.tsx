@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Plus, Loader2, Briefcase, Palmtree, Shuffle, Settings2 } from "lucide-react";
+import { ArrowLeft, Plus, Loader2, Briefcase, Palmtree, Shuffle, Settings2, ChevronDown } from "lucide-react";
 import type { Screen } from "../AuraApp";
 import { listTrips, type Trip, type TripDestination } from "@/lib/trips.functions";
 import i18n from "@/i18n/config";
@@ -21,6 +21,7 @@ export function Trips({ go, openTrip }: { go: (s: Screen) => void; openTrip: (tr
   const { t } = useTranslation();
   const [trips, setTrips] = useState<TripWithDestinations[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showPast, setShowPast] = useState(false);
 
   useEffect(() => {
     listTrips()
@@ -29,8 +30,18 @@ export function Trips({ go, openTrip }: { go: (s: Screen) => void; openTrip: (tr
       .finally(() => setLoading(false));
   }, []);
 
-  const upcoming = trips.filter((t) => t.status !== "completed");
-  const past = trips.filter((t) => t.status === "completed");
+  // A trip is "past" once its last day has gone by — NOT once its status field says "completed".
+  // Nothing ever set that field automatically, so a September trip planned back in August stayed
+  // "planning" forever and kept showing up as upcoming weeks after it ended. Still honours an
+  // explicit "completed" status (e.g. an open-ended trip marked done early) on top of the date.
+  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const isPastTrip = (trip: TripWithDestinations): boolean => {
+    if (trip.status === "completed") return true;
+    const lastDay = trip.destinations[trip.destinations.length - 1]?.end_date;
+    return Boolean(lastDay && lastDay < todayIso);
+  };
+  const upcoming = trips.filter((t2) => !isPastTrip(t2));
+  const past = trips.filter((t2) => isPastTrip(t2));
 
   return (
     <div className="h-full overflow-y-auto no-scrollbar pb-28">
@@ -92,8 +103,16 @@ export function Trips({ go, openTrip }: { go: (s: Screen) => void; openTrip: (tr
           )}
           {past.length > 0 && (
             <section className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("trips.pastTrips")}</p>
-              {past.map((t2) => {
+              {/* Collapsed by default: a past trip is still there to open and consult, but no longer
+                  sits expanded among what's coming up next. */}
+              <button
+                onClick={() => setShowPast((v) => !v)}
+                className="w-full flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground py-1"
+              >
+                <span>{t("trips.pastTripsCount", { count: past.length, defaultValue: `${t("trips.pastTrips")} (${past.length})` })}</span>
+                <ChevronDown size={14} className={`transition-transform ${showPast ? "rotate-180" : ""}`} />
+              </button>
+              {showPast && past.map((t2) => {
                 const Icon = TYPE_ICON[t2.trip_type];
                 return (
                   <button
