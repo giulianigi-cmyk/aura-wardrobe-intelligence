@@ -185,12 +185,17 @@ const FALLBACK_REASON: Record<string, string> = {
  *  into the vision model — used only for the URL input mode, where the
  *  photo comes from resolveProductImageUrl rather than an upload. */
 async function fetchAsDataUrl(imageUrl: string): Promise<string> {
-  const resp = await fetch(imageUrl);
+  // The image URL comes from HTML on a page the user (or an attacker)
+  // controls, so it must go through the SSRF guards like every other
+  // outbound fetch of user-influenced URLs in this codebase.
+  const { safeFetch } = await import("./safe-url");
+  const resp = await safeFetch(imageUrl);
   if (!resp.ok) throw new Error(`image fetch ${resp.status}`);
   const buf = await resp.arrayBuffer();
   const contentType = resp.headers.get("content-type") || "image/jpeg";
   return `data:${contentType};base64,${Buffer.from(buf).toString("base64")}`;
 }
+
 
 /**
  * "Should I buy this?" across four input modes (URL / photo / label /
