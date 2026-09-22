@@ -109,7 +109,12 @@ export const generateWeeklyOutfits = createServerFn({ method: "POST" })
     const locationIdsForDate = (date: string): string[] =>
       selectedLocations.filter((l) => !l.end_date || l.end_date >= date).map((l) => l.id);
 
-    const items: SuggestOutfitItem[] = ((itemsRaw ?? []) as any[]).map((it) => ({
+        // Archived ("out of rotation") pieces are excluded the same way OutfitBuilder.tsx and
+    // AIStylist.tsx already do it client-side — this server-side generator never had the check,
+    // which is how an archived pair of shoes kept reappearing in the weekly plan. `!it.archived`
+    // treats a legacy row with no value set (null/undefined) as active, only `true` is archived.
+    const activeItemsRaw = ((itemsRaw ?? []) as any[]).filter((it) => !it.archived);
+    const items: SuggestOutfitItem[] = activeItemsRaw.map((it) => ({
       id: it.id,
       category: it.category,
       subcategory: it.subcategory,
