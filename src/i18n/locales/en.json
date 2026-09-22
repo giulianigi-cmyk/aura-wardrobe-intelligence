@@ -521,7 +521,8 @@
       "large": "Large",
       "jumbo": "Jumbo"
     },
-    "historicalRetailPriceFromImportHint": "Estimated from the original price found on the page — please check it."
+    "historicalRetailPriceFromImportHint": "Estimated from the original price found on the page — please check it.",
+    "lowResolutionWarning": "This photo is {{width}}×{{height}}px — a bit low-resolution. You can still add it as-is."
   },
   "stylistChat": {
     "feedbackLiked": "I like this outfit",
@@ -1510,12 +1511,7 @@
     "shareLibraryDetail": "Your pieces — brand, price, tags and photo — become visible and reusable by other members, anonymously: nobody will know they came from you. Personal data (your name, how often you wear things, where you keep them) is never shared. You can turn this off at any time in your profile; pieces others already imported stay in their own closet.",
     "back": "Back",
     "enterAura": "Enter AURA",
-    "continue": "Continue",
-    "usernameInvalidChars": "Use only lowercase letters, numbers and _",
-    "usernameTooShort": "Username must be at least 3 characters.",
-    "usernameTooLong": "Username cannot be longer than 20 characters.",
-    "needFullName": "Enter your name to continue.",
-    "needUsername": "Pick an available username to continue."
+    "continue": "Continue"
   },
   "colorAnalysis": {
     "backAria": "Back",
@@ -1729,7 +1725,12 @@
     "noDifferent": "No, different",
     "yesSame": "Yes, same",
     "startOver": "Start over",
-    "saveItemsCount": "Save {{count}} items"
+    "saveItemsCount": "Save {{count}} items",
+    "reconstructHiddenParts": "Reconstruct hidden parts",
+    "reconstructing": "Reconstructing…",
+    "reconstructionFailed": "Couldn't reconstruct this piece — keeping the original crop.",
+    "reconstructionDone": "Reconstructed",
+    "reconstructionTimedOut": "This is taking too long — keeping the original crop."
   },
   "avatar": {
     "title": "My Avatar",
