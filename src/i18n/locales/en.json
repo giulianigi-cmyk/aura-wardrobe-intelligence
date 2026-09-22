@@ -522,7 +522,12 @@
       "jumbo": "Jumbo"
     },
     "historicalRetailPriceFromImportHint": "Estimated from the original price found on the page — please check it.",
-    "lowResolutionWarning": "This photo is {{width}}×{{height}}px — a bit low-resolution. You can still add it as-is."
+    "lowResolutionWarning": "This photo is {{width}}×{{height}}px — a bit low-resolution. You can add it as-is, or improve it.",
+    "improveQuality": "Improve quality",
+    "enhancing": "Improving…",
+    "enhanceFailed": "Couldn't improve this photo — keeping the original.",
+    "enhanceDone": "Photo improved",
+    "enhanceTimedOut": "This is taking too long — keeping the original photo."
   },
   "stylistChat": {
     "feedbackLiked": "I like this outfit",
@@ -1725,12 +1730,7 @@
     "noDifferent": "No, different",
     "yesSame": "Yes, same",
     "startOver": "Start over",
-    "saveItemsCount": "Save {{count}} items",
-    "reconstructHiddenParts": "Reconstruct hidden parts",
-    "reconstructing": "Reconstructing…",
-    "reconstructionFailed": "Couldn't reconstruct this piece — keeping the original crop.",
-    "reconstructionDone": "Reconstructed",
-    "reconstructionTimedOut": "This is taking too long — keeping the original crop."
+    "saveItemsCount": "Save {{count}} items"
   },
   "avatar": {
     "title": "My Avatar",
