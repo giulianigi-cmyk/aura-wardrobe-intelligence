@@ -25,8 +25,8 @@ export const COLD_THRESHOLD_C = 10;
 // plausible at 22-25°C, which is why only the strong winter signals below apply in this
 // band and the broader HEAVY_SIGNAL (sweaters, sweatshirts, hoodies…) keeps waiting for HOT.
 export const WARM_HEAVY_THRESHOLD_C = 22;
-export const WARM_HEAVY_SIGNAL =
-  /coat|cappotto|piumino|parka|overcoat|puffer|shearling|montone|wool|lana|felted|fleece|boots?\b|stivali|stivaletti|tweed|corduroy|velluto a coste|flannel|flanella|cashmere|cachemire/i;
+export const HEAVY_SIGNAL =
+  /coat|cappotto|piumino|parka|overcoat|puffer|shearling|montone|wool|lana|maglione|sweater|sweatshirt|felpa|hoodie|felted|fleece|boots?\b|stivali|tweed|corduroy|velvet|velluto|flannel|flanella|cashmere|cachemire/i;
 
 /** Coarse temperature band, used to key the Home look cache: a look composed in the
  *  cool of the morning must not survive an afternoon that turned hot (that is how a
