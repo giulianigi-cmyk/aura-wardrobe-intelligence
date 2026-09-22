@@ -522,7 +522,12 @@
       "jumbo": "Jumbo"
     },
     "historicalRetailPriceFromImportHint": "Estimé à partir du prix d'origine trouvé sur la page — veuillez le vérifier.",
-    "lowResolutionWarning": "Cette photo fait {{width}}×{{height}}px — une résolution un peu basse. Vous pouvez quand même l'ajouter."
+    "lowResolutionWarning": "Cette photo fait {{width}}×{{height}}px — une résolution un peu basse. Vous pouvez l'ajouter telle quelle, ou l'améliorer.",
+    "improveQuality": "Améliorer la qualité",
+    "enhancing": "Amélioration…",
+    "enhanceFailed": "Impossible d'améliorer cette photo — l'originale est conservée.",
+    "enhanceDone": "Photo améliorée",
+    "enhanceTimedOut": "Cela prend trop de temps — la photo originale est conservée."
   },
   "stylistChat": {
     "feedbackLiked": "J'aime cette tenue",
@@ -1246,12 +1251,7 @@
     "noDifferent": "Non, différent",
     "yesSame": "Oui, identique",
     "startOver": "Recommencer",
-    "saveItemsCount": "Enregistrer {{count}} articles",
-    "reconstructHiddenParts": "Reconstruire les parties cachées",
-    "reconstructing": "Reconstruction…",
-    "reconstructionFailed": "Impossible de reconstruire cette pièce — la découpe originale est conservée.",
-    "reconstructionDone": "Reconstruit",
-    "reconstructionTimedOut": "Cela prend trop de temps — la découpe originale est conservée."
+    "saveItemsCount": "Enregistrer {{count}} articles"
   },
   "avatar": {
     "title": "Mon avatar",
