@@ -522,7 +522,12 @@
       "jumbo": "Jumbo"
     },
     "historicalRetailPriceFromImportHint": "Estimado a partir del precio original encontrado en la página — verifícalo.",
-    "lowResolutionWarning": "Esta foto es de {{width}}×{{height}}px — una resolución algo baja. Puedes añadirla igualmente."
+    "lowResolutionWarning": "Esta foto es de {{width}}×{{height}}px — una resolución algo baja. Puedes añadirla igual, o mejorarla.",
+    "improveQuality": "Mejorar calidad",
+    "enhancing": "Mejorando…",
+    "enhanceFailed": "No se pudo mejorar esta foto — se mantiene la original.",
+    "enhanceDone": "Foto mejorada",
+    "enhanceTimedOut": "Esto está tardando demasiado — se mantiene la foto original."
   },
   "stylistChat": {
     "feedbackLiked": "Me gusta este outfit",
@@ -1725,12 +1730,7 @@
     "noDifferent": "No, es diferente",
     "yesSame": "Sí, es la misma",
     "startOver": "Empezar de nuevo",
-    "saveItemsCount": "Guardar {{count}} prendas",
-    "reconstructHiddenParts": "Reconstruir partes ocultas",
-    "reconstructing": "Reconstruyendo…",
-    "reconstructionFailed": "No se pudo reconstruir esta pieza — se mantiene el recorte original.",
-    "reconstructionDone": "Reconstruido",
-    "reconstructionTimedOut": "Esto está tardando demasiado — se mantiene el recorte original."
+    "saveItemsCount": "Guardar {{count}} prendas"
   },
   "avatar": {
     "title": "Mi avatar",
