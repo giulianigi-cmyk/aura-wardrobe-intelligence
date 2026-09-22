@@ -125,7 +125,10 @@ export async function submitFashnRun(
 
 /** A single status check — no internal waiting or looping. The caller
  *  (avatar-tryon.functions.ts, driven by the client's poll loop) calls
- *  this once every ~2s until done is true or ok is false. */
+ *  this once every ~2s until done is true or ok is false. Generic
+ *  across every FASHN model — status checking doesn't depend on which
+ *  endpoint originally submitted the prediction, so this same function
+ *  also serves submitFashnEdit below, not just Try-On Max. */
 export async function checkFashnStatus(predictionId: string): Promise<FashnCheckResult> {
   const key = process.env.FASHN_API_KEY;
   if (!key) return { ok: false, error: "Missing FASHN_API_KEY" };
@@ -149,5 +152,60 @@ export async function checkFashnStatus(predictionId: string): Promise<FashnCheck
     return { ok: true, done: false }; // starting / in_queue / processing
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "FASHN status check failed" };
+  }
+}
+
+/** Submits FASHN's "edit" model (see
+ *  https://docs.fashn.ai/api-reference/edit — Experimental lifecycle,
+ *  released Dec 1, 2025, so worth re-checking that page if this starts
+ *  behaving unexpectedly) — used here for the new "extract a garment
+ *  from an outfit photo" pipeline. Edit takes a source image plus
+ *  freeform instructions, with an optional mask (white = edit this
+ *  region, black = preserve it) to focus the edit on one part of the
+ *  image rather than the whole frame.
+ *
+ *  For garment extraction specifically: `image` is the FULL original
+ *  outfit photo (not a pre-cropped fragment) so FASHN can see the arm,
+ *  overlapping garment, or fold actually occluding the item — the mask
+ *  then tells it which region IS that garment, so it reconstructs a
+ *  clean ghost-mannequin/flat-lay version of just that piece rather
+ *  than editing the whole photo. Same submit-then-poll shape as
+ *  submitFashnRun above; checkFashnStatus (already generic) is reused
+ *  as-is for polling this too. */
+export async function submitFashnEdit(
+  imageDataUrl: string,
+  prompt: string,
+  maskDataUrl?: string,
+): Promise<FashnSubmitResult> {
+  const key = process.env.FASHN_API_KEY;
+  if (!key) return { ok: false, error: "Missing FASHN_API_KEY" };
+
+  try {
+    const runRes = await fetch(`${FASHN_BASE_URL}/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model_name: "edit",
+        inputs: {
+          image: imageDataUrl,
+          prompt,
+          ...(maskDataUrl ? { mask: maskDataUrl } : {}),
+          return_base64: true,
+        },
+      }),
+    });
+
+    if (!runRes.ok) {
+      const text = await runRes.text();
+      return { ok: false, error: `FASHN edit /run failed (HTTP ${runRes.status}): ${text.slice(0, 300)}` };
+    }
+
+    const runData = (await runRes.json()) as FashnRunResponse;
+    if (runData.error || !runData.id) {
+      return { ok: false, error: runData.error ?? "FASHN did not return a prediction id" };
+    }
+    return { ok: true, predictionId: runData.id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "FASHN edit request failed" };
   }
 }
