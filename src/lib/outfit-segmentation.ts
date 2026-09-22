@@ -103,7 +103,7 @@ export async function getSegmentationMasks(imageDataUrl: string): Promise<Segmen
   return runSegmentation(imageDataUrl);
 }
 
-export async function segmentOutfitPhoto(imageDataUrl: string): Promise<{ label: string; imageDataUrl: string }[]> {
+export async function segmentOutfitPhoto(imageDataUrl: string): Promise<{ label: string; imageDataUrl: string; fullPhotoMaskDataUrl: string }[]> {
   try {
     const seg = await runSegmentation(imageDataUrl);
     if (!seg) return [];
@@ -121,7 +121,7 @@ export async function segmentOutfitPhoto(imageDataUrl: string): Promise<{ label:
     srcCtx.drawImage(img, 0, 0, maskW, maskH);
     const srcData = srcCtx.getImageData(0, 0, maskW, maskH);
 
-    const results: { label: string; imageDataUrl: string }[] = [];
+    const results: { label: string; imageDataUrl: string; fullPhotoMaskDataUrl: string }[] = [];
 
     for (const [label, mask] of byLabel) {
       if (maskNonZero(mask) < minPixels) continue;
@@ -160,7 +160,47 @@ export async function segmentOutfitPhoto(imageDataUrl: string): Promise<{ label:
         }
       }
       outCtx.putImageData(outImg, 0, 0);
-      results.push({ label, imageDataUrl: outCanvas.toDataURL("image/png") });
+
+      // A second mask, this one covering the FULL original photo (not
+      // just the tight crop above) at the photo's own real resolution —
+      // white where this garment is, black everywhere else. This is
+      // what FASHN's Edit endpoint needs: its mask parameter must align
+      // pixel-for-pixel with the full image it's asked to edit, since
+      // the point is telling it "reconstruct THIS region using the rest
+      // of the photo as context", not handing it an already-cropped
+      // fragment with no surrounding scene to reason about.
+      const fullMaskCanvas = document.createElement("canvas");
+      fullMaskCanvas.width = maskW;
+      fullMaskCanvas.height = maskH;
+      const fullMaskCtx = fullMaskCanvas.getContext("2d");
+      let fullPhotoMaskDataUrl = "";
+      if (fullMaskCtx) {
+        const maskImg = fullMaskCtx.createImageData(maskW, maskH);
+        const md = maskImg.data;
+        for (let i = 0; i < mask.length; i++) {
+          const v = mask[i] > 127 ? 255 : 0;
+          md[i * 4] = v; md[i * 4 + 1] = v; md[i * 4 + 2] = v; md[i * 4 + 3] = 255;
+        }
+        fullMaskCtx.putImageData(maskImg, 0, 0);
+        // Scaled up to the ORIGINAL photo's real pixel dimensions so it
+        // aligns exactly with the full-resolution image FASHN receives,
+        // not the segmentation model's own smaller working resolution.
+        if (img.naturalWidth !== maskW || img.naturalHeight !== maskH) {
+          const scaledCanvas = document.createElement("canvas");
+          scaledCanvas.width = img.naturalWidth;
+          scaledCanvas.height = img.naturalHeight;
+          const scaledCtx = scaledCanvas.getContext("2d");
+          if (scaledCtx) {
+            scaledCtx.imageSmoothingEnabled = false; // keep the mask edge crisp, no soft blending in
+            scaledCtx.drawImage(fullMaskCanvas, 0, 0, img.naturalWidth, img.naturalHeight);
+            fullPhotoMaskDataUrl = scaledCanvas.toDataURL("image/png");
+          }
+        } else {
+          fullPhotoMaskDataUrl = fullMaskCanvas.toDataURL("image/png");
+        }
+      }
+
+      results.push({ label, imageDataUrl: outCanvas.toDataURL("image/png"), fullPhotoMaskDataUrl });
     }
 
     return results;
