@@ -1208,7 +1208,7 @@ export function AddItem({ onClose, initialGarment }: {
               <input
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="https://www.zara.com/…"
+                placeholder="https://www…"
                 className="flex-1 ml-2 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
               />
             </div>
