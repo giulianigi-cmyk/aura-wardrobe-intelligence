@@ -522,12 +522,7 @@
       "jumbo": "Jumbo"
     },
     "historicalRetailPriceFromImportHint": "Estimado a partir del precio original encontrado en la página — verifícalo.",
-    "lowResolutionWarning": "Esta foto es de {{width}}×{{height}}px — una resolución algo baja. Puedes añadirla igual, o mejorarla.",
-    "improveQuality": "Mejorar calidad",
-    "enhancing": "Mejorando…",
-    "enhanceFailed": "No se pudo mejorar esta foto — se mantiene la original.",
-    "enhanceDone": "Foto mejorada",
-    "enhanceTimedOut": "Esto está tardando demasiado — se mantiene la foto original."
+    "lowResolutionWarning": "Esta foto es de {{width}}×{{height}}px — una resolución algo baja. Puedes añadirla igualmente."
   },
   "stylistChat": {
     "feedbackLiked": "Me gusta este outfit",
@@ -620,7 +615,8 @@
     "noTripsYet": "Aún no hay viajes",
     "emptyStateHint": "Dile a AURA adónde vas y decidirá qué hacer la maleta, outfits incluidos, no solo una lista.",
     "untitledTrip": "Viaje sin título",
-    "pastTrips": "Viajes pasados"
+    "pastTrips": "Viajes pasados",
+    "pastTripsCount": "Viajes pasados ({{count}})"
   },
   "auth": {
     "checkInboxReset": "Revisa tu bandeja de entrada para el enlace de restablecimiento.",
@@ -1730,7 +1726,12 @@
     "noDifferent": "No, es diferente",
     "yesSame": "Sí, es la misma",
     "startOver": "Empezar de nuevo",
-    "saveItemsCount": "Guardar {{count}} prendas"
+    "saveItemsCount": "Guardar {{count}} prendas",
+    "reconstructHiddenParts": "Reconstruir partes ocultas",
+    "reconstructing": "Reconstruyendo…",
+    "reconstructionFailed": "No se pudo reconstruir esta pieza — se mantiene el recorte original.",
+    "reconstructionDone": "Reconstruido",
+    "reconstructionTimedOut": "Esto está tardando demasiado — se mantiene el recorte original."
   },
   "avatar": {
     "title": "Mi avatar",
