@@ -454,11 +454,14 @@ export async function suggestOutfitCore(params: {
   // handbag genuinely has no place, and never required when the wardrobe
   // simply has no eligible bag at all (nothing to enforce).
   const NO_BAG_OCCASION_SIGNAL = /sport|gym|yoga|running|hiking|training|pilates|tennis|cycling|pool|piscina|swim|beach|spiaggia|mare|snorkeling/i;
-  const missingMandatoryBag = (ids: string[]): boolean => {
+    const missingMandatoryBag = (ids: string[]): boolean => {
     if (params.gender !== "Woman") return false;
-    // only counts when the wardrobe has a bag that is actually allowed for this look (not a Travel-only
-    // or beach bag for Work): otherwise every attempt would be "invalid" for a reason it cannot fix
-    if (!catalog.some((c) => c.category === "Bags" && usableAddition(c))) return false;
+    // Only checks that a bag exists AT ALL — not that one already passes usableAddition. A wardrobe
+    // whose only bags are tagged "Travel"/"Resort" still gets one for Work: pickBest below falls back
+    // to its best available bag rather than silently going without (see pickBest's relaxed pool).
+    // This used to require usableAddition here too, which meant a woman whose bags were all
+    // situational-tagged got NO bag ever, in ANY look — the pool was empty, so nothing was "missing".
+    if (!catalog.some((c) => c.category === "Bags")) return false;
     if (NO_BAG_OCCASION_SIGNAL.test(params.occasion ?? "")) return false;
     return !ids.some((id) => catalog.find((c) => c.id === id)?.category === "Bags");
   };
@@ -693,7 +696,25 @@ export async function suggestOutfitCore(params: {
     // ...and it must not bypass the weather / evening-piece / Work / occasion-tag / beach-bag rules either:
     // without this the "add shoes if missing" step below would put back the very ankle boots the sanitize
     // step had just removed for a 29°C day, simply because they were the first pair of shoes in the catalog.
-    const pickable = (c: { id: string }) => !item_ids.includes(c.id) && usableAddition(c);
+        // Which piece gets appended matters as much as adding one: not "the first in the list" but the one
+    // closest in formality to what the look already contains. STRICT pool first (passes every hard
+    // rule, occasion tag included); if that pool is empty — a woman whose only bag is tagged "Travel",
+    // say — falls back to a RELAXED pool (weather and the caller's hard exclusions still apply, the
+    // occasion-tag/beach-bag/embellished/Work checks don't) rather than adding nothing at all. This is
+    // the same strict-then-relaxed pattern ensureBag/ensureShoes already use in
+    // suggest-daily-looks.functions.ts — without it here, a bag or a pair of shoes could go missing
+    // from every single Work/Evening look whenever the wardrobe's only options were tagged for another
+    // occasion, which read as "AURA stopped adding bags/shoes" even though nothing was ever failing.
+    const pickBest = (category: string, extra: (c: (typeof catalog)[number]) => boolean = () => true) => {
+      const notUsed = (c: (typeof catalog)[number]) => !item_ids.includes(c.id) && !hardExcluded.has(c.id) && extra(c);
+      const strict = catalog.filter((c) => c.category === category && notUsed(c) && usableAddition(c));
+      const relaxed = catalog.filter((c) => c.category === category && notUsed(c) && !violatesWeather([c.id]));
+      const pool = strict.length ? strict : relaxed;
+      if (!pool.length) return null;
+      const fs = item_ids.map((id) => catalog.find((c) => c.id === id)?.formality).filter((f): f is number => typeof f === "number");
+      const target = fs.length ? fs.reduce((a, b) => a + b, 0) / fs.length : 3;
+      return [...pool].sort((a, b) => Math.abs((a.formality ?? target) - target) - Math.abs((b.formality ?? target) - target))[0];
+    };
 
     // Which piece gets appended matters as much as adding one: not "the first in the list" but the one
     // closest in formality to what the look already contains.
