@@ -25,8 +25,8 @@ export const COLD_THRESHOLD_C = 10;
 // plausible at 22-25°C, which is why only the strong winter signals below apply in this
 // band and the broader HEAVY_SIGNAL (sweaters, sweatshirts, hoodies…) keeps waiting for HOT.
 export const WARM_HEAVY_THRESHOLD_C = 22;
-export const HEAVY_SIGNAL =
-  /coat|cappotto|piumino|parka|overcoat|puffer|shearling|montone|wool|lana|maglione|sweater|sweatshirt|felpa|hoodie|felted|fleece|boots?\b|stivali|tweed|corduroy|velvet|velluto|flannel|flanella|cashmere|cachemire/i;
+export const WARM_HEAVY_SIGNAL =
+  /coat|cappotto|piumino|parka|overcoat|puffer|shearling|montone|wool|lana|felted|fleece|boots?\b|stivali|stivaletti|tweed|corduroy|velluto a coste|velvet|velluto|flannel|flanella|cashmere|cachemire/i;
 
 /** Coarse temperature band, used to key the Home look cache: a look composed in the
  *  cool of the morning must not survive an afternoon that turned hot (that is how a
@@ -52,7 +52,7 @@ export const MILD_WARM_THRESHOLD_C = 20;
 export const MILD_COOL_THRESHOLD_C = 16;
 
 export const HEAVY_SIGNAL =
-  /coat|cappotto|piumino|parka|overcoat|puffer|shearling|montone|wool|lana|maglione|sweater|sweatshirt|felpa|hoodie|felted|fleece|boots?\b|stivali|tweed|corduroy|velluto a coste|flannel|flanella|cashmere|cachemire/i;
+  /coat|cappotto|piumino|parka|overcoat|puffer|shearling|montone|wool|lana|maglione|sweater|sweatshirt|felpa|hoodie|felted|fleece|boots?\b|stivali|tweed|corduroy|velluto a coste|velvet|velluto|flannel|flanella|cashmere|cachemire/i;
 export const LIGHT_SIGNAL = /tank|canotta|sandal|sandalo|shorts?\b|infradito|flip.?flop|sleeveless|senza maniche/i;
 
 // A blazer/structured jacket is lighter than a real coat — HEAVY_SIGNAL
