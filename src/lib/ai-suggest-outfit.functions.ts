@@ -716,16 +716,6 @@ export async function suggestOutfitCore(params: {
       return [...pool].sort((a, b) => Math.abs((a.formality ?? target) - target) - Math.abs((b.formality ?? target) - target))[0];
     };
 
-    // Which piece gets appended matters as much as adding one: not "the first in the list" but the one
-    // closest in formality to what the look already contains.
-    const pickBest = (category: string, extra: (c: (typeof catalog)[number]) => boolean = () => true) => {
-      const pool = catalog.filter((c) => c.category === category && pickable(c) && extra(c));
-      if (!pool.length) return null;
-      const fs = item_ids.map((id) => catalog.find((c) => c.id === id)?.formality).filter((f): f is number => typeof f === "number");
-      const target = fs.length ? fs.reduce((a, b) => a + b, 0) / fs.length : 3;
-      return [...pool].sort((a, b) => Math.abs((a.formality ?? target) - target) - Math.abs((b.formality ?? target) - target))[0];
-    };
-
     // Structure first (a bottom, a top), then shoes, then the bag — each chosen against the rules above.
     if (missingLegs(item_ids)) {
       const bottom = pickBest("Bottoms");
