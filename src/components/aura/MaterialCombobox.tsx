@@ -25,8 +25,11 @@ export function MaterialCombobox({ options, values, onChange, label }: MaterialC
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Filtered against the TRANSLATED label, not the raw English key: typing "pelle" used to find
+  // nothing even though "Leather" (→ "Pelle" in Italian) is in the list, because the match was only
+  // ever checked against the untranslated key.
   const filtered = options.filter(
-    (o) => o.toLowerCase().includes(query.toLowerCase()) && !values.includes(o)
+    (o) => t(`materials.${o}`, { defaultValue: o }).toLowerCase().includes(query.toLowerCase()) && !values.includes(o)
   );
 
   const toggle = (o: string) => {
@@ -90,7 +93,7 @@ export function MaterialCombobox({ options, values, onChange, label }: MaterialC
                   toggle(o);
                   setQuery("");
                 }}
-                className="w-full text-left rounded-full px-3 py-2 text-sm hover:bg-secondary/60 transition"
+                className="w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-secondary/60 active:scale-[0.99] transition"
               >
                 {t(`materials.${o}`, { defaultValue: o })}
               </button>
