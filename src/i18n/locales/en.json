@@ -522,12 +522,7 @@
       "jumbo": "Jumbo"
     },
     "historicalRetailPriceFromImportHint": "Estimated from the original price found on the page — please check it.",
-    "lowResolutionWarning": "This photo is {{width}}×{{height}}px — a bit low-resolution. You can add it as-is, or improve it.",
-    "improveQuality": "Improve quality",
-    "enhancing": "Improving…",
-    "enhanceFailed": "Couldn't improve this photo — keeping the original.",
-    "enhanceDone": "Photo improved",
-    "enhanceTimedOut": "This is taking too long — keeping the original photo."
+    "lowResolutionWarning": "This photo is {{width}}×{{height}}px — a bit low-resolution. You can still add it as-is."
   },
   "stylistChat": {
     "feedbackLiked": "I like this outfit",
@@ -620,7 +615,8 @@
     "noTripsYet": "No trips yet",
     "emptyStateHint": "Tell AURA where you're going and it'll work out what to pack — outfits included, not just a checklist.",
     "untitledTrip": "Untitled trip",
-    "pastTrips": "Past trips"
+    "pastTrips": "Past trips",
+    "pastTripsCount": "Past trips ({{count}})"
   },
   "auth": {
     "checkInboxReset": "Check your inbox for a password reset link.",
@@ -1730,7 +1726,12 @@
     "noDifferent": "No, different",
     "yesSame": "Yes, same",
     "startOver": "Start over",
-    "saveItemsCount": "Save {{count}} items"
+    "saveItemsCount": "Save {{count}} items",
+    "reconstructHiddenParts": "Reconstruct hidden parts",
+    "reconstructing": "Reconstructing…",
+    "reconstructionFailed": "Couldn't reconstruct this piece — keeping the original crop.",
+    "reconstructionDone": "Reconstructed",
+    "reconstructionTimedOut": "This is taking too long — keeping the original crop."
   },
   "avatar": {
     "title": "My Avatar",
