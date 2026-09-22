@@ -521,7 +521,8 @@
       "large": "Grand",
       "jumbo": "Jumbo"
     },
-    "historicalRetailPriceFromImportHint": "Estimé à partir du prix d'origine trouvé sur la page — veuillez le vérifier."
+    "historicalRetailPriceFromImportHint": "Estimé à partir du prix d'origine trouvé sur la page — veuillez le vérifier.",
+    "lowResolutionWarning": "Cette photo fait {{width}}×{{height}}px — une résolution un peu basse. Vous pouvez quand même l'ajouter."
   },
   "stylistChat": {
     "feedbackLiked": "J'aime cette tenue",
@@ -1245,7 +1246,12 @@
     "noDifferent": "Non, différent",
     "yesSame": "Oui, identique",
     "startOver": "Recommencer",
-    "saveItemsCount": "Enregistrer {{count}} articles"
+    "saveItemsCount": "Enregistrer {{count}} articles",
+    "reconstructHiddenParts": "Reconstruire les parties cachées",
+    "reconstructing": "Reconstruction…",
+    "reconstructionFailed": "Impossible de reconstruire cette pièce — la découpe originale est conservée.",
+    "reconstructionDone": "Reconstruit",
+    "reconstructionTimedOut": "Cela prend trop de temps — la découpe originale est conservée."
   },
   "avatar": {
     "title": "Mon avatar",
@@ -1430,12 +1436,7 @@
     "shareLibraryDetail": "Vos pièces — marque, prix, étiquettes et photo — deviennent visibles et réutilisables par d'autres membres, de façon anonyme : personne ne saura qu'elles viennent de vous. Les données personnelles (votre nom, la fréquence d'utilisation, où vous les rangez) ne sont jamais partagées. Vous pouvez désactiver cela à tout moment dans votre profil ; les pièces déjà importées par d'autres restent dans leur propre garde-robe.",
     "back": "Retour",
     "enterAura": "Entrer dans AURA",
-    "continue": "Continuer",
-    "usernameInvalidChars": "Utilise uniquement des minuscules, des chiffres et _",
-    "usernameTooShort": "Le nom d’utilisateur doit contenir au moins 3 caractères.",
-    "usernameTooLong": "Le nom d’utilisateur ne peut pas dépasser 20 caractères.",
-    "needFullName": "Saisis ton nom pour continuer.",
-    "needUsername": "Choisis un nom d’utilisateur disponible pour continuer."
+    "continue": "Continuer"
   },
   "colorAnalysis": {
     "backAria": "Retour",
