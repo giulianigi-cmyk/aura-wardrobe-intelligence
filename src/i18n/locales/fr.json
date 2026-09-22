@@ -522,12 +522,7 @@
       "jumbo": "Jumbo"
     },
     "historicalRetailPriceFromImportHint": "Estimé à partir du prix d'origine trouvé sur la page — veuillez le vérifier.",
-    "lowResolutionWarning": "Cette photo fait {{width}}×{{height}}px — une résolution un peu basse. Vous pouvez l'ajouter telle quelle, ou l'améliorer.",
-    "improveQuality": "Améliorer la qualité",
-    "enhancing": "Amélioration…",
-    "enhanceFailed": "Impossible d'améliorer cette photo — l'originale est conservée.",
-    "enhanceDone": "Photo améliorée",
-    "enhanceTimedOut": "Cela prend trop de temps — la photo originale est conservée."
+    "lowResolutionWarning": "Cette photo fait {{width}}×{{height}}px — une résolution un peu basse. Vous pouvez quand même l'ajouter."
   },
   "stylistChat": {
     "feedbackLiked": "J'aime cette tenue",
@@ -620,7 +615,8 @@
     "noTripsYet": "Pas encore de voyage",
     "emptyStateHint": "Dites à AURA où vous allez et elle déterminera quoi emporter — tenues comprises, pas seulement une liste.",
     "untitledTrip": "Voyage sans titre",
-    "pastTrips": "Voyages passés"
+    "pastTrips": "Voyages passés",
+    "pastTripsCount": "Voyages passés ({{count}})"
   },
   "auth": {
     "checkInboxReset": "Consultez votre boîte de réception pour un lien de réinitialisation du mot de passe.",
@@ -1251,7 +1247,12 @@
     "noDifferent": "Non, différent",
     "yesSame": "Oui, identique",
     "startOver": "Recommencer",
-    "saveItemsCount": "Enregistrer {{count}} articles"
+    "saveItemsCount": "Enregistrer {{count}} articles",
+    "reconstructHiddenParts": "Reconstruire les parties cachées",
+    "reconstructing": "Reconstruction…",
+    "reconstructionFailed": "Impossible de reconstruire cette pièce — la découpe originale est conservée.",
+    "reconstructionDone": "Reconstruit",
+    "reconstructionTimedOut": "Cela prend trop de temps — la découpe originale est conservée."
   },
   "avatar": {
     "title": "Mon avatar",
