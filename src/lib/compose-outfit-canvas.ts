@@ -113,6 +113,31 @@ function visibleCrop(img: HTMLImageElement): Crop {
   }
 }
 
+/** Draws the cropped region of `img` onto a fresh opaque-white canvas at its own native size and
+ *  returns it. A background-removal cutout rarely has a hard, fully-opaque edge — the rim is
+ *  semi-transparent (soft/feathered) so it blends smoothly against WHATEVER sits behind it. Drawing
+ *  straight from the original meant that blend happened at final, often-enlarged, size: a piece drawn
+ *  bigger (see outfit-layout.ts's strapK, which can go up to 1.35x for a bag with a thin strap) stretched
+ *  that translucent rim over more visible pixels, reading as a partly see-through garment/bag rather
+ *  than a soft edge. Flattening onto white ONCE, at the crop's native resolution, locks every pixel to
+ *  its true appearance against the canvas's own white background before any scaling happens — same
+ *  result for a hard-edged cutout, a fully opaque one, and any bigger destination size. */
+function flattenCropOnWhite(img: HTMLImageElement, crop: Crop): HTMLCanvasElement | HTMLImageElement {
+  try {
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, crop.sw);
+    c.height = Math.max(1, crop.sh);
+    const cx = c.getContext("2d");
+    if (!cx) return img;
+    cx.fillStyle = BACKGROUND;
+    cx.fillRect(0, 0, c.width, c.height);
+    cx.drawImage(img, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, c.width, c.height);
+    return c;
+  } catch {
+    return img; // falls back to drawing straight from the source crop, as before
+  }
+}
+
 type Prepared = { r: LayoutRect; img: HTMLImageElement; crop: Crop }[];
 
 /** Loads every image, trims its transparent padding and runs the layout.
@@ -214,7 +239,12 @@ export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | n
   ctx.imageSmoothingQuality = "high";
 
   for (const { r, img, crop } of drawList) {
-    ctx.drawImage(img, crop.sx, crop.sy, crop.sw, crop.sh, r.x, r.y, r.w, r.h);
+    const flat = flattenCropOnWhite(img, crop);
+    if (flat instanceof HTMLCanvasElement) {
+      ctx.drawImage(flat, 0, 0, flat.width, flat.height, r.x, r.y, r.w, r.h);
+    } else {
+      ctx.drawImage(flat, crop.sx, crop.sy, crop.sw, crop.sh, r.x, r.y, r.w, r.h);
+    }
   }
 
     // Signature: the same "aura" wordmark as the Splash screen — Cormorant Garamond
