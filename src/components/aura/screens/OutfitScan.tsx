@@ -14,6 +14,7 @@ import { analyzeWardrobeImage } from "@/lib/ai-analyze.functions";
 import { segmentOutfitPhoto } from "@/lib/outfit-segmentation";
 import { findBestMatch, type DedupeResult } from "@/lib/outfit-dedupe";
 import { findVisualDuplicates } from "@/lib/outfit-wear.functions";
+import { startGarmentExtraction, checkGarmentExtraction } from "@/lib/outfit-garment-extract.functions";
 import { trimFileMargins } from "@/lib/auto-crop";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 
@@ -54,6 +55,14 @@ type ScanItem = {
   styleTags: string[];
   model: string;
   bagSizeClass: string;
+  // For the "reconstruct hidden parts" action below — the full original
+  // outfit photo plus this item's own full-photo-aligned mask, kept
+  // only for as long as the review screen is open (never saved to the
+  // wardrobe). See outfit-segmentation.ts's fullPhotoMaskDataUrl for
+  // why the mask has to be full-photo-sized rather than just the crop.
+  sourcePhotoDataUrl: string;
+  sourceMaskDataUrl: string;
+  reconstructing: boolean;
 };
 
 
@@ -78,6 +87,8 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   const wardrobeCache = useWardrobeCacheActions();
   const analyze = useServerFn(analyzeWardrobeImage);
   const findVisualDupes = useServerFn(findVisualDuplicates);
+  const startReconstruction = useServerFn(startGarmentExtraction);
+  const checkReconstruction = useServerFn(checkGarmentExtraction);
   
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -233,6 +244,9 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           styleTags: meta.styleTags,
           model: meta.model,
           bagSizeClass: meta.bagSizeClass,
+          sourcePhotoDataUrl: dataUrl,
+          sourceMaskDataUrl: seg.fullPhotoMaskDataUrl,
+          reconstructing: false,
         });
       }
 
@@ -251,6 +265,55 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
 
   const removeItem = (key: string) =>
     setScanItems((prev) => prev.filter((it) => it.key !== key));
+
+  // Sends the item through FASHN's Edit model (see
+  // outfit-garment-extract.functions.ts) to reconstruct whatever's
+  // hidden behind an arm, another garment, or a fold — for the crops
+  // that came out looking obviously wrong (a sleeve cut off, a chunk
+  // missing) rather than every item by default, since each call has a
+  // real cost. Same submit-then-poll pattern as the avatar try-on
+  // feature: short, repeated status checks rather than one long
+  // request, which is what actually holds up on flaky connections.
+  const reconstructItem = async (key: string) => {
+    const item = scanItems.find((it) => it.key === key);
+    if (!item || item.reconstructing) return;
+    updateItem(key, { reconstructing: true });
+    try {
+      const garmentDescription = [item.colors[0], item.subcategory || item.category].filter(Boolean).join(" ");
+      const started = await startReconstruction({
+        data: {
+          imageDataUrl: item.sourcePhotoDataUrl,
+          maskDataUrl: item.sourceMaskDataUrl,
+          garmentDescription: garmentDescription || undefined,
+        },
+      });
+      if (!started.ok) {
+        toast.error(started.error || t("outfitScan.reconstructionFailed"));
+        return;
+      }
+      const predictionId = started.predictionId;
+      const deadline = Date.now() + 90_000; // matches the avatar try-on feature's own ceiling
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const check = await checkReconstruction({ data: { predictionId } });
+        if (!check.ok) {
+          toast.error(check.error || t("outfitScan.reconstructionFailed"));
+          return;
+        }
+        if (check.done) {
+          updateItem(key, { imageDataUrl: check.imageDataUrl, transparent: false });
+          toast.success(t("outfitScan.reconstructionDone"));
+          return;
+        }
+      }
+      toast.error(t("outfitScan.reconstructionTimedOut"));
+    } catch (e) {
+      console.error("[AURA outfit-scan] garment reconstruction failed", e);
+      toast.error(t("outfitScan.reconstructionFailed"));
+    } finally {
+      updateItem(key, { reconstructing: false });
+    }
+  };
 
   const toSave = scanItems.filter((it) => it.status === "confirmed-new");
 
@@ -470,6 +533,16 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                 onChange={(patch) => updateItem(it.key, patch)}
                 onRemove={() => removeItem(it.key)}
                 existingBrands={existingBrands}
+                footer={
+                  <button
+                    onClick={() => void reconstructItem(it.key)}
+                    disabled={it.reconstructing}
+                    className="mt-3 w-full h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-1.5"
+                  >
+                    {it.reconstructing ? <Loader2 size={11} className="animate-spin" /> : null}
+                    {it.reconstructing ? t("outfitScan.reconstructing") : t("outfitScan.reconstructHiddenParts")}
+                  </button>
+                }
               />
             );
           })}
