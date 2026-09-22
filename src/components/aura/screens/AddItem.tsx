@@ -47,6 +47,9 @@ import {
   lengthAppliesTo,
 } from "@/lib/wardrobe-options";
 const imageExtensions = new Set(["jpg", "jpeg", "png", "webp", "gif", "heic", "heif"]);
+// Same 1-5 scale the outfit/trip engine already scores every piece on
+// (see the Outfit Engine spec) — surfaced here so it's visible and
+// correctable, not just something the AI silently assigns.
 const FORMALITY_KEYS = ["addItem.formality1", "addItem.formality2", "addItem.formality3", "addItem.formality4", "addItem.formality5"];
 const DAY_EVENING_OPTIONS: { value: string; labelKey: string }[] = [
   { value: "day", labelKey: "addItem.dayEveningDay" },
@@ -173,6 +176,22 @@ async function normalizeForPipeline(f: File): Promise<File> {
   }
 }
 
+function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => { URL.revokeObjectURL(url); resolve({ width: img.naturalWidth, height: img.naturalHeight }); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("resolution check: image failed to load")); };
+    img.src = url;
+  });
+}
+
+// A garment photo below this on its shorter side reads as visibly soft
+// once shown at normal in-app sizes (the wardrobe grid, the canvas) —
+// this is a reasonable working threshold, not a scientifically derived
+// one; adjust it if it flags too often or too rarely once live.
+const LOW_RESOLUTION_THRESHOLD = 700;
+
 type Stage = "idle" | "bgremove" | "analyze";
 
 function colorOf(it: ProductLibraryItem | SharedLibraryItem): string | null {
@@ -188,6 +207,11 @@ function materialOf(it: ProductLibraryItem | SharedLibraryItem): string | null {
 
 export function AddItem({ onClose, initialGarment }: {
   onClose: () => void;
+  /** Set only when arriving here from LogWear's "add to wardrobe" on an
+   *  outfit-photo detection that had no wardrobe match — a cropped
+   *  photo of just that garment plus whatever the detector already
+   *  knew, so the person doesn't retype attributes AURA already
+   *  extracted once. */
   initialGarment?: { photoDataUrl: string; category?: string; colors?: string[]; materials?: string[] } | null;
 }) {
   const { t } = useTranslation();
@@ -200,6 +224,12 @@ export function AddItem({ onClose, initialGarment }: {
   const [existingBrands, setExistingBrands] = useState<string[]>([]);
   const [brandFieldFocused, setBrandFieldFocused] = useState(false);
 
+  // Loaded once, on mount — the whole point is offering the exact
+  // spelling already used elsewhere in the wardrobe (accents, spacing,
+  // "&" vs "and"), so a typo or a different-but-plausible spelling
+  // doesn't silently create a second, unmatchable version of a brand
+  // that already exists. A short list per person, cheap to fetch upfront
+  // rather than re-querying on every keystroke.
   useEffect(() => {
     if (!user) return;
     void (async () => {
@@ -251,6 +281,11 @@ export function AddItem({ onClose, initialGarment }: {
   const [filterMaterial, setFilterMaterial] = useState("");
   const [filterBrand, setFilterBrand] = useState("");
   const [filterSeason, setFilterSeason] = useState("");
+  // Custom picker, not a native <select> — iOS Safari's own text
+  // rendering inside a styled select proved unreliable (line-height and
+  // padding weren't respected consistently, clipping the label
+  // regardless of two separate CSS attempts to fix it). A button that
+  // opens a plain bottom sheet is fully within our own control instead.
   const [openFilterKey, setOpenFilterKey] = useState<"category" | "color" | "material" | "brand" | "season" | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
@@ -285,6 +320,10 @@ export function AddItem({ onClose, initialGarment }: {
   const [historicalRetailFromImport, setHistoricalRetailFromImport] = useState(false);
   const [model, setModel] = useState("");
   const [bagSizeClass, setBagSizeClass] = useState("");
+  // Set once per picked photo (see runPipeline below) — never blocks
+  // saving on its own; it's just a visible heads-up plus, once wired,
+  // an optional "improve quality" action.
+  const [lowResWarning, setLowResWarning] = useState<{ width: number; height: number } | null>(null);
 
   const resetFields = () => {
     setBrand(""); setSize(""); setCategory("Tops"); setSubcategory(""); setColors([]);
@@ -314,6 +353,16 @@ export function AddItem({ onClose, initialGarment }: {
     setTransparent(false);
     setStep("details");
     resetFields();
+    // Checked against the ORIGINAL file, before compression — the
+    // point is to tell the person something about the photo THEY took
+    // or picked, not about AURA's own downstream resizing.
+    try {
+      const { width, height } = await getImageDimensions(initialFile);
+      setLowResWarning(Math.min(width, height) < LOW_RESOLUTION_THRESHOLD ? { width, height } : null);
+    } catch (e) {
+      console.error("[AURA add-item] resolution check failed, skipping the warning for this photo", e);
+      setLowResWarning(null);
+    }
     if (opts?.brand) setBrand(opts.brand);
     if (opts?.price) setPrice(opts.price);
     if (opts?.currency) setCurrency(opts.currency);
@@ -704,6 +753,12 @@ export function AddItem({ onClose, initialGarment }: {
             bg = await removeBackgroundClient(targetDataUrl);
             attempt++;
           }
+          // The free, client-side model occasionally erases part of the
+          // garment or leaves it partly see-through — see
+          // cutout-quality.ts for exactly what this checks for. Only
+          // when that happens does this spend a paid remove.bg call;
+          // a normal, clean result never reaches this branch, so this
+          // adds no cost for the common case.
           if (bg.ok) {
             const quality = await analyzeCutoutQuality(bg.imageDataUrl);
             if (!quality.ok) {
@@ -711,6 +766,9 @@ export function AddItem({ onClose, initialGarment }: {
               try {
                 const premium = await removeBackgroundPremium({ data: { imageDataUrl: targetDataUrl } });
                 if (premium.ok) bg = premium;
+                // If remove.bg also fails or errors, the original free
+                // result (however imperfect) is kept rather than
+                // blocking the save over it.
               } catch (e) {
                 console.error("[AURA bg-removal] remove.bg fallback failed", e);
               }
@@ -816,6 +874,12 @@ export function AddItem({ onClose, initialGarment }: {
       if (insErr) throw insErr;
       toast.success(t("addItem.toastAddedToCloset"));
       void syncMySharedLibrary().catch(() => {});
+      // Fire-and-forget, same as syncMySharedLibrary above — the wardrobe
+      // save itself is already done and confirmed to the person; a
+      // visual embedding is a background enhancement to future
+      // matching, not something worth making them wait for or fail the
+      // save over. Model runs client-side (free, see the cost
+      // discussion behind this feature), so this is CPU time, not money.
       void (async () => {
         try {
           const { computeGarmentEmbedding, EMBEDDING_MODEL_VERSION } = await import("@/lib/visual-embedding");
@@ -832,6 +896,14 @@ export function AddItem({ onClose, initialGarment }: {
           console.error("[AURA add-item] visual embedding failed — attribute matching still works without it", e);
         }
       })();
+      // Writes straight into the shared wardrobe cache (see
+      // wardrobe-query.ts) — every screen reading from it (Wardrobe,
+      // Home, AIStylist, Planner) sees the new piece immediately,
+      // regardless of which one AddItem was opened from. Replaces the
+      // old "aura:wardrobe-item-created" DOM event, which only ever
+      // worked if the originating screen happened to still be mounted —
+      // never true in the previous navigation model, and unnecessary
+      // now that the cache itself is the shared source of truth.
       wardrobeCache.addItem(inserted as WardrobeItem);
       onClose();
     } catch (e: unknown) {
@@ -1179,6 +1251,14 @@ export function AddItem({ onClose, initialGarment }: {
               />
             )}
           </div>
+
+          {lowResWarning && (
+            <div className="mt-3 rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-center justify-between gap-3">
+              <p className="text-xs text-amber-800">
+                {t("addItem.lowResolutionWarning", { width: lowResWarning.width, height: lowResWarning.height })}
+              </p>
+            </div>
+          )}
 
           {file && (detectedProductCode || detectedManufacturer) && (
             <p className="mt-3 text-[10px] uppercase tracking-widest text-muted-foreground text-center">
