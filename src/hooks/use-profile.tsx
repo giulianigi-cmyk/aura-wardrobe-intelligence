@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./use-auth";
 
@@ -67,43 +68,48 @@ async function resolveAvatarUrl(value: string | null | undefined): Promise<strin
   return data?.signedUrl ?? null;
 }
 
+// Shared across every screen: 13 different screens each called this hook, and until now each got
+// its OWN independent copy of `profile` — a plain useState fetched once on that component's own
+// mount. Since the main tabs (Home, Stylist, Planner, Profile, Wardrobe) stay mounted forever in
+// the background (see AuraApp.tsx), a change saved from one screen — PersonalInfo setting gender,
+// Settings changing the language — updated only THAT screen's own copy. Every other already-mounted
+// screen kept showing what it had loaded at its very first mount, until a full app relaunch made it
+// mount for the first time again and finally pick up the real value. Backed by the same shared
+// React Query cache pattern already used for wardrobe items, outfits and outfit plans elsewhere in
+// this app: one cached row per user, and a write from ANY screen updates it for ALL of them at once.
+export const profileQueryKey = (userId: string | undefined) => ["profile", userId] as const;
+
+async function fetchOrCreateProfile(userId: string): Promise<Profile | null> {
+  const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+  if (error) console.error("profile load", error);
+  if (data) return data as unknown as Profile;
+  // First-ever load for this user: no row yet, create one.
+  const { data: created } = await supabase.from("profiles").insert({ id: userId }).select("*").maybeSingle();
+  return created as unknown as Profile | null;
+}
+
 export function useProfile() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const refreshAvatar = useCallback(async (val: string | null | undefined) => {
-    setAvatarUrl(await resolveAvatarUrl(val));
-  }, []);
+  const profileQuery = useQuery({
+    queryKey: profileQueryKey(user?.id),
+    queryFn: () => fetchOrCreateProfile(user!.id),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+  const profile = profileQuery.data ?? null;
 
-  const load = useCallback(async () => {
-    if (!user) { setProfile(null); setAvatarUrl(null); setLoading(false); return; }
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (error) console.error("profile load", error);
-    let final: Profile | null = null;
-    if (!data) {
-      const { data: created } = await supabase
-        .from("profiles")
-        .insert({ id: user.id })
-        .select("*")
-        .maybeSingle();
-            final = created as unknown as Profile | null;
-    } else {
-      final = data as unknown as Profile;
+  const avatarQuery = useQuery({
+    queryKey: [...profileQueryKey(user?.id), "avatar", profile?.profile_image ?? null],
+    queryFn: () => resolveAvatarUrl(profile?.profile_image),
+    enabled: !!user,
+  });
+  const avatarUrl = avatarQuery.data ?? null;
 
-    }
-    setProfile(final);
-    await refreshAvatar(final?.profile_image);
-    setLoading(false);
-  }, [user, refreshAvatar]);
-
-  useEffect(() => { load(); }, [load]);
+  const reload = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: profileQueryKey(user?.id) });
+  }, [queryClient, user?.id]);
 
     const update = useCallback(async (patch: Partial<Profile>) => {
     if (!user) return { error: "Not authenticated" };
@@ -121,10 +127,12 @@ export function useProfile() {
       .maybeSingle();
     if (error) return { error: error.message };
         const next = data as unknown as Profile;
-    setProfile(next);
-    if ("profile_image" in patch) await refreshAvatar(next?.profile_image);
+    // Written straight into the shared cache: every mounted screen using useProfile() sees this
+    // change immediately, not just the screen that made the edit.
+    queryClient.setQueryData(profileQueryKey(user.id), next);
+    if ("profile_image" in patch) void queryClient.invalidateQueries({ queryKey: [...profileQueryKey(user.id), "avatar"] });
     return { error: null };
-  }, [user, refreshAvatar]);
+  }, [user, queryClient]);
 
   const uploadAvatar = useCallback(async (file: File) => {
     const { data: auth, error: authErr } = await supabase.auth.getUser();
@@ -150,5 +158,5 @@ export function useProfile() {
     return { error, url: path };
   }, [update]);
 
-  return { profile, avatarUrl, loading, reload: load, update, uploadAvatar };
+  return { profile, avatarUrl, loading: profileQuery.isLoading, reload, update, uploadAvatar };
 }
