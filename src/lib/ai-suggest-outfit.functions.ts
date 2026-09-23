@@ -6,7 +6,7 @@ import { parseAiJson } from "./ai-json";
 import { isItemAtAnyLocation } from "./wardrobe-location";
 import { isItemAllowedByDressPreferences, hasAnyPreference, type DressPreferences } from "./dress-preferences";
 import { anyItemViolatesWeather, violatesSleeveClimate, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
-import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE } from "./outfit-styling-rules";
+import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
 
 const ItemSchema = z.object({
@@ -133,6 +133,14 @@ export async function suggestOutfitCore(params: {
    */
   relativeWarmthHint?: string | null;
 
+  /**
+   * The actual calendar date this outfit is FOR, as YYYY-MM-DD — not the date the request is made.
+   * Used only to gate season-locked pieces (a straw/beach bag, see isBeachBag) so a warm day doesn't
+   * make one seasonally right on its own. Omit for an on-demand/"right now" request, where the
+   * server's current date is exactly what's wanted; the weekly planner passes the specific day it's
+   * building for instead, since that can be well into the future.
+   */
+  forDateIso?: string | null;
 }): Promise<{ ok: true; item_ids: string[]; explanation: string } | { ok: false; error: string }> {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) throw new Error("Missing LOVABLE_API_KEY");
@@ -436,10 +444,16 @@ export async function suggestOutfitCore(params: {
   // Beach / holiday bags (straw, raffia, wicker, basket) belong to Weekend, Travel, Resort or an everyday
   // summer look — never to Work, business, Evening or Formal.
   const BEACH_BAG_BLOCKED_OCCASION = /work|business|lavoro|office|ufficio|evening|sera|serata|cocktail|gala|wedding|matrimonio|black.?tie|formal|dinner|cena/i;
+  const inSummer = isSummerSeason(params.forDateIso);
   const violatesBeachBag = (ids: string[]): boolean =>
-    BEACH_BAG_BLOCKED_OCCASION.test(params.occasion ?? "") || params.daySegment === "evening"
-      ? ids.some((id) => { const item = catalog.find((c) => c.id === id); return item ? isBeachBag(item) : false; })
-      : false;
+    ids.some((id) => {
+      const item = catalog.find((c) => c.id === id);
+      if (!item || !isBeachBag(item)) return false;
+      // Outside summer it's wrong for ANY occasion, warm day or not; inside summer the existing
+      // occasion gate (never Work/business/evening) still applies.
+      if (!inSummer) return true;
+      return BEACH_BAG_BLOCKED_OCCASION.test(params.occasion ?? "") || params.daySegment === "evening";
+    });
 
   // Weather is a hard constraint for EVERY occasion, not just Work — see
   // outfit-weather-rules.ts (unica fonte di verità, condivisa con Home).
