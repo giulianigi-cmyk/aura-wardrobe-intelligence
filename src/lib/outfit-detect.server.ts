@@ -22,6 +22,7 @@ const ALL_SUBCATEGORIES = Array.from(new Set(Object.values(SUBCATEGORY_OPTIONS).
 function buildPrompt(): string {
   return [
     "You analyze a photo of a person wearing an outfit and identify every distinct visible garment, shoe, bag and accessory.",
+    "ONE-PIECE VS. TWO-PIECE — read this before anything else: a dress or jumpsuit is a SINGLE item even when it has a fitted bodice/corset top portion and a separate-looking skirt or leg portion below it (a common silhouette). Detect that as ONE entry, category \"Dresses\" (or \"Jumpsuits\"), never as a separate Top + Bottom pair. Only detect two separate items when there is real, visible evidence of two actual garments — a genuine gap of visible skin between them, two different waistbands sitting at different heights, or a clearly different fabric/texture right at the waist seam. When in doubt, prefer the one-piece reading: a wrongly-split dress becomes two items that will never correctly match anything in the wardrobe, which is the worse failure.",
     "For EACH separate item worn, return one entry with:",
     `- category: EXACTLY one of ${DETECT_CATEGORIES.join(", ")}.`,
     `- subcategory: EXACTLY one value from this fixed list matching the category (e.g. if category is "Shoes", pick a Shoes value): ${ALL_SUBCATEGORIES.join(", ")}. Return an empty string only if truly none apply.`,
