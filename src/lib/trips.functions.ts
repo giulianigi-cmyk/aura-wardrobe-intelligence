@@ -89,6 +89,65 @@ export const createTrip = createServerFn({ method: "POST" })
     return { trip: trip as Trip };
   });
 
+const AddDestinationSchema = z.object({
+  tripId: z.string().uuid(),
+  destination: DestinationInput,
+});
+
+export const addTripDestination = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => AddDestinationSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: trip } = await (supabase.from("trips" as never) as any)
+      .select("id").eq("id", data.tripId).eq("user_id", userId).maybeSingle();
+    if (!trip) throw new Error("Trip not found");
+
+    const { data: existing } = await (supabase.from("trip_destinations" as never) as any)
+      .select("position").eq("trip_id", data.tripId).order("position", { ascending: false }).limit(1);
+    const nextPosition = ((existing?.[0] as { position: number } | undefined)?.position ?? -1) + 1;
+
+    const { data: created, error } = await (supabase.from("trip_destinations" as never) as any)
+      .insert({
+        trip_id: data.tripId,
+        position: nextPosition,
+        destination_name: data.destination.destinationName,
+        latitude: data.destination.latitude ?? null,
+        longitude: data.destination.longitude ?? null,
+        start_date: data.destination.startDate,
+        end_date: data.destination.endDate,
+      } as never).select("*").single();
+    if (error || !created) throw new Error(error?.message ?? "Couldn't add stop");
+    return { destination: created as TripDestination };
+  });
+
+const DeleteDestinationSchema = z.object({
+  tripId: z.string().uuid(),
+  destinationId: z.string().uuid(),
+});
+
+export const deleteTripDestination = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => DeleteDestinationSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: trip } = await (supabase.from("trips" as never) as any)
+      .select("id").eq("id", data.tripId).eq("user_id", userId).maybeSingle();
+    if (!trip) throw new Error("Trip not found");
+
+    // A trip is always at least one destination — removing the only remaining stop would leave
+    // the trip with no dates and no location at all, which nothing downstream (weather, the
+    // capsule generator) is built to handle. Deleting the whole trip is the right move instead.
+    const { count } = await (supabase.from("trip_destinations" as never) as any)
+      .select("id", { count: "exact", head: true }).eq("trip_id", data.tripId);
+    if ((count ?? 0) <= 1) throw new Error("A trip needs at least one stop — delete the trip instead.");
+
+    const { error } = await (supabase.from("trip_destinations" as never) as any)
+      .delete().eq("id", data.destinationId).eq("trip_id", data.tripId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
 export const listTrips = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
