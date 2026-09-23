@@ -121,7 +121,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
   const [savingEdit, setSavingEdit] = useState(false);
   const [removingBg, setRemovingBg] = useState(false);
   const [adjustingCrop, setAdjustingCrop] = useState(false);
-  const [tidying, setTidying] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const migrateLegacy = useServerFn(migrateLegacyTaxonomy);
   const fetchLocations = useServerFn(listLocations);
@@ -449,56 +448,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
       toast.error(e instanceof Error ? e.message : t("wardrobe.toastCropFailed"));
     } finally {
       setAdjustingCrop(false);
-    }
-  };
-
-  const tidyAllPhotos = async () => {
-    if (!user || tidying) return;
-    const toastId = "tidy-photos";
-    setTidying(true);
-    let changed = 0, checked = 0, failed = 0;
-    try {
-      toast.loading(t("wardrobe.toastCheckingPhotos"), { id: toastId });
-      for (const it of items) {
-        const path = toStoragePath(it.image_url);
-        const src = path ? signed[path] : "";
-        if (!src) continue;
-        checked++;
-        try {
-          const result = await trimWhiteMargins(src);
-          if (result.changed) {
-            const blob = await (await fetch(result.dataUrl)).blob();
-            const newPath = `${user.id}/item-${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
-            const { error: upErr } = await supabase.storage.from("wardrobe").upload(newPath, blob, {
-              cacheControl: "3600", upsert: false, contentType: "image/png",
-            });
-            if (upErr) throw upErr;
-            const { error: updErr } = await supabase
-              .from("wardrobe_items").update({ image_url: newPath }).eq("id", it.id);
-            if (updErr) throw updErr;
-            changed++;
-          }
-        } catch (e) {
-          console.error("[AURA wardrobe] tidy failed for item", it.id, e);
-          failed++;
-        }
-        if (checked % 5 === 0 || checked === items.length) {
-          toast.loading(t("wardrobe.toastCheckingPhotosProgress", { checked, total: items.length }), { id: toastId });
-        }
-      }
-
-      if (changed > 0) {
-        const { data } = await supabase.from("wardrobe_items")
-          .select("*").eq("user_id", user.id).order("created_at", { ascending: false });
-        setItems((data ?? []) as WardrobeItem[]);
-      }
-      const failNote = failed ? ` · ${t("wardrobe.toastSkippedCount", { count: failed })}` : "";
-      toast.success(
-        changed > 0 ? `${t("wardrobe.toastPhotosTidied", { count: changed })}${failNote}` : `${t("wardrobe.toastAllPhotosTight")}${failNote}`,
-        { id: toastId },
-      );
-    } finally {
-      setTidying(false);
     }
   };
 
@@ -873,16 +822,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
           >{t("wardrobe.showAll")}</button>
         </div>
       )}
-
-      <div className="px-6 -mt-1 flex justify-end">
-        <button
-          onClick={() => void tidyAllPhotos()}
-          disabled={tidying || items.length === 0}
-          className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground disabled:opacity-40"
-        >
-          {tidying ? <Loader2 size={11} className="animate-spin" /> : "🔲"} {t("wardrobe.tidyAllPhotos")}
-        </button>
-      </div>
 
       <AddSourceSheet
         open={addSheetOpen}
