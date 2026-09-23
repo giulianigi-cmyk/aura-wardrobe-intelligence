@@ -335,6 +335,22 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
         return;
       }
 
+      // The free, client-side cutout (bg-removal-client.ts) is good enough most of the time, but
+      // three failure patterns are worth catching before they ever reach storage: a hole punched
+      // out of the middle of the garment, a result that came out partly see-through, or one where
+      // most of the garment itself got erased along with the background (see cutout-quality.ts).
+      // When one of these fires, retry with the paid remove.bg call instead — this is exactly why
+      // that fallback exists: not every free result, only the ones that actually need it.
+      const quality = await analyzeCutoutQuality(bg.imageDataUrl);
+      if (!quality.ok) {
+        const premium = await removeBackgroundPremium({ data: { imageDataUrl: dataUrl } });
+        if (premium.ok) {
+          bg = premium;
+        } else {
+          console.error("[AURA wardrobe] premium bg-removal fallback failed, keeping free result", premium.error, quality.reason);
+        }
+      }
+
       const blob = await (await fetch(bg.imageDataUrl)).blob();
       const bgRemovedDataUrl: string = await new Promise((resolve, reject) => {
         const reader = new FileReader();
