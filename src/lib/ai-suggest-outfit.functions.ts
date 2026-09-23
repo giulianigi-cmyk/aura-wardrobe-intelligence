@@ -4,10 +4,11 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { isItemAtAnyLocation } from "./wardrobe-location";
-import { isItemAllowedByDressPreferences, hasAnyPreference, type DressPreferences } from "./dress-preferences";
+import { isItemAllowedByDressPreferences, hasAnyPreference, coversShoulders, coversArms, coversLegs, type DressPreferences } from "./dress-preferences";
 import { anyItemViolatesWeather, violatesSleeveClimate, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
 import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
+import { detectPlaceContext, isHardObligation, advisoryNoteFor, type DressRequirementType } from "./place-dress-code";
 
 const ItemSchema = z.object({
   id: z.string(),
@@ -359,6 +360,19 @@ export async function suggestOutfitCore(params: {
     "If the occasion mentions a pool, swimming, the beach or the sea (pool, piscina, swim, beach, spiaggia, mare, snorkeling): the outfit MUST be built around a Swimwear item — a one-piece swimsuit, or a bikini top AND bikini bottom together — instead of the usual top + bottom. Add a cover-up, a light top/shorts or a dress only as a layer over it, plus sandals/flats and sunglasses if available — never a bag. Never return a city outfit for a swim occasion, and never pair a bikini top with trousers or a skirt.",
     "If the occasion is Sport or mentions yoga, gym, running, hiking, training, pilates, tennis or cycling: the outfit MUST be built from Activewear pieces (sports bra / training top + leggings, bike shorts or running shorts) with sneakers or the appropriate sport shoe. Exclude denim, tailoring, dresses, heels and anything delicate, and honour the specific activity named — hiking wants covered, sturdy shoes, yoga wants soft stretch pieces.",
     "If the occasion is Travel (a flight, a transfer, a long drive): prioritise comfort and layers — soft, non-restrictive pieces, closed comfortable shoes (sneakers or flats, no heels), and one light layer that can go on and off.",
+    ...(() => {
+      const pc = detectPlaceContext(params.occasion);
+      if (!pc || !isHardObligation(pc.obligation)) return [];
+      const bits: string[] = [];
+      if (pc.requirements.some((r) => r === "cover_shoulders" || r === "cover_arms")) bits.push("cover the shoulders/arms (no off-shoulder, halter, strapless, bandeau or sleeveless construction)");
+      if (pc.requirements.some((r) => r === "cover_knees" || r === "cover_legs")) bits.push("no mini-length skirt or dress");
+      if (pc.requirements.includes("no_shorts")) bits.push("no shorts");
+      if (pc.requirements.includes("avoid_tight")) bits.push("avoid a tightly fitted piece");
+      if (pc.requirements.some((r) => r === "business_formal" || r === "formal_attire" || r === "cocktail" || r === "black_tie")) bits.push(`overall formality at least ${pc.minFormality ?? 4}/5`);
+      return bits.length
+        ? [`If the occasion is a visit to this kind of place (${pc.category.replace(/_/g, " ")}): ${bits.join("; ")} — this is the venue's own access/etiquette requirement, not a statement about the traveler, and applies regardless of any separate cultural preference.`]
+        : [];
+    })(),
     BLAZER_WARMTH_PROMPT_RULE,
     BELT_BODYCON_PROMPT_RULE,
     ACCESSORY_OCCASION_PROMPT_RULE,
@@ -460,6 +474,39 @@ export async function suggestOutfitCore(params: {
   const violatesWeather = (ids: string[]): boolean => anyItemViolatesWeather(ids, catalog, params.temperature);
 
   const isWorkOccasion = (params.occasion ?? "").toLowerCase().startsWith("work");
+
+  // Place-of-worship, embassy, formal-venue and similar venue requirements (place-dress-code.ts) —
+  // detected from the occasion/location text, so this applies the same whether that text came from
+  // a trip itinerary stop or a plain calendar event with no trip attached. Deliberately separate
+  // from isWorkOccasion/violatesWorkRules above and from the person's own opt-in cultural-mode
+  // preference: this is the VENUE's own requirement, on for every traveler, regardless of either.
+  const placeContext = detectPlaceContext(params.occasion);
+  const placeContextIsHard = placeContext != null && isHardObligation(placeContext.obligation);
+  const placeRequirementSet = new Set<DressRequirementType>(placeContext?.requirements ?? []);
+  // Reuses the same coverage checks dress-preferences.ts already defines for the person's own
+  // stated preferences (cover_shoulders/cover_arms/cover_legs) — a venue's requirement and the
+  // person's own configured one are checked against the exact same notion of "covered".
+  const violatesPlaceRequirements = (ids: string[]): boolean =>
+    placeContextIsHard && ids.some((id) => {
+      const item = catalog.find((c) => c.id === id);
+      if (!item) return false;
+      if ((placeRequirementSet.has("cover_shoulders")) && !coversShoulders(item)) return true;
+      if (placeRequirementSet.has("cover_arms") && ["Tops", "Dresses", "Outerwear", "Jumpsuits"].includes(item.category ?? "") && !coversArms(item)) return true;
+      if (placeRequirementSet.has("no_shorts") && item.category === "Bottoms" && /shorts/i.test(item.subcategory ?? "")) return true;
+      const isSkirtOrDress = item.category === "Dresses" || (item.category === "Bottoms" && item.subcategory === "Skirt");
+      // cover_knees is the lighter requirement (Midi or Maxi is fine, just not Mini); cover_legs
+      // is the stricter one (full coverage — coversLegs() only accepts Maxi/trousers-type pieces).
+      if (placeRequirementSet.has("cover_knees") && isSkirtOrDress && (item.length ?? "") === "Mini") return true;
+      if (placeRequirementSet.has("cover_legs") && !coversLegs(item)) return true;
+      if (placeRequirementSet.has("avoid_tight") && item.fit === "Slim") return true;
+      const needsFormality = placeRequirementSet.has("business_formal") ? placeContext!.minFormality ?? 4
+        : placeRequirementSet.has("black_tie") ? 5
+        : placeRequirementSet.has("cocktail") ? 4
+        : placeRequirementSet.has("formal_attire") ? placeContext!.minFormality ?? 4
+        : null;
+      if (needsFormality != null && item.formality != null && item.formality < needsFormality) return true;
+      return false;
+    });
 
   // A bag is a mandatory component for a woman's outfit, not just a
   // prompt suggestion the model can skip — same principle as every other
@@ -570,7 +617,7 @@ export async function suggestOutfitCore(params: {
     !hardExcluded.has(c.id)
     && !violatesWeather([c.id]) && !violatesEmbellished([c.id])
     && !violatesOccasionTag([c.id]) && !violatesBeachBag([c.id])
-    && !(isWorkOccasion && violatesWorkRules([c.id]));
+    && !(isWorkOccasion && violatesWorkRules([c.id])) && !violatesPlaceRequirements([c.id]);
 
   // STRUCTURE: an outfit is a top AND a bottom (or a dress/jumpsuit) — plus shoes, checked further down.
   // Nothing verified this before: when a hard rule stripped the trousers (or the model forgot them) the
@@ -592,6 +639,7 @@ export async function suggestOutfitCore(params: {
     if (violatesBeachBag(ids)) return false;
     if (missingLegs(ids) || missingTorso(ids)) return false;
     if (isWorkOccasion && violatesWorkRules(ids)) return false;
+    if (violatesPlaceRequirements(ids)) return false;
     if (violatesWeather(ids)) return false;
     if (missingMandatoryBag(ids)) return false;
     if (violatesFootwearRule(ids)) return false;
@@ -645,7 +693,7 @@ export async function suggestOutfitCore(params: {
       try {
         const retry = await generateText({
           model,
-          system: system + "\n\nIMPORTANT — your previous answer broke a hard rule above (either more than one item in the same slot, an evening-coded/bare-shoulder piece for a Work occasion, an item excluded by the person's stated dress preferences, a piece unsuitable for the actual temperature — e.g. a wool/heavy piece when it's hot, or a bare/light piece when it's cold — a long-sleeve top when a short-sleeve one was available and it's mild-to-warm out, or the reverse when it's mild-to-cool — sunglasses in an evening look — or missing the mandatory bag for a women's outfit, or a beach/holiday bag or hiking boots in a Work/business/evening look, or an outfit without a bottom (trousers/skirt) or without a top). Try again, respecting every rule strictly this time.",
+          system: system + "\n\nIMPORTANT — your previous answer broke a hard rule above (either more than one item in the same slot, an evening-coded/bare-shoulder piece for a Work occasion, an item excluded by the person's stated dress preferences, a piece unsuitable for the actual temperature — e.g. a wool/heavy piece when it's hot, or a bare/light piece when it's cold — a long-sleeve top when a short-sleeve one was available and it's mild-to-warm out, or the reverse when it's mild-to-cool — sunglasses in an evening look — or missing the mandatory bag for a women's outfit, or a beach/holiday bag or hiking boots in a Work/business/evening look, or a bare-shoulder/mini/shorts/too-fitted/underdressed piece for a place with its own access requirement (a place of worship, an embassy, a formal venue…), or an outfit without a bottom (trousers/skirt) or without a top). Try again, respecting every rule strictly this time.",
           messages: [{ role: "user", content: userContent }],
         });
         const retryParsed = parseAiJson(retry.text, OutputSchema);
@@ -677,6 +725,7 @@ export async function suggestOutfitCore(params: {
             if (violatesEmbellished([id])) return false;
             if (violatesBeachBag([id])) return false;
             if (isWorkOccasion && violatesWorkRules([id])) return false;
+            if (violatesPlaceRequirements([id])) return false;
             if (violatesFootwearRule([id])) return false;
             if (violatesOccasionTag([id])) return false;
             if (violatesEveningSunglasses([id])) return false;
@@ -693,7 +742,7 @@ export async function suggestOutfitCore(params: {
     item_ids = item_ids.filter((id) =>
       id === params.mustIncludeItemId
       || (!violatesWeather([id]) && !violatesEmbellished([id]) && !violatesBeachBag([id])
-        && !(isWorkOccasion && violatesWorkRules([id])) && !violatesFootwearRule([id])
+        && !(isWorkOccasion && violatesWorkRules([id])) && !violatesPlaceRequirements([id]) && !violatesFootwearRule([id])
         && !violatesOccasionTag([id]) && !violatesEveningSunglasses([id])));
 
     // Last resort, after the retry/sanitize logic above has already run:
