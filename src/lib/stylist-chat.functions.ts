@@ -5,10 +5,11 @@ import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { BLAZER_WARMTH_PROMPT_RULE, violatesWeatherRule } from "./outfit-weather-rules";
 import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE } from "./outfit-styling-rules";
-import { isItemAllowedByDressPreferences, coversLegs, coversArms, type DressPreferences } from "./dress-preferences";
+import { isItemAllowedByDressPreferences, coversLegs, coversArms, coversShoulders, type DressPreferences } from "./dress-preferences";
 import { isItemAtLocation } from "./wardrobe-location";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 import { detectActivityKind } from "./activity-kind";
+import { detectPlaceContext, isHardObligation, advisoryNoteFor, type DressRequirementType } from "./place-dress-code";
 const ItemSchema = z.object({
   id: z.string(),
   category: z.string().nullable().optional(),
@@ -300,6 +301,21 @@ export const stylistChat = createServerFn({ method: "POST" })
       ACCESSORY_OCCASION_PROMPT_RULE,
       EMBELLISHED_EVENING_PROMPT_RULE,
     OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
+      ...(() => {
+        const text = data.messages.map((m) => m.content ?? "").join(" ");
+        const pc = detectPlaceContext(text);
+        if (!pc || !isHardObligation(pc.obligation)) return [];
+        const bits: string[] = [];
+        if (pc.requirements.includes("cover_shoulders")) bits.push("cover the shoulders (no off-shoulder, halter, strapless, bandeau construction)");
+        if (pc.requirements.includes("cover_arms")) bits.push("cover the arms (no sleeveless upper-body piece)");
+        if (pc.requirements.some((r) => r === "cover_knees" || r === "cover_legs")) bits.push("no mini-length skirt or dress");
+        if (pc.requirements.includes("no_shorts")) bits.push("no shorts");
+        if (pc.requirements.includes("avoid_tight")) bits.push("avoid a tightly fitted piece");
+        if (pc.requirements.some((r) => r === "business_formal" || r === "formal_attire" || r === "cocktail" || r === "black_tie")) bits.push(`overall formality at least ${pc.minFormality ?? 4}/5`);
+        return bits.length
+          ? [`VENUE REQUIREMENT: the place mentioned in this conversation (${pc.category.replace(/_/g, " ")}) has its own access/etiquette requirement, regardless of any separate cultural preference the person has or hasn't set: ${bits.join("; ")}.`]
+          : [];
+      })(),
       "WEDDING GUEST ETIQUETTE: if the user is attending a wedding as a guest (not the couple themselves), avoid recommending white, ivory or cream (reserved for the bride) and avoid an all-red look; avoid all-black unless it's explicitly an evening wedding. This is a social norm, not a hard rule like the dressing rules above — but treat it seriously.",
       "KEEP-THIS-PIECE REQUESTS: if the person explicitly says to keep a specific piece from your last suggestion (e.g. 'I want to use this dress but with a bolder accessory', 'keep the dress, change the shoes') — that piece's item_id is a HARD constraint for this turn, not a preference to weigh against other options. Re-read your own previous message to find the exact item_id for the piece they mean, and always include that exact item_id again in this reply's item_ids. Only change the category(ies) they actually asked to change; never swap out the piece they explicitly said to keep, even if a different piece would otherwise look better.",
       ...(data.styleBoldness ? [`BOLDNESS: the person has already told you, in their profile, that they generally like a '${data.styleBoldness}' level of boldness (Classic = safe, harmonious pairings; Balanced = some experimentation without overdoing it; Creative = enjoys unexpected combinations; Bold = wants to be pushed outside their comfort zone). Apply this directly for occasions that aren't strictly formal (weekend, casual work, casual dinners) — do NOT ask the boldness question below, it's already answered. Still let the occasion itself win when it calls for something classic (e.g. a black-tie event stays classic regardless of this preference) — this shapes color/styling choices within what's already appropriate, never overrides YOU/CONTEXT/WEATHER/COHERENCE above it in the hierarchy.`] : []),
@@ -435,6 +451,40 @@ export const stylistChat = createServerFn({ method: "POST" })
       const hasOccasionAlternative = (category: string, subcategory: string | undefined): boolean =>
         catalog.some((c) => c.category === category && (subcategory ? c.subcategory === subcategory : true) && !violatesOccasionTag(c.id));
 
+      // Place-of-worship, embassy, formal-venue and similar venue requirements
+      // (place-dress-code.ts) — detected from the conversation text itself, which already
+      // contains the calendar event's title/location whenever this chat was opened by tapping a
+      // specific event (see Planner.tsx's askStylistFor, whose auto-sent first message embeds
+      // both). Works the same whether the person is asking about a trip stop or a plain calendar
+      // event with no trip involved — this module doesn't distinguish the two. Independent of the
+      // person's own opt-in cultural-mode preference: this is the venue's own requirement.
+      const placeContext = detectPlaceContext(conversationText);
+      const placeContextIsHard = placeContext != null && isHardObligation(placeContext.obligation);
+      const placeReqSet = new Set<DressRequirementType>(placeContext?.requirements ?? []);
+      const violatesPlaceRequirements = (id: string): boolean => {
+        if (!placeContextIsHard) return false;
+        const item = catalog.find((c) => c.id === id);
+        if (!item) return false;
+        if (placeReqSet.has("cover_shoulders") && !coversShoulders(item)) return true;
+        if (placeReqSet.has("cover_arms") && ["Tops", "Dresses", "Outerwear", "Jumpsuits"].includes(item.category ?? "") && !coversArms(item)) return true;
+        if (placeReqSet.has("no_shorts") && item.category === "Bottoms" && /shorts/i.test(item.subcategory ?? "")) return true;
+        const isSkirtOrDress = item.category === "Dresses" || (item.category === "Bottoms" && item.subcategory === "Skirt");
+        if (placeReqSet.has("cover_knees") && isSkirtOrDress && (item.length ?? "") === "Mini") return true;
+        if (placeReqSet.has("cover_legs") && !coversLegs(item)) return true;
+        if (placeReqSet.has("avoid_tight") && item.fit === "Slim") return true;
+        const needsFormality = placeReqSet.has("business_formal") ? placeContext!.minFormality ?? 4
+          : placeReqSet.has("black_tie") ? 5
+          : placeReqSet.has("cocktail") ? 4
+          : placeReqSet.has("formal_attire") ? placeContext!.minFormality ?? 4
+          : null;
+        if (needsFormality != null && item.formality != null && item.formality < needsFormality) return true;
+        return false;
+      };
+      const hasPlaceAlternative = (category: string): boolean =>
+        catalog.some((c) => c.category === category && !violatesPlaceRequirements(c.id));
+      const placeViolationIn = (ids: string[]): boolean =>
+        ids.some((id) => violatesPlaceRequirements(id) && hasPlaceAlternative(catalog.find((c) => c.id === id)?.category ?? ""));
+
       // Weather used to be prompt-only in this chat — the one engine with no code-level check — so a
       // wool piece or ankle boots could still be proposed on a hot day. Same shared rule as every other
       // engine (outfit-weather-rules.ts); only fires when a real temperature was given AND the wardrobe
@@ -478,6 +528,10 @@ export const stylistChat = createServerFn({ method: "POST" })
         if (occasionTagViolation) {
           missing.push("a different piece for whichever item is tagged only 'Travel' or 'Sport' — that piece doesn't fit this occasion, so swap it for something from the wardrobe that isn't restricted to that situational tag");
         }
+        const placeViolation = placeViolationIn(finalItemIds);
+        if (placeViolation) {
+          missing.push("a different piece for whichever item doesn't meet this specific place's own dress requirement (covered shoulders, covered knees/legs, not too fitted, or a higher formality level) — swap it for a suitable alternative from the wardrobe");
+        }
 
         if (missing.length > 0) {
           try {
@@ -498,7 +552,8 @@ export const stylistChat = createServerFn({ method: "POST" })
             const repairFixedFootwear = !footwearViolation || !hasFootwearViolation(repairedIds);
             const repairFixedOccasion = !occasionTagViolation || !repairedIds.some((id) => violatesOccasionTag(id) && hasOccasionAlternative(catalog.find((c) => c.id === id)?.category ?? "", undefined));
             const repairFixedWeather = !weatherViolation || !weatherViolationIn(repairedIds);
-            if (repairedIds.length >= finalItemIds.length && repairFixedFootwear && repairFixedOccasion && repairFixedWeather) {
+            const repairFixedPlace = !placeViolation || !placeViolationIn(repairedIds);
+            if (repairedIds.length >= finalItemIds.length && repairFixedFootwear && repairFixedOccasion && repairFixedWeather && repairFixedPlace) {
               finalItemIds = repairedIds;
               finalReply = repaired.reply;
             }
@@ -551,6 +606,19 @@ export const stylistChat = createServerFn({ method: "POST" })
         }
       }
 
+      // Same last-resort swap for a surviving venue-requirement violation (bare shoulders/knees,
+      // too fitted, or under the place's own minimum formality) — replace with a same-category
+      // piece that meets it, rather than shipping something the venue itself would turn away.
+      for (const id of finalItemIds) {
+        if (!violatesPlaceRequirements(id)) continue;
+        const category = catalog.find((c) => c.id === id)?.category ?? "";
+        const replacement = catalog.find((c) =>
+          c.category === category && !violatesPlaceRequirements(c.id) && !violatesOccasionTag(c.id) && !finalItemIds.includes(c.id));
+        if (replacement) {
+          finalItemIds = finalItemIds.filter((x) => x !== id).concat(replacement.id);
+        }
+      }
+
       // Code-level check for invented time/weather claims — the prompt
       // rules above (NEVER INVENT WEATHER DETAILS / NEVER INVENT A TIME
       // OF DAY) kept getting quietly ignored in practice ("considerando
@@ -589,9 +657,14 @@ export const stylistChat = createServerFn({ method: "POST" })
         }
       }
 
+      // A requirement this venue has that AURA has no wardrobe attribute to check (a head
+      // covering, removing shoes at the entrance, avoiding sheer fabric…) is never silently
+      // dropped — appended as a short note so the person still knows about it even though
+      // nothing about the outfit itself was picked to satisfy it.
+      const placeNote = placeContextIsHard ? advisoryNoteFor(placeContext!) : null;
       return {
         ok: true as const,
-                reply: (finalReply ?? "").slice(0, 1200),
+                reply: [(finalReply ?? "").slice(0, 1200), placeNote].filter(Boolean).join(" "),
         item_ids: finalItemIds,
         choices: (parsed.choices ?? []).slice(0, 4),
         actions: data.feedbackContext === "liked" ? SAVE_ACTIONS : [],
