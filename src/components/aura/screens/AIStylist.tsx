@@ -72,7 +72,7 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
  *  tables, this is an interface consolidating data that already existed
  *  across three separate screens.
  */
-export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen) => void; openBuilder: (init: BuilderInit) => void; openAvatarTryOn: (itemIds?: string[]) => void }) {
+export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s: Screen) => void; openBuilder: (init: BuilderInit) => void; openAvatarTryOn: (itemIds?: string[]) => void; active?: boolean }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { latitude, longitude } = useLocation();
@@ -309,7 +309,13 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn }: { go: (s: Screen
     }
   }, [user, outfits]);
 
-  useEffect(() => { void load(); }, [load]);
+  // Same fix as Home.tsx: this tab stays mounted (hidden) in the background whenever another
+  // tab is open, so load() above — which reads worn entries and today's calendar with a plain
+  // fetch, not the shared React Query cache — only ran once on first mount. Logging a wear from
+  // LogWear, or anything else that changes this screen's data without also changing `outfits` or
+  // `plans` (both of which DO self-refresh via their own cache invalidation), left this tab
+  // showing the old list until a full relaunch. Re-run on every return to this tab, not just once.
+  useEffect(() => { if (active !== false) void load(); }, [load, active]);
 
   useEffect(() => {
     if (locationsData?.activeLocationId) setWeeklyLocationIds([locationsData.activeLocationId]);
