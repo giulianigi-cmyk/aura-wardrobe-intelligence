@@ -32,13 +32,24 @@ const CURATED_OCCASION_KEYS: Record<string, string> = {
   Evening: "home.occasionEvening",
 };
 
-export function Home({ go, openAvatarTryOn, openBuilder }: { go: (s: Screen) => void; openAvatarTryOn: (itemIds?: string[]) => void; openBuilder: (init: BuilderInit) => void }) {
+export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Screen) => void; openAvatarTryOn: (itemIds?: string[]) => void; openBuilder: (init: BuilderInit) => void; active?: boolean }) {
   const { t } = useTranslation();
   const unreadCount = useUnreadNotifications();
   const { user } = useAuth();
   const { profile } = useProfile();
   const { city, latitude, longitude, status, detect, setManual } = useLocation();
   const { data: weather, loading: wxLoading } = useWeather(latitude, longitude);
+
+  // Home stays mounted (just hidden) whenever another tab is open — see AuraApp.tsx — so its own
+  // data-loading effects below, all plain useEffect/useState rather than the shared React Query
+  // hooks, only ever ran once on the app's first load. Saving or editing a look elsewhere (the
+  // canvas builder, a curated look's edits) writes to the database just fine, but nothing told
+  // this already-mounted screen to look again: the OLD state kept showing until a full app
+  // relaunch remounted it for the first time. `active` flips true every time this tab is
+  // switched back into view; the counter below turns that into a dependency the effects can
+  // react to, forcing them to re-read the database on every return visit, not just once ever.
+  const [refreshKey, setRefreshKey] = useState(0);
+  useEffect(() => { if (active !== false) setRefreshKey((k) => k + 1); }, [active]);
 
   // Sync the UI language to the user's saved preference once the profile
   // loads. Defaults to English (see i18n/config.ts) until then, and stays
@@ -83,7 +94,7 @@ export function Home({ go, openAvatarTryOn, openBuilder }: { go: (s: Screen) => 
     if (!user) return;
     void supabase.from("outfits").select("id", { count: "exact", head: true }).eq("user_id", user.id)
       .then(({ count }) => setOutfitsCount(count ?? 0));
-  }, [user]);
+  }, [user, refreshKey]);
   const stats = useMemo(() => {
     const pieces = allItems.length;
     const worn = allItems.filter((i) => (i.worn_count ?? 0) > 0).length;
@@ -299,7 +310,7 @@ export function Home({ go, openAvatarTryOn, openBuilder }: { go: (s: Screen) => 
         setLooksLoading(false);
       }
     })();
-  }, [user, itemsLoaded, allItems, weather, wxLoading, latitude, longitude]);
+  }, [user, itemsLoaded, allItems, weather, wxLoading, latitude, longitude, refreshKey]);
 
   // Signs the composed images once their storage paths are known — kept
   // separate from looksSigned (item thumbnails) since these are a
