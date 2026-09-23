@@ -104,6 +104,19 @@ export function isTechnicalFootwear(item: {
   return TECHNICAL_FOOTWEAR_SIGNAL.test(`${item.subcategory ?? ""} ${(item.styleTags ?? []).join(" ")} ${style}`);
 }
 
+/** Northern-hemisphere summer — the only season a beach/holiday bag (see isBeachBag) belongs in,
+ *  regardless of the day's temperature. A 27°C afternoon in late September is still early autumn:
+ *  a warm day doesn't make a straw bag seasonally right the way an actual summer day does. Rough
+ *  calendar band, not astronomical dates — June through September inclusive. Defaults to the
+ *  server's current date when the caller doesn't have a specific date to check (an on-demand or
+ *  "today" request is always about right now; a multi-day planner passes the actual day instead). */
+export function isSummerSeason(dateIso?: string | null): boolean {
+  const d = dateIso ? new Date(`${dateIso}T00:00:00`) : new Date();
+  const month = d.getMonth() + 1; // 1-12
+  return month >= 6 && month <= 9;
+}
+
 export const WORK_ACCESSORY_PROMPT_RULE =
   "WORK / BUSINESS / EVENING / FORMAL: never use a beach or holiday bag (straw, raffia, wicker, basket) or technical outdoor footwear (hiking, trekking, mountain or snow boots) in these looks. " +
+  "SEASON: a beach or holiday bag (straw, raffia, wicker, basket) belongs to summer specifically \u2014 never propose one outside roughly June-September, no matter how warm the actual day is; a warm day in another season is not summer. " +
   "Every outfit is COMPLETE: a top AND a bottom (or a dress/jumpsuit), plus shoes \u2014 never return a look without trousers/skirt/shorts when the wardrobe has any.";
