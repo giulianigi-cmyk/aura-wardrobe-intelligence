@@ -29,6 +29,13 @@ export type ActivityContext = {
 const SWIM_KEYWORDS = ["pool", "piscina", "swim", "nuot", "beach", "spiagg", "mare", "sea", "snorkel", "lido", "water park", "acquapark"];
 const SPORT_KEYWORDS = ["yoga", "gym", "palestra", "run", "corsa", "hike", "trek", "workout", "fitness", "pilates", "bike", "cycl", "tennis", "padel", "climb"];
 
+// A classical concert/opera reads as "concerto"/"concert" lexically but is a formal sit-down event
+// (place-dress-code.ts's "formal_venue" profile already hard-requires business formal, heels
+// included, for exactly these) — the OPPOSITE of the pop/DJ "concert" kind below, whose own rule
+// explicitly forbids heels. Checked first so a genuinely classical event never gets misread as the
+// physically-demanding, standing-all-night kind.
+const CLASSICAL_CONCERT_SIGNAL = /classic|classica|clásic|classique|opera|op\u00e9ra|orchestra|orchestre|orquesta|sinfonic|symphon|philharmon|filarmonic|sala da concerto|concert hall/i;
+
 const CONCERT_KEYWORDS = [
   // Italiano
   "concerto", "concerti", "festival", "rave", "discoteca", "dj ",
@@ -74,7 +81,7 @@ export function detectActivityKind(ctx: ActivityContext): ActivityKind {
   // Checked after swim/sport (a "beach festival" is still a beach day
   // first) but before dinners — this is what stops a concert being read
   // as an ordinary evening.
-  if (CONCERT_KEYWORDS.some((k) => text.includes(k))) return "concert";
+  if (!CLASSICAL_CONCERT_SIGNAL.test(text) && CONCERT_KEYWORDS.some((k) => text.includes(k))) return "concert";
   if (BUSINESS_DINNER_KEYWORDS.some((k) => text.includes(k))) return "business_dinner";
   if (DINNER_KEYWORDS.some((k) => text.includes(k)) || hasEleganceSignal(ctx)) return "elegant_dinner";
   return null;
