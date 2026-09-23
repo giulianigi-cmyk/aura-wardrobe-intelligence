@@ -10,7 +10,8 @@ import { OutfitViewerSheet } from "../OutfitViewerSheet";
 import { TripEssentialsCopySheet } from "../TripEssentialsCopySheet";
 import { toast } from "sonner";
 import type { Screen } from "../AuraApp";
-import { getTrip, deleteTrip, updateTripOutfitPlanItems, deleteTripOutfitPlan, type Trip, type TripDestination, type TripType, type DaySegment } from "@/lib/trips.functions";
+import { getTrip, deleteTrip, addTripDestination, deleteTripDestination, updateTripOutfitPlanItems, deleteTripOutfitPlan, type Trip, type TripDestination, type TripType, type DaySegment } from "@/lib/trips.functions";
+import { searchDestinations, type DestinationSearchResult } from "@/lib/destination-search";
 import { addTripEssential, removeTripEssential, updateTripEssential, type TripEssential } from "@/lib/essentials.functions";
 import { addTripActivity, updateTripActivity, removeTripActivity, type TripActivity } from "@/lib/trip-activities.functions";
 import { addTripPackingItem, removeTripPackingItem, updateTripPackingItem, type TripPackingItem } from "@/lib/trip-packing.functions";
@@ -55,6 +56,22 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
   const { user } = useAuth();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [destinations, setDestinations] = useState<TripDestination[]>([]);
+  // Adding a stop after the trip already exists: a small inline form, not a full second copy of
+  // TripCreate's multi-leg builder — this is for the occasional "actually we're adding a night in
+  // Florence too" edit, not for building the whole itinerary from scratch.
+  const [addingStop, setAddingStop] = useState(false);
+  const [savingStop, setSavingStop] = useState(false);
+  const [stopQuery, setStopQuery] = useState("");
+  const [stopName, setStopName] = useState("");
+  const [stopLat, setStopLat] = useState<number | null>(null);
+  const [stopLon, setStopLon] = useState<number | null>(null);
+  const [stopResults, setStopResults] = useState<DestinationSearchResult[]>([]);
+  const [stopSearching, setStopSearching] = useState(false);
+  const [stopStart, setStopStart] = useState("");
+  const [stopEnd, setStopEnd] = useState("");
+  const [removingStopId, setRemovingStopId] = useState<string | null>(null);
+  const addDestinationFn = useServerFn(addTripDestination);
+  const deleteDestinationFn = useServerFn(deleteTripDestination);
   const [sourceLocationIds, setSourceLocationIds] = useState<string[]>([]);
   // Shared cache (see wardrobe-locations-query.ts) — same key
   // AIStylist/TripCreate read from.
@@ -179,6 +196,66 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
       .finally(() => setLoading(false));
   };
   useEffect(load, [tripId]);
+
+  // Debounced search for the inline "add a stop" form, same 350ms pattern TripCreate.tsx uses.
+  useEffect(() => {
+    if (stopLat != null && stopQuery === stopName) return; // already picked, don't re-search
+    if (stopQuery.trim().length < 2) { setStopResults([]); return; }
+    setStopSearching(true);
+    const timer = setTimeout(() => {
+      searchDestinations(stopQuery).then(setStopResults).finally(() => setStopSearching(false));
+    }, 350);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopQuery]);
+
+  const pickStopDestination = (r: DestinationSearchResult) => {
+    const label = [r.name, r.admin1, r.country].filter(Boolean).join(", ");
+    setStopName(label);
+    setStopQuery(label);
+    setStopLat(r.latitude);
+    setStopLon(r.longitude);
+    setStopResults([]);
+  };
+
+  const openAddStop = () => {
+    // Defaults the new stop to start the day the last one ends, same as TripCreate's own legs —
+    // reads as a natural continuation of the itinerary, easy to adjust either date afterward.
+    const lastEnd = destinations.length ? [...destinations].sort((a, b) => a.end_date.localeCompare(b.end_date))[destinations.length - 1].end_date : "";
+    setStopQuery(""); setStopName(""); setStopLat(null); setStopLon(null); setStopResults([]);
+    setStopStart(lastEnd); setStopEnd(lastEnd);
+    setAddingStop(true);
+  };
+
+  const saveStop = async () => {
+    if (!stopName.trim() || stopLat == null || !stopStart || !stopEnd || stopEnd < stopStart) return;
+    setSavingStop(true);
+    try {
+      await addDestinationFn({
+        data: { tripId, destination: { destinationName: stopName.trim(), latitude: stopLat, longitude: stopLon, startDate: stopStart, endDate: stopEnd } },
+      });
+      setAddingStop(false);
+      load();
+      toast.success(t("tripDetail.stopAdded"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("tripDetail.stopAddFailed"));
+    } finally {
+      setSavingStop(false);
+    }
+  };
+
+  const removeStop = async (destinationId: string) => {
+    setRemovingStopId(destinationId);
+    try {
+      await deleteDestinationFn({ data: { tripId, destinationId } });
+      load();
+      toast.success(t("tripDetail.stopRemoved"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("tripDetail.stopRemoveFailed"));
+    } finally {
+      setRemovingStopId(null);
+    }
+  };
 
   const locationName = (id: string) => allLocations.find((l) => l.id === id)?.name ?? t("tripDetail.unknown");
 
@@ -601,11 +678,69 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
 
       <div className="px-6 mt-4 rounded-2xl border border-border/60 bg-card p-4 space-y-2">
         {destinations.map((d) => (
-          <div key={d.id} className="flex items-center justify-between text-sm">
-            <span className="font-serif text-lg">{d.destination_name}</span>
-            <span className="text-[11px] text-muted-foreground">{fmtDate(d.start_date)} – {fmtDate(d.end_date)}</span>
+          <div key={d.id} className="flex items-center justify-between text-sm gap-2">
+            <div className="min-w-0">
+              <span className="font-serif text-lg">{d.destination_name}</span>
+              <span className="block text-[11px] text-muted-foreground">{fmtDate(d.start_date)} – {fmtDate(d.end_date)}</span>
+            </div>
+            {destinations.length > 1 && (
+              <button
+                onClick={() => void removeStop(d.id)}
+                disabled={removingStopId === d.id}
+                aria-label={t("tripDetail.removeStopAria")}
+                className="h-7 w-7 shrink-0 rounded-full bg-secondary/60 flex items-center justify-center active:scale-90 disabled:opacity-50"
+              >{removingStopId === d.id ? <Loader2 size={12} className="animate-spin" /> : <X size={13} />}</button>
+            )}
           </div>
         ))}
+
+        {addingStop ? (
+          <div className="pt-2 space-y-2 border-t border-border/40">
+            <input
+              value={stopQuery}
+              onChange={(e) => { setStopQuery(e.target.value); setStopName(""); setStopLat(null); setStopLon(null); }}
+              placeholder={t("tripCreate.searchCityPlaceholder")}
+              className="w-full bg-secondary/60 rounded-full px-4 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
+            />
+            {stopSearching && <p className="text-[11px] text-muted-foreground px-1">{t("tripCreate.searching")}</p>}
+            {stopResults.length > 0 && (
+              <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+                {stopResults.map((r, i) => (
+                  <button
+                    key={`${r.name}-${r.latitude}-${i}`}
+                    onClick={() => pickStopDestination(r)}
+                    className="w-full px-4 py-2.5 text-left text-sm border-b border-border/40 last:border-b-0 active:bg-secondary/40"
+                  >
+                    {r.name}
+                    <span className="text-muted-foreground">{[r.admin1, r.country].filter(Boolean).length ? ` — ${[r.admin1, r.country].filter(Boolean).join(", ")}` : ""}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <input type="date" value={stopStart} onChange={(e) => setStopStart(e.target.value)} className="w-full bg-secondary/60 rounded-full px-4 py-2 text-sm outline-none" />
+              <input type="date" value={stopEnd} min={stopStart} onChange={(e) => setStopEnd(e.target.value)} className="w-full bg-secondary/60 rounded-full px-4 py-2 text-sm outline-none" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setAddingStop(false)}
+                disabled={savingStop}
+                className="h-10 rounded-full border border-border text-[11px] uppercase tracking-[0.25em]"
+              >{t("tripDetail.cancelStop")}</button>
+              <button
+                onClick={() => void saveStop()}
+                disabled={savingStop || !stopName.trim() || stopLat == null || !stopStart || !stopEnd || stopEnd < stopStart}
+                className="h-10 rounded-full bg-foreground text-background text-[11px] uppercase tracking-[0.25em] inline-flex items-center justify-center gap-2 disabled:opacity-40"
+              >{savingStop && <Loader2 size={12} className="animate-spin" />}{t("tripDetail.saveStop")}</button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={openAddStop}
+            className="w-full h-10 rounded-full border border-dashed border-border text-[11px] uppercase tracking-[0.25em] text-muted-foreground flex items-center justify-center gap-2 active:scale-[0.98]"
+          ><Plus size={13} /> {t("tripDetail.addStop")}</button>
+        )}
+
         <div className="flex flex-wrap gap-1.5 pt-1">
           {sourceLocationIds.length > 0 ? sourceLocationIds.map((id) => (
             <span key={id} className="rounded-full bg-secondary/60 px-2.5 py-1 text-[10px] uppercase tracking-widest">{locationName(id)}</span>
