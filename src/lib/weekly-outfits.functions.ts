@@ -233,6 +233,9 @@ export const generateWeeklyOutfits = createServerFn({ method: "POST" })
         items,
         avoidItemIds: usedThisBatch,
         locationIdsOverride: locationIdsForDate(date),
+        // The day actually being planned, not today — a week generated in June for a July date
+        // should already treat that July date as summer, and vice versa at the season's edges.
+        forDateIso: date,
       });
 
       if (!result.ok || !result.item_ids.length) {
