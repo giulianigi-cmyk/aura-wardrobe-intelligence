@@ -77,13 +77,14 @@ function itemMatchesKeywords(it: WardrobeItem, keywords: string[], materials: st
 const DOW = ["M", "T", "W", "T", "F", "S", "S"];
 const getLocalizedDow = (t: (k: string) => string) => (t("planner.dowLetters") as string).split(",");
 
-export function Planner({ go, openStylistChat, openBuilder, openAvatarTryOn, focus }: {
+export function Planner({ go, openStylistChat, openBuilder, openAvatarTryOn, focus, active }: {
   go: (s: Screen) => void;
   openStylistChat: (init: NonNullable<StylistChatInit>) => void;
   openBuilder: (init: BuilderInit) => void;
   openAvatarTryOn: (itemIds?: string[]) => void;
   /** Deep-link target from a weather_change notification. */
   focus?: { date: string; planId?: string | null } | null;
+  active?: boolean;
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -185,7 +186,10 @@ export function Planner({ go, openStylistChat, openBuilder, openAvatarTryOn, foc
     }
   };
 
-  useEffect(() => { void reload(); }, [reload]);
+  // Same fix as Home.tsx and AIStylist.tsx: this tab stays mounted (hidden) in the background
+  // whenever another tab is open, so a plan created or changed elsewhere (the weekly batch, the
+  // canvas builder) only showed up here after a full relaunch. Re-run on every return to this tab.
+  useEffect(() => { if (active !== false) void reload(); }, [reload, active]);
 
   // Open weather proposals, so the day sheet can show "planned vs
   // suggested" for a plan whose forecast moved.
@@ -197,7 +201,7 @@ export function Planner({ go, openStylistChat, openBuilder, openAvatarTryOn, foc
     } catch (e) { console.error("[AURA planner] proposals load failed", e); }
   }, [user, loadProposals]);
 
-  useEffect(() => { void reloadProposals(); }, [reloadProposals]);
+  useEffect(() => { if (active !== false) void reloadProposals(); }, [reloadProposals, active]);
 
   useEffect(() => { if (focus?.date) setSelectedDate(focus.date); }, [focus?.date]);
 
