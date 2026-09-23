@@ -4,7 +4,7 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
-import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear } from "./outfit-styling-rules";
+import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, isSummerSeason } from "./outfit-styling-rules";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 
 const ItemSchema = z.object({
@@ -338,10 +338,16 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
 
         // A beach / holiday bag (straw, raffia, wicker, basket) is for Weekend or everyday summer looks —
     // never for Work (see violatesWorkFormality) or an Evening look.
+    // "Today" is always the server's actual current date here (Home has no future-day concept).
+    const inSummer = isSummerSeason();
     const violatesBeachBagByDay = (occasion: string, ids: string[]): boolean =>
-      (occasion === "Work" || occasion === "Evening") && ids.some((id) => {
+      ids.some((id) => {
         const item = catalog.find((c) => c.id === id);
-        return item ? isBeachBag(item) : false;
+        if (!item || !isBeachBag(item)) return false;
+        // Outside summer it's wrong for every look, not just Work/Evening — a warm September day
+        // doesn't make a straw bag seasonally right.
+        if (!inSummer) return true;
+        return occasion === "Work" || occasion === "Evening";
       });
 
     const REQUIRED_OCCASIONS = ["Work", "Weekend", "Evening"] as const;
