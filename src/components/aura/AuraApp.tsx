@@ -308,14 +308,14 @@ function Inner() {
         {mountedTabs.has("ai") && (
           <div className={`absolute inset-0 ${screen === "ai" ? "" : "hidden"}`}>
             <ErrorBoundary onReset={() => go("home")}>
-              <AIStylist go={go} openBuilder={openBuilder} openAvatarTryOn={openAvatarTryOn} />
+              <AIStylist go={go} openBuilder={openBuilder} openAvatarTryOn={openAvatarTryOn} active={screen === "ai"} />
             </ErrorBoundary>
           </div>
         )}
         {mountedTabs.has("planner") && (
           <div className={`absolute inset-0 ${screen === "planner" ? "" : "hidden"}`}>
             <ErrorBoundary onReset={() => go("home")}>
-              <Planner go={go} openStylistChat={openStylistChat} openBuilder={openBuilder} openAvatarTryOn={openAvatarTryOn} focus={plannerFocus} />
+              <Planner go={go} openStylistChat={openStylistChat} openBuilder={openBuilder} openAvatarTryOn={openAvatarTryOn} focus={plannerFocus} active={screen === "planner"} />
             </ErrorBoundary>
           </div>
         )}
