@@ -9,7 +9,7 @@ import { isItemAllowedByDressPreferences, coversLegs, coversArms, coversShoulder
 import { isItemAtLocation } from "./wardrobe-location";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 import { detectActivityKind } from "./activity-kind";
-import { detectPlaceContext, isHardObligation, advisoryNoteFor, type DressRequirementType } from "./place-dress-code";
+import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
 const ItemSchema = z.object({
   id: z.string(),
   category: z.string().nullable().optional(),
@@ -315,6 +315,19 @@ export const stylistChat = createServerFn({ method: "POST" })
         return bits.length
           ? [`VENUE REQUIREMENT: the place mentioned in this conversation (${pc.category.replace(/_/g, " ")}) has its own access/etiquette requirement, regardless of any separate cultural preference the person has or hasn't set: ${bits.join("; ")}.`]
           : [];
+      })(),
+      ...(() => {
+        const text = data.messages.map((m) => m.content ?? "").join(" ");
+        const pc = detectPlaceContext(text);
+        if (!pc || !isHardObligation(pc.obligation)) return [];
+        const extra = nonEnforceableRequirementsOf(pc);
+        if (!extra.length) return [];
+        // Not something AURA can check against the wardrobe (no attribute for "has a head
+        // covering" or "removes for bare feet") — never enforced, but not silently dropped
+        // either. The model writes this itself, in the SAME language as the rest of its reply
+        // (it already knows that language from the conversation), rather than a fixed sentence
+        // in one language always getting appended regardless of who's asking.
+        return [`This place may also require: ${extra.join(", ").replace(/_/g, " ")}. Add ONE brief, honest sentence about this somewhere in your reply, phrased as "may also require" rather than certain, in the same language as the rest of your reply. Never imply the outfit itself satisfies this — AURA has no way to check it.`];
       })(),
       "WEDDING GUEST ETIQUETTE: if the user is attending a wedding as a guest (not the couple themselves), avoid recommending white, ivory or cream (reserved for the bride) and avoid an all-red look; avoid all-black unless it's explicitly an evening wedding. This is a social norm, not a hard rule like the dressing rules above — but treat it seriously.",
       "KEEP-THIS-PIECE REQUESTS: if the person explicitly says to keep a specific piece from your last suggestion (e.g. 'I want to use this dress but with a bolder accessory', 'keep the dress, change the shoes') — that piece's item_id is a HARD constraint for this turn, not a preference to weigh against other options. Re-read your own previous message to find the exact item_id for the piece they mean, and always include that exact item_id again in this reply's item_ids. Only change the category(ies) they actually asked to change; never swap out the piece they explicitly said to keep, even if a different piece would otherwise look better.",
@@ -657,14 +670,12 @@ export const stylistChat = createServerFn({ method: "POST" })
         }
       }
 
-      // A requirement this venue has that AURA has no wardrobe attribute to check (a head
-      // covering, removing shoes at the entrance, avoiding sheer fabric…) is never silently
-      // dropped — appended as a short note so the person still knows about it even though
-      // nothing about the outfit itself was picked to satisfy it.
-      const placeNote = placeContextIsHard ? advisoryNoteFor(placeContext!) : null;
+      // The advisory note (if this place has one) is now written by the model itself, as part of
+      // finalReply, in whatever language the conversation is already in — see the VENUE
+      // REQUIREMENT / "may also require" system-prompt lines above. Nothing to append here.
       return {
         ok: true as const,
-                reply: [(finalReply ?? "").slice(0, 1200), placeNote].filter(Boolean).join(" "),
+                reply: (finalReply ?? "").slice(0, 1200),
         item_ids: finalItemIds,
         choices: (parsed.choices ?? []).slice(0, 4),
         actions: data.feedbackContext === "liked" ? SAVE_ACTIONS : [],
