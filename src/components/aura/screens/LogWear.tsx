@@ -196,7 +196,29 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
       setResult(det);
 
       const initial: Record<string, Selection> = {};
-      for (const d of det.detections) {
+      // A single physical wardrobe item can legitimately be the right match for two DIFFERENT
+      // detections only when it's naturally worn as a pair from one entry (a pair of shoes, a
+      // pair of earrings each photographed once for the whole pair) — never for something meant
+      // to be one-of (a bracelet, a ring, a belt, a bag). Without this, two different bracelets in
+      // the photo could both get matched to the SAME single bracelet in the wardrobe, which is
+      // impossible to actually be true. Resolved by giving the item to whichever detection scored
+      // it higher, and letting the loser fall through to its own next-best (still-available)
+      // candidate instead — never silently duplicating one wardrobe item across two detections.
+      const NATURALLY_PAIRED_CATEGORIES = new Set(["Shoes"]);
+      const NATURALLY_PAIRED_SUBCATEGORIES = new Set(["Earrings"]);
+      const allowsSharedMatch = (wardrobeItemId: string): boolean => {
+        const item = wardrobe.find((w) => w.id === wardrobeItemId);
+        if (!item) return false;
+        return NATURALLY_PAIRED_CATEGORIES.has(item.category ?? "") || NATURALLY_PAIRED_SUBCATEGORIES.has(item.subcategory ?? "");
+      };
+      const claimedBy = new Map<string, string>(); // wardrobeItemId -> detectionId that has claimed it
+      // Highest-scoring detections get first pick of a contested item — process detections in the
+      // order of their own best candidate's score, not just the order they appear in the photo.
+      const detectionsByBestScore = [...det.detections].sort((a, b) => {
+        const bestOf = (id: string) => Math.max(0, ...(det.candidates as Candidate[]).filter((c) => c.detectionId === id).map((c) => c.matchScore));
+        return bestOf(b.detectionId) - bestOf(a.detectionId);
+      });
+      for (const d of detectionsByBestScore) {
         // Every positive-score candidate stays visible — see the note on
         // candidatesByDetection above for why a low score alone was
         // dropped as an exclusion signal. Only a "certain" (>=90%) match
@@ -206,11 +228,12 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
         const cands = (det.candidates as Candidate[])
           .filter((c) => c.detectionId === d.detectionId)
           .sort((a, b) => b.matchScore - a.matchScore);
-        const top = cands[0];
+        const top = cands.find((c) => allowsSharedMatch(c.wardrobeItemId) || !claimedBy.has(c.wardrobeItemId));
+        if (top && !allowsSharedMatch(top.wardrobeItemId)) claimedBy.set(top.wardrobeItemId, d.detectionId);
         if (top?.verdict === "certain") {
-          initial[d.detectionId] = { chosenItemId: top.wardrobeItemId, confirmed: true, candidateIndex: 0 };
+          initial[d.detectionId] = { chosenItemId: top.wardrobeItemId, confirmed: true, candidateIndex: cands.indexOf(top) };
         } else if (top) {
-          initial[d.detectionId] = { chosenItemId: top.wardrobeItemId, confirmed: false, candidateIndex: 0 };
+          initial[d.detectionId] = { chosenItemId: top.wardrobeItemId, confirmed: false, candidateIndex: cands.indexOf(top) };
         } else {
           initial[d.detectionId] = { chosenItemId: null, confirmed: false, candidateIndex: 0 };
         }
