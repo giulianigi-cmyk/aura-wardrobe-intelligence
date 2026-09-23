@@ -8,7 +8,7 @@ import { isItemAllowedByDressPreferences, hasAnyPreference, coversShoulders, cov
 import { anyItemViolatesWeather, violatesSleeveClimate, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
 import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
-import { detectPlaceContext, isHardObligation, advisoryNoteFor, type DressRequirementType } from "./place-dress-code";
+import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
 
 const ItemSchema = z.object({
   id: z.string(),
@@ -372,6 +372,19 @@ export async function suggestOutfitCore(params: {
       return bits.length
         ? [`If the occasion is a visit to this kind of place (${pc.category.replace(/_/g, " ")}): ${bits.join("; ")} — this is the venue's own access/etiquette requirement, not a statement about the traveler, and applies regardless of any separate cultural preference.`]
         : [];
+    })(),
+    ...(() => {
+      const pc = detectPlaceContext(params.occasion);
+      if (!pc || !isHardObligation(pc.obligation)) return [];
+      const extra = nonEnforceableRequirementsOf(pc);
+      if (!extra.length) return [];
+      // These aren't things AURA can verify against the wardrobe (no attribute for "has a head
+      // covering" or "removes for bare feet"), so they're never enforced — but they shouldn't be
+      // silently dropped either. Handing the model the list (plain English, for its own
+      // understanding) and asking IT to mention them is better than a fixed sentence appended
+      // after the fact: the note comes out in whatever language the explanation itself is already
+      // written in, instead of always Italian regardless of who's asking.
+      return [`This place may also require: ${extra.join(", ").replace(/_/g, " ")}. Add ONE brief, honest sentence about this to your explanation, phrased as "may also require" rather than certain, in the same language as the rest of your explanation — AURA has no way to check these against the wardrobe, so never imply the outfit satisfies them.`];
     })(),
     BLAZER_WARMTH_PROMPT_RULE,
     BELT_BODYCON_PROMPT_RULE,
