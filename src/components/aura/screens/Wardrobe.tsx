@@ -6,7 +6,7 @@ import { isShoeCategory, sizeEquivalences } from "@/lib/size-conversion";
 import { MaterialCombobox } from "@/components/aura/MaterialCombobox";
 import { AddSourceSheet } from "@/components/aura/AddSourceSheet";
 
-import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles } from "lucide-react";
+import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { migrateLegacyTaxonomy } from "@/lib/migrate-legacy-taxonomy.functions";
@@ -97,6 +97,12 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
   const [cat, setCat] = useState("All");
   const [q, setQ] = useState("");
   const [seasonOnly, setSeasonOnly] = useState(true);
+  // The funnel icon next to search used to be purely decorative — tapping it did nothing, which is
+  // what "sorting doesn't work" turned out to mean: there was no sort control to fail, just an icon
+  // that looked like one. It now opens this sheet.
+  type SortKey = "default" | "date_desc" | "date_asc" | "worn_desc" | "worn_asc" | "alpha_asc" | "alpha_desc" | "price_desc" | "price_asc";
+  const [sortBy, setSortBy] = useState<SortKey>("default");
+  const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [locations, setLocations] = useState<WardrobeLocation[]>([]);
   const [viewLocationId, setViewLocationId] = useState<string | "all">("all");
@@ -121,6 +127,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
   const [savingEdit, setSavingEdit] = useState(false);
   const [removingBg, setRemovingBg] = useState(false);
   const [adjustingCrop, setAdjustingCrop] = useState(false);
+  const [tidying, setTidying] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const migrateLegacy = useServerFn(migrateLegacyTaxonomy);
   const fetchLocations = useServerFn(listLocations);
@@ -451,6 +458,56 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
     }
   };
 
+  const tidyAllPhotos = async () => {
+    if (!user || tidying) return;
+    const toastId = "tidy-photos";
+    setTidying(true);
+    let changed = 0, checked = 0, failed = 0;
+    try {
+      toast.loading(t("wardrobe.toastCheckingPhotos"), { id: toastId });
+      for (const it of items) {
+        const path = toStoragePath(it.image_url);
+        const src = path ? signed[path] : "";
+        if (!src) continue;
+        checked++;
+        try {
+          const result = await trimWhiteMargins(src);
+          if (result.changed) {
+            const blob = await (await fetch(result.dataUrl)).blob();
+            const newPath = `${user.id}/item-${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
+            const { error: upErr } = await supabase.storage.from("wardrobe").upload(newPath, blob, {
+              cacheControl: "3600", upsert: false, contentType: "image/png",
+            });
+            if (upErr) throw upErr;
+            const { error: updErr } = await supabase
+              .from("wardrobe_items").update({ image_url: newPath }).eq("id", it.id);
+            if (updErr) throw updErr;
+            changed++;
+          }
+        } catch (e) {
+          console.error("[AURA wardrobe] tidy failed for item", it.id, e);
+          failed++;
+        }
+        if (checked % 5 === 0 || checked === items.length) {
+          toast.loading(t("wardrobe.toastCheckingPhotosProgress", { checked, total: items.length }), { id: toastId });
+        }
+      }
+
+      if (changed > 0) {
+        const { data } = await supabase.from("wardrobe_items")
+          .select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+        setItems((data ?? []) as WardrobeItem[]);
+      }
+      const failNote = failed ? ` · ${t("wardrobe.toastSkippedCount", { count: failed })}` : "";
+      toast.success(
+        changed > 0 ? `${t("wardrobe.toastPhotosTidied", { count: changed })}${failNote}` : `${t("wardrobe.toastAllPhotosTight")}${failNote}`,
+        { id: toastId },
+      );
+    } finally {
+      setTidying(false);
+    }
+  };
+
   const deleteItem = async () => {
     if (!detail) return;
     setDeleting(true);
@@ -745,7 +802,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
         return !(i as unknown as { purchase_date?: string | null }).purchase_date;
       });
     }
-    return items.filter(i => {
+    const base = items.filter(i => {
       const isArchived = Boolean((i as unknown as { archived?: boolean }).archived);
       const isLoaned = Boolean((i as unknown as { active_loan_id?: string | null }).active_loan_id);
       if (showLoaned) return isLoaned;
@@ -758,7 +815,30 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
         (q === "" || [i.category, i.brand, i.color, i.style, i.occasion, i.season, ...(i.colors ?? [])]
           .some(v => v?.toLowerCase().includes(q.toLowerCase())));
     });
-  }, [items, cat, q, seasonOnly, seasonMatches, showArchived, showLoaned, viewLocationId, gapFilter]);
+    if (sortBy === "default") return base;
+    // A missing value (no purchase date, no price) always sorts to the end regardless of
+    // direction — an unknown value is never "the oldest" or "the cheapest", it's just unknown.
+    const purchaseDateOf = (i: WardrobeItem) => (i as unknown as { purchase_date?: string | null }).purchase_date ?? null;
+    const nameOf = (i: WardrobeItem) => (i.brand ?? i.category ?? "").toLowerCase();
+    const withMissingLast = <T,>(get: (i: WardrobeItem) => T | null, dir: 1 | -1) => (a: WardrobeItem, b: WardrobeItem) => {
+      const av = get(a), bv = get(b);
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      return av < bv ? -dir : av > bv ? dir : 0;
+    };
+    const sorters: Record<Exclude<SortKey, "default">, (a: WardrobeItem, b: WardrobeItem) => number> = {
+      date_desc: withMissingLast(purchaseDateOf, 1),
+      date_asc: withMissingLast(purchaseDateOf, -1),
+      worn_desc: withMissingLast((i) => i.worn_count ?? 0, 1),
+      worn_asc: withMissingLast((i) => i.worn_count ?? 0, -1),
+      alpha_asc: withMissingLast(nameOf, -1),
+      alpha_desc: withMissingLast(nameOf, 1),
+      price_desc: withMissingLast((i) => i.price, 1),
+      price_asc: withMissingLast((i) => i.price, -1),
+    };
+    return [...base].sort(sorters[sortBy]);
+  }, [items, cat, q, seasonOnly, seasonMatches, showArchived, showLoaned, viewLocationId, gapFilter, sortBy]);
 
   const w = weather?.current;
   const wLabel = w ? describeWeather(w.weatherCode, w.isDay) : null;
@@ -823,6 +903,16 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
         </div>
       )}
 
+      <div className="px-6 -mt-1 flex justify-end">
+        <button
+          onClick={() => void tidyAllPhotos()}
+          disabled={tidying || items.length === 0}
+          className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground disabled:opacity-40"
+        >
+          {tidying ? <Loader2 size={11} className="animate-spin" /> : "🔲"} {t("wardrobe.tidyAllPhotos")}
+        </button>
+      </div>
+
       <AddSourceSheet
         open={addSheetOpen}
         onClose={() => setAddSheetOpen(false)}
@@ -864,7 +954,14 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
           placeholder={t("wardrobe.searchPlaceholder")}
           className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground outline-none"
         />
-        <Filter size={15} className="text-muted-foreground" />
+        <button
+          onClick={() => setSortSheetOpen(true)}
+          aria-label={t("wardrobe.sortAria")}
+          className="relative shrink-0"
+        >
+          <Filter size={15} className={sortBy !== "default" ? "text-foreground" : "text-muted-foreground"} />
+          {sortBy !== "default" && <span className="absolute -top-1 -right-1 h-1.5 w-1.5 rounded-full bg-foreground" />}
+        </button>
       </div>
 
       <div className="mt-5 flex gap-2 overflow-x-auto no-scrollbar px-6">
@@ -1711,6 +1808,36 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
             disabled={selectedIds.size === 0}
             className="h-9 px-4 rounded-full bg-background text-foreground text-[10px] uppercase tracking-[0.25em] disabled:opacity-50"
           >{t("wardrobe.moveToButton")}</button>
+        </div>
+      )}
+
+      {sortSheetOpen && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => setSortSheetOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full bg-card rounded-t-3xl border-t border-border p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] space-y-1">
+            <p className="font-serif italic text-lg mb-2">{t("wardrobe.sortSheetTitle")}</p>
+            {([
+              ["default", t("wardrobe.sortDefault")],
+              ["date_desc", t("wardrobe.sortDateDesc")],
+              ["date_asc", t("wardrobe.sortDateAsc")],
+              ["worn_desc", t("wardrobe.sortWornDesc")],
+              ["worn_asc", t("wardrobe.sortWornAsc")],
+              ["alpha_asc", t("wardrobe.sortAlphaAsc")],
+              ["alpha_desc", t("wardrobe.sortAlphaDesc")],
+              ["price_desc", t("wardrobe.sortPriceDesc")],
+              ["price_asc", t("wardrobe.sortPriceAsc")],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => { setSortBy(key); setSortSheetOpen(false); }}
+                className={`w-full flex items-center justify-between rounded-2xl px-4 py-3 text-sm text-left active:scale-[0.99] transition ${
+                  sortBy === key ? "bg-foreground text-background" : "bg-secondary/40"
+                }`}
+              >
+                <span>{label}</span>
+                {sortBy === key && <Check size={14} />}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
