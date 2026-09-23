@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Images, Plus } from "lucide-react";
+import { Camera, Images, Plus } from "lucide-react";
 
-export type AddSourceChoice = "add" | "batch-scan";
+export type AddSourceChoice = "add" | "batch-scan" | "outfit-scan";
 
 /**
- * Unified entry point for adding pieces to the closet.
- * "Scan one outfit" (outfit-scan) used to live here as a second-level
- * option, but it sat confusingly between the two multi-photo choices
- * and its own flow didn't lead anywhere reliable — removed rather than
- * fixed in place, since a single flat choice between "one piece" and
- * "many at once" is clearer than a two-level menu for two options.
+ * Unified entry point for adding pieces to the closet: one piece with full
+ * detail, a batch of up to 150 photos processed in the background, or one
+ * photo of a full outfit with several pieces detected together and
+ * reviewed right away. Kept as three flat, clearly-labelled choices
+ * (icon + one-line hint each) rather than folding the outfit-photo option
+ * into batch scan — the two solve different moments (building up the
+ * wardrobe over time in the background vs. capturing what's on right now
+ * and reviewing it immediately) and merging them would make one of the
+ * two worse at its own job.
  */
 export function AddSourceSheet({
   open,
@@ -77,6 +80,16 @@ export function AddSourceSheet({
           <div>
             <p className="text-sm font-medium">{t("addSourceSheet.batchScanPhotos")}</p>
             <p className="text-xs text-muted-foreground">{t("addSourceSheet.batchScanPhotosHint")}</p>
+          </div>
+        </button>
+        <button
+          onClick={() => onChoose("outfit-scan")}
+          className="w-full flex items-center gap-3 rounded-2xl border border-border p-4 text-left active:scale-[0.98] transition"
+        >
+          <Camera size={18} />
+          <div>
+            <p className="text-sm font-medium">{t("addSourceSheet.scanOneOutfit")}</p>
+            <p className="text-xs text-muted-foreground">{t("addSourceSheet.scanOneOutfitHint")}</p>
           </div>
         </button>
       </div>
