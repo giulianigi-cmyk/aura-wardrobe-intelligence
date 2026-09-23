@@ -294,7 +294,7 @@ function Inner() {
         {mountedTabs.has("home") && (
           <div className={`absolute inset-0 ${screen === "home" ? "" : "hidden"}`}>
             <ErrorBoundary onReset={() => go("home")}>
-              <Home go={go} openAvatarTryOn={openAvatarTryOn} openBuilder={openBuilder} />
+              <Home go={go} openAvatarTryOn={openAvatarTryOn} openBuilder={openBuilder} active={screen === "home"} />
             </ErrorBoundary>
           </div>
         )}
