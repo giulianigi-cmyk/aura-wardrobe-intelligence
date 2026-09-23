@@ -244,9 +244,13 @@ export function detectPlaceContext(label: string | null | undefined): PlaceProfi
  *  schema has no attribute to check (a head covering, removing shoes, avoiding transparency…).
  *  Returned so the outfit's own explanation can mention it rather than silently dropping it —
  *  never enforced, since AURA has nothing to verify it against. Null when every requirement of
- *  this profile is already enforced in code (nothing left worth a separate note). */
+ *  this profile is already enforced in code (nothing left worth a separate note). Fixed Italian
+ *  text — callers that generate their own reply text (the AI-written explanation/chat reply)
+ *  should prefer nonEnforceableRequirementsOf below instead, and have the model phrase the note
+ *  itself in whatever language it's already answering in, rather than always Italian.
+ */
 export function advisoryNoteFor(profile: PlaceProfile): string | null {
-  const advisory = profile.requirements.filter((r) => !ENFORCEABLE_REQUIREMENTS.has(r));
+  const advisory = nonEnforceableRequirementsOf(profile);
   if (!advisory.length) return null;
   const LABELS: Partial<Record<DressRequirementType, string>> = {
     cover_head: "copricapo",
@@ -261,4 +265,13 @@ export function advisoryNoteFor(profile: PlaceProfile): string | null {
   const parts = advisory.map((r) => LABELS[r]).filter((x): x is string => Boolean(x));
   if (!parts.length) return null;
   return `Questo luogo può richiedere anche: ${parts.join(", ")}.`;
+}
+
+/** The subset of this profile's requirements that AURA has no wardrobe attribute to check —
+ *  same filtering advisoryNoteFor uses internally, exposed as a plain list (not pre-formatted
+ *  Italian text) so a caller that has an AI model writing the outfit's own explanation/reply can
+ *  hand it the list and have IT phrase the note, in whichever language that reply is already in,
+ *  rather than always appending a fixed Italian sentence after the fact. */
+export function nonEnforceableRequirementsOf(profile: PlaceProfile): DressRequirementType[] {
+  return profile.requirements.filter((r) => !ENFORCEABLE_REQUIREMENTS.has(r));
 }
