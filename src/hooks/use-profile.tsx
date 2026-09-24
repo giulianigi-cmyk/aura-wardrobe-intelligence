@@ -81,11 +81,16 @@ export const profileQueryKey = (userId: string | undefined) => ["profile", userI
 
 async function fetchOrCreateProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
-  if (error) console.error("profile load", error);
   if (data) return data as unknown as Profile;
-  // First-ever load for this user: no row yet, create one.
-  const { data: created } = await supabase.from("profiles").insert({ id: userId }).select("*").maybeSingle();
-  return created as unknown as Profile | null;
+  // First-ever load for this user: no row yet, create one. Both calls' errors are now surfaced
+  // (thrown, not swallowed) — this used to catch neither: a failed insert silently resolved to
+  // `null`, cached as if it were a genuine "no profile" state, with nothing in the console or any
+  // way for the person to know their signup never actually got a profile row. A new sign-up who
+  // never reaches Home/profile-setup after registering is exactly the failure mode this produces.
+  const { data: created, error: insertError } = await supabase.from("profiles").insert({ id: userId }).select("*").maybeSingle();
+  if (created) return created as unknown as Profile;
+  console.error("[AURA use-profile] could not load or create profile row", { selectError: error, insertError });
+  throw insertError ?? error ?? new Error("Could not load or create profile");
 }
 
 export function useProfile() {
