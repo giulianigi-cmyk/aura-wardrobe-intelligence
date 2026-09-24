@@ -146,8 +146,11 @@ function realScale(it: LayoutInput): number {
   if (!ref || cm == null) return 1;
   // Bags: a clutch is smaller than a tote, but only SOFTLY so (a real 24 cm crossbody is not
   // 20% smaller than a 30 cm shoulder bag on a flat-lay board) — they used to come out too small.
-  const ratio = it.bucket === "bag" ? Math.pow(cm / ref.cm, 0.4) : cm / ref.cm;
-  return Math.min(ref.max, Math.max(ref.min, ratio));
+  const ratio = it.bucket === "bag"
+  ? Math.pow(cm / ref.cm, 0.4) * 0.90
+  : cm / ref.cm;
+
+return Math.min(ref.max, Math.max(ref.min, ratio));
 }
 
 export function bucketOf(category: string | null, subcategory?: string | null): Bucket {
