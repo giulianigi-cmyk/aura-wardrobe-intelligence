@@ -146,11 +146,9 @@ function realScale(it: LayoutInput): number {
   if (!ref || cm == null) return 1;
   // Bags: a clutch is smaller than a tote, but only SOFTLY so (a real 24 cm crossbody is not
   // 20% smaller than a 30 cm shoulder bag on a flat-lay board) — they used to come out too small.
-  const ratio = it.bucket === "bag"
-  ? Math.pow(cm / ref.cm, 0.4) * 0.90
-  : cm / ref.cm;
-
+  const ratio = it.bucket === "bag" ? Math.pow(cm / ref.cm, 0.4) : cm / ref.cm;
 return Math.min(ref.max, Math.max(ref.min, ratio));
+
 }
 
 export function bucketOf(category: string | null, subcategory?: string | null): Bucket {
@@ -205,8 +203,14 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
     // the width cap stays put so wide pieces can't overflow. Bags and shoes: the real
     // WIDTH is what matters, so both caps follow it.
     const byLength = it.bucket === "top" || it.bucket === "bottom" || it.bucket === "dress" || it.bucket === "outer";
-    const w = Math.min(box.w * W * shrink * (byLength ? 1 : f), (box.h * H * shrink * f) / aspect);
-    return { w, h: w * aspect };
+    const visualK = it.bucket === "bag" ? 0.90 : 1;
+
+const w = Math.min(
+  box.w * W * shrink * (byLength ? 1 : f),
+  (box.h * H * shrink * f) / aspect
+) * visualK;
+
+return { w, h: w * aspect };
   };
 
   /** Places all items of one slot around (cx, cy), fanned along `axis`,
