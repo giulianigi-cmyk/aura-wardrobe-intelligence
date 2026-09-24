@@ -211,12 +211,20 @@ export async function suggestOutfitCore(params: {
   // rather than an actual mismatch. "None" and "Uniform" apply no
   // constraint at all — a specified uniform makes formality irrelevant,
   // and "None" means the person hasn't set a floor/ceiling.
+  // A dress code's formality "band" is an approximate AI-estimated number, not a precise
+  // measurement — treating it as a narrow exact range (the old bands were only 1-2 points wide)
+  // meant a perfectly reasonable Smart Casual shoe or bag got hard-excluded for sitting one point
+  // off, sometimes leaving almost nothing eligible in a whole category (a wardrobe with sneakers
+  // at formality 2 and everything else at 1 or 4 ends up with literally only sneakers surviving
+  // for "Smart Casual"). Widened so adjacent tiers genuinely overlap, the way real dress codes do
+  // — this still excludes a true opposite-end mismatch (gala wear for a Casual office, a plain
+  // t-shirt for Business Formal), just not anything merely one notch off the ideal.
   const WORK_DRESS_CODE_FORMALITY_RANGE: Record<string, [number, number] | null> = {
     "None": null,
-    "Casual": [1, 2],
-    "Smart Casual": [2, 3],
-    "Business Casual": [3, 4],
-    "Business Formal": [4, 5],
+    "Casual": [1, 3],
+    "Smart Casual": [1, 4],
+    "Business Casual": [2, 5],
+    "Business Formal": [3, 5],
     "Uniform": null,
   };
   if (isWorkOccasionForPrefs && prefsRowTyped?.work_dress_code) {
@@ -774,17 +782,20 @@ export async function suggestOutfitCore(params: {
     // step had just removed for a 29°C day, simply because they were the first pair of shoes in the catalog.
         // Which piece gets appended matters as much as adding one: not "the first in the list" but the one
     // closest in formality to what the look already contains. STRICT pool first (passes every hard
-    // rule, occasion tag included); if that pool is empty — a woman whose only bag is tagged "Travel",
-    // say — falls back to a RELAXED pool (weather and the caller's hard exclusions still apply, the
-    // occasion-tag/beach-bag/embellished/Work checks don't) rather than adding nothing at all. This is
-    // the same strict-then-relaxed pattern ensureBag/ensureShoes already use in
-    // suggest-daily-looks.functions.ts — without it here, a bag or a pair of shoes could go missing
-    // from every single Work/Evening look whenever the wardrobe's only options were tagged for another
-    // occasion, which read as "AURA stopped adding bags/shoes" even though nothing was ever failing.
+    // rule); if that pool is empty, falls back to a RELAXED pool — but only for the rules that are
+    // genuinely about styling fit (the Work bare-shoulder/mini/shorts check, an embellished piece on
+    // the wrong day), never for the ones that mean "this piece is not this outfit's, full stop": a
+    // bag literally tagged only for Travel, or a straw bag out of season, still can't be used for a
+    // Work look even as a last resort — those two stay enforced in the relaxed pool too. If nothing
+    // passes even relaxed, no piece is force-added: an outfit missing a bag is more honest than one
+    // wearing the wrong one. This mirrors the strict-then-relaxed pattern ensureBag/ensureShoes use in
+    // suggest-daily-looks.functions.ts, corrected to never relax away an identity-level mismatch.
     const pickBest = (category: string, extra: (c: (typeof catalog)[number]) => boolean = () => true) => {
       const notUsed = (c: (typeof catalog)[number]) => !item_ids.includes(c.id) && !hardExcluded.has(c.id) && extra(c);
       const strict = catalog.filter((c) => c.category === category && notUsed(c) && usableAddition(c));
-      const relaxed = catalog.filter((c) => c.category === category && notUsed(c) && !violatesWeather([c.id]));
+      const relaxed = catalog.filter((c) =>
+        c.category === category && notUsed(c) && !violatesWeather([c.id])
+        && !violatesOccasionTag([c.id]) && !violatesBeachBag([c.id]));
       const pool = strict.length ? strict : relaxed;
       if (!pool.length) return null;
       const fs = item_ids.map((id) => catalog.find((c) => c.id === id)?.formality).filter((f): f is number => typeof f === "number");
