@@ -9,7 +9,7 @@ import { anyItemViolatesWeather, violatesSleeveClimate, BLAZER_WARMTH_PROMPT_RUL
 import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
 import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
-import { explanationLanguageInstruction } from "./language-prompt";
+import { explanationLanguageInstruction } from "./language_prompt";
 
 const ItemSchema = z.object({
   id: z.string(),
