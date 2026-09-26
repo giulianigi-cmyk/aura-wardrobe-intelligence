@@ -9,6 +9,7 @@ import { anyItemViolatesWeather, violatesSleeveClimate, BLAZER_WARMTH_PROMPT_RUL
 import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
 import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
+import { explanationLanguageInstruction } from "./language-prompt";
 
 const ItemSchema = z.object({
   id: z.string(),
@@ -133,6 +134,14 @@ export async function suggestOutfitCore(params: {
    * easy-to-miss aside.
    */
   relativeWarmthHint?: string | null;
+
+  /**
+   * The app's own selected language (profiles.language — "it" | "en" | "es" | "fr"), so the
+   * "explanation" this function writes comes out in the language the person actually uses the app
+   * in, not always English. Unlike stylist-chat.functions.ts, there's no conversation here to
+   * infer a language from — this has to be looked up and passed in explicitly by the caller.
+   */
+  language?: string | null;
 
   /**
    * The actual calendar date this outfit is FOR, as YYYY-MM-DD — not the date the request is made.
@@ -329,8 +338,10 @@ export async function suggestOutfitCore(params: {
     console.error("[AURA suggest-outfit] style memory read failed, continuing without it", e);
   }
 
+  const languageLine = explanationLanguageInstruction(params.language);
   const system = [
     ...(params.dressRules ? [params.dressRules, ""] : []),
+    ...(languageLine ? [languageLine] : []),
     "You are a personal stylist. Compose ONE coherent outfit from the user's wardrobe.",
     "Pick 3-5 items that work together (typically 1 top + 1 bottom OR 1 dress, + 1 shoes, optionally 1 outerwear and 1 accessory/bag).",
     ...(genderLine ? [genderLine] : []),
@@ -849,8 +860,8 @@ export const suggestOutfitAI = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { data: profileRow } = await (context.supabase.from("profiles" as never) as any)
-      .select("gender, style_boldness").eq("id", context.userId).maybeSingle();
-    const profile = profileRow as { gender?: string | null; style_boldness?: string | null } | null;
+      .select("gender, style_boldness, language").eq("id", context.userId).maybeSingle();
+    const profile = profileRow as { gender?: string | null; style_boldness?: string | null; language?: string | null } | null;
 
     return suggestOutfitCore({
       supabase: context.supabase,
@@ -861,6 +872,7 @@ export const suggestOutfitAI = createServerFn({ method: "POST" })
       dressRules: data.dressRules ?? null,
       gender: profile?.gender ?? null,
       styleBoldness: profile?.style_boldness ?? null,
+      language: profile?.language ?? null,
       mustIncludeItemId: data.mustIncludeItemId ?? null,
       items: data.items,
       avoidItemIds: data.avoidItemIds,
