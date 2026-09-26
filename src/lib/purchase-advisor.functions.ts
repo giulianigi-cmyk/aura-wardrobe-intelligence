@@ -174,6 +174,21 @@ function countPairings(category: string, colors: string[], wardrobe: WardrobeIte
 }
 
 const LANGUAGE_NAMES: Record<string, string> = { it: "Italian", en: "English", es: "Spanish", fr: "French" };
+
+/** Cuts `text` to at most `max` characters without breaking mid-word or mid-sentence when it can
+ *  be avoided — the previous plain `.slice(0, 300)` produced things like "...il prezzo di" trailing
+ *  into nothing. Prefers the last sentence-ending punctuation before the limit; falls back to the
+ *  last whole word; only hard-cuts if neither exists (an unbroken 300-character word). */
+function truncateAtBoundary(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const slice = text.slice(0, max);
+  const lastSentenceEnd = Math.max(slice.lastIndexOf(". "), slice.lastIndexOf("! "), slice.lastIndexOf("? "));
+  if (lastSentenceEnd > max * 0.4) return slice.slice(0, lastSentenceEnd + 1);
+  const lastSpace = slice.lastIndexOf(" ");
+  if (lastSpace > max * 0.4) return slice.slice(0, lastSpace).trimEnd() + "…";
+  return slice.trimEnd() + "…";
+}
+
 const FALLBACK_REASON: Record<string, string> = {
   it: "Impossibile generare la spiegazione completa, ma l'analisi del guardaroba è comunque completa.",
   en: "Couldn't generate the full explanation, but the wardrobe analysis is complete.",
@@ -382,6 +397,7 @@ export const analyzePurchase = createServerFn({ method: "POST" })
     const langName = LANGUAGE_NAMES[profile?.language ?? "en"] ?? "English";
     const system = [
       "You write a short, natural 1-2 sentence explanation for a wardrobe purchase decision that has ALREADY been made. You do not choose or change the verdict — only explain it, using ONLY the facts listed below. Never invent facts, prices, qualities, or wardrobe details not listed. Never soften, contradict, or second-guess the decision.",
+      "Keep it under 280 characters — that's the hard limit this app enforces, so a longer reason gets cut off mid-sentence rather than shown in full. Say less, not more, if there isn't room to finish a thought.",
       `Respond in ${langName}.`,
       `Decision already made: ${verdict.toUpperCase()}.`,
       "Facts:",
@@ -404,7 +420,11 @@ export const analyzePurchase = createServerFn({ method: "POST" })
     try {
       const r1 = await generateText({ model, system, messages: [{ role: "user", content: "Write the reason." }] });
       const parsed = parseAiJson(r1.text, z.object({ reason: z.string() }));
-      reason = parsed.reason.slice(0, 300);
+      // The prompt now asks to stay under 280 chars, so this should rarely fire — but if the model
+      // overruns anyway, cut at the last full sentence/word instead of mid-phrase (this is what
+      // produced "...il prezzo di" trailing into nothing before): a shorter, complete thought reads
+      // as honest; a hard mid-word cut reads as broken.
+      reason = truncateAtBoundary(parsed.reason, 300);
     } catch (e) {
       console.error("[AURA purchase-advisor] reason generation failed", e);
       reason = FALLBACK_REASON[profile?.language ?? "en"] ?? FALLBACK_REASON.en;
