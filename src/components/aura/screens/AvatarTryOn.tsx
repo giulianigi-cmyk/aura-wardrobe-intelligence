@@ -69,7 +69,8 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
         .select("id, category, subcategory, image_url")
         .eq("user_id", user.id)
         .eq("archived", false);
-      const items = (data ?? []) as WardrobeItem[];
+      // Loaned out = not physically available to try on right now.
+      const items = ((data ?? []) as WardrobeItem[]).filter((it) => !(it as unknown as { active_loan_id?: string | null }).active_loan_id);
       setWardrobe(items);
       setWardrobeUrls(await resolveWardrobeUrls(items as never));
       setLoadingWardrobe(false);
