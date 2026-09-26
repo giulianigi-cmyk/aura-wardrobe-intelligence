@@ -37,7 +37,7 @@ type Detection = {
 };
 
 const StartInput = z.object({
-  photoDataUrl: z.string().min(20),
+  photoDataUrl: z.string().min(20).max(15_000_000),
   photoHash: z.string().min(10),
 });
 
@@ -116,11 +116,21 @@ export const startOutfitPhotoDetection = createServerFn({ method: "POST" })
     // AFTER confirmation, per the Phase 2 design; deleting it here would
     // leave nothing to show while the person is still deciding.
     const photoPath = `${context.userId}/wear-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
-    const base64 = data.photoDataUrl.split(",")[1] ?? "";
-    const buffer = Buffer.from(base64, "base64");
+    const photoMatch = data.photoDataUrl.match(/^data:image\/(jpeg|jpg|png|webp);base64,(.+)$/);
+    if (!photoMatch) return { ok: false as const, error: "Unsupported photo format." };
+    const buffer = Buffer.from(photoMatch[2], "base64");
+    const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+    if (buffer.length === 0 || buffer.length > MAX_PHOTO_BYTES) {
+      return { ok: false as const, error: "Photo is too large (max 10 MB)." };
+    }
+    const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    const isPng = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+    const isWebp = buffer.subarray(0, 4).toString("ascii") === "RIFF" && buffer.subarray(8, 12).toString("ascii") === "WEBP";
+    if (!isJpeg && !isPng && !isWebp) return { ok: false as const, error: "Unsupported photo format." };
+    const photoContentType = isJpeg ? "image/jpeg" : isPng ? "image/png" : "image/webp";
     const { error: uploadErr } = await supabaseAdmin.storage
       .from("outfit-photos")
-      .upload(photoPath, buffer, { contentType: "image/jpeg", upsert: false });
+      .upload(photoPath, buffer, { contentType: photoContentType, upsert: false });
     if (uploadErr) return { ok: false as const, error: `Could not save photo: ${uploadErr.message}` };
 
     const { data: row, error: insertErr } = await (supabaseAdmin.from("outfit_photo_detections" as never) as any)
