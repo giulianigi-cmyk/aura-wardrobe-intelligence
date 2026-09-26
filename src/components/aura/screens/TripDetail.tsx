@@ -181,7 +181,9 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
             .from("wardrobe_items").select("*").eq("user_id", user.id).eq("archived", false)
             .order("created_at", { ascending: false });
           if (!error) {
-            const list = (wItems ?? []) as WardrobeItem[];
+            // Loaned out = not physically available to pack or wear on this trip, same reasoning
+            // as archived just above.
+            const list = ((wItems ?? []) as WardrobeItem[]).filter((it) => !(it as unknown as { active_loan_id?: string | null }).active_loan_id);
             setWardrobeItems(list);
             setWardrobeSigned(await resolveWardrobeUrls(list));
           }
@@ -474,7 +476,8 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
         .from("wardrobe_items").select("*").eq("user_id", user.id).eq("archived", false)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      const list = (data ?? []) as WardrobeItem[];
+      // Loaned out = not physically available to pack or wear on this trip.
+      const list = ((data ?? []) as WardrobeItem[]).filter((it) => !(it as unknown as { active_loan_id?: string | null }).active_loan_id);
       setWardrobeItems(list);
       setWardrobeSigned(await resolveWardrobeUrls(list));
     } catch (e) {
