@@ -128,7 +128,8 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
     void (async () => {
       const { data } = await (supabase.from("wardrobe_items" as never) as any)
         .select("*").eq("user_id", user.id).eq("archived", false);
-      const items = (data ?? []) as WardrobeItem[];
+      // Loaned out = can't be what's actually being worn in the photo right now.
+      const items = ((data ?? []) as WardrobeItem[]).filter((it) => !(it as unknown as { active_loan_id?: string | null }).active_loan_id);
       setWardrobe(items);
       setWardrobeUrls(await resolveWardrobeUrls(items));
     })();
