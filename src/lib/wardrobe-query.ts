@@ -59,12 +59,17 @@ export function useWardrobeItems() {
 
 /** Convenience wrapper for the common case — Home's count, AIStylist's
  *  and Planner's suggestion pool, anything that should never include a
- *  sold/donated/archived piece. Reads from the same cache as
- *  useWardrobeItems (no second fetch), just filters the result. */
+ *  sold/donated/archived piece, or one currently out on loan to someone
+ *  else (physically not in the wardrobe right now, same reasoning as
+ *  archived). Reads from the same cache as useWardrobeItems (no second
+ *  fetch), just filters the result. */
 export function useActiveWardrobeItems() {
   const query = useWardrobeItems();
   const items = useMemo(
-    () => (query.data ?? []).filter((it) => !(it as unknown as { archived?: boolean }).archived),
+    () => (query.data ?? []).filter((it) => {
+      const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null };
+      return !raw.archived && !raw.active_loan_id;
+    }),
     [query.data],
   );
   return { ...query, data: items };
