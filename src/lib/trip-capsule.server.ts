@@ -1027,15 +1027,15 @@ export async function generateTripCapsuleCore({ data, context }: {
 
     const [{ data: profileRow }, { data: sourceLocRows }, { data: activityRows }, { data: existingPlans }, { data: itemsRaw }, { data: capsuleRows }] =
       await Promise.all([
-        (supabase.from("profiles" as never) as any).select("dress_preferences, gender, style_boldness").eq("id", userId).maybeSingle(),
+        (supabase.from("profiles" as never) as any).select("dress_preferences, gender, style_boldness, language").eq("id", userId).maybeSingle(),
         (supabase.from("trip_source_locations" as never) as any).select("location_id").eq("trip_id", data.tripId),
         (supabase.from("trip_day_activities" as never) as any).select("*").eq("trip_id", data.tripId).order("activity_date"),
         (supabase.from("outfit_plans" as never) as any).select("trip_activity_id, item_ids").eq("trip_id", data.tripId),
-        supabase.from("wardrobe_items").select("*").eq("user_id", userId).eq("archived", false),
+        supabase.from("wardrobe_items").select("*").eq("user_id", userId),
         (supabase.from("trip_capsule_items" as never) as any).select("wardrobe_item_id, removed_by_user").eq("trip_id", data.tripId),
       ]);
 
-    const profile = profileRow as { dress_preferences?: DressPreferences; gender?: string | null; style_boldness?: string | null } | null;
+    const profile = profileRow as { dress_preferences?: DressPreferences; gender?: string | null; style_boldness?: string | null; language?: string | null } | null;
     const dressRules = dressPreferencesToPrompt(profile?.dress_preferences ?? null);
     const sourceLocationIds = ((sourceLocRows ?? []) as { location_id: string }[]).map((r) => r.location_id);
 
@@ -1220,7 +1220,11 @@ export async function generateTripCapsuleCore({ data, context }: {
     // runs — Level 0/1 of the hierarchy. Items missing formality or
     // day_evening are excluded rather than defaulted: per the roadmap
     // doc, "dato mancante → non si assume mai un valore arbitrario". ---
-    const allItems = (itemsRaw ?? []) as any[];
+    // Archived and loaned-out filtered here in JS, not with `.eq("archived", false)` in the query
+    // above: a legacy row with archived left NULL (never explicitly touched) fails `= false` in SQL
+    // and would have been silently excluded from every trip capsule, even though it isn't actually
+    // archived. `!it.archived` correctly treats null/undefined the same as false.
+    const allItems = ((itemsRaw ?? []) as any[]).filter((it) => !it.archived && !it.active_loan_id);
     const locationFiltered = sourceLocationIds.length
       ? allItems.filter((it) => it.location_id == null || sourceLocationIds.includes(it.location_id))
       : allItems;
@@ -1493,6 +1497,7 @@ export async function generateTripCapsuleCore({ data, context }: {
         dressRules,
         gender: profile?.gender ?? null,
         styleBoldness: profile?.style_boldness ?? null,
+        language: profile?.language ?? null,
         items,
         // Variety avoidance applies to clothes, never to bags and shoes.
         // Nobody packs a fresh bag and fresh sneakers for every day of a
