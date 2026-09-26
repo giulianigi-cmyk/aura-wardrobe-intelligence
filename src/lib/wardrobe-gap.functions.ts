@@ -2,7 +2,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
 import { z } from "zod";
-import { ITEM_CATEGORIES } from "./wardrobe-options";
+import { ITEM_CATEGORIES, SUBCATEGORY_OPTIONS } from "./wardrobe-options";
 import { COLOR_NAMES, COLOR_PALETTE } from "./color-palette";
 import { parseAiJson } from "./ai-json";
 
@@ -13,6 +13,11 @@ const ItemSchema = z.object({
   colors: z.array(z.string()).nullable().optional(),
   style: z.array(z.string()).nullable().optional(),
 });
+
+// This engine had no language handling at all — every suggestion came out in English regardless
+// of the app's own selected language, unlike purchase-advisor.functions.ts (same LANGUAGE_NAMES
+// list) which already asks for it.
+const LANGUAGE_NAMES: Record<string, string> = { it: "Italian", en: "English", es: "Spanish", fr: "French" };
 
 const InputSchema = z.object({
   items: z.array(ItemSchema).min(1),
@@ -92,10 +97,14 @@ const MAX_ATTEMPTS = 3;
 export const analyzeWardrobeGap = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     if (data.items.length < 5) {
       return { ok: false as const, error: "Add a few more pieces to your wardrobe before gap analysis is meaningful." };
     }
+
+    const { data: profileRow } = await (context.supabase.from("profiles" as never) as any)
+      .select("language").eq("id", context.userId).maybeSingle();
+    const langName = LANGUAGE_NAMES[(profileRow as { language?: string | null } | null)?.language ?? "en"] ?? "English";
 
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
@@ -127,7 +136,15 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
       "You analyze a real wardrobe catalog and identify ONE genuinely missing piece - a",
       "category + subcategory + color combination that is absent or clearly under-represented,",
       "and that would meaningfully increase how many outfits this person could put together.",
+      `Respond in ${langName} for the "reason" field only — "category", "subcategory" and "colors" must stay in the exact fixed English vocabulary given below (the app matches them against the wardrobe's own data and displays them as-is, the same way it already does for "category" and "colors").`,
       `Category must be EXACTLY one of: ${ITEM_CATEGORIES.join(", ")}.`,
+      // Free text here used to be the reason a real gap could go undetected: the wardrobe's own
+      // items are tagged with one of these fixed subcategories, but the model could write anything
+      // ("a standard pair of boots") — text that never exact-matches "Knee Boots"/"Over-the-Knee
+      // Boots" the person already owns, so the ownership check below silently let the redundant
+      // suggestion through. Constrained to the same fixed vocabulary the wardrobe itself uses, so
+      // the check can actually catch it.
+      `Subcategory must be EXACTLY one value from the list for the chosen category, verbatim: ${JSON.stringify(SUBCATEGORY_OPTIONS)}.`,
       `Colors: 1-2 items picked EXACTLY from this fixed palette (verbatim): ${COLOR_NAMES.join(", ")}.`,
       "Do not invent a brand, product name, or price - you have no way of knowing what's for sale.",
       "Base the suggestion strictly on real gaps in the provided catalog (e.g. many tops and bottoms but no outerwear at all, or no neutral shoes to anchor bright pieces).",
@@ -173,14 +190,16 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
         }
 
         const candCategory = ITEM_CATEGORIES.includes(candidate.category) ? candidate.category : ITEM_CATEGORIES[0];
+        const validSubcats = SUBCATEGORY_OPTIONS[candCategory] ?? [];
+        const candSubcategory = validSubcats.includes(candidate.subcategory) ? candidate.subcategory : (validSubcats[0] ?? candidate.subcategory);
         const candColors = candidate.colors.filter((c) => COLOR_NAMES.includes(c));
-        const owned = ownedCombos.get(`${candCategory}|${candidate.subcategory}`);
+        const owned = ownedCombos.get(`${candCategory}|${candSubcategory}`);
         const alreadyOwned = !!owned && candColors.length > 0 && candColors.some((c) => owned.has(c));
 
         if (!alreadyOwned) {
           accepted = candidate;
           category = candCategory;
-          subcategory = candidate.subcategory;
+          subcategory = candSubcategory;
           colors = candColors;
           break;
         }
