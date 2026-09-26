@@ -199,10 +199,11 @@ export async function runPlanWeatherRecheck(limit = 200): Promise<RecheckResult>
     if (!wardrobeCache.has(plan.user_id)) {
       const { data: itemRows } = await db
         .from("wardrobe_items")
-        .select("id, category, subcategory, colors, style, season, brand, material, location_id")
+        .select("id, category, subcategory, colors, style, season, brand, material, location_id, active_loan_id")
         .eq("user_id", plan.user_id)
         .eq("archived", false);
-      wardrobeCache.set(plan.user_id, (itemRows ?? []).map((it: any) => ({
+      // Loaned out = not physically available to re-plan into, same reasoning as archived.
+      wardrobeCache.set(plan.user_id, (itemRows ?? []).filter((it: any) => !it.active_loan_id).map((it: any) => ({
         id: it.id,
         category: it.category,
         subcategory: it.subcategory,
