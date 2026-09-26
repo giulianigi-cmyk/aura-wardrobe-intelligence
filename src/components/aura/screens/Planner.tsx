@@ -543,7 +543,10 @@ function DayDetail({
   // not a blank one), which is a different need from "what can this
   // NEW suggestion draw from".
   const activeItems = useMemo(
-    () => items.filter((it) => !(it as unknown as { archived?: boolean }).archived),
+    () => items.filter((it) => {
+      const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null };
+      return !raw.archived && !raw.active_loan_id;
+    }),
     [items],
   );
   const suggestedItems = useMemo(
