@@ -73,7 +73,8 @@ export const startOutfitPhotoDetection = createServerFn({ method: "POST" })
       .select("*")
       .eq("user_id", context.userId)
       .eq("archived", false);
-    const wardrobeList = (wardrobe ?? []) as WardrobeItem[];
+    // Loaned out = can't be what's actually being worn in the photo right now.
+    const wardrobeList = ((wardrobe ?? []) as WardrobeItem[]).filter((it) => !(it as unknown as { active_loan_id?: string | null }).active_loan_id);
 
     const detections: Detection[] = detectResult.items.map((it, i) => ({
       detectionId: `d${i}`,
