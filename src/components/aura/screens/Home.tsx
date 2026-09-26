@@ -89,6 +89,18 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
   const itemsQuery = useWardrobeItems();
   const allItems = itemsQuery.data ?? [];
   const itemsLoaded = itemsQuery.isSuccess;
+  // The candidate pool the outfit generator is allowed to pick from — archived (sold/donated) and
+  // loaned-out pieces are physically not available to wear right now, exactly like Wardrobe.tsx's
+  // own filters already treat them. allItems above stays the FULL set (unfiltered) for the "CAPI"
+  // stat and "Dal tuo guardaroba", matching Wardrobe.tsx's own header count — only the generation
+  // input and its cache fingerprint use the active-only set below.
+  const activeItems = useMemo(
+    () => allItems.filter((it) => {
+      const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null };
+      return !raw.archived && !raw.active_loan_id;
+    }),
+    [allItems],
+  );
   const [outfitsCount, setOutfitsCount] = useState(0);
   useEffect(() => {
     if (!user) return;
@@ -110,7 +122,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
     if (!user || !itemsLoaded) return;
     // An empty wardrobe has nothing to suggest from — stop the spinner
     // instead of waiting for items that will never arrive.
-    if (allItems.length === 0) { setLooksLoading(false); return; }
+    if (activeItems.length === 0) { setLooksLoading(false); return; }
     // Wait for weather to settle before generating: generating immediately
     // would run this effect twice — once with temperature: null, once with
     // the real reading — and the cache validity check below (cacheStillValid)
@@ -129,7 +141,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
       try {
         const today = todayISO();
 
-        const latestEdit = allItems.reduce((max, it) => {
+        const latestEdit = activeItems.reduce((max, it) => {
           const t = (it as unknown as { updated_at?: string }).updated_at ?? it.created_at;
           return t && t > max ? t : max;
         }, "");
@@ -137,7 +149,8 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
         // morning must not survive an afternoon that turned hot (a wool skirt with ankle
         // boots on a 29°C day). It only changes when the day crosses a band, so it does not
         // regenerate on every degree.
-        const fingerprint = `${allItems.length}:${latestEdit}:${tempBucket(weather?.current.temperature)}`;
+        // Archiving or lending out the very piece a cached look used now correctly counts as a change.
+        const fingerprint = `${activeItems.length}:${latestEdit}:${tempBucket(weather?.current.temperature)}`;
 
 
         type CachedRow = {
@@ -229,7 +242,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
               }
             })();
           }
-        } else if (allItems.length >= 3) {
+        } else if (activeItems.length >= 3) {
           try {
             const dressRules = await loadDressRules(user.id);
             const res = await generateLooks({
@@ -237,7 +250,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
                 temperature: weather?.current.temperature ?? null,
                 condition: weather ? describeWeather(weather.current.weatherCode, weather.current.isDay).label : null,
                 dressRules,
-                items: allItems.map((it) => ({
+                items: activeItems.map((it) => ({
                   id: it.id, category: it.category, subcategory: it.subcategory,
                   colors: it.colors ?? (it.color ? [it.color] : []),
                   style: it.style ? (Array.isArray(it.style) ? it.style : [it.style]) : [],
