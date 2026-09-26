@@ -529,7 +529,13 @@ export async function suggestOutfitCore(params: {
       // cover_knees is the lighter requirement (Midi or Maxi is fine, just not Mini); cover_legs
       // is the stricter one (full coverage — coversLegs() only accepts Maxi/trousers-type pieces).
       if (placeRequirementSet.has("cover_knees") && isSkirtOrDress && (item.length ?? "") === "Mini") return true;
-      if (placeRequirementSet.has("cover_legs") && !coversLegs(item)) return true;
+      // coversLegs() returns false by default for any category that isn't Dresses/Jumpsuits/
+      // Bottoms (a top, a shoe, a bag has no "legs" to cover) — dress-preferences.ts's own usage
+      // of it gates this the same way (isLegRelevantCategory) for exactly this reason: without the
+      // gate, every top/shoe/bag/outerwear/accessory in the catalog reads as "violating" cover_legs
+      // and gets stripped, leaving at most a dress or trousers with nothing else in the outfit.
+      const isLegRelevantCategory = ["Dresses", "Jumpsuits", "Bottoms"].includes(item.category ?? "");
+      if (placeRequirementSet.has("cover_legs") && isLegRelevantCategory && !coversLegs(item)) return true;
       if (placeRequirementSet.has("avoid_tight") && item.fit === "Slim") return true;
       const needsFormality = placeRequirementSet.has("business_formal") ? placeContext!.minFormality ?? 4
         : placeRequirementSet.has("black_tie") ? 5
