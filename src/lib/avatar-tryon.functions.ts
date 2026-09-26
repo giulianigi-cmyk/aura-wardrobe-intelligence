@@ -293,7 +293,7 @@ export const checkTryOnStep = createServerFn({ method: "POST" })
 
 const FinalizeInput = z.object({
   itemIds: z.array(z.string()).min(1).max(6),
-  finalImageDataUrl: z.string().min(1),
+  finalImageDataUrl: z.string().min(1).max(15_000_000),
 });
 
 /** Once the last item's step has completed: persists the final composited
@@ -318,7 +318,18 @@ export const finalizeAvatarTryOn = createServerFn({ method: "POST" })
     const dataUrlMatch = data.finalImageDataUrl.match(/^data:([^;]+);base64,(.+)$/);
     if (!dataUrlMatch) return { ok: false as const, error: "Unexpected image format." };
     const [, finalMime, finalBase64] = dataUrlMatch;
+    if (finalMime !== "image/jpeg" && finalMime !== "image/png") {
+      return { ok: false as const, error: "Unexpected image format." };
+    }
     const finalBuffer = Buffer.from(finalBase64, "base64");
+    if (finalBuffer.length === 0 || finalBuffer.length > 10 * 1024 * 1024) {
+      return { ok: false as const, error: "Image is too large." };
+    }
+    const looksJpeg = finalBuffer[0] === 0xff && finalBuffer[1] === 0xd8 && finalBuffer[2] === 0xff;
+    const looksPng = finalBuffer[0] === 0x89 && finalBuffer[1] === 0x50 && finalBuffer[2] === 0x4e && finalBuffer[3] === 0x47;
+    if ((finalMime === "image/jpeg" && !looksJpeg) || (finalMime === "image/png" && !looksPng)) {
+      return { ok: false as const, error: "Unexpected image format." };
+    }
     const finalExt = finalMime === "image/jpeg" ? "jpg" : "png";
     const resultPath = `${context.userId}/tryon-${Date.now()}-${Math.random().toString(36).slice(2)}.${finalExt}`;
 
