@@ -111,7 +111,7 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
   useEffect(() => {
     if (!user) return;
     (supabase.from("wardrobe_items" as never) as any)
-      .select("*").eq("user_id", user.id).eq("archived", false).order("created_at", { ascending: false })
+      .select("*").eq("user_id", user.id).order("created_at", { ascending: false })
       .then(async ({ data, error }: { data: WardrobeItem[] | null; error: { message: string } | null }) => {
         // itemsLoaded must ALWAYS end up true, even if something below
         // throws — it's what unblocks the auto-send effect for a chat
@@ -127,7 +127,16 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
             console.error("[AURA stylist-chat] wardrobe_items load failed", error);
             setItemsError(error.message);
           }
-          const list = (data ?? []) as WardrobeItem[];
+          // `.eq("archived", false)` at the SQL level used to sit in the query above — dropped on
+          // purpose: a legacy row with archived left NULL (never explicitly touched) fails `= false`
+          // in SQL and would have been silently excluded from the chat's own wardrobe, even though
+          // it isn't actually archived. Filtered here in JS instead, where `!raw.archived` correctly
+          // treats null/undefined the same as false — only an explicit `true` is excluded. A loaned-
+          // out piece is excluded the same way: not physically available to wear right now.
+          const list = ((data ?? []) as WardrobeItem[]).filter((it) => {
+            const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null };
+            return !raw.archived && !raw.active_loan_id;
+          });
           setItems(list);
           setSigned(await resolveWardrobeUrls(list));
         } catch (e) {
