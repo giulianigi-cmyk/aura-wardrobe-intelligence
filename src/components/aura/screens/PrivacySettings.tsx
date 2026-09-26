@@ -29,7 +29,8 @@ export function PrivacySettings({ go }: { go: (s: Screen) => void }) {
     const { error } = await update({ share_wardrobe_to_library: next });
     if (error) { toast.error(error); setShareLibrary(!next); return; }
     // Il consenso è appena cambiato: riallinea (o svuota) la libreria condivisa.
-    void syncMySharedLibrary().catch(() => {});
+    if (next) void syncMySharedLibrary().catch(() => {});
+    else await syncMySharedLibrary().catch(() => {});
   };
 
   return (
