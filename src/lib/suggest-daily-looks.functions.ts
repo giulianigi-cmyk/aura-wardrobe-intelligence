@@ -6,6 +6,7 @@ import { parseAiJson } from "./ai-json";
 import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
 import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, isSummerSeason } from "./outfit-styling-rules";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
+import { explanationLanguageInstruction } from "./language-prompt";
 
 const ItemSchema = z.object({
   id: z.string(),
@@ -73,8 +74,9 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     }
 
     const { data: profileRow } = await (context.supabase.from("profiles" as never) as any)
-      .select("gender").eq("id", context.userId).maybeSingle();
+      .select("gender, language").eq("id", context.userId).maybeSingle();
     const gender = (profileRow as { gender?: string | null } | null)?.gender ?? null;
+    const language = (profileRow as { language?: string | null } | null)?.language ?? null;
 
     // Soft personalization: read-only, never blocks generation if it
     // fails or comes back empty (a person with no history yet, or a
@@ -121,8 +123,10 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     }));
 
 
+    const languageLine = explanationLanguageInstruction(language);
     const system = [
       ...(data.dressRules ? [data.dressRules, ""] : []),
+      ...(languageLine ? [languageLine] : []),
       ...styleMemorySection,
       BLAZER_WARMTH_PROMPT_RULE,
       BELT_BODYCON_PROMPT_RULE,
@@ -507,6 +511,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
         const item = catalog.find((c) => c.id === id);
         return item?.category === "Dresses" || item?.category === "Jumpsuits";
       });
+      const seenSlotCounts: Record<string, number> = {};
       const today = {
         ...r.today,
         item_ids: todayIds.filter((id) => {
@@ -516,6 +521,18 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
           // instead of the whole look — a dress alone is still valid,
           // while removing it would leave an incomplete outfit.
           if (todayHasFullBody && catalog.find((c) => c.id === id)?.category === "Bottoms") return false;
+          // Same one-per-slot rule curated looks already enforce (see SLOT_LIMITS/hasSlotViolation
+          // below) — "today" never went through it, which is how it could ship two pairs of shoes
+          // or two tops when the model's own answer already had the duplicate. Unlike a curated
+          // look, "today" has no retry to fall back to, so the fix is to keep the FIRST of the
+          // duplicates (the one the model listed first) and drop the rest, rather than reject the
+          // whole look.
+          const cat = catalog.find((c) => c.id === id)?.category;
+          if (cat && SLOT_LIMITS[cat]) {
+            const seenSoFar = seenSlotCounts[cat] ?? 0;
+            if (seenSoFar >= SLOT_LIMITS[cat]) return false;
+            seenSlotCounts[cat] = seenSoFar + 1;
+          }
           return true;
         }),
       };
@@ -528,6 +545,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
         }
       }
       return { today, curated };
+
     };
 
     try {
