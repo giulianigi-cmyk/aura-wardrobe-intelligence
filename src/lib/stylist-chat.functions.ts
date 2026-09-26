@@ -483,7 +483,12 @@ export const stylistChat = createServerFn({ method: "POST" })
         if (placeReqSet.has("no_shorts") && item.category === "Bottoms" && /shorts/i.test(item.subcategory ?? "")) return true;
         const isSkirtOrDress = item.category === "Dresses" || (item.category === "Bottoms" && item.subcategory === "Skirt");
         if (placeReqSet.has("cover_knees") && isSkirtOrDress && (item.length ?? "") === "Mini") return true;
-        if (placeReqSet.has("cover_legs") && !coversLegs(item)) return true;
+        // Same gating dress-preferences.ts itself uses for coversLegs — see the comment on the
+        // equivalent check in ai-suggest-outfit.functions.ts: without it, every top/shoe/bag reads
+        // as "violating" cover_legs (coversLegs returns false by default for those categories) and
+        // gets stripped from the outfit.
+        const isLegRelevantCategory = ["Dresses", "Jumpsuits", "Bottoms"].includes(item.category ?? "");
+        if (placeReqSet.has("cover_legs") && isLegRelevantCategory && !coversLegs(item)) return true;
         if (placeReqSet.has("avoid_tight") && item.fit === "Slim") return true;
         const needsFormality = placeReqSet.has("business_formal") ? placeContext!.minFormality ?? 4
           : placeReqSet.has("black_tie") ? 5
