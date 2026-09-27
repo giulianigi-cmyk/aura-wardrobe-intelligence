@@ -175,6 +175,20 @@ function countPairings(category: string, colors: string[], wardrobe: WardrobeIte
 
 const LANGUAGE_NAMES: Record<string, string> = { it: "Italian", en: "English", es: "Spanish", fr: "French" };
 
+const INVALID_LINK: Record<string, string> = {
+  it: "Link non valido.",
+  en: "Invalid link.",
+  es: "Enlace no válido.",
+  fr: "Lien invalide.",
+};
+
+const COULD_NOT_READ_PAGE: Record<string, string> = {
+  it: "Non sono riuscita a leggere questa pagina prodotto.",
+  en: "Couldn't read this product page.",
+  es: "No he podido leer esta página de producto.",
+  fr: "Impossible de lire cette page produit.",
+};
+
 /** Cuts `text` to at most `max` characters without breaking mid-word or mid-sentence when it can
  *  be avoided — the previous plain `.slice(0, 300)` produced things like "...il prezzo di" trailing
  *  into nothing. Prefers the last sentence-ending punctuation before the limit; falls back to the
@@ -228,6 +242,16 @@ export const analyzePurchase = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<PurchaseAdvisorResult> => {
     const { supabase, userId } = context;
 
+    // Moved to the very top (was originally fetched only just before the dress-preferences check
+    // further down) so the early, non-AI error returns below — an invalid link, a page that
+    // couldn't be read — can be localized too, instead of always shipping in English regardless of
+    // the app's own selected language.
+    const { data: profileRow } = await (supabase.from("profiles" as never) as any)
+      .select("dress_preferences, language, season, undertone")
+      .eq("id", userId).maybeSingle();
+    const profile = profileRow as { dress_preferences?: DressPreferences; language?: string | null; season?: string | null; undertone?: string | null } | null;
+    const langCode = profile?.language ?? "en";
+
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
     const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
@@ -244,11 +268,11 @@ export const analyzePurchase = createServerFn({ method: "POST" })
     if (data.source === "url") {
       let target: URL;
       try { target = new URL(data.url.startsWith("http") ? data.url : `https://${data.url}`); }
-      catch { return { ok: false, error: "Invalid link." }; }
+      catch { return { ok: false, error: INVALID_LINK[langCode] ?? INVALID_LINK.en }; }
 
       const resolved = await resolveProductImageUrl(target.toString(), data.accessToken);
       if (!resolved.ok) {
-        return { ok: false, error: resolved.error || "Couldn't read this product page." };
+        return { ok: false, error: resolved.error || (COULD_NOT_READ_PAGE[langCode] ?? COULD_NOT_READ_PAGE.en) };
       }
       product.title = resolved.title || null;
       product.brand = resolved.brand || null;
@@ -347,10 +371,6 @@ export const analyzePurchase = createServerFn({ method: "POST" })
     const pairsWithCount = product.category ? countPairings(product.category, product.colors, wardrobe) : 0;
 
     // ---- 3. Dress preferences — hard rule, same as the outfit engine ----
-    const { data: profileRow } = await (supabase.from("profiles" as never) as any)
-      .select("dress_preferences, language, season, undertone")
-      .eq("id", userId).maybeSingle();
-    const profile = profileRow as { dress_preferences?: DressPreferences; language?: string | null; season?: string | null; undertone?: string | null } | null;
     const dressPrefs = profile?.dress_preferences ?? null;
     const dressViolation = hasAnyPreference(dressPrefs) && product.category
       ? !isItemAllowedByDressPreferences(
