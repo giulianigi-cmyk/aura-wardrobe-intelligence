@@ -1730,6 +1730,12 @@
   },
   "outfitScan": {
     "lookingAtOutfit": "Analisi del tuo outfit…",
+    "didYouWearThisToday": "Hai indossato questo outfit oggi?",
+    "didYouWearThisTodayHint": "Se lo segni, conta per quante volte l’hai indossato e per il costo per utilizzo di ogni capo.",
+    "yesLogAsWorn": "Sì, segna come indossato",
+    "noJustAddPieces": "No, aggiungi solo i capi",
+    "loggedAsWornToday": "Segnato come indossato oggi",
+    "couldNotLogWorn": "Non sono riuscita a registrarlo come indossato",
     "analyzingOutfit": "Analisi del tuo outfit…",
     "noClothingRecognized": "Nessun capo riconosciuto in questa foto. Prova con una foto a figura intera più chiara.",
     "identifyingItem": "Identificazione capo {{current}} di {{total}}…",
