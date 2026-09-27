@@ -9,13 +9,7 @@ import type { WardrobeItem } from "@/lib/aura-types";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 import { analyzeWardrobeGap, type GapSuggestion } from "@/lib/wardrobe-gap.functions";
 import { analyzePurchase, type PurchaseAdvisorResult } from "@/lib/purchase-advisor.functions";
-
-const COLOR_HEX: Record<string, string> = {
-  Black: "#1a1a1a", White: "#FFFFFF", Ivory: "#F5EFE0", Beige: "#E8C9A0",
-  Camel: "#C19A6B", Brown: "#6E4B3A", Navy: "#1F2A44", Blue: "#4169E1",
-  Grey: "#8E8E93", Red: "#C0392B", Green: "#6B8E23", Olive: "#708238",
-  Pink: "#F4C2C2", Purple: "#8E5A9E", Yellow: "#E9C46A", Orange: "#E76F51",
-};
+import { findColorByName } from "@/lib/color-palette";
 
 type LinkMode = "url" | "photo" | "label";
 
@@ -333,17 +327,14 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                 <Sparkles size={11} />
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{t("shop.wardrobeIsMissing")}</span>
               </div>
-              <p className="font-serif text-2xl italic mt-4">
-                {suggestion.colors[0] ? `A ${suggestion.colors[0].toLowerCase()} ` : "A "}
-                {(suggestion.subcategory || suggestion.category).toLowerCase()}
-              </p>
+              <p className="font-serif text-2xl italic mt-4">{suggestion.title}</p>
               <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{suggestion.reason}</p>
               <div className="mt-4 flex gap-2">
                 {suggestion.colors.map((c) => (
                   <span
                     key={c}
                     className="h-7 w-7 rounded-full border border-border/60"
-                    style={{ background: COLOR_HEX[c] ?? "#CCCCCC" }}
+                    style={{ background: findColorByName(c)?.hex ?? "#CCCCCC" }}
                     title={c}
                   />
                 ))}
