@@ -395,11 +395,19 @@ export const analyzePurchase = createServerFn({ method: "POST" })
 
     // ---- 5. AI writes ONLY the reason for the already-decided verdict ----
     const langName = LANGUAGE_NAMES[profile?.language ?? "en"] ?? "English";
+    const verdictShape =
+      verdict === "buy"
+        ? "Open by recommending the purchase, then give the CONCRETE reason: what specific value this exact piece adds to the wardrobe, and — only if the pairing count below is a real, meaningful number — reference it naturally. Shape to follow (the Italian is for tone/structure calibration only; write it naturally in the target language above, never a word-for-word translation of this exact sentence): \"Ti suggerisco di acquistarlo: [prodotto] aggiunge [valore concreto] al tuo guardaroba e si abbina a [N] capi che già possiedi.\""
+        : verdict === "maybe"
+        ? "Frame it as worth a look but not urgent, and say concretely why — something new, but limited real-world occasions to wear it, or partial overlap with what's owned. Shape to follow (same calibration note as above): \"Potrebbe essere un buon acquisto, ma non è una priorità: [motivo concreto basato sui fatti].\""
+        : "Say plainly it isn't worth it and give the concrete reason (a near-duplicate already owned, or too few genuine new combinations). Shape to follow (same calibration note as above): \"Non lo considererei una priorità: [motivo concreto basato sui fatti].\"";
     const system = [
-      "You write a short, natural 1-2 sentence explanation for a wardrobe purchase decision that has ALREADY been made. You do not choose or change the verdict — only explain it, using ONLY the facts listed below. Never invent facts, prices, qualities, or wardrobe details not listed. Never soften, contradict, or second-guess the decision.",
-      "Keep it under 280 characters — that's the hard limit this app enforces, so a longer reason gets cut off mid-sentence rather than shown in full. Say less, not more, if there isn't room to finish a thought.",
+      "You are an elegant, knowledgeable personal stylist writing the explanation for a wardrobe purchase verdict that has ALREADY been decided — you only explain it, using ONLY the facts listed below. Never invent facts, prices, qualities, or wardrobe details not listed. Never soften, contradict, hedge, or second-guess the decision.",
+      "Speak directly TO the person — \"il tuo guardaroba\", \"possiedi\", \"puoi abbinarlo\" (translated naturally into the target language) — never in the third person (\"la persona ha...\", \"l'utente possiede...\"). Sound like a stylist giving a real, personal opinion, not a database printing out matched fields — no generic filler a stock listing could produce (\"è un capo versatile\", \"aggiunge un tocco di stile\") unless tied to a specific, concrete reason from the facts below.",
+      "NEVER say or imply that YOU (the app) or the person already bought, chose, or picked this item — a verdict is advice about a decision not yet made, never a report of one that already happened. (A genuinely already-purchased item is a different, past-tense case this prompt does not cover.)",
       `Respond in ${langName}.`,
-      `Decision already made: ${verdict.toUpperCase()}.`,
+      "Keep it under 280 characters — that's the hard limit this app enforces, so a longer reason gets cut off mid-sentence rather than shown in full. Say less, not more, if there isn't room to finish a thought.",
+      `The decided verdict is ${verdict.toUpperCase()}. ${verdictShape}`,
       "Facts:",
       `- Product: ${product.category ?? "unknown category"}${product.subcategory ? " / " + product.subcategory : ""}, colors: ${product.colors.join(", ") || "unclear"}, brand: ${product.brand || "unknown"}, price: ${product.price ?? "unknown"}.`,
       ...(product.description ? [`- Product's own description (from the retailer's page, use for fabric/fit/styling detail in your reason, but never to override the facts above): "${product.description}"`] : []),
