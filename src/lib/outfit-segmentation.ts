@@ -10,7 +10,12 @@ async function getSegmenter(): Promise<Segmenter> {
   if (!segmenterPromise) {
     segmenterPromise = (async () => {
       const { pipeline } = await import("@huggingface/transformers");
-      const seg = await pipeline("image-segmentation", "Xenova/segformer_b2_clothes");
+      // "q8" (8-bit quantized weights): a fraction of the default fp32 model's memory footprint,
+      // which matters a lot more here than usual — this runs entirely in the phone's own browser,
+      // and the unquantized model was heavy enough (combined with an unresized full-camera-resolution
+      // photo, see shrinkForModel below) to get the mobile WebView killed outright rather than
+      // produce a JS error. Segmentation mask quality is essentially unaffected by quantization.
+      const seg = await pipeline("image-segmentation", "Xenova/segformer_b2_clothes", { dtype: "q8" });
       return seg as unknown as Segmenter;
     })().catch((e) => {
       segmenterPromise = null;
@@ -69,11 +74,39 @@ export type SegmentationMasks = {
   masksByLabel: Map<string, Uint8Array | Uint8ClampedArray>;
 };
 
+/** Downscales a data URL to at most `maxSide` on its longest edge before handing it to the
+ *  segmentation model. A full-resolution phone photo (often 3000-4000px, several MB as a data URL)
+ *  being decoded and preprocessed by a WASM model IN THE BROWSER is exactly the kind of memory
+ *  spike that gets a mobile WebView killed outright — the person sees this as "the app crashes and
+ *  closes" rather than an error message, since nothing in JS ever gets the chance to catch it. The
+ *  model's own output resolution doesn't depend on the input size (segformer produces a fixed-size
+ *  mask regardless), so this loses no real segmentation quality — only wasted decode/preprocess
+ *  memory. The ORIGINAL image is untouched and still used for the final high-resolution crop
+ *  (cropItemFromSegmentation scales the mask up to match it), only the copy fed to the model here
+ *  is smaller. */
+async function shrinkForModel(imageDataUrl: string, maxSide = 1024): Promise<string> {
+  try {
+    const img = await loadImage(imageDataUrl);
+    const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+    if (scale >= 1) return imageDataUrl; // already small enough
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return imageDataUrl;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.9);
+  } catch {
+    return imageDataUrl; // if anything goes wrong, fall back to the original rather than block
+  }
+}
+
 /** Shared pipeline: run the model once and build the per-label mask map
  *  (with Left-shoe/Right-shoe merged into a single "Shoes" mask). */
 async function runSegmentation(imageDataUrl: string): Promise<SegmentationMasks | null> {
   const segmenter = await getSegmenter();
-  const output = await segmenter(imageDataUrl);
+  const modelInput = await shrinkForModel(imageDataUrl);
+  const output = await segmenter(modelInput);
 
   const byLabel = new Map<string, Uint8Array | Uint8ClampedArray>();
   let maskW = 0, maskH = 0;
