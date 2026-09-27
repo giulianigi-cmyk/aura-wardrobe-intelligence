@@ -13,7 +13,7 @@ import { DetectedItemCard } from "@/components/aura/DetectedItemCard";
 import { analyzeWardrobeImage } from "@/lib/ai-analyze.functions";
 import { segmentOutfitPhoto } from "@/lib/outfit-segmentation";
 import { findBestMatch, type DedupeResult } from "@/lib/outfit-dedupe";
-import { findVisualDuplicates } from "@/lib/outfit-wear.functions";
+import { findVisualDuplicates, confirmWearEvent } from "@/lib/outfit-wear.functions";
 import { startGarmentExtraction, checkGarmentExtraction } from "@/lib/outfit-garment-extract.functions";
 import { trimFileMargins } from "@/lib/auto-crop";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
@@ -87,13 +87,19 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   const wardrobeCache = useWardrobeCacheActions();
   const analyze = useServerFn(analyzeWardrobeImage);
   const findVisualDupes = useServerFn(findVisualDuplicates);
+  const confirmWorn = useServerFn(confirmWearEvent);
   const startReconstruction = useServerFn(startGarmentExtraction);
   const checkReconstruction = useServerFn(checkGarmentExtraction);
   
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
-  const [stage, setStage] = useState<"idle" | "analyzing" | "review" | "saving">("idle");
+  const [stage, setStage] = useState<"idle" | "analyzing" | "review" | "saving" | "logWorn">("idle");
+  // The full set of item ids this outfit ends up made of once saving finishes — the newly-created
+  // ones (captured as each insert succeeds below) plus whichever were already-owned matches the
+  // person confirmed as duplicates. Used only if they say yes to "did you wear this today?".
+  const [finishedItemIds, setFinishedItemIds] = useState<string[]>([]);
+  const [loggingWorn, setLoggingWorn] = useState(false);
   const [progressLabel, setProgressLabel] = useState("");
   const [scanItems, setScanItems] = useState<ScanItem[]>([]);
   const [wardrobe, setWardrobe] = useState<WardrobeItem[]>([]);
@@ -318,9 +324,22 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   const toSave = scanItems.filter((it) => it.status === "confirmed-new");
 
   const save = async () => {
-    if (!user || toSave.length === 0) return;
+    if (!user) return;
+    const duplicateIds = scanItems
+      .filter((it) => it.status === "confirmed-duplicate" && it.dedupe.match)
+      .map((it) => it.dedupe.match!.id);
+    // An outfit that turned out to be entirely pieces already owned has nothing new to upload,
+    // but should still reach the "did you wear this today?" step below rather than silently doing
+    // nothing — skip straight there instead of returning early.
+    if (toSave.length === 0) {
+      setFinishedItemIds(duplicateIds);
+      setStage(duplicateIds.length ? "logWorn" : "idle");
+      if (!duplicateIds.length) { reset(); go("wardrobe"); }
+      return;
+    }
     setStage("saving");
     let ok = 0, failed = 0;
+    const newIds: string[] = [];
     for (let i = 0; i < toSave.length; i++) {
       const it = toSave[i];
       setProgressLabel(t("outfitScan.savingItem", { current: i + 1, total: toSave.length }));
@@ -397,15 +416,48 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
         // cache directly instead of depending on one happening to be
         // mounted.
         wardrobeCache.addItem(inserted as WardrobeItem);
+        newIds.push((inserted as { id: string }).id);
         ok++;
       } catch (e) {
         console.error("[AURA outfit-scan] save item failed", e);
         failed++;
       }
     }
-    setStage("idle");
     if (ok) toast.success(t("outfitScan.addedPiecesToCloset", { count: ok }));
     if (failed) toast.error(t("outfitScan.itemsCouldNotBeSaved", { count: failed }));
+    // Every piece this outfit is actually made of: the ones just saved as new, plus whichever
+    // confirmed-duplicate detections point at a piece already owned (computed once, above) — both
+    // count if the person says yes to having worn this today.
+    setFinishedItemIds([...newIds, ...duplicateIds]);
+    if (newIds.length + duplicateIds.length > 0) {
+      setStage("logWorn");
+    } else {
+      setStage("idle");
+      reset();
+      go("wardrobe");
+    }
+  };
+
+  const logAsWornToday = async () => {
+    setLoggingWorn(true);
+    try {
+      const wornAt = new Date().toISOString().slice(0, 10);
+      const res = await confirmWorn({ data: { itemIds: finishedItemIds, wornAt } });
+      if (!res.ok) throw new Error(res.error);
+      toast.success(t("outfitScan.loggedAsWornToday"));
+    } catch (e) {
+      console.error("[AURA outfit-scan] logging as worn failed", e);
+      toast.error(t("outfitScan.couldNotLogWorn"));
+    } finally {
+      setLoggingWorn(false);
+      setStage("idle");
+      reset();
+      go("wardrobe");
+    }
+  };
+
+  const skipLoggingWorn = () => {
+    setStage("idle");
     reset();
     go("wardrobe");
   };
@@ -567,6 +619,25 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
         <div className="mx-6 mt-16 text-center">
           <Loader2 size={20} className="mx-auto animate-spin text-muted-foreground" />
           <p className="mt-4 text-sm text-muted-foreground">{progressLabel}</p>
+        </div>
+      )}
+
+      {stage === "logWorn" && (
+        <div className="mx-6 mt-16 text-center">
+          <p className="font-serif text-2xl italic">{t("outfitScan.didYouWearThisToday")}</p>
+          <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{t("outfitScan.didYouWearThisTodayHint")}</p>
+          <div className="mt-6 flex flex-col gap-3">
+            <button
+              onClick={() => void logAsWornToday()}
+              disabled={loggingWorn}
+              className="h-12 rounded-full bg-foreground text-background text-xs uppercase tracking-[0.25em] inline-flex items-center justify-center gap-2 disabled:opacity-50"
+            >{loggingWorn && <Loader2 size={14} className="animate-spin" />} {t("outfitScan.yesLogAsWorn")}</button>
+            <button
+              onClick={skipLoggingWorn}
+              disabled={loggingWorn}
+              className="h-12 rounded-full border border-border text-xs uppercase tracking-[0.25em] disabled:opacity-50"
+            >{t("outfitScan.noJustAddPieces")}</button>
+          </div>
         </div>
       )}
     </div>
