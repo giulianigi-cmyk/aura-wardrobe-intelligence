@@ -71,6 +71,13 @@ export type BuilderInit = {
   occasion?: string;
   notes?: string;
   outfitId?: string;
+  /** Set when editing a still-upcoming outfit_plans row (not yet a saved "outfit") reached via
+   *  Stylist's own inline canvas editor — see AIStylist.tsx's lookButtons/onEdit for the plans
+   *  list. Without this, saving from the canvas always created a brand-new, disconnected `outfits`
+   *  row and left the actual plan the person was looking at completely untouched: they'd remove a
+   *  piece, add another, hit save, and find the OLD piece still there next time, because nothing
+   *  ever touched outfit_plans.item_ids in the first place. Mutually exclusive with outfitId. */
+  planId?: string;
   /** From Insights' "hasn't been worn in a while" flow: OutfitBuilder
    *  auto-triggers AI Suggest on mount with this item pinned as
    *  mandatory, instead of waiting for a manual tap — the whole point is
