@@ -27,6 +27,12 @@ const OutputSchema = z.object({
   category: z.string(),
   subcategory: z.string(),
   colors: z.array(z.string()),
+  // A natural, editorial-sounding name for the piece, in the app's own language — e.g. "Décolleté
+  // nude", not a literal translation of category+subcategory ("Scarpe / Décolleté"). Separate from
+  // "subcategory" on purpose: that field stays in AURA's fixed English vocabulary so the ownership
+  // check can exact-match it against the wardrobe's own data; this is what the person actually
+  // reads as the card's title.
+  title: z.string(),
   reason: z.string(),
 });
 
@@ -34,6 +40,7 @@ export type GapSuggestion = {
   category: string;
   subcategory: string;
   colors: string[];
+  title: string;
   reason: string;
   pairsWithIds: string[];
 };
@@ -133,10 +140,11 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
     }
 
     const system = [
-      "You analyze a real wardrobe catalog and identify ONE genuinely missing piece - a",
-      "category + subcategory + color combination that is absent or clearly under-represented,",
-      "and that would meaningfully increase how many outfits this person could put together.",
-      `Respond in ${langName} for the "reason" field only — "category", "subcategory" and "colors" must stay in the exact fixed English vocabulary given below (the app matches them against the wardrobe's own data and displays them as-is, the same way it already does for "category" and "colors").`,
+      "You are an elegant, knowledgeable personal stylist looking at this person's real wardrobe catalog to spot ONE genuinely missing piece — a category + subcategory + color combination that is absent or clearly under-represented, and that would meaningfully increase how many outfits they could put together.",
+      "Speak directly TO the person in \"reason\" and \"title\" — never in the third person (\"la persona ha molti capi...\", \"l'utente possiede...\"). Never open by describing what they already have in general terms; go straight to the missing piece and its concrete value. No generic filler a stock listing could produce (\"aggiunge un tocco di stile\") unless tied to a specific reason drawn from the catalog.",
+      `Respond in ${langName} for "title" and "reason" only — "category", "subcategory" and "colors" must stay in the exact fixed English vocabulary given below (the app matches them against the wardrobe's own data and displays them as-is).`,
+      "\"title\": a short, natural, editorial name for the piece — e.g. \"Décolleté nude\" — written the way a stylist would say it out loud, NOT a literal word-for-word translation of the English category/subcategory/color (never \"Scarpe nude decollete\" as a mechanical concatenation).",
+      "\"reason\": one concrete sentence following this shape — [che cosa aggiungerebbe al guardaroba] + [per quali occasioni/outfit sarebbe utile] — grounded in what's actually missing from the catalog. Calibration example (Italian, for tone and structure only — write naturally in the target language above, never a word-for-word translation of this exact sentence): \"Un paio di décolleté nude aggiungerebbe eleganza e versatilità al tuo guardaroba, completando facilmente outfit formali e semi-formali.\"",
       `Category must be EXACTLY one of: ${ITEM_CATEGORIES.join(", ")}.`,
       // Free text here used to be the reason a real gap could go undetected: the wardrobe's own
       // items are tagged with one of these fixed subcategories, but the model could write anything
@@ -149,10 +157,9 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
       "Do not invent a brand, product name, or price - you have no way of knowing what's for sale.",
       "Base the suggestion strictly on real gaps in the provided catalog (e.g. many tops and bottoms but no outerwear at all, or no neutral shoes to anchor bright pieces).",
       "CRITICAL: never suggest a category+subcategory+color the person already owns - check the catalog color by color, not just by category.",
-      "reason: 1 sentence, concrete, referencing what's actually missing.",
       "",
       "Respond with ONLY a single valid JSON object, no markdown fences, no extra text, in exactly this shape:",
-      '{"category": "", "subcategory": "", "colors": [], "reason": ""}',
+      '{"category": "", "subcategory": "", "colors": [], "title": "", "reason": ""}',
     ].join("\n");
 
     const userContent = `Wardrobe catalog (JSON):\n${JSON.stringify(catalog)}`;
@@ -289,6 +296,7 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
         category,
         subcategory,
         colors,
+        title: accepted.title,
         reason: accepted.reason,
         pairsWithIds,
       };
