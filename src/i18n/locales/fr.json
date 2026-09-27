@@ -1239,6 +1239,12 @@
   },
   "outfitScan": {
     "lookingAtOutfit": "Analyse de votre tenue…",
+    "didYouWearThisToday": "Avez-vous porté cette tenue aujourd’hui ?",
+    "didYouWearThisTodayHint": "L’enregistrer compte pour le nombre de fois porté et le coût par port de chaque pièce.",
+    "yesLogAsWorn": "Oui, enregistrer comme porté",
+    "noJustAddPieces": "Non, ajouter seulement les pièces",
+    "loggedAsWornToday": "Enregistré comme porté aujourd’hui",
+    "couldNotLogWorn": "Impossible de l'enregistrer comme porté",
     "analyzingOutfit": "Analyse de votre tenue…",
     "noClothingRecognized": "Aucun vêtement reconnu sur cette photo. Essayez une photo en pied plus nette.",
     "identifyingItem": "Identification de l'article {{current}} sur {{total}}…",
