@@ -19,6 +19,30 @@ const ItemSchema = z.object({
 // list) which already asks for it.
 const LANGUAGE_NAMES: Record<string, string> = { it: "Italian", en: "English", es: "Spanish", fr: "French" };
 
+// This one is shown to the person directly (not written by the model), so it needs its own fixed
+// translation rather than a "Respond in X" instruction — same reasoning as purchase-advisor.
+// functions.ts's FALLBACK_REASON, which this mirrors.
+const NO_GAP_FOUND: Record<string, string> = {
+  it: "Non ho trovato un vuoto evidente nel tuo guardaroba: sembra già piuttosto completo.",
+  en: "Couldn't find a clear wardrobe gap that isn't already covered - the wardrobe looks fairly complete.",
+  es: "No he encontrado un vacío claro en tu armario: parece bastante completo.",
+  fr: "Je n'ai pas trouvé de manque évident dans votre garde-robe : elle semble déjà bien complète.",
+};
+
+const TOO_FEW_ITEMS: Record<string, string> = {
+  it: "Aggiungi qualche altro capo al guardaroba prima che l'analisi dei vuoti abbia senso.",
+  en: "Add a few more pieces to your wardrobe before gap analysis is meaningful.",
+  es: "Añade algunas prendas más a tu armario antes de que el análisis de vacíos tenga sentido.",
+  fr: "Ajoutez encore quelques pièces à votre garde-robe avant que l'analyse des manques ait du sens.",
+};
+
+const ANALYSIS_FAILED: Record<string, string> = {
+  it: "L'analisi non è riuscita.",
+  en: "Analysis failed.",
+  es: "El análisis ha fallado.",
+  fr: "L'analyse a échoué.",
+};
+
 const InputSchema = z.object({
   items: z.array(ItemSchema).min(1),
 });
@@ -105,13 +129,14 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data, context }) => {
-    if (data.items.length < 5) {
-      return { ok: false as const, error: "Add a few more pieces to your wardrobe before gap analysis is meaningful." };
-    }
-
     const { data: profileRow } = await (context.supabase.from("profiles" as never) as any)
       .select("language").eq("id", context.userId).maybeSingle();
-    const langName = LANGUAGE_NAMES[(profileRow as { language?: string | null } | null)?.language ?? "en"] ?? "English";
+    const langCode = (profileRow as { language?: string | null } | null)?.language ?? "en";
+    const langName = LANGUAGE_NAMES[langCode] ?? "English";
+
+    if (data.items.length < 5) {
+      return { ok: false as const, error: TOO_FEW_ITEMS[langCode] ?? TOO_FEW_ITEMS.en };
+    }
 
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
@@ -219,7 +244,7 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
       }
 
       if (!accepted) {
-        return { ok: false as const, error: "Couldn't find a clear wardrobe gap that isn't already covered - the wardrobe looks fairly complete." };
+        return { ok: false as const, error: NO_GAP_FOUND[langCode] ?? NO_GAP_FOUND.en };
       }
 
       // Dresses/Jumpsuits gia' coprono lo slot top+bottom - abbinarli a un
@@ -303,6 +328,6 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
       return { ok: true as const, suggestion };
     } catch (err) {
       console.error("[AURA wardrobe-gap] failed", err);
-      return { ok: false as const, error: err instanceof Error ? err.message : "Analysis failed" };
+      return { ok: false as const, error: err instanceof Error ? err.message : (ANALYSIS_FAILED[langCode] ?? ANALYSIS_FAILED.en) };
     }
   });
