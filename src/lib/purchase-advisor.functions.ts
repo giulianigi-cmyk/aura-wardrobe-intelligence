@@ -514,17 +514,21 @@ export const analyzePurchase = createServerFn({ method: "POST" })
 // person can genuinely want either answer:
 //   1. Is THIS item worth buying at all, on its own? (buy/maybe/skip, same
 //      deterministic rule as the single-item flow)
-//   2. If you can only pick one of these, which one? (preferredIndex) — a
-//      real, independent question: two items can BOTH be a "buy" with one
-//      still preferable, or BOTH be a "skip" with one still less bad, or
-//      genuinely be equivalent (preferredIndex null — "either one").
-// Deterministic tie-breaks run first (a dress-preference conflict, a certain
-// duplicate) exactly like the single-item flow's hard-rules-first principle;
-// the model only makes the actual close call when nothing in the facts
-// already decides it, and is explicitly allowed to call it a genuine tie.
+//   2. Given all of them, what ORDER would you buy them in — a full ranking,
+//      not just a single "winner" — so with 3-4 items the person gets real
+//      guidance ("this one first, maybe that one, skip the third") rather
+//      than one pick and silence about the rest.
+// A hard "tier" is computed deterministically for every item first (a dress-
+// preference conflict is always worse than none; a certain duplicate is
+// always worse than a non-duplicate; a BUY verdict always outranks MAYBE,
+// which always outranks SKIP) — the model can reorder freely WITHIN a tier
+// using softer signals or its own judgment, including calling two items in
+// the same tier genuinely equivalent, but it can never place a lower tier
+// above a higher one. If it tries to anyway, the deterministic tier order
+// wins — the model explains the ranking, it doesn't get to override it.
 // ============================================================================
 
-const MultiCompareInputSchema = z.object({ items: z.array(InputSchema).min(2).max(4) });
+const MultiCompareInputSchema = z.object({ items: z.array(InputSchema).min(2).max(6) });
 
 type ComparedProductOut = {
   title: string | null;
@@ -543,7 +547,7 @@ type ComparedItem = {
 };
 
 export type ComparePurchasesResult =
-  | { ok: true; items: ComparedItem[]; preferredIndex: number | null; reason: string }
+  | { ok: true; items: ComparedItem[]; ranking: number[]; reason: string }
   | { ok: false; error: string };
 
 const COULD_NOT_COMPARE: Record<string, string> = {
@@ -552,6 +556,25 @@ const COULD_NOT_COMPARE: Record<string, string> = {
   es: "No he podido comparar estas prendas.",
   fr: "Impossible de comparer ces pièces.",
 };
+
+/** Higher = more desirable. A hard floor/ceiling the model's own ranking below is
+ *  never allowed to cross — see the module comment above. */
+function desirabilityTier(violation: boolean, duplicate: boolean, verdict: "buy" | "maybe" | "skip"): number {
+  if (violation) return 0;
+  if (duplicate) return 1;
+  return { skip: 2, maybe: 3, buy: 4 }[verdict];
+}
+
+/** True when `ranking` is a valid permutation of 0..n-1 that never places a lower-tier
+ *  item ahead of a higher-tier one — the one hard rule the model's own ordering must respect. */
+function respectsTiers(ranking: number[], tiers: number[]): boolean {
+  if (ranking.length !== tiers.length) return false;
+  if (new Set(ranking).size !== tiers.length) return false; // must be a genuine permutation
+  for (let i = 0; i < ranking.length - 1; i++) {
+    if (tiers[ranking[i]] < tiers[ranking[i + 1]]) return false;
+  }
+  return true;
+}
 
 export const comparePurchases = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -603,25 +626,18 @@ export const comparePurchases = createServerFn({ method: "POST" })
       wardrobe: { duplicate: r.duplicate?.verdict === "certain", pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, dressPreferenceViolation: violations[i] },
     }));
 
-    // ---- Deterministic tie-breaks, in order — same "hard rules first" spirit as the ----
-    // ---- single-item verdict. Each step narrows the candidate set; only when more    ----
-    // ---- than one candidate survives every step does the model make the real call.   ----
-    const rank = { buy: 2, maybe: 1, skip: 0 } as const;
-    let candidates = items.map((_, i) => i);
-    const narrow = (keepIf: (i: number) => boolean) => {
-      const next = candidates.filter(keepIf);
-      if (next.length > 0) candidates = next;
-    };
-    narrow((i) => !violations[i]); // never prefer a piece that conflicts with a stated preference
-    narrow((i) => !items[i].wardrobe.duplicate); // never prefer a certain duplicate over a non-duplicate
-    const bestRank = Math.max(...candidates.map((i) => rank[items[i].verdict]));
-    narrow((i) => rank[items[i].verdict] === bestRank); // prefer the higher individual verdict
+    const tiers = items.map((it) => desirabilityTier(it.wardrobe.dressPreferenceViolation, it.wardrobe.duplicate, it.verdict));
+    // Safety-net order: by tier, then by the softer pairing/gap signal — used whenever the model's
+    // own ranking is missing, malformed, or breaks the tier rule.
+    const fallbackRanking = items.map((_, i) => i).sort((a, b) => {
+      if (tiers[b] !== tiers[a]) return tiers[b] - tiers[a];
+      const scoreOf = (i: number) => items[i].wardrobe.pairsWithCount + (items[i].wardrobe.wardrobeGap ? 3 : 0);
+      return scoreOf(b) - scoreOf(a);
+    });
 
-    let preferredIndex: number | null = candidates.length === 1 ? candidates[0] : null;
-    const needsAiTiebreak = candidates.length > 1;
-
+    const allSameTier = tiers.every((t) => t === tiers[0]);
     const langName = LANGUAGE_NAMES[langCode] ?? "English";
-    const letters = ["A", "B", "C", "D"];
+    const letters = ["A", "B", "C", "D", "E", "F"];
     const describeItem = (label: string, r: Extract<(typeof resolvedAll)[number], { ok: true }>, verdict: ComparedItem["verdict"], violation: boolean) => [
       `${label}: ${r.product.category ?? "unknown category"}${r.product.subcategory ? " / " + r.product.subcategory : ""}, colors: ${r.product.colors.join(", ") || "unclear"}, brand: ${r.product.brand || "unknown"}, price: ${r.product.price ?? "unknown"}. Individual verdict already decided: ${verdict.toUpperCase()}.`,
       r.duplicate?.verdict === "certain" ? `${label} is a near-duplicate of something already owned.` : r.duplicate?.verdict === "maybe" ? `${label} is similar to something already owned, not a certain duplicate.` : `${label}: nothing similar already owned.`,
@@ -631,36 +647,39 @@ export const comparePurchases = createServerFn({ method: "POST" })
     ].filter(Boolean);
 
     const system = [
-      "You are an elegant, knowledgeable personal stylist helping the person choose among SEVERAL specific products they're considering. Each product's individual buy/maybe/skip verdict is already decided (given below) — you are NOT re-deciding those. Your only job is the SEPARATE question: if they can only get one of these, which one — or is it genuinely a toss-up?",
+      "You are an elegant, knowledgeable personal stylist helping the person decide, among SEVERAL specific products they're considering, what order they'd be worth getting in — first choice, second choice, and so on, including honestly saying when one (or all) genuinely isn't worth buying at all. Each product's individual buy/maybe/skip verdict is already decided (given below) — you are NOT re-deciding those.",
       "Speak directly TO the person — \"il tuo guardaroba\", \"possiedi\", \"ti starebbe meglio\" (translated naturally into the target language) — never in the third person. Sound like a stylist giving a real, personal opinion, not a database printing out matched fields.",
-      "Your reason must be honest about the individual verdicts too — if every option is a SKIP, say plainly that none is really worth it, while still naming which one is the least bad if you must pick. If every option is a BUY, you can say both/all are worth it while still naming a preference. Never imply a SKIP item is a good purchase just because it's the preferred one of the group.",
+      "Your reason must reflect the full picture honestly: if every option is a SKIP, say plainly that none is really worth it, while still noting which would be the least bad if forced to pick. If several are a BUY, you can recommend more than one while still stating which comes first. Never imply a SKIP item is a good purchase just because it ranks above another SKIP.",
       "NEVER say or imply that YOU (the app) or the person already bought, chose, or picked any of these — this is advice about a decision not yet made.",
       `Respond in ${langName}.`,
-      "Keep it under 280 characters.",
-      needsAiTiebreak
-        ? `Nothing decisive separates ${candidates.map((i) => letters[i]).join(" and ")} on the facts — YOU make the actual stylistic call between just those (never pick one already ruled out below). If they're genuinely close enough that neither is a real winner, say so honestly and leave the choice to the person, rather than inventing a false distinction.`
-        : `The preferred pick is already decided: ${letters[preferredIndex as number]}. You only explain this pick naturally, in your own words, in the stylist tone above — do not soften or second-guess it.`,
+      "Keep it under 320 characters — a bit more room than the single-item advisor, since a real ranking across several pieces needs a little more space to state honestly.",
+      "Each item already has a fixed, non-negotiable tier — see below. Produce a full ranking (best to worst) of ALL items: you may reorder freely WITHIN the same tier (using the softer signals below, your own styling judgment, or genuinely calling two items in a tier equivalent), but a lower-tier item must never be placed above a higher-tier one — that ordering is already decided and is not yours to change.",
+      allSameTier
+        ? "Every item happens to sit in the same tier here — the full ranking is entirely yours to decide from the softer signals below, including saying some or all are genuinely equivalent."
+        : "",
       "",
-      "Facts:",
-      ...items.flatMap((it, i) => describeItem(letters[i], resolved[i], it.verdict, violations[i])),
+      "Facts (tier shown for each — higher number is more desirable and must never be ranked below a lower number):",
+      ...items.flatMap((it, i) => [...describeItem(letters[i], resolved[i], it.verdict, violations[i]), `${letters[i]}'s tier: ${tiers[i]}`]),
       "",
-      "Respond with ONLY a single valid JSON object, no markdown fences. \"preferred\" must be one of the letters above, or null for a genuine tie:",
-      '{"preferred": "A", "reason": ""}',
+      "Respond with ONLY a single valid JSON object, no markdown fences. \"ranking\" is ALL the letters above, ordered best to worst, e.g. for 3 items: [\"B\", \"A\", \"C\"]:",
+      '{"ranking": [], "reason": ""}',
     ].filter(Boolean).join("\n");
 
+    let ranking = fallbackRanking;
     let reason: string;
     try {
-      const r1 = await generateText({ model, system, messages: [{ role: "user", content: "Write the pick and reason." }] });
-      const parsed = parseAiJson(r1.text, z.object({ preferred: z.string().nullable(), reason: z.string() }));
-      if (needsAiTiebreak) {
-        const idx = letters.indexOf((parsed.preferred ?? "").toUpperCase());
-        preferredIndex = idx >= 0 && candidates.includes(idx) ? idx : null;
-      }
-      reason = truncateAtBoundary(parsed.reason, 300);
+      const r1 = await generateText({ model, system, messages: [{ role: "user", content: "Write the ranking and reason." }] });
+      const parsed = parseAiJson(r1.text, z.object({ ranking: z.array(z.string()), reason: z.string() }));
+      const parsedIndices = parsed.ranking.map((letter) => letters.indexOf(letter.toUpperCase()));
+      if (respectsTiers(parsedIndices, tiers)) ranking = parsedIndices;
+      // else: keep the deterministic fallbackRanking — a malformed or tier-violating response
+      // from the model is silently corrected rather than shipped, same "never let the model
+      // override a hard rule" principle as the rest of this file.
+      reason = truncateAtBoundary(parsed.reason, 340);
     } catch (e) {
       console.error("[AURA purchase-advisor] compare reason generation failed", e);
       reason = COULD_NOT_COMPARE[langCode] ?? COULD_NOT_COMPARE.en;
     }
 
-    return { ok: true as const, items, preferredIndex, reason };
+    return { ok: true as const, items, ranking, reason };
   });
