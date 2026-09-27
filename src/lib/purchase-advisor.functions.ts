@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { generateText } from "ai";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseAiJson } from "./ai-json";
 import { resolveProductImageUrl } from "./import-url.functions";
 import { analyzeWardrobeImageCore } from "./ai-analyze.functions";
@@ -32,6 +33,9 @@ const InputSchema = z.discriminatedUnion("source", [
   z.object({ source: z.literal("label"), imageDataUrl: z.string().min(1) }),
   z.object({ source: z.literal("photos"), garmentImageDataUrl: z.string().min(1), labelImageDataUrl: z.string().min(1) }),
 ]);
+type SingleProductInput = z.infer<typeof InputSchema>;
+
+const CompareInputSchema = z.object({ a: InputSchema, b: InputSchema });
 
 type PurchaseProduct = {
   title: string | null;
@@ -227,6 +231,170 @@ async function fetchAsDataUrl(imageUrl: string): Promise<string> {
 
 
 /**
+ * Steps 1+2 of the pipeline, factored out so both the single-product
+ * analyzePurchase below and the two-product comparePurchases can share the exact
+ * same product-resolution and wardrobe-facts logic rather than risk the two
+ * ever drifting apart. Returns the resolved product plus, when a category
+ * was identified, the wardrobe comparison facts for it.
+ */
+async function resolveProductAndWardrobeFacts(
+  data: SingleProductInput,
+  model: Parameters<typeof generateText>[0]["model"],
+  langCode: string,
+  supabase: SupabaseClient<any, any, any>,
+  userId: string,
+): Promise<
+  | { ok: true; product: PurchaseProduct; wardrobe: WardrobeItem[]; duplicate: { verdict: "certain" | "maybe"; itemId: string } | null; similarItemsCount: number; pairsWithCount: number; wardrobeGap: boolean }
+  | { ok: false; error: string }
+> {
+  const product: PurchaseProduct = {
+    title: null, brand: null, price: null, currency: null, imageUrl: null, sourceUrl: null, description: null,
+    category: null, subcategory: null, colors: [], material: null,
+    length: null, sleeveLength: null, fit: null, styleTags: [],
+  };
+
+  // ---- 1. Gather product facts, depending on input mode ----
+  if (data.source === "url") {
+    let target: URL;
+    try { target = new URL(data.url.startsWith("http") ? data.url : `https://${data.url}`); }
+    catch { return { ok: false, error: INVALID_LINK[langCode] ?? INVALID_LINK.en }; }
+
+    const resolved = await resolveProductImageUrl(target.toString(), data.accessToken);
+    if (!resolved.ok) {
+      return { ok: false, error: resolved.error || (COULD_NOT_READ_PAGE[langCode] ?? COULD_NOT_READ_PAGE.en) };
+    }
+    product.title = resolved.title || null;
+    product.brand = resolved.brand || null;
+    product.price = resolved.price ?? null;
+    product.currency = resolved.priceCurrency ?? null;
+    product.imageUrl = resolved.imageUrl;
+    product.sourceUrl = target.toString();
+    product.description = resolved.description ?? null;
+
+    if (resolved.imageUrl) {
+      try {
+        const imageDataUrl = await fetchAsDataUrl(resolved.imageUrl);
+        const garment = await analyzeWardrobeImageCore(imageDataUrl);
+        product.category = garment.category || null;
+        product.subcategory = garment.subcategory || null;
+        product.colors = garment.colors ?? [];
+        product.material = garment.materials?.[0] ?? null;
+        product.length = garment.length || null;
+        product.sleeveLength = garment.sleeveLength || null;
+        product.fit = garment.fit || null;
+        product.styleTags = garment.styleTags ?? [];
+        if (!product.brand && garment.brand) product.brand = garment.brand;
+      } catch (e) {
+        // Text-only facts from the page are still usable even if the
+        // photo itself couldn't be downloaded or analyzed.
+        console.error("[AURA purchase-advisor] url image analysis failed", e);
+      }
+    }
+  } else if (data.source === "photo") {
+    product.imageUrl = data.imageDataUrl;
+    const garment = await analyzeWardrobeImageCore(data.imageDataUrl);
+    product.category = garment.category || null;
+    product.subcategory = garment.subcategory || null;
+    product.colors = garment.colors ?? [];
+    product.material = garment.materials?.[0] ?? null;
+    product.length = garment.length || null;
+    product.sleeveLength = garment.sleeveLength || null;
+    product.fit = garment.fit || null;
+    product.styleTags = garment.styleTags ?? [];
+    product.brand = garment.brand || null;
+  } else if (data.source === "label") {
+    const label = await analyzeLabelImage(data.imageDataUrl, model);
+    product.brand = label.brand;
+    product.title = label.productName;
+    product.material = label.material;
+    product.price = label.price;
+    product.currency = label.currency;
+    // category / colors / shape are unknowable from a label alone —
+    // left null rather than guessed, per the "never invent" rule.
+  } else {
+    const [garment, label] = await Promise.all([
+      analyzeWardrobeImageCore(data.garmentImageDataUrl),
+      analyzeLabelImage(data.labelImageDataUrl, model),
+    ]);
+    product.imageUrl = data.garmentImageDataUrl;
+    product.category = garment.category || null;
+    product.subcategory = garment.subcategory || null;
+    product.colors = garment.colors ?? [];
+    product.length = garment.length || null;
+    product.sleeveLength = garment.sleeveLength || null;
+    product.fit = garment.fit || null;
+    product.styleTags = garment.styleTags ?? [];
+    // The label wins for printed-text fields when it has an answer —
+    // more reliable there than reading small print off a garment photo.
+    product.brand = label.brand || garment.brand || null;
+    product.title = label.productName || null;
+    product.material = label.material || garment.materials?.[0] || null;
+    product.price = label.price;
+    product.currency = label.currency;
+  }
+
+  // ---- 2. Wardrobe facts ----
+  const { data: wardrobeRaw } = await supabase.from("wardrobe_items").select("*").eq("user_id", userId);
+  const wardrobe = (wardrobeRaw ?? []) as WardrobeItem[];
+
+  const duplicate = product.category
+    ? (() => {
+        const d = findBestMatch(
+          { category: product.category!, subcategory: product.subcategory ?? undefined, colors: product.colors, brand: product.brand },
+          wardrobe,
+        );
+        return d.verdict === "new" ? null : { verdict: d.verdict as "certain" | "maybe", itemId: d.match!.id };
+      })()
+    : null;
+
+  const similarItemsCount = product.category
+    ? wardrobe.filter((it) => it.category === product.category && (!product.subcategory || it.subcategory === product.subcategory)).length
+    : 0;
+
+  // "Does this fill a real gap?" — same spirit as the wardrobe-gap
+  // suggestion: zero comparable pieces owned reads as a genuine gap;
+  // several near-identical pieces already owned does not, regardless
+  // of how nice the new one looks.
+  const wardrobeGap = product.category ? similarItemsCount === 0 : false;
+
+  const pairsWithCount = product.category ? countPairings(product.category, product.colors, wardrobe) : 0;
+
+  return { ok: true, product, wardrobe, duplicate, similarItemsCount, pairsWithCount, wardrobeGap };
+}
+
+/** The deterministic verdict logic, extracted so both the single-item flow and the
+ *  multi-item comparison below use the exact same rule — a comparison needs each item's
+ *  OWN independent buy/maybe/skip just as much as the single-item advisor does; this is
+ *  never a second, drifting copy of the same judgment. */
+function computeVerdict(opts: {
+  dressViolation: boolean; hasCategory: boolean; duplicate: { verdict: "certain" | "maybe" } | null;
+  pairsWithCount: number; wardrobeGap: boolean; wardrobeSize: number; isLabelOnly: boolean;
+}): { verdict: "buy" | "maybe" | "skip"; confidence: "high" | "medium" | "low" } {
+  let verdict: "buy" | "maybe" | "skip";
+  let confidence: "high" | "medium" | "low";
+  if (opts.dressViolation) {
+    verdict = "skip"; confidence = "high";
+  } else if (!opts.hasCategory) {
+    // Not enough to reason about (e.g. label-only, or vision genuinely
+    // couldn't classify the piece) — never fake certainty.
+    verdict = "maybe"; confidence = "low";
+  } else if (opts.duplicate?.verdict === "certain") {
+    verdict = "skip"; confidence = "medium";
+  } else if (!opts.duplicate && opts.pairsWithCount >= 3 && opts.wardrobeGap) {
+    verdict = "buy"; confidence = "high";
+  } else if (!opts.duplicate && opts.pairsWithCount >= 3) {
+    verdict = "buy"; confidence = opts.wardrobeSize > 0 ? "medium" : "low";
+  } else {
+    verdict = "maybe";
+    confidence = opts.pairsWithCount > 0 ? "medium" : "low";
+  }
+  // A label photo alone never supports a confident visual verdict, whatever the
+  // heuristics above computed from the (mostly null) product shape.
+  if (opts.isLabelOnly && confidence === "high") confidence = "medium";
+  return { verdict, confidence };
+}
+
+/**
  * "Should I buy this?" across four input modes (URL / photo / label /
  * photo+label). The verdict is 100% deterministic, computed in code from
  * real wardrobe facts (duplicate check, dress-preference hard rule,
@@ -258,117 +426,9 @@ export const analyzePurchase = createServerFn({ method: "POST" })
     const gateway = createLovableAiGatewayProvider(key);
     const model = gateway("google/gemini-2.5-flash");
 
-    const product: PurchaseProduct = {
-      title: null, brand: null, price: null, currency: null, imageUrl: null, sourceUrl: null, description: null,
-      category: null, subcategory: null, colors: [], material: null,
-      length: null, sleeveLength: null, fit: null, styleTags: [],
-    };
-
-    // ---- 1. Gather product facts, depending on input mode ----
-    if (data.source === "url") {
-      let target: URL;
-      try { target = new URL(data.url.startsWith("http") ? data.url : `https://${data.url}`); }
-      catch { return { ok: false, error: INVALID_LINK[langCode] ?? INVALID_LINK.en }; }
-
-      const resolved = await resolveProductImageUrl(target.toString(), data.accessToken);
-      if (!resolved.ok) {
-        return { ok: false, error: resolved.error || (COULD_NOT_READ_PAGE[langCode] ?? COULD_NOT_READ_PAGE.en) };
-      }
-      product.title = resolved.title || null;
-      product.brand = resolved.brand || null;
-      product.price = resolved.price ?? null;
-      product.currency = resolved.priceCurrency ?? null;
-      product.imageUrl = resolved.imageUrl;
-      product.sourceUrl = target.toString();
-      product.description = resolved.description ?? null;
-
-      if (resolved.imageUrl) {
-        try {
-          const imageDataUrl = await fetchAsDataUrl(resolved.imageUrl);
-          const garment = await analyzeWardrobeImageCore(imageDataUrl);
-          product.category = garment.category || null;
-          product.subcategory = garment.subcategory || null;
-          product.colors = garment.colors ?? [];
-          product.material = garment.materials?.[0] ?? null;
-          product.length = garment.length || null;
-          product.sleeveLength = garment.sleeveLength || null;
-          product.fit = garment.fit || null;
-          product.styleTags = garment.styleTags ?? [];
-          if (!product.brand && garment.brand) product.brand = garment.brand;
-        } catch (e) {
-          // Text-only facts from the page are still usable even if the
-          // photo itself couldn't be downloaded or analyzed.
-          console.error("[AURA purchase-advisor] url image analysis failed", e);
-        }
-      }
-    } else if (data.source === "photo") {
-      product.imageUrl = data.imageDataUrl;
-      const garment = await analyzeWardrobeImageCore(data.imageDataUrl);
-      product.category = garment.category || null;
-      product.subcategory = garment.subcategory || null;
-      product.colors = garment.colors ?? [];
-      product.material = garment.materials?.[0] ?? null;
-      product.length = garment.length || null;
-      product.sleeveLength = garment.sleeveLength || null;
-      product.fit = garment.fit || null;
-      product.styleTags = garment.styleTags ?? [];
-      product.brand = garment.brand || null;
-    } else if (data.source === "label") {
-      const label = await analyzeLabelImage(data.imageDataUrl, model);
-      product.brand = label.brand;
-      product.title = label.productName;
-      product.material = label.material;
-      product.price = label.price;
-      product.currency = label.currency;
-      // category / colors / shape are unknowable from a label alone —
-      // left null rather than guessed, per the "never invent" rule.
-    } else {
-      const [garment, label] = await Promise.all([
-        analyzeWardrobeImageCore(data.garmentImageDataUrl),
-        analyzeLabelImage(data.labelImageDataUrl, model),
-      ]);
-      product.imageUrl = data.garmentImageDataUrl;
-      product.category = garment.category || null;
-      product.subcategory = garment.subcategory || null;
-      product.colors = garment.colors ?? [];
-      product.length = garment.length || null;
-      product.sleeveLength = garment.sleeveLength || null;
-      product.fit = garment.fit || null;
-      product.styleTags = garment.styleTags ?? [];
-      // The label wins for printed-text fields when it has an answer —
-      // more reliable there than reading small print off a garment photo.
-      product.brand = label.brand || garment.brand || null;
-      product.title = label.productName || null;
-      product.material = label.material || garment.materials?.[0] || null;
-      product.price = label.price;
-      product.currency = label.currency;
-    }
-
-    // ---- 2. Wardrobe facts ----
-    const { data: wardrobeRaw } = await supabase.from("wardrobe_items").select("*").eq("user_id", userId);
-    const wardrobe = (wardrobeRaw ?? []) as WardrobeItem[];
-
-    const duplicate = product.category
-      ? (() => {
-          const d = findBestMatch(
-            { category: product.category!, subcategory: product.subcategory ?? undefined, colors: product.colors, brand: product.brand },
-            wardrobe,
-          );
-          return d.verdict === "new" ? null : { verdict: d.verdict as "certain" | "maybe", itemId: d.match!.id };
-        })()
-      : null;
-
-    const similarItemsCount = product.category
-      ? wardrobe.filter((it) => it.category === product.category && (!product.subcategory || it.subcategory === product.subcategory)).length
-      : 0;
-
-    // "Does this fill a real gap?" — same spirit as the wardrobe-gap
-    // suggestion: zero comparable pieces owned reads as a genuine gap;
-    // several near-identical pieces already owned does not, regardless
-    // of how nice the new one looks.
-    const wardrobeGap = product.category ? similarItemsCount === 0 : false;
-
-    const pairsWithCount = product.category ? countPairings(product.category, product.colors, wardrobe) : 0;
+    const resolved = await resolveProductAndWardrobeFacts(data, model, langCode, supabase, userId);
+    if (!resolved.ok) return resolved;
+    const { product, wardrobe, duplicate, similarItemsCount, pairsWithCount, wardrobeGap } = resolved;
 
     // ---- 3. Dress preferences — hard rule, same as the outfit engine ----
     const dressPrefs = profile?.dress_preferences ?? null;
@@ -380,29 +440,10 @@ export const analyzePurchase = createServerFn({ method: "POST" })
       : false;
 
     // ---- 4. Deterministic verdict — the AI never decides this part ----
-    let verdict: "buy" | "maybe" | "skip";
-    let confidence: "high" | "medium" | "low";
-
-    if (dressViolation) {
-      verdict = "skip"; confidence = "high";
-    } else if (!product.category) {
-      // Not enough to reason about (e.g. label-only, or vision genuinely
-      // couldn't classify the piece) — never fake certainty.
-      verdict = "maybe"; confidence = "low";
-    } else if (duplicate?.verdict === "certain") {
-      verdict = "skip"; confidence = "medium";
-    } else if (!duplicate && pairsWithCount >= 3 && wardrobeGap) {
-      verdict = "buy"; confidence = "high";
-    } else if (!duplicate && pairsWithCount >= 3) {
-      verdict = "buy"; confidence = wardrobe.length > 0 ? "medium" : "low";
-    } else {
-      verdict = "maybe";
-      confidence = pairsWithCount > 0 ? "medium" : "low";
-    }
-    // A label photo alone never supports a confident visual verdict,
-    // whatever the heuristics above computed from the (mostly null)
-    // product shape.
-    if (data.source === "label" && confidence === "high") confidence = "medium";
+    const { verdict, confidence } = computeVerdict({
+      dressViolation, hasCategory: !!product.category, duplicate, pairsWithCount, wardrobeGap,
+      wardrobeSize: wardrobe.length, isLabelOnly: data.source === "label",
+    });
 
     const base = {
       product: { title: product.title, brand: product.brand, price: product.price, currency: product.currency, imageUrl: product.imageUrl, sourceUrl: product.sourceUrl },
@@ -460,4 +501,166 @@ export const analyzePurchase = createServerFn({ method: "POST" })
     }
 
     return { ok: true as const, verdict, confidence, reason, ...base };
+  });
+
+// ============================================================================
+// Compare two or more products — "should I buy this one, or one of these
+// instead?"
+//
+// Reuses resolveProductAndWardrobeFacts and computeVerdict (above) for each
+// product, so every fact and every individual verdict here is computed by
+// the exact same logic the single-item advisor already relies on — never a
+// second, drifting copy. Two axes, kept deliberately separate because the
+// person can genuinely want either answer:
+//   1. Is THIS item worth buying at all, on its own? (buy/maybe/skip, same
+//      deterministic rule as the single-item flow)
+//   2. If you can only pick one of these, which one? (preferredIndex) — a
+//      real, independent question: two items can BOTH be a "buy" with one
+//      still preferable, or BOTH be a "skip" with one still less bad, or
+//      genuinely be equivalent (preferredIndex null — "either one").
+// Deterministic tie-breaks run first (a dress-preference conflict, a certain
+// duplicate) exactly like the single-item flow's hard-rules-first principle;
+// the model only makes the actual close call when nothing in the facts
+// already decides it, and is explicitly allowed to call it a genuine tie.
+// ============================================================================
+
+const MultiCompareInputSchema = z.object({ items: z.array(InputSchema).min(2).max(4) });
+
+type ComparedProductOut = {
+  title: string | null;
+  brand: string | null;
+  price: string | null;
+  currency: string | null;
+  imageUrl: string | null;
+  sourceUrl: string | null;
+};
+
+type ComparedItem = {
+  product: ComparedProductOut;
+  verdict: "buy" | "maybe" | "skip";
+  confidence: "high" | "medium" | "low";
+  wardrobe: { duplicate: boolean; pairsWithCount: number; wardrobeGap: boolean; dressPreferenceViolation: boolean };
+};
+
+export type ComparePurchasesResult =
+  | { ok: true; items: ComparedItem[]; preferredIndex: number | null; reason: string }
+  | { ok: false; error: string };
+
+const COULD_NOT_COMPARE: Record<string, string> = {
+  it: "Non sono riuscita a confrontare questi capi.",
+  en: "Couldn't compare these pieces.",
+  es: "No he podido comparar estas prendas.",
+  fr: "Impossible de comparer ces pièces.",
+};
+
+export const comparePurchases = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => MultiCompareInputSchema.parse(input))
+  .handler(async ({ data, context }): Promise<ComparePurchasesResult> => {
+    const { supabase, userId } = context;
+
+    const { data: profileRow } = await (supabase.from("profiles" as never) as any)
+      .select("dress_preferences, language, season, undertone")
+      .eq("id", userId).maybeSingle();
+    const profile = profileRow as { dress_preferences?: DressPreferences; language?: string | null; season?: string | null; undertone?: string | null } | null;
+    const langCode = profile?.language ?? "en";
+    const dressPrefs = profile?.dress_preferences ?? null;
+
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key) throw new Error("Missing LOVABLE_API_KEY");
+    const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
+    const gateway = createLovableAiGatewayProvider(key);
+    const model = gateway("google/gemini-2.5-flash");
+
+    const resolvedAll = await Promise.all(
+      data.items.map((item) => resolveProductAndWardrobeFacts(item, model, langCode, supabase, userId)),
+    );
+    const firstError = resolvedAll.find((r): r is { ok: false; error: string } => !r.ok);
+    if (firstError) return firstError;
+    const resolved = resolvedAll as Extract<(typeof resolvedAll)[number], { ok: true }>[];
+
+    const violations = resolved.map((r) =>
+      hasAnyPreference(dressPrefs) && r.product.category
+        ? !isItemAllowedByDressPreferences(
+            { category: r.product.category, subcategory: r.product.subcategory, length: r.product.length, sleeveLength: r.product.sleeveLength, fit: r.product.fit, styleTags: r.product.styleTags },
+            dressPrefs,
+          )
+        : false,
+    );
+
+    const verdicts = resolved.map((r, i) =>
+      computeVerdict({
+        dressViolation: violations[i], hasCategory: !!r.product.category, duplicate: r.duplicate,
+        pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, wardrobeSize: r.wardrobe.length,
+        isLabelOnly: data.items[i].source === "label",
+      }),
+    );
+
+    const items: ComparedItem[] = resolved.map((r, i) => ({
+      product: { title: r.product.title, brand: r.product.brand, price: r.product.price, currency: r.product.currency, imageUrl: r.product.imageUrl, sourceUrl: r.product.sourceUrl },
+      verdict: verdicts[i].verdict,
+      confidence: verdicts[i].confidence,
+      wardrobe: { duplicate: r.duplicate?.verdict === "certain", pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, dressPreferenceViolation: violations[i] },
+    }));
+
+    // ---- Deterministic tie-breaks, in order — same "hard rules first" spirit as the ----
+    // ---- single-item verdict. Each step narrows the candidate set; only when more    ----
+    // ---- than one candidate survives every step does the model make the real call.   ----
+    const rank = { buy: 2, maybe: 1, skip: 0 } as const;
+    let candidates = items.map((_, i) => i);
+    const narrow = (keepIf: (i: number) => boolean) => {
+      const next = candidates.filter(keepIf);
+      if (next.length > 0) candidates = next;
+    };
+    narrow((i) => !violations[i]); // never prefer a piece that conflicts with a stated preference
+    narrow((i) => !items[i].wardrobe.duplicate); // never prefer a certain duplicate over a non-duplicate
+    const bestRank = Math.max(...candidates.map((i) => rank[items[i].verdict]));
+    narrow((i) => rank[items[i].verdict] === bestRank); // prefer the higher individual verdict
+
+    let preferredIndex: number | null = candidates.length === 1 ? candidates[0] : null;
+    const needsAiTiebreak = candidates.length > 1;
+
+    const langName = LANGUAGE_NAMES[langCode] ?? "English";
+    const letters = ["A", "B", "C", "D"];
+    const describeItem = (label: string, r: Extract<(typeof resolvedAll)[number], { ok: true }>, verdict: ComparedItem["verdict"], violation: boolean) => [
+      `${label}: ${r.product.category ?? "unknown category"}${r.product.subcategory ? " / " + r.product.subcategory : ""}, colors: ${r.product.colors.join(", ") || "unclear"}, brand: ${r.product.brand || "unknown"}, price: ${r.product.price ?? "unknown"}. Individual verdict already decided: ${verdict.toUpperCase()}.`,
+      r.duplicate?.verdict === "certain" ? `${label} is a near-duplicate of something already owned.` : r.duplicate?.verdict === "maybe" ? `${label} is similar to something already owned, not a certain duplicate.` : `${label}: nothing similar already owned.`,
+      `${label} would pair with about ${r.pairsWithCount} piece(s) already owned.`,
+      r.wardrobeGap ? `${label} fills a real gap — nothing comparable owned yet.` : `${label} is not a gap — comparable pieces already owned.`,
+      violation ? `${label} conflicts with a stated dress preference.` : "",
+    ].filter(Boolean);
+
+    const system = [
+      "You are an elegant, knowledgeable personal stylist helping the person choose among SEVERAL specific products they're considering. Each product's individual buy/maybe/skip verdict is already decided (given below) — you are NOT re-deciding those. Your only job is the SEPARATE question: if they can only get one of these, which one — or is it genuinely a toss-up?",
+      "Speak directly TO the person — \"il tuo guardaroba\", \"possiedi\", \"ti starebbe meglio\" (translated naturally into the target language) — never in the third person. Sound like a stylist giving a real, personal opinion, not a database printing out matched fields.",
+      "Your reason must be honest about the individual verdicts too — if every option is a SKIP, say plainly that none is really worth it, while still naming which one is the least bad if you must pick. If every option is a BUY, you can say both/all are worth it while still naming a preference. Never imply a SKIP item is a good purchase just because it's the preferred one of the group.",
+      "NEVER say or imply that YOU (the app) or the person already bought, chose, or picked any of these — this is advice about a decision not yet made.",
+      `Respond in ${langName}.`,
+      "Keep it under 280 characters.",
+      needsAiTiebreak
+        ? `Nothing decisive separates ${candidates.map((i) => letters[i]).join(" and ")} on the facts — YOU make the actual stylistic call between just those (never pick one already ruled out below). If they're genuinely close enough that neither is a real winner, say so honestly and leave the choice to the person, rather than inventing a false distinction.`
+        : `The preferred pick is already decided: ${letters[preferredIndex as number]}. You only explain this pick naturally, in your own words, in the stylist tone above — do not soften or second-guess it.`,
+      "",
+      "Facts:",
+      ...items.flatMap((it, i) => describeItem(letters[i], resolved[i], it.verdict, violations[i])),
+      "",
+      "Respond with ONLY a single valid JSON object, no markdown fences. \"preferred\" must be one of the letters above, or null for a genuine tie:",
+      '{"preferred": "A", "reason": ""}',
+    ].filter(Boolean).join("\n");
+
+    let reason: string;
+    try {
+      const r1 = await generateText({ model, system, messages: [{ role: "user", content: "Write the pick and reason." }] });
+      const parsed = parseAiJson(r1.text, z.object({ preferred: z.string().nullable(), reason: z.string() }));
+      if (needsAiTiebreak) {
+        const idx = letters.indexOf((parsed.preferred ?? "").toUpperCase());
+        preferredIndex = idx >= 0 && candidates.includes(idx) ? idx : null;
+      }
+      reason = truncateAtBoundary(parsed.reason, 300);
+    } catch (e) {
+      console.error("[AURA purchase-advisor] compare reason generation failed", e);
+      reason = COULD_NOT_COMPARE[langCode] ?? COULD_NOT_COMPARE.en;
+    }
+
+    return { ok: true as const, items, preferredIndex, reason };
   });
