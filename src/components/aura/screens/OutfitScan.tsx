@@ -10,9 +10,10 @@ import { useWardrobeCacheActions } from "@/lib/wardrobe-query";
 import type { TablesInsert } from "@/integrations/supabase/types";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { DetectedItemCard } from "@/components/aura/DetectedItemCard";
+import { PiecePicker } from "../PiecePicker";
 import { analyzeWardrobeImage } from "@/lib/ai-analyze.functions";
 import { segmentOutfitPhoto } from "@/lib/outfit-segmentation";
-import { findBestMatch, type DedupeResult } from "@/lib/outfit-dedupe";
+import { findBestMatch, findTopMatches, type DedupeResult } from "@/lib/outfit-dedupe";
 import { findVisualDuplicates, confirmWearEvent } from "@/lib/outfit-wear.functions";
 import { startGarmentExtraction, checkGarmentExtraction } from "@/lib/outfit-garment-extract.functions";
 import { trimFileMargins } from "@/lib/auto-crop";
@@ -36,6 +37,11 @@ type ScanItem = {
   imageDataUrl: string;
   transparent: boolean;
   dedupe: DedupeResult;
+  // Alternative candidates from the wardrobe, ranked — see findTopMatches. Lets the "is this the
+  // same item?" card offer real alternatives (with their own match %) instead of a single guess
+  // the person could only accept or reject outright with no other option but a full manual search.
+  candidates: { item: WardrobeItem; score: number }[];
+  candidateIndex: number;
   status: "pending" | "confirmed-new" | "confirmed-duplicate";
   price: string;
   currency: string;
@@ -180,6 +186,14 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           { category: meta.category, subcategory: meta.subcategory, colors: meta.colors, brand: meta.brand || null },
           existingList,
         );
+        // Same scoring, but keeps the top 3 instead of only the single best — the "is this the
+        // same item?" card below offers these as real alternatives (each with its own match %),
+        // not just an accept/reject on one guess.
+        const candidates = findTopMatches(
+          { category: meta.category, subcategory: meta.subcategory, colors: meta.colors, brand: meta.brand || null },
+          existingList,
+          3,
+        ).map((c) => ({ item: c.item, score: c.score }));
         // Visual comparison, second pass — only worth the round-trip when
         // attributes alone weren't already confident. This was the real
         // gap the ADR's original plan aimed at (import dedup, not wear
@@ -202,6 +216,12 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                     match: matchedItem,
                     verdict: best.visualSimilarity >= 0.9 ? "certain" : best.visualSimilarity >= 0.6 ? "maybe" : "new",
                   };
+                  // Keep `candidates` consistent with what `dedupe` now shows: promote this
+                  // visually-boosted match to the front (or insert it) so cycling through
+                  // candidates below never contradicts the one already selected.
+                  const already = candidates.findIndex((c) => c.item.id === matchedItem.id);
+                  if (already >= 0) candidates.splice(already, 1);
+                  candidates.unshift({ item: matchedItem, score: best.visualSimilarity });
                 }
               }
             }
@@ -215,6 +235,19 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
             const map = await resolveWardrobeUrls([dedupe.match]);
             if (map[path]) setMatchThumbs((prev) => ({ ...prev, [dedupe.match!.id]: map[path] }));
           }
+        }
+        // Thumbnails for every alternative too, not just the top pick — needed as soon as the
+        // person cycles to a different candidate.
+        if (candidates.length) {
+          const urls = await resolveWardrobeUrls(candidates.map((c) => c.item));
+          setMatchThumbs((prev) => {
+            const next = { ...prev };
+            for (const c of candidates) {
+              const p = toStoragePath(c.item.image_url);
+              if (p && urls[p]) next[c.item.id] = urls[p];
+            }
+            return next;
+          });
         }
 
         const description = [meta.colors[0], meta.subcategory || meta.category].filter(Boolean).join(" ");
@@ -231,6 +264,8 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           imageDataUrl: seg.imageDataUrl,
           transparent: true,
           dedupe,
+          candidates,
+          candidateIndex: 0,
           status: dedupe.verdict === "certain" ? "confirmed-duplicate" : dedupe.verdict === "maybe" ? "pending" : "confirmed-new",
           price: "",
           currency: "EUR",
@@ -271,6 +306,49 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
 
   const removeItem = (key: string) =>
     setScanItems((prev) => prev.filter((it) => it.key !== key));
+
+  // Step through the ranked alternatives (see findTopMatches) for one detection's "is this the
+  // same item?" card — never past either end of the list.
+  const cycleCandidate = (key: string, dir: 1 | -1) =>
+    setScanItems((prev) => prev.map((it) => {
+      if (it.key !== key || !it.candidates.length) return it;
+      const nextIndex = Math.min(it.candidates.length - 1, Math.max(0, it.candidateIndex + dir));
+      const c = it.candidates[nextIndex];
+      return {
+        ...it,
+        candidateIndex: nextIndex,
+        dedupe: { score: c.score, match: c.item, verdict: c.score >= 0.9 ? "certain" : c.score >= 0.6 ? "maybe" : "new" },
+      };
+    }));
+
+  // Manual "search the wardrobe" fallback, for when none of the ranked candidates are actually
+  // right — the same escape hatch LogWear's wear-confirmation already gives, ported here.
+  const [searchForKey, setSearchForKey] = useState<string | null>(null);
+  const [wardrobeSigned, setWardrobeSigned] = useState<Record<string, string>>({});
+  const [wardrobeSignedLoading, setWardrobeSignedLoading] = useState(false);
+  const openWardrobeSearch = async (key: string) => {
+    setSearchForKey(key);
+    if (Object.keys(wardrobeSigned).length === 0 && wardrobe.length > 0) {
+      setWardrobeSignedLoading(true);
+      try { setWardrobeSigned(await resolveWardrobeUrls(wardrobe)); }
+      finally { setWardrobeSignedLoading(false); }
+    }
+  };
+  const pickFromWardrobeSearch = (item: WardrobeItem) => {
+    if (!searchForKey) return;
+    const path = toStoragePath(item.image_url);
+    if (path && wardrobeSigned[path]) setMatchThumbs((prev) => ({ ...prev, [item.id]: wardrobeSigned[path] }));
+    updateItem(searchForKey, {
+      dedupe: { score: 1, match: item, verdict: "certain" },
+      // Choosing a specific item via search IS the confirmation — unlike cycling through the
+      // ranked candidates above, there's no reason to ask "is this the same item?" again about
+      // the exact piece the person just looked for and picked themselves.
+      status: "confirmed-duplicate",
+      candidates: [{ item, score: 1 }],
+      candidateIndex: 0,
+    });
+    setSearchForKey(null);
+  };
 
   // Sends the item through FASHN's Edit model (see
   // outfit-garment-extract.functions.ts) to reconstruct whatever's
@@ -546,6 +624,8 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
 
             if (it.status === "pending") {
               const thumb = it.dedupe.match ? matchThumbs[it.dedupe.match.id] : null;
+              const hasPrev = it.candidateIndex > 0;
+              const hasNext = it.candidateIndex < it.candidates.length - 1;
               return (
                 <div key={it.key} className="rounded-2xl border border-border bg-card p-4">
                   <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground text-center">{t("outfitScan.isThisSameItem")}</p>
@@ -557,10 +637,26 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                       <p className="mt-1 text-[9px] uppercase tracking-wide text-muted-foreground">{t("outfitScan.newScan")}</p>
                     </div>
                     <div className="text-center">
-                      <div className="h-20 w-20 rounded-xl overflow-hidden mx-auto" style={{ background: "#FFFFFF" }}>
-                        {thumb && <img src={thumb} alt="" className="h-full w-full object-contain p-1.5" />}
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => cycleCandidate(it.key, -1)}
+                          disabled={!hasPrev}
+                          aria-label={t("outfitScan.previousCandidate")}
+                          className="h-6 w-6 rounded-full bg-secondary/60 flex items-center justify-center disabled:opacity-30"
+                        >‹</button>
+                        <div className="h-20 w-20 rounded-xl overflow-hidden" style={{ background: "#FFFFFF" }}>
+                          {thumb && <img src={thumb} alt="" className="h-full w-full object-contain p-1.5" />}
+                        </div>
+                        <button
+                          onClick={() => cycleCandidate(it.key, 1)}
+                          disabled={!hasNext}
+                          aria-label={t("outfitScan.nextCandidate")}
+                          className="h-6 w-6 rounded-full bg-secondary/60 flex items-center justify-center disabled:opacity-30"
+                        >›</button>
                       </div>
-                      <p className="mt-1 text-[9px] uppercase tracking-wide text-muted-foreground">{t("outfitScan.alreadyOwned")}</p>
+                      <p className="mt-1 text-[9px] uppercase tracking-wide text-muted-foreground">
+                        {t("outfitScan.alreadyOwned")} · {Math.round(it.dedupe.score * 100)}%
+                      </p>
                     </div>
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-2">
@@ -573,6 +669,10 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                       className="h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em]"
                     >{t("outfitScan.yesSame")}</button>
                   </div>
+                  <button
+                    onClick={() => void openWardrobeSearch(it.key)}
+                    className="mt-2 w-full h-9 rounded-full text-[10px] uppercase tracking-[0.3em] text-muted-foreground underline"
+                  >{t("outfitScan.searchWardrobeInstead")}</button>
                 </div>
               );
             }
@@ -637,6 +737,29 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
               disabled={loggingWorn}
               className="h-12 rounded-full border border-border text-xs uppercase tracking-[0.25em] disabled:opacity-50"
             >{t("outfitScan.noJustAddPieces")}</button>
+          </div>
+        </div>
+      )}
+      {searchForKey && (
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+          <div className="px-6 pt-14 pb-3 flex items-center gap-3 border-b border-border/60">
+            <button onClick={() => setSearchForKey(null)} className="h-10 w-10 rounded-full border border-border flex items-center justify-center active:scale-90">
+              <ArrowLeft size={16} />
+            </button>
+            <h1 className="font-serif text-xl italic">{t("outfitScan.searchWardrobeTitle")}</h1>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <PiecePicker
+              items={wardrobe}
+              signed={wardrobeSigned}
+              selectedIds={[]}
+              onToggle={(id) => {
+                const item = wardrobe.find((w) => w.id === id);
+                if (item) pickFromWardrobeSearch(item);
+              }}
+              loading={wardrobeSignedLoading}
+              emptyHint={t("outfitScan.wardrobeSearchEmpty")}
+            />
           </div>
         </div>
       )}
