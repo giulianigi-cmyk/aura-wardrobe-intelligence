@@ -1732,6 +1732,12 @@
   },
   "outfitScan": {
     "lookingAtOutfit": "Observando tu look…",
+    "didYouWearThisToday": "¿Llevaste este look hoy?",
+    "didYouWearThisTodayHint": "Registrarlo cuenta para las veces que usas cada prenda y su coste por uso.",
+    "yesLogAsWorn": "Sí, registrar como usado",
+    "noJustAddPieces": "No, solo añade las prendas",
+    "loggedAsWornToday": "Registrado como usado hoy",
+    "couldNotLogWorn": "No se pudo registrar como usado",
     "analyzingOutfit": "Analizando tu look…",
     "noClothingRecognized": "No se reconocieron prendas en esta foto. Prueba con una foto de cuerpo entero más clara.",
     "identifyingItem": "Identificando prenda {{current}} de {{total}}…",
