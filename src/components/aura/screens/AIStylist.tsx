@@ -823,7 +823,13 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
                       {upcomingBusyPlanId === p.id ? <Loader2 size={14} className="animate-spin" /> : <Plus size={16} />}
                     </button>
                   </div>
-                  {lookButtons({ itemIds: p.item_ids, title: `${dateLabel(p.date)}${p.occasion ? ` · ${p.occasion}` : ""}`, occasion: p.occasion, notes: p.notes })}
+                  {lookButtons({
+                    itemIds: p.item_ids, title: `${dateLabel(p.date)}${p.occasion ? ` · ${p.occasion}` : ""}`, occasion: p.occasion, notes: p.notes,
+                    // Without this, "Canvas" on an upcoming plan fell through to the generic
+                    // create-a-new-outfit path — see BuilderInit.planId's comment for why that
+                    // silently orphaned every edit instead of updating the actual plan.
+                    onEdit: () => openBuilder({ itemIds: p.item_ids, occasion: p.occasion ?? undefined, notes: p.notes ?? undefined, planId: p.id }),
+                  })}
                 </div>
               ))}
             </div>
