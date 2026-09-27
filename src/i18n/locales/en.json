@@ -1732,6 +1732,12 @@
   },
   "outfitScan": {
     "lookingAtOutfit": "Looking at your outfit…",
+    "didYouWearThisToday": "Did you wear this outfit today?",
+    "didYouWearThisTodayHint": "Logging it counts toward each piece’s wear count and cost-per-wear.",
+    "yesLogAsWorn": "Yes, log as worn",
+    "noJustAddPieces": "No, just add the pieces",
+    "loggedAsWornToday": "Logged as worn today",
+    "couldNotLogWorn": "Couldn't log it as worn",
     "analyzingOutfit": "Analyzing your outfit…",
     "noClothingRecognized": "No clothing items recognized in this photo. Try a clearer full-body shot.",
     "identifyingItem": "Identifying item {{current}} of {{total}}…",
