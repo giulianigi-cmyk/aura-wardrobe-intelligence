@@ -145,16 +145,25 @@ export async function segmentOutfitPhoto(imageDataUrl: string): Promise<{ label:
     const totalPixels = maskW * maskH;
     const minPixels = Math.floor(totalPixels * 0.015);
 
-    // Draw source photo to canvas at mask dimensions for accurate per-pixel alpha.
+    // Used only to map pixels between mask space and the original photo's own coordinates — see
+    // scaleX/scaleY below. Color sampling for the final crop comes straight from the original
+    // full-resolution photo, not from a downsized intermediate copy; see cropItemFromSegmentation
+    // further down this file, which already did it this way.
     const img = await loadImage(imageDataUrl);
-    const srcCanvas = document.createElement("canvas");
-    srcCanvas.width = maskW; srcCanvas.height = maskH;
-    const srcCtx = srcCanvas.getContext("2d");
-    if (!srcCtx) return [];
-    srcCtx.drawImage(img, 0, 0, maskW, maskH);
-    const srcData = srcCtx.getImageData(0, 0, maskW, maskH);
 
     const results: { label: string; imageDataUrl: string; fullPhotoMaskDataUrl: string }[] = [];
+
+    // The segmentation model resizes its input to a fixed working shape without preserving the
+    // photo's aspect ratio, so mask space and the original photo's space are related by a
+    // DIFFERENT scale per axis whenever the photo isn't already that same shape (i.e. virtually
+    // always, for a portrait phone photo). Cropping directly out of mask space, as this used to
+    // do, therefore squashed or stretched every garment by however much the two axes disagreed —
+    // sometimes badly enough that a t-shirt or a pair of jeans came out looking like a different,
+    // unrecognizable shape entirely. Mapping the bounding box back to the photo's own coordinates
+    // and drawing straight from the original (rather than from a small, already-distorted copy)
+    // fixes both the shape and, as a bonus, the resolution of every crop.
+    const scaleX = img.naturalWidth / maskW;
+    const scaleY = img.naturalHeight / maskH;
 
     for (const [label, mask] of byLabel) {
       if (maskNonZero(mask) < minPixels) continue;
@@ -169,27 +178,34 @@ export async function segmentOutfitPhoto(imageDataUrl: string): Promise<{ label:
       const y0 = Math.max(0, bbox.y0 - padY);
       const x1 = Math.min(maskW, bbox.x1 + padX);
       const y1 = Math.min(maskH, bbox.y1 + padY);
-      const cw = x1 - x0, ch = y1 - y0;
+      if (x1 - x0 < 2 || y1 - y0 < 2) continue;
+
+      // Same padded box, in the original photo's own pixel coordinates.
+      const ox0 = Math.max(0, Math.floor(x0 * scaleX));
+      const oy0 = Math.max(0, Math.floor(y0 * scaleY));
+      const ox1 = Math.min(img.naturalWidth, Math.ceil(x1 * scaleX));
+      const oy1 = Math.min(img.naturalHeight, Math.ceil(y1 * scaleY));
+      const cw = ox1 - ox0, ch = oy1 - oy0;
       if (cw < 2 || ch < 2) continue;
 
       const outCanvas = document.createElement("canvas");
       outCanvas.width = cw; outCanvas.height = ch;
       const outCtx = outCanvas.getContext("2d");
       if (!outCtx) continue;
-      const outImg = outCtx.createImageData(cw, ch);
+      // Full-resolution color, cropped straight from the original photo — correct proportions,
+      // full sharpness, no intermediate resize.
+      outCtx.drawImage(img, ox0, oy0, cw, ch, 0, 0, cw, ch);
+      const outImg = outCtx.getImageData(0, 0, cw, ch);
       const od = outImg.data;
-      const sd = srcData.data;
 
+      // Alpha comes from the mask, looked up per output pixel by mapping back into mask space
+      // (nearest neighbour — the mask is binary, so there is no meaningful interpolation to do).
       for (let y = 0; y < ch; y++) {
+        const my = Math.min(maskH - 1, Math.floor((oy0 + y) / scaleY));
         for (let x = 0; x < cw; x++) {
-          const sx = x0 + x, sy = y0 + y;
-          const srcIdx = (sy * maskW + sx) * 4;
-          const dstIdx = (y * cw + x) * 4;
-          const m = mask[sy * maskW + sx];
-          od[dstIdx] = sd[srcIdx];
-          od[dstIdx + 1] = sd[srcIdx + 1];
-          od[dstIdx + 2] = sd[srcIdx + 2];
-          od[dstIdx + 3] = m > 127 ? 255 : 0;
+          const mx = Math.min(maskW - 1, Math.floor((ox0 + x) / scaleX));
+          const m = mask[my * maskW + mx];
+          od[(y * cw + x) * 4 + 3] = m > 127 ? 255 : 0;
         }
       }
       outCtx.putImageData(outImg, 0, 0);
