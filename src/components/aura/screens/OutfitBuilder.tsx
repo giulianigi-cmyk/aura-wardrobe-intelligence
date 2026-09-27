@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useTranslation } from "react-i18next";
 import { uploadOutfitThumb } from "@/lib/outfit-thumb";
@@ -14,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PiecePicker } from "../PiecePicker";
 import { useAuth } from "@/hooks/use-auth";
 import { useOutfitPlansCacheActions } from "@/lib/outfit-plans-query";
+import { updateTripOutfitPlanItems } from "@/lib/trips.functions";
 import { useOutfitsCacheActions } from "@/lib/outfits-query";
 import { useLocation } from "@/hooks/use-location";
 import { useWeather } from "@/hooks/use-weather";
@@ -280,6 +282,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
   const { user } = useAuth();
   const outfitPlansCache = useOutfitPlansCacheActions();
   const outfitsCache = useOutfitsCacheActions();
+  const updatePlanItems = useServerFn(updateTripOutfitPlanItems);
   const { latitude, longitude, city } = useLocation();
   const { data: weather } = useWeather(latitude, longitude);
 
@@ -788,6 +791,16 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
     if (!placed.length) { toast.error(t("outfitBuilder.addAtLeastOneItem")); return; }
     setSaving(true);
     try {
+      // Editing an upcoming outfit_plans row via the canvas (see BuilderInit.planId) updates THAT
+      // row's item_ids directly — it is not a saved "outfit" and was never meant to spawn a new,
+      // disconnected one just because the person removed and re-added a piece here.
+      if (init?.planId) {
+        const res = await updatePlanItems({ data: { planId: init.planId, itemIds: placed.map((p) => p.itemId) } });
+        if (!res.ok) throw new Error(t("outfitBuilder.toastSaveFailed"));
+        outfitPlansCache.invalidate();
+        toast.success(t("outfitBuilder.toastOutfitUpdated"));
+        return;
+      }
       const exported = await exportCanvas();
       if (!exported) return;
       const path = `${user.id}/outfit-${Date.now()}.png`;
@@ -855,7 +868,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
     } finally {
       setSaving(false);
     }
-    }, [user, placed, exportCanvas, name, occasion, notes, season, weather, init]);
+    }, [user, placed, exportCanvas, name, occasion, notes, season, weather, init, updatePlanItems, outfitPlansCache]);
 
   const addToCalendar = async () => {
     if (!user || !placed.length) return;
