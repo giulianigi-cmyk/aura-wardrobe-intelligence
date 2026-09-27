@@ -1,17 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
-import { Sparkles, Loader2, Plus, Link as LinkIcon, Check, HelpCircle, X as XIcon, Camera, Tag, ExternalLink } from "lucide-react";
+import { Sparkles, Loader2, Plus, Link as LinkIcon, Check, HelpCircle, X as XIcon, Camera, Tag, ExternalLink, Scale, Minus } from "lucide-react";
 import type { Screen } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 import { analyzeWardrobeGap, type GapSuggestion } from "@/lib/wardrobe-gap.functions";
-import { analyzePurchase, type PurchaseAdvisorResult } from "@/lib/purchase-advisor.functions";
+import { analyzePurchase, comparePurchases, type PurchaseAdvisorResult, type ComparePurchasesResult } from "@/lib/purchase-advisor.functions";
 import { findColorByName } from "@/lib/color-palette";
 
 type LinkMode = "url" | "photo" | "label";
+// The comparison slots deliberately support only the two most common ways someone has a specific
+// product in hand to compare — a link, or a photo — not the full label/photo+label combination the
+// single-item flow offers. Keeping four independent multi-mode inputs (up to 4 items) simple was a
+// deliberate trade-off against replicating every single-item input mode for every slot.
+type CompareMode = "url" | "photo";
+type CompareSlot = { mode: CompareMode; url: string; photoDataUrl: string | null };
+const blankCompareSlot = (): CompareSlot => ({ mode: "url", url: "", photoDataUrl: null });
 
 function readFileAsDataUrl(f: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -35,6 +42,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
   const [signed, setSigned] = useState<Record<string, string>>({});
 
   // ---- Purchase Advisor state ----
+  const [advisorMode, setAdvisorMode] = useState<"single" | "compare">("single");
   const [mode, setMode] = useState<LinkMode>("url");
   const [linkUrl, setLinkUrl] = useState("");
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
@@ -46,6 +54,62 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
   const photoRef = useRef<HTMLInputElement>(null);
   const labelForPhotoRef = useRef<HTMLInputElement>(null);
   const labelOnlyRef = useRef<HTMLInputElement>(null);
+
+  // ---- Compare (2-4 pieces) state — kept separate from the single-item state above
+  // rather than trying to reuse it, since the two flows genuinely diverge (an array of
+  // slots vs. one set of fields) and forcing them to share state risked a subtle bug
+  // where switching modes leaves a stale field behind.
+  const comparePurchaseFn = useServerFn(comparePurchases);
+  const [compareSlots, setCompareSlots] = useState<CompareSlot[]>([blankCompareSlot(), blankCompareSlot()]);
+  const comparePhotoRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const [comparing, setComparing] = useState(false);
+  const [compareResult, setCompareResult] = useState<ComparePurchasesResult | null>(null);
+  const [compareError, setCompareError] = useState<string | null>(null);
+
+  const updateCompareSlot = (i: number, patch: Partial<CompareSlot>) =>
+    setCompareSlots((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
+  const MAX_COMPARE = 6;
+  const addCompareSlot = () => setCompareSlots((prev) => (prev.length < MAX_COMPARE ? [...prev, blankCompareSlot()] : prev));
+
+  // Pasting several links at once, one per line — the one-slot-at-a-time flow (still there,
+  // for a link plus a photo mixed in) is tedious for "I have 5 tabs open, which is worth it",
+  // which is exactly the real case this is for. Replaces the current slots outright rather than
+  // appending, since re-pasting an edited list is the more likely second use than adding to it.
+  const [bulkUrls, setBulkUrls] = useState("");
+  const bulkUrlList = bulkUrls.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
+  const applyBulkUrls = () => {
+    const urls = bulkUrlList.slice(0, MAX_COMPARE);
+    if (urls.length < 2) return;
+    setCompareSlots(urls.map((url) => ({ mode: "url" as const, url, photoDataUrl: null })));
+    setBulkUrls("");
+    setCompareResult(null); setCompareError(null);
+  };
+  const removeCompareSlot = (i: number) => setCompareSlots((prev) => (prev.length > 2 ? prev.filter((_, idx) => idx !== i) : prev));
+  const resetCompare = () => {
+    setCompareResult(null); setCompareError(null); setCompareSlots([blankCompareSlot(), blankCompareSlot()]);
+  };
+  const compareSlotReady = (s: CompareSlot) => (s.mode === "url" ? s.url.trim().length > 0 : !!s.photoDataUrl);
+
+  const runCompare = async () => {
+    if (!compareSlots.every(compareSlotReady)) return;
+    setComparing(true); setCompareResult(null); setCompareError(null);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const items = compareSlots.map((s) =>
+        s.mode === "url"
+          ? ({ source: "url" as const, url: s.url.trim(), accessToken: sess.session?.access_token })
+          : ({ source: "photo" as const, imageDataUrl: s.photoDataUrl! }),
+      );
+      const res = await comparePurchaseFn({ data: { items } });
+      if (res.ok) setCompareResult(res);
+      else setCompareError(res.error);
+    } catch (e) {
+      console.error("[AURA shop] compare failed", e);
+      setCompareError(t("shop.purchaseAnalysisFailed"));
+    } finally {
+      setComparing(false);
+    }
+  };
 
   // A native file input never fires onChange again for the SAME file
   // path (browsers only fire it on a value change) — without clearing
@@ -132,6 +196,146 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
 
       <section className="px-6 mt-6">
         <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">{t("shop.shouldIBuyIt")}</p>
+
+        <div className="flex gap-2 mb-3">
+          <button
+            onClick={() => { setAdvisorMode("single"); resetCompare(); }}
+            className={`flex-1 h-9 rounded-full text-[10px] uppercase tracking-widest transition ${advisorMode === "single" ? "bg-foreground text-background" : "bg-secondary/40 text-muted-foreground"}`}
+          >{t("shop.advisorModeSingle")}</button>
+          <button
+            onClick={() => { setAdvisorMode("compare"); resetAdvisor(); }}
+            className={`flex-1 h-9 rounded-full inline-flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-widest transition ${advisorMode === "compare" ? "bg-foreground text-background" : "bg-secondary/40 text-muted-foreground"}`}
+          ><Scale size={11} /> {t("shop.advisorModeCompare")}</button>
+        </div>
+
+        {advisorMode === "compare" ? (
+          <div className="rounded-2xl bg-secondary/40 p-4">
+            <div className="rounded-2xl bg-background border border-border/60 p-3 mb-3">
+              <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2">{t("shop.pasteMultipleLinksLabel")}</p>
+              <textarea
+                value={bulkUrls}
+                onChange={(e) => setBulkUrls(e.target.value)}
+                placeholder={t("shop.pasteMultipleLinksPlaceholder")}
+                rows={3}
+                className="w-full bg-secondary/40 rounded-2xl px-4 py-2.5 text-sm outline-none placeholder:text-muted-foreground/50 resize-none"
+              />
+              <button
+                onClick={applyBulkUrls}
+                disabled={bulkUrlList.length < 2}
+                className="mt-2 w-full h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.25em] text-muted-foreground disabled:opacity-40"
+              >{t("shop.useTheseLinks", { count: Math.min(bulkUrlList.length, MAX_COMPARE) })}</button>
+            </div>
+
+            <div className="space-y-3">
+              {compareSlots.map((slot, i) => (
+                <div key={i} className="rounded-2xl bg-background border border-border/60 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("shop.compareSlotLabel", { n: i + 1 })}</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => updateCompareSlot(i, { mode: slot.mode === "url" ? "photo" : "url", url: "", photoDataUrl: null })}
+                        className="text-[10px] uppercase tracking-widest text-muted-foreground underline"
+                      >{slot.mode === "url" ? t("shop.modePhoto") : t("shop.modeUrl")}</button>
+                      {compareSlots.length > 2 && (
+                        <button onClick={() => removeCompareSlot(i)} aria-label={t("shop.removeCompareSlot")} className="h-6 w-6 rounded-full bg-secondary/60 flex items-center justify-center">
+                          <Minus size={11} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {slot.mode === "url" ? (
+                    <div className="flex items-center gap-2 rounded-full bg-secondary/40 px-4 py-2.5">
+                      <LinkIcon size={13} className="text-muted-foreground shrink-0" />
+                      <input
+                        value={slot.url}
+                        onChange={(e) => updateCompareSlot(i, { url: e.target.value })}
+                        placeholder={t("shop.pasteProductLinkPlaceholder")}
+                        className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        ref={(el) => { comparePhotoRefs.current[i] = el; }}
+                        type="file" accept="image/*" capture="environment" className="hidden"
+                        onChange={async (e) => { const f = e.target.files?.[0]; if (f) updateCompareSlot(i, { photoDataUrl: await readFileAsDataUrl(f) }); }}
+                      />
+                      <button
+                        onClick={() => comparePhotoRefs.current[i]?.click()}
+                        className="w-full h-20 rounded-xl border border-dashed border-border bg-secondary/40 flex items-center justify-center overflow-hidden"
+                      >
+                        {slot.photoDataUrl ? (
+                          <img src={slot.photoDataUrl} alt="" className="h-full w-full object-contain p-1" />
+                        ) : (
+                          <span className="flex flex-col items-center gap-1 text-muted-foreground">
+                            <Camera size={16} />
+                            <span className="text-[10px] uppercase tracking-widest">{t("shop.photoGarmentButton")}</span>
+                          </span>
+                        )}
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {compareSlots.length < MAX_COMPARE && (
+              <button
+                onClick={addCompareSlot}
+                className="mt-3 w-full h-10 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.25em] text-muted-foreground flex items-center justify-center gap-2"
+              ><Plus size={12} /> {t("shop.addAnotherToCompare")}</button>
+            )}
+
+            <button
+              onClick={() => void runCompare()}
+              disabled={comparing || !compareSlots.every(compareSlotReady)}
+              className="mt-3 w-full h-11 rounded-full bg-foreground text-background flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.3em] disabled:opacity-60"
+            >
+              {comparing ? <Loader2 size={13} className="animate-spin" /> : <Scale size={13} />}
+              {t("shop.compareThesePieces")}
+            </button>
+
+            {compareError && <p className="mt-3 text-xs text-muted-foreground text-center">{compareError}</p>}
+
+            {compareResult && compareResult.ok && (
+              <div className="mt-4 space-y-3">
+                <div className="space-y-2">
+                  {compareResult.ranking.map((itemIndex, rank) => {
+                    const it = compareResult.items[itemIndex];
+                    return (
+                      <div key={itemIndex} className={`rounded-2xl border p-3 flex gap-3 ${rank === 0 ? "border-foreground bg-card" : "border-border/60 bg-card/60"}`}>
+                        {it.product.imageUrl && (
+                          <div className="h-16 w-16 shrink-0 rounded-xl overflow-hidden bg-white border border-border/60">
+                            <img src={it.product.imageUrl} alt="" className="h-full w-full object-contain p-1" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] uppercase tracking-widest bg-foreground text-background rounded-full h-4 w-4 shrink-0 flex items-center justify-center">{rank + 1}</span>
+                            {it.product.brand && <p className="text-[10px] uppercase tracking-widest text-muted-foreground truncate">{it.product.brand}</p>}
+                          </div>
+                          <p className="font-serif text-sm leading-tight truncate mt-0.5">{it.product.title || t("shop.unknownPiece")}</p>
+                          {it.product.price && <p className="text-xs text-muted-foreground mt-0.5">{it.product.price}</p>}
+                          <div className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] uppercase tracking-widest ${
+                            it.verdict === "buy" ? "bg-foreground text-background" :
+                            it.verdict === "maybe" ? "bg-[var(--champagne)]/40 text-foreground" :
+                            "bg-secondary text-muted-foreground"
+                          }`}>
+                            {it.verdict === "buy" ? <Check size={9} /> : it.verdict === "maybe" ? <HelpCircle size={9} /> : <XIcon size={9} />}
+                            {it.verdict === "buy" ? t("shop.verdictBuy") : it.verdict === "maybe" ? t("shop.verdictMaybe") : t("shop.verdictSkip")}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-sm text-foreground/80 leading-relaxed">{compareResult.reason}</p>
+              </div>
+            )}
+
+            <p className="mt-3 text-[10px] text-muted-foreground leading-relaxed">{t("shop.linkDisclaimer")}</p>
+          </div>
+        ) : (
         <div className="rounded-2xl bg-secondary/40 p-4">
           <div className="flex gap-2">
             {([
@@ -297,6 +501,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
             {t("shop.linkDisclaimer")}
           </p>
         </div>
+        )}
       </section>
 
       <section className="px-6 mt-8">
