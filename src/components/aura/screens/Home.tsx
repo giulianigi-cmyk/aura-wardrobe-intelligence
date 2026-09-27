@@ -1,646 +1,551 @@
-import { useEffect, useMemo, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Bell, Search, Sparkles, TrendingUp, MapPin, Loader2 } from "lucide-react";
-import type { Screen, BuilderInit } from "../AuraApp";
-import { useProfile } from "@/hooks/use-profile";
-import { useLocation } from "@/hooks/use-location";
-import { useWeather } from "@/hooks/use-weather";
-import { describeWeather, suggestOutfit, weatherLabelKey } from "@/lib/weather";
-import { useAuth } from "@/hooks/use-auth";
+import { useServerFn } from "@tanstack/react-start";
+import { Sparkles, Loader2, Plus, Link as LinkIcon, Check, HelpCircle, X as XIcon, Camera, Tag, ExternalLink, Scale, Minus } from "lucide-react";
+import type { Screen } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
-import { composeAndUploadOutfitImage, type ComposeItem } from "@/lib/compose-outfit-canvas";
-import { OutfitViewerSheet } from "@/components/aura/OutfitViewerSheet";
-import { useWardrobeItems } from "@/lib/wardrobe-query";
-import { loadDressRules } from "@/lib/dress-preferences";
-import { suggestDailyLooks, type DailyLook } from "@/lib/suggest-daily-looks.functions";
-import { tempBucket } from "@/lib/outfit-weather-rules";
-import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
-import { WardrobeLocationExpiryBanner } from "@/components/aura/WardrobeLocationExpiryBanner";
-import i18n, { type SupportedLanguage } from "@/i18n/config";
+import { analyzeWardrobeGap, type GapSuggestion } from "@/lib/wardrobe-gap.functions";
+import { analyzePurchase, comparePurchases, type PurchaseAdvisorResult, type ComparePurchasesResult } from "@/lib/purchase-advisor.functions";
+import { findColorByName } from "@/lib/color-palette";
 
-function todayISO(): string {
+type LinkMode = "url" | "photo" | "label";
+// The comparison slots deliberately support only the two most common ways someone has a specific
+// product in hand to compare — a link, or a photo — not the full label/photo+label combination the
+// single-item flow offers. Keeping four independent multi-mode inputs (up to 4 items) simple was a
+// deliberate trade-off against replicating every single-item input mode for every slot.
+type CompareMode = "url" | "photo";
+type CompareSlot = { mode: CompareMode; url: string; photoDataUrl: string | null };
+const blankCompareSlot = (): CompareSlot => ({ mode: "url", url: "", photoDataUrl: null });
 
-  return new Date().toISOString().slice(0, 10);
+function readFileAsDataUrl(f: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(f);
+  });
 }
 
-const CURATED_OCCASION_KEYS: Record<string, string> = {
-  Work: "home.occasionWork",
-  Weekend: "home.occasionWeekend",
-  Evening: "home.occasionEvening",
-};
-
-export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Screen) => void; openAvatarTryOn: (itemIds?: string[]) => void; openBuilder: (init: BuilderInit) => void; active?: boolean }) {
+export function Shop({ go }: { go: (s: Screen) => void }) {
   const { t } = useTranslation();
-  const unreadCount = useUnreadNotifications();
   const { user } = useAuth();
-  const { profile } = useProfile();
-  const { city, latitude, longitude, status, detect, setManual } = useLocation();
-  const { data: weather, loading: wxLoading } = useWeather(latitude, longitude);
+  const analyzeGap = useServerFn(analyzeWardrobeGap);
+  const analyzePurchaseFn = useServerFn(analyzePurchase);
+  const [loading, setLoading] = useState(true);
+  const [itemCount, setItemCount] = useState(0);
+  const [suggestion, setSuggestion] = useState<GapSuggestion | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [itemsById, setItemsById] = useState<Record<string, WardrobeItem>>({});
+  const [signed, setSigned] = useState<Record<string, string>>({});
 
-  // Home stays mounted (just hidden) whenever another tab is open — see AuraApp.tsx — so its own
-  // data-loading effects below, all plain useEffect/useState rather than the shared React Query
-  // hooks, only ever ran once on the app's first load. Saving or editing a look elsewhere (the
-  // canvas builder, a curated look's edits) writes to the database just fine, but nothing told
-  // this already-mounted screen to look again: the OLD state kept showing until a full app
-  // relaunch remounted it for the first time. `active` flips true every time this tab is
-  // switched back into view; the counter below turns that into a dependency the effects can
-  // react to, forcing them to re-read the database on every return visit, not just once ever.
-  const [refreshKey, setRefreshKey] = useState(0);
-  useEffect(() => { if (active !== false) setRefreshKey((k) => k + 1); }, [active]);
+  // ---- Purchase Advisor state ----
+  const [advisorMode, setAdvisorMode] = useState<"single" | "compare">("single");
+  const [mode, setMode] = useState<LinkMode>("url");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
+  const [labelDataUrl, setLabelDataUrl] = useState<string | null>(null);
+  const [includeLabelWithPhoto, setIncludeLabelWithPhoto] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [result, setResult] = useState<PurchaseAdvisorResult | null>(null);
+  const [checkError, setCheckError] = useState<string | null>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
+  const labelForPhotoRef = useRef<HTMLInputElement>(null);
+  const labelOnlyRef = useRef<HTMLInputElement>(null);
 
-  // Sync the UI language to the user's saved preference once the profile
-  // loads. Defaults to English (see i18n/config.ts) until then, and stays
-  // English if the user never set a preference. This is the only screen
-  // wired up to i18n so far (Phase 1) — once more screens are translated,
-  // this sync belongs in a shared top-level place instead of here.
-  useEffect(() => {
-    const lang = profile?.language as SupportedLanguage | undefined;
-    if (lang && lang !== i18n.language) void i18n.changeLanguage(lang);
-  }, [profile?.language]);
+  // ---- Compare (2-4 pieces) state — kept separate from the single-item state above
+  // rather than trying to reuse it, since the two flows genuinely diverge (an array of
+  // slots vs. one set of fields) and forcing them to share state risked a subtle bug
+  // where switching modes leaves a stale field behind.
+  const comparePurchaseFn = useServerFn(comparePurchases);
+  const [compareSlots, setCompareSlots] = useState<CompareSlot[]>([blankCompareSlot(), blankCompareSlot()]);
+  const comparePhotoRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const [comparing, setComparing] = useState(false);
+  const [compareResult, setCompareResult] = useState<ComparePurchasesResult | null>(null);
+  const [compareError, setCompareError] = useState<string | null>(null);
 
-  const generateLooks = useServerFn(suggestDailyLooks);
-  const [manualOpen, setManualOpen] = useState(false);
-  const [manualCity, setManualCity] = useState("");
-  const [autoTried, setAutoTried] = useState(false);
-  const [recentSigned, setRecentSigned] = useState<Record<string, string>>({});
-  const [todayLook, setTodayLook] = useState<DailyLook | null>(null);
-  const [curatedLooks, setCuratedLooks] = useState<DailyLook[]>([]);
-  const [looksSigned, setLooksSigned] = useState<Record<string, string>>({});
-  // Real composed outfit images (see compose-outfit-canvas.ts) —
-  // storage paths kept alongside the looks themselves, signed URLs kept
-  // separately since signed URLs expire and item thumbnails don't need
-  // the same treatment.
-  const [todayImagePath, setTodayImagePath] = useState<string | null>(null);
-  const [curatedImagePaths, setCuratedImagePaths] = useState<(string | null)[]>([]);
-  const [signedLookImages, setSignedLookImages] = useState<Record<string, string>>({});
-  const [looksLoading, setLooksLoading] = useState(true);
-  const [looksError, setLooksError] = useState<string | null>(null);
-  // Look opened full-screen by tapping a card (see OutfitPreviewSheet).
-  const [preview, setPreview] = useState<{ look: DailyLook; imagePath: string | null } | null>(null);
+  const updateCompareSlot = (i: number, patch: Partial<CompareSlot>) =>
+    setCompareSlots((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
+  const addCompareSlot = () => setCompareSlots((prev) => (prev.length < 4 ? [...prev, blankCompareSlot()] : prev));
+  const removeCompareSlot = (i: number) => setCompareSlots((prev) => (prev.length > 2 ? prev.filter((_, idx) => idx !== i) : prev));
+  const resetCompare = () => {
+    setCompareResult(null); setCompareError(null); setCompareSlots([blankCompareSlot(), blankCompareSlot()]);
+  };
+  const compareSlotReady = (s: CompareSlot) => (s.mode === "url" ? s.url.trim().length > 0 : !!s.photoDataUrl);
 
-  // Shared cache (see src/lib/wardrobe-query.ts) — replaces this
-  // screen's own independent full-table fetch. `pieces`/`worn`/`recent`
-  // are all derived from the same shared data instead of a second
-  // supabase call; the outfits count below is unrelated to the wardrobe
-  // and was already using head:true correctly, so it's untouched.
-  const itemsQuery = useWardrobeItems();
-  const allItems = itemsQuery.data ?? [];
-  const itemsLoaded = itemsQuery.isSuccess;
-  // The candidate pool the outfit generator is allowed to pick from — archived (sold/donated) and
-  // loaned-out pieces are physically not available to wear right now, exactly like Wardrobe.tsx's
-  // own filters already treat them. allItems above stays the FULL set (unfiltered) for the "CAPI"
-  // stat and "Dal tuo guardaroba", matching Wardrobe.tsx's own header count — only the generation
-  // input and its cache fingerprint use the active-only set below.
-  const activeItems = useMemo(
-    () => allItems.filter((it) => {
-      const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null };
-      return !raw.archived && !raw.active_loan_id;
-    }),
-    [allItems],
-  );
-  const [outfitsCount, setOutfitsCount] = useState(0);
-  useEffect(() => {
-    if (!user) return;
-    void supabase.from("outfits").select("id", { count: "exact", head: true }).eq("user_id", user.id)
-      .then(({ count }) => setOutfitsCount(count ?? 0));
-  }, [user, refreshKey]);
-  const stats = useMemo(() => {
-    const pieces = allItems.length;
-    const worn = allItems.filter((i) => (i.worn_count ?? 0) > 0).length;
-    return { pieces, outfits: outfitsCount, wearRate: pieces ? Math.round((worn / pieces) * 100) : 0 };
-  }, [allItems, outfitsCount]);
-  const recent = useMemo(() => allItems.slice(0, 3), [allItems]);
-  useEffect(() => {
-    if (!recent.length) { setRecentSigned({}); return; }
-    void resolveWardrobeUrls(recent).then(setRecentSigned);
-  }, [recent]);
+  const runCompare = async () => {
+    if (!compareSlots.every(compareSlotReady)) return;
+    setComparing(true); setCompareResult(null); setCompareError(null);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const items = compareSlots.map((s) =>
+        s.mode === "url"
+          ? ({ source: "url" as const, url: s.url.trim(), accessToken: sess.session?.access_token })
+          : ({ source: "photo" as const, imageDataUrl: s.photoDataUrl! }),
+      );
+      const res = await comparePurchaseFn({ data: { items } });
+      if (res.ok) setCompareResult(res);
+      else setCompareError(res.error);
+    } catch (e) {
+      console.error("[AURA shop] compare failed", e);
+      setCompareError(t("shop.purchaseAnalysisFailed"));
+    } finally {
+      setComparing(false);
+    }
+  };
 
-  useEffect(() => {
-    if (!user || !itemsLoaded) return;
-    // An empty wardrobe has nothing to suggest from — stop the spinner
-    // instead of waiting for items that will never arrive.
-    if (activeItems.length === 0) { setLooksLoading(false); return; }
-    // Wait for weather to settle before generating: generating immediately
-    // would run this effect twice — once with temperature: null, once with
-    // the real reading — and the cache validity check below (cacheStillValid)
-    // only compares date + wardrobe fingerprint, not weather, so the first
-    // "weatherless" run gets cached and silently blocks the correctly
-    // weather-aware one for the rest of the day. If no location is set at
-    // all, weather will never arrive, so don't wait forever in that case.
-    if (latitude != null && longitude != null && wxLoading) return;
+  // A native file input never fires onChange again for the SAME file
+  // path (browsers only fire it on a value change) — without clearing
+  // .value here, picking the identical photo a second time after a
+  // reset would silently do nothing.
+  const resetAdvisor = () => {
+    setResult(null); setCheckError(null);
+    setPhotoDataUrl(null); setLabelDataUrl(null); setIncludeLabelWithPhoto(false);
+    setLinkUrl("");
+    if (photoRef.current) photoRef.current.value = "";
+    if (labelForPhotoRef.current) labelForPhotoRef.current.value = "";
+    if (labelOnlyRef.current) labelOnlyRef.current.value = "";
+  };
 
-    void (async () => {
-      setLooksLoading(true);
-      setLooksError(null);
-      let today_: DailyLook | null = null;
-      let curated_: DailyLook[] = [];
-
-      try {
-        const today = todayISO();
-
-        const latestEdit = activeItems.reduce((max, it) => {
-          const t = (it as unknown as { updated_at?: string }).updated_at ?? it.created_at;
-          return t && t > max ? t : max;
-        }, "");
-                // The temperature BAND is part of the cache key: a look composed in the cool of the
-        // morning must not survive an afternoon that turned hot (a wool skirt with ankle
-        // boots on a 29°C day). It only changes when the day crosses a band, so it does not
-        // regenerate on every degree.
-        // Archiving or lending out the very piece a cached look used now correctly counts as a change.
-        const fingerprint = `${activeItems.length}:${latestEdit}:${tempBucket(weather?.current.temperature)}`;
-
-
-        type CachedRow = {
-          date: string; wardrobe_fingerprint: string; today_item_ids: string[];
-          today_occasion: string | null; today_explanation: string | null; curated: DailyLook[] | null;
-          today_image_path: string | null; curated_image_paths: (string | null)[] | null;
-        };
-        let cachedRow: CachedRow | null = null;
-        try {
-          const { data: cached } = await (supabase.from("home_suggestions" as never) as any)
-            .select("*").eq("user_id", user.id).maybeSingle();
-          cachedRow = cached as CachedRow | null;
-        } catch (err) {
-          console.error("[AURA home] failed to read suggestion cache", err);
-        }
-
-        const realIds = new Set(allItems.map((it) => it.id));
-        const cacheStillValid = (row: CachedRow | null) => {
-          if (!row || row.date !== today || row.wardrobe_fingerprint !== fingerprint) return false;
-          const ids = [...(row.today_item_ids ?? []), ...((row.curated ?? []).flatMap((l) => l.item_ids))];
-          return ids.length > 0 && ids.every((id) => realIds.has(id));
-        };
-        const cacheItemsStillReal = (row: CachedRow | null) => {
-          if (!row) return false;
-          const ids = [...(row.today_item_ids ?? []), ...((row.curated ?? []).flatMap((l) => l.item_ids))];
-          return ids.length > 0 && ids.every((id) => realIds.has(id));
-        };
-        const useRow = (row: CachedRow) => {
-          today_ = { item_ids: row.today_item_ids ?? [], occasion: row.today_occasion ?? "", explanation: row.today_explanation ?? "" };
-          curated_ = row.curated ?? [];
-          setTodayImagePath(row.today_image_path ?? null);
-          setCuratedImagePaths(row.curated_image_paths ?? []);
-        };
-
-        // Composes a real outfit image for `today` + every curated look
-        // (see compose-outfit-canvas.ts) and persists the resulting
-        // storage paths onto the SAME home_suggestions row — either as
-        // part of the fresh-generation upsert below, or as a lightweight
-        // backfill update when a row was cached before this feature
-        // existed and has valid item_ids but no images yet. Best-effort:
-        // a composition failure (a broken image URL, canvas unsupported)
-        // just leaves that image null, and the render below falls back
-        // to the plain thumbnail grid for that one look — never blocks
-        // the suggestion itself from showing.
-        const composeImagesFor = async (
-          todayLookForImage: DailyLook | null,
-          curatedForImages: DailyLook[],
-        ): Promise<{ todayPath: string | null; curatedPaths: (string | null)[] }> => {
-          const toComposeItems = async (ids: string[]): Promise<ComposeItem[]> => {
-            const picks = ids.map((id) => allItems.find((it) => it.id === id)).filter((it): it is WardrobeItem => Boolean(it));
-            const signedForPicks = await resolveWardrobeUrls(picks);
-            return picks
-              .map((it) => {
-                const path = toStoragePath(it.image_url);
-                const url = path ? signedForPicks[path] : null;
-                return url ? { id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length } : null;
-              })
-              .filter((x): x is NonNullable<typeof x> => x != null);
-          };
-
-          const todayPath = todayLookForImage?.item_ids.length
-            ? await composeAndUploadOutfitImage(user.id, await toComposeItems(todayLookForImage.item_ids))
-            : null;
-          const curatedPaths = await Promise.all(
-            curatedForImages.map(async (l) =>
-              l.item_ids.length ? await composeAndUploadOutfitImage(user.id, await toComposeItems(l.item_ids)) : null,
-            ),
-          );
-          return { todayPath, curatedPaths };
-        };
-
-        if (cacheStillValid(cachedRow)) {
-          useRow(cachedRow!);
-          // Backfill for a row cached before this feature existed —
-          // valid item_ids, no composed image yet. Fire-and-forget: the
-          // grid fallback already covers this visit, no reason to make
-          // the person wait on it.
-          if (!cachedRow!.today_image_path && !(cachedRow!.curated_image_paths?.length)) {
-            void (async () => {
-              const { todayPath, curatedPaths } = await composeImagesFor(today_, curated_);
-              setTodayImagePath(todayPath);
-              setCuratedImagePaths(curatedPaths);
-              try {
-                await (supabase.from("home_suggestions" as never) as any)
-                  .update({ today_image_path: todayPath, curated_image_paths: curatedPaths })
-                  .eq("user_id", user.id);
-              } catch (err) {
-                console.error("[AURA home] failed to backfill suggestion images", err);
-              }
-            })();
-          }
-        } else if (activeItems.length >= 3) {
-          try {
-            const dressRules = await loadDressRules(user.id);
-            const res = await generateLooks({
-              data: {
-                temperature: weather?.current.temperature ?? null,
-                condition: weather ? describeWeather(weather.current.weatherCode, weather.current.isDay).label : null,
-                dressRules,
-                items: activeItems.map((it) => ({
-                  id: it.id, category: it.category, subcategory: it.subcategory,
-                  colors: it.colors ?? (it.color ? [it.color] : []),
-                  style: it.style ? (Array.isArray(it.style) ? it.style : [it.style]) : [],
-                  season: it.season, brand: it.brand,
-                  formality: it.formality ?? null,
-                  dayEvening: it.day_evening ?? "",
-                  styleTags: it.style_tags ?? [],
-                  sleeveLength: it.sleeve_length ?? "",
-                  length: it.length ?? "",
-                  material: Array.isArray(it.material) ? it.material : [],
-                  toeShape: it.toe_shape ?? "",
-                  occasion: it.occasion ?? "",
-                })),
-                language: i18n.language,
-              },
-            });
-            if (res.ok) {
-              today_ = res.result.today;
-              curated_ = res.result.curated;
-              const { todayPath, curatedPaths } = await composeImagesFor(today_, curated_);
-              setTodayImagePath(todayPath);
-              setCuratedImagePaths(curatedPaths);
-              try {
-                await (supabase.from("home_suggestions" as never) as any).upsert({
-                  user_id: user.id,
-                  date: today,
-                  wardrobe_fingerprint: fingerprint,
-                  today_item_ids: today_.item_ids,
-                  today_occasion: today_.occasion,
-                  today_explanation: today_.explanation,
-                  curated: curated_,
-                  today_image_path: todayPath,
-                  curated_image_paths: curatedPaths,
-                  generated_at: new Date().toISOString(),
-                } as never);
-              } catch (err) {
-                console.error("[AURA home] failed to save suggestion cache", err);
-              }
-            } else if (cacheItemsStillReal(cachedRow)) {
-              useRow(cachedRow!);
-            } else {
-              setLooksError(res.error ?? "Couldn't generate today's looks.");
-            }
-          } catch (err) {
-            console.error("[AURA home] look generation failed", err);
-            if (cacheItemsStillReal(cachedRow)) {
-              useRow(cachedRow!);
-            } else {
-              setLooksError("Couldn't generate today's looks.");
-            }
-          }
-        } else if (cacheItemsStillReal(cachedRow)) {
-          useRow(cachedRow!);
-        }
-      } catch (err) {
-        console.error("[AURA home] daily looks effect failed", err);
-        setLooksError("Couldn't load today's looks.");
-      } finally {
-        setTodayLook(today_);
-        setCuratedLooks(curated_);
-        try {
-          const ids = new Set<string>();
-          if (today_) (today_ as DailyLook).item_ids.forEach((id) => ids.add(id));
-          curated_.forEach((l) => l.item_ids.forEach((id) => ids.add(id)));
-          const referenced = allItems.filter((it) => ids.has(it.id));
-          setLooksSigned(await resolveWardrobeUrls(referenced));
-        } catch (err) {
-          console.error("[AURA home] failed to sign look thumbnails", err);
-        }
-        setLooksLoading(false);
+  const runCheck = async () => {
+    setChecking(true); setResult(null); setCheckError(null);
+    try {
+      let res: PurchaseAdvisorResult;
+      if (mode === "url") {
+        const raw = linkUrl.trim();
+        if (!raw) { setChecking(false); return; }
+        const { data: sess } = await supabase.auth.getSession();
+        res = await analyzePurchaseFn({ data: { source: "url", url: raw, accessToken: sess.session?.access_token } });
+      } else if (mode === "photo") {
+        if (!photoDataUrl) { setChecking(false); return; }
+        res = includeLabelWithPhoto && labelDataUrl
+          ? await analyzePurchaseFn({ data: { source: "photos", garmentImageDataUrl: photoDataUrl, labelImageDataUrl: labelDataUrl } })
+          : await analyzePurchaseFn({ data: { source: "photo", imageDataUrl: photoDataUrl } });
+      } else {
+        if (!labelDataUrl) { setChecking(false); return; }
+        res = await analyzePurchaseFn({ data: { source: "label", imageDataUrl: labelDataUrl } });
       }
-    })();
-  }, [user, itemsLoaded, allItems, weather, wxLoading, latitude, longitude, refreshKey]);
-
-  // Signs the composed images once their storage paths are known — kept
-  // separate from looksSigned (item thumbnails) since these are a
-  // different kind of asset (outfits bucket, not wardrobe) and don't
-  // need to be recomputed on every item-thumbnail-driven re-render.
-  useEffect(() => {
-    void (async () => {
-      const paths = [todayImagePath, ...curatedImagePaths].filter((p): p is string => Boolean(p));
-      if (!paths.length) { setSignedLookImages({}); return; }
-      const { data: urls, error } = await supabase.storage.from("outfits").createSignedUrls(paths, 60 * 60);
-      if (error) { console.error("[AURA home] failed to sign composed look images", error); return; }
-      const map: Record<string, string> = {};
-      urls?.forEach((r, i) => { if (r.signedUrl) map[paths[i]] = r.signedUrl; });
-      setSignedLookImages(map);
-    })();
-  }, [todayImagePath, curatedImagePaths]);
-
-
-  const itemById = useMemo(() => {
-    const map: Record<string, WardrobeItem> = {};
-    allItems.forEach((it) => { map[it.id] = it; });
-    return map;
-  }, [allItems]);
-
-  const thumbFor = (id: string): string | null => {
-    const it = itemById[id];
-    if (!it) return null;
-    const path = toStoragePath(it.image_url);
-    return path ? looksSigned[path] ?? null : null;
+      if (res.ok) setResult(res);
+      else setCheckError(res.error);
+    } catch (e) {
+      console.error("[AURA shop] purchase advisor failed", e);
+      setCheckError(t("shop.purchaseAnalysisFailed"));
+    } finally {
+      setChecking(false);
+    }
   };
 
   useEffect(() => {
-    if (autoTried) return;
-    if (profile && !city && status === "idle") {
-      setAutoTried(true);
-      detect();
-    }
-  }, [profile, city, status, detect, autoTried]);
+    if (!user) return;
+    void (async () => {
+      setLoading(true);
+      const { data } = await supabase.from("wardrobe_items").select("*").eq("user_id", user.id);
+      const items = (data ?? []) as WardrobeItem[];
+      setItemCount(items.length);
+      const map: Record<string, WardrobeItem> = {};
+      items.forEach((it) => { map[it.id] = it; });
+      setItemsById(map);
 
-      const fullName = profile?.full_name?.trim();
-  const greeting = fullName ? t("home.greetingWithName", { name: fullName }) : t("home.greetingNoName");
-  const today = new Date().toLocaleDateString(i18n.language, { weekday: "long", month: "long", day: "numeric" });
+      if (items.length < 5) {
+        setLoading(false);
+        return;
+      }
+      const res = await analyzeGap({
+        data: {
+          items: items.map((it) => ({
+            id: it.id, category: it.category, subcategory: it.subcategory,
+            colors: it.colors ?? (it.color ? [it.color] : []),
+            style: it.style ? (Array.isArray(it.style) ? it.style : [it.style]) : [],
+          })),
+        },
+      });
+      if (res.ok) {
+        setSuggestion(res.suggestion);
+        const matching = items.filter((it) => res.suggestion.pairsWithIds.includes(it.id));
+        setSigned(await resolveWardrobeUrls(matching));
+      } else {
+        setError(res.error ?? t("shop.couldNotAnalyze"));
+      }
+      setLoading(false);
+    })();
+  }, [user]);
+
   return (
     <div className="h-full overflow-y-auto no-scrollbar pb-28">
-      {/* Header */}
-      <header className="px-6 pt-14 pb-4 flex items-center justify-between">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{today}</p>
-          <h1 className="font-serif text-3xl mt-1">{t("home.title")}</h1>
-          <p className="font-serif text-lg italic text-muted-foreground mt-1">{greeting}</p>
-        </div>
-        <div className="flex gap-2">
-          <button aria-label={t("home.searchAria")} className="h-10 w-10 rounded-full border border-border flex items-center justify-center active:scale-95 transition">
-            <Search size={16} />
-          </button>
-          <button onClick={() => go("notifications")} aria-label={t("home.notificationsAria")} className="h-10 w-10 rounded-full border border-border flex items-center justify-center active:scale-95 transition relative">
-            <Bell size={16} />
-            {unreadCount > 0 && (
-              <span className="absolute top-2 right-2.5 h-1.5 w-1.5 rounded-full bg-[var(--champagne)]" />
-            )}
-          </button>
-        </div>
+      <header className="px-6 pt-14 pb-3">
+        <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("shop.theEdit")}</p>
+        <h1 className="font-serif text-4xl mt-1">{t("shop.headerPrefix")} <span className="italic">{t("shop.headerEmphasis")}</span></h1>
       </header>
 
-      <WardrobeLocationExpiryBanner />
+      <section className="px-6 mt-6">
+        <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">{t("shop.shouldIBuyIt")}</p>
 
-           {/* Weather / location strip */}
-      <div className="mx-6 mt-2 rounded-2xl bg-secondary/60 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="text-xl shrink-0">
-              {weather ? describeWeather(weather.current.weatherCode, weather.current.isDay).icon : "📍"}
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm truncate">
-                {city
-                  ? weather
-                    ? `${city} · ${Math.round(weather.current.temperature)}${weather.units.temp}`
-                    : wxLoading ? `${city} · ${t("home.loading")}` : city
-                  : t("home.setLocation")}
-              </p>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground truncate">
-                {weather
-                  ? `${t(weatherLabelKey(weather.current.weatherCode))} · ${suggestOutfit(weather.current).headline}`
-                  : city ? t("home.forTailoredEdits") : t("home.forWeatherStyling")}
-              </p>
-            </div>
-          </div>
+        <div className="flex gap-2 mb-3">
           <button
-            onClick={() => { if (city) setManualOpen(v => !v); else detect(); }}
-            className="shrink-0 ml-2 h-8 px-3 rounded-full bg-background border border-border text-[10px] uppercase tracking-widest flex items-center gap-1.5 active:scale-95"
-          >
-            {status === "loading" ? <Loader2 size={11} className="animate-spin" /> : <MapPin size={11} />}
-            {city ? t("home.change") : t("home.useLocation")}
-          </button>
-        </div>
-        {(manualOpen || status === "denied" || status === "unsupported" || status === "error") && (
-          <form
-            onSubmit={(e) => { e.preventDefault(); setManual(manualCity); setManualCity(""); setManualOpen(false); }}
-            className="mt-3 flex gap-2 animate-fade-up"
-          >
-            <input
-              value={manualCity} onChange={e => setManualCity(e.target.value)}
-              placeholder={t("home.cityPlaceholder")}
-              className="flex-1 bg-background border border-border rounded-full px-4 py-2 text-sm outline-none focus:border-foreground"
-            />
-            <button type="submit" className="h-9 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-95">{t("home.save")}</button>
-          </form>
-        )}
-      </div>
-
-
-            {/* Today's edit */}
-      <section className="px-6 mt-8 animate-fade-up">
-        <div className="flex items-baseline justify-between mb-3">
-          <h2 className="font-serif text-2xl italic">{t("home.todaysEdit")}</h2>
-          <button onClick={() => go("ai")} className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("home.styleALook")}</button>
+            onClick={() => { setAdvisorMode("single"); resetCompare(); }}
+            className={`flex-1 h-9 rounded-full text-[10px] uppercase tracking-widest transition ${advisorMode === "single" ? "bg-foreground text-background" : "bg-secondary/40 text-muted-foreground"}`}
+          >{t("shop.advisorModeSingle")}</button>
+          <button
+            onClick={() => { setAdvisorMode("compare"); resetAdvisor(); }}
+            className={`flex-1 h-9 rounded-full inline-flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-widest transition ${advisorMode === "compare" ? "bg-foreground text-background" : "bg-secondary/40 text-muted-foreground"}`}
+          ><Scale size={11} /> {t("shop.advisorModeCompare")}</button>
         </div>
 
-       {looksLoading ? (
-          <div className="rounded-[2rem] gradient-warm aspect-[4/5] flex items-center justify-center">
-            <Loader2 className="animate-spin text-muted-foreground" />
-          </div>
-        ) : todayLook && todayLook.item_ids.length > 0 ? (
-          <button onClick={() => setPreview({ look: todayLook, imagePath: todayImagePath })} className="block w-full text-left">
-            <div className="relative overflow-hidden rounded-[2rem] shadow-luxe gradient-warm p-4">
-              {todayImagePath && signedLookImages[todayImagePath] ? (
-                <div className="rounded-xl overflow-hidden aspect-[4/5]" style={{ background: "#FFFFFF" }}>
-                  <img src={signedLookImages[todayImagePath]} alt="" className="h-full w-full object-contain" />
+        {advisorMode === "compare" ? (
+          <div className="rounded-2xl bg-secondary/40 p-4">
+            <div className="space-y-3">
+              {compareSlots.map((slot, i) => (
+                <div key={i} className="rounded-2xl bg-background border border-border/60 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("shop.compareSlotLabel", { n: i + 1 })}</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => updateCompareSlot(i, { mode: slot.mode === "url" ? "photo" : "url", url: "", photoDataUrl: null })}
+                        className="text-[10px] uppercase tracking-widest text-muted-foreground underline"
+                      >{slot.mode === "url" ? t("shop.modePhoto") : t("shop.modeUrl")}</button>
+                      {compareSlots.length > 2 && (
+                        <button onClick={() => removeCompareSlot(i)} aria-label={t("shop.removeCompareSlot")} className="h-6 w-6 rounded-full bg-secondary/60 flex items-center justify-center">
+                          <Minus size={11} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {slot.mode === "url" ? (
+                    <div className="flex items-center gap-2 rounded-full bg-secondary/40 px-4 py-2.5">
+                      <LinkIcon size={13} className="text-muted-foreground shrink-0" />
+                      <input
+                        value={slot.url}
+                        onChange={(e) => updateCompareSlot(i, { url: e.target.value })}
+                        placeholder={t("shop.pasteProductLinkPlaceholder")}
+                        className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        ref={(el) => { comparePhotoRefs.current[i] = el; }}
+                        type="file" accept="image/*" capture="environment" className="hidden"
+                        onChange={async (e) => { const f = e.target.files?.[0]; if (f) updateCompareSlot(i, { photoDataUrl: await readFileAsDataUrl(f) }); }}
+                      />
+                      <button
+                        onClick={() => comparePhotoRefs.current[i]?.click()}
+                        className="w-full h-20 rounded-xl border border-dashed border-border bg-secondary/40 flex items-center justify-center overflow-hidden"
+                      >
+                        {slot.photoDataUrl ? (
+                          <img src={slot.photoDataUrl} alt="" className="h-full w-full object-contain p-1" />
+                        ) : (
+                          <span className="flex flex-col items-center gap-1 text-muted-foreground">
+                            <Camera size={16} />
+                            <span className="text-[10px] uppercase tracking-widest">{t("shop.photoGarmentButton")}</span>
+                          </span>
+                        )}
+                      </button>
+                    </>
+                  )}
                 </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  {todayLook.item_ids.slice(0, 4).map((id) => {
-                    const src = thumbFor(id);
+              ))}
+            </div>
+
+            {compareSlots.length < 4 && (
+              <button
+                onClick={addCompareSlot}
+                className="mt-3 w-full h-10 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.25em] text-muted-foreground flex items-center justify-center gap-2"
+              ><Plus size={12} /> {t("shop.addAnotherToCompare")}</button>
+            )}
+
+            <button
+              onClick={() => void runCompare()}
+              disabled={comparing || !compareSlots.every(compareSlotReady)}
+              className="mt-3 w-full h-11 rounded-full bg-foreground text-background flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.3em] disabled:opacity-60"
+            >
+              {comparing ? <Loader2 size={13} className="animate-spin" /> : <Scale size={13} />}
+              {t("shop.compareThesePieces")}
+            </button>
+
+            {compareError && <p className="mt-3 text-xs text-muted-foreground text-center">{compareError}</p>}
+
+            {compareResult && compareResult.ok && (
+              <div className="mt-4 space-y-3">
+                <div className="space-y-2">
+                  {compareResult.ranking.map((itemIndex, rank) => {
+                    const it = compareResult.items[itemIndex];
                     return (
-                      <div key={id} className="aspect-square rounded-xl overflow-hidden bg-secondary/30 flex items-center justify-center">
-                        {src ? <img src={src} alt="" className="h-full w-full object-contain p-1.5" /> : null}
+                      <div key={itemIndex} className={`rounded-2xl border p-3 flex gap-3 ${rank === 0 ? "border-foreground bg-card" : "border-border/60 bg-card/60"}`}>
+                        {it.product.imageUrl && (
+                          <div className="h-16 w-16 shrink-0 rounded-xl overflow-hidden bg-white border border-border/60">
+                            <img src={it.product.imageUrl} alt="" className="h-full w-full object-contain p-1" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] uppercase tracking-widest bg-foreground text-background rounded-full h-4 w-4 shrink-0 flex items-center justify-center">{rank + 1}</span>
+                            {it.product.brand && <p className="text-[10px] uppercase tracking-widest text-muted-foreground truncate">{it.product.brand}</p>}
+                          </div>
+                          <p className="font-serif text-sm leading-tight truncate mt-0.5">{it.product.title || t("shop.unknownPiece")}</p>
+                          {it.product.price && <p className="text-xs text-muted-foreground mt-0.5">{it.product.price}</p>}
+                          <div className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] uppercase tracking-widest ${
+                            it.verdict === "buy" ? "bg-foreground text-background" :
+                            it.verdict === "maybe" ? "bg-[var(--champagne)]/40 text-foreground" :
+                            "bg-secondary text-muted-foreground"
+                          }`}>
+                            {it.verdict === "buy" ? <Check size={9} /> : it.verdict === "maybe" ? <HelpCircle size={9} /> : <XIcon size={9} />}
+                            {it.verdict === "buy" ? t("shop.verdictBuy") : it.verdict === "maybe" ? t("shop.verdictMaybe") : t("shop.verdictSkip")}
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
+                <p className="text-sm text-foreground/80 leading-relaxed">{compareResult.reason}</p>
+              </div>
+            )}
+
+            <p className="mt-3 text-[10px] text-muted-foreground leading-relaxed">{t("shop.linkDisclaimer")}</p>
+          </div>
+        ) : (
+        <div className="rounded-2xl bg-secondary/40 p-4">
+          <div className="flex gap-2">
+            {([
+              { key: "url" as const, label: t("shop.modeUrl"), icon: LinkIcon },
+              { key: "photo" as const, label: t("shop.modePhoto"), icon: Camera },
+              { key: "label" as const, label: t("shop.modeLabel"), icon: Tag },
+            ]).map((m) => (
+              <button
+                key={m.key}
+                onClick={() => { setMode(m.key); resetAdvisor(); }}
+                className={`flex-1 h-10 rounded-full flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-widest transition ${mode === m.key ? "bg-foreground text-background" : "bg-background border border-border text-muted-foreground"}`}
+              >
+                <m.icon size={12} /> {m.label}
+              </button>
+            ))}
+          </div>
+
+          {mode === "url" && (
+            <div className="mt-3 flex items-center gap-2 rounded-full bg-background border border-border px-4 py-2.5">
+              <LinkIcon size={14} className="text-muted-foreground shrink-0" />
+              <input
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") void runCheck(); }}
+                placeholder={t("shop.pasteProductLinkPlaceholder")}
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
+              />
+            </div>
+          )}
+
+          {mode === "photo" && (
+            <div className="mt-3">
+              <input ref={photoRef} type="file" accept="image/*" capture="environment" className="hidden"
+                onChange={async (e) => { const f = e.target.files?.[0]; if (f) setPhotoDataUrl(await readFileAsDataUrl(f)); }} />
+              <input ref={labelForPhotoRef} type="file" accept="image/*" capture="environment" className="hidden"
+                onChange={async (e) => { const f = e.target.files?.[0]; if (f) { setLabelDataUrl(await readFileAsDataUrl(f)); setIncludeLabelWithPhoto(true); } }} />
+              <button
+                onClick={() => photoRef.current?.click()}
+                className="w-full h-24 rounded-2xl border border-dashed border-border bg-background flex items-center justify-center overflow-hidden"
+              >
+                {photoDataUrl ? (
+                  <img src={photoDataUrl} alt="" className="h-full w-full object-contain p-1" />
+                ) : (
+                  <span className="flex flex-col items-center gap-1 text-muted-foreground">
+                    <Camera size={18} />
+                    <span className="text-[10px] uppercase tracking-widest">{t("shop.photoGarmentButton")}</span>
+                  </span>
+                )}
+              </button>
+              {photoDataUrl && (
+                <button
+                  onClick={() => labelForPhotoRef.current?.click()}
+                  className="mt-2 w-full h-9 rounded-full border border-border text-[10px] uppercase tracking-widest text-muted-foreground flex items-center justify-center gap-1.5"
+                >
+                  <Tag size={11} />
+                  {labelDataUrl ? t("shop.labelPhotoAdded") : t("shop.addLabelPhotoOptional")}
+                </button>
               )}
-                           <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-secondary/60 px-3 py-1.5">
-                <Sparkles size={11} />
-                <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{todayLook.occasion || t("home.todayFallback")}</span>
+            </div>
+          )}
+
+          {mode === "label" && (
+            <div className="mt-3">
+              <input ref={labelOnlyRef} type="file" accept="image/*" capture="environment" className="hidden"
+                onChange={async (e) => { const f = e.target.files?.[0]; if (f) setLabelDataUrl(await readFileAsDataUrl(f)); }} />
+              <button
+                onClick={() => labelOnlyRef.current?.click()}
+                className="w-full h-24 rounded-2xl border border-dashed border-border bg-background flex items-center justify-center overflow-hidden"
+              >
+                {labelDataUrl ? (
+                  <img src={labelDataUrl} alt="" className="h-full w-full object-contain p-1" />
+                ) : (
+                  <span className="flex flex-col items-center gap-1 text-muted-foreground">
+                    <Tag size={18} />
+                    <span className="text-[10px] uppercase tracking-widest">{t("shop.photoLabelButton")}</span>
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
+
+          <button
+            onClick={() => void runCheck()}
+            disabled={checking || (mode === "url" ? !linkUrl.trim() : mode === "photo" ? !photoDataUrl : !labelDataUrl)}
+            className="mt-3 w-full h-11 rounded-full bg-foreground text-background flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.3em] disabled:opacity-60"
+          >
+            {checking ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+            {t("shop.checkThisPiece")}
+          </button>
+
+          {checkError && (
+            <p className="mt-3 text-xs text-muted-foreground text-center">{checkError}</p>
+          )}
+
+          {result && result.ok && (
+            <div className="mt-4 rounded-2xl bg-card border border-border/60 p-4">
+              <div className="flex gap-3">
+                {result.product.imageUrl && (
+                  <div className="h-20 w-20 shrink-0 rounded-xl overflow-hidden bg-white border border-border/60">
+                    <img src={result.product.imageUrl} alt="" className="h-full w-full object-contain p-1" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  {result.product.brand && <p className="text-[10px] uppercase tracking-widest text-muted-foreground truncate">{result.product.brand}</p>}
+                  <p className="font-serif text-base leading-tight truncate">{result.product.title || [result.analysis.subcategory, result.analysis.category].filter(Boolean).join(" · ") || t("shop.unknownPiece")}</p>
+                  {result.product.price && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{result.product.price}</p>
+                  )}
+                  {result.product.sourceUrl && (
+                    <a
+                      href={result.product.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-muted-foreground underline"
+                    >
+                      <ExternalLink size={10} /> {t("shop.viewOnSite")}
+                    </a>
+                  )}
+                </div>
               </div>
 
-              <p className="mt-2 text-sm text-foreground/80 leading-relaxed">{todayLook.explanation}</p>
+              <div className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] uppercase tracking-widest ${
+                result.verdict === "buy" ? "bg-foreground text-background" :
+                result.verdict === "maybe" ? "bg-[var(--champagne)]/40 text-foreground" :
+                "bg-secondary text-muted-foreground"
+              }`}>
+                {result.verdict === "buy" ? <Check size={11} /> : result.verdict === "maybe" ? <HelpCircle size={11} /> : <XIcon size={11} />}
+                {result.verdict === "buy" ? t("shop.verdictBuy") : result.verdict === "maybe" ? t("shop.verdictMaybe") : t("shop.verdictSkip")}
+              </div>
+              <p className="mt-2 text-sm text-foreground/80 leading-relaxed">{result.reason}</p>
+
+              {/* A dress-preference violation is a hard, explicit personal
+                  rule, not an AI opinion — never blend it in with the other
+                  muted informational notes below, where it could read as
+                  just one more soft suggestion. */}
+              {result.rules.dressPreferenceViolation && (
+                <div className="mt-3 rounded-xl bg-destructive/10 border border-destructive/30 px-3 py-2">
+                  <p className="text-[11px] font-medium text-destructive">{t("shop.conflictsWithPreferences")}</p>
+                </div>
+              )}
+
+              <div className="mt-3 space-y-1 text-[11px] text-muted-foreground">
+                {result.wardrobe.duplicate?.verdict === "certain" && (
+                  <p className="font-medium text-foreground/80">{t("shop.looksLikeDuplicate")}</p>
+                )}
+                {result.wardrobe.duplicate?.verdict === "maybe" && (
+                  <p>{t("shop.looksSimilarToOwned")}</p>
+                )}
+                {result.wardrobe.pairsWithCount > 0 && (
+                  <p>{t("shop.wouldPairWithLink", { count: result.wardrobe.pairsWithCount })}</p>
+                )}
+                {result.wardrobe.wardrobeGap && (
+                  <p>{t("shop.fillsAGap")}</p>
+                )}
+                {result.confidence === "low" && (
+                  <p>{t("shop.lowConfidenceNote")}</p>
+                )}
+              </div>
             </div>
-          </button>
-        ) : (
-                    <div className="rounded-[2rem] gradient-warm p-6 text-center">
-            <p className="font-serif text-lg italic">
-              {looksError ?? (stats.pieces < 3 ? t("home.addMorePiecesFirst") : t("home.noLookYet"))}
-            </p>
+          )}
+
+          <p className="mt-3 text-[10px] text-muted-foreground leading-relaxed">
+            {t("shop.linkDisclaimer")}
+          </p>
+        </div>
+        )}
+      </section>
+
+      <section className="px-6 mt-8">
+        <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">{t("shop.orWardrobeIsMissing")}</p>
+        {loading ? (
+          <div className="rounded-[2rem] bg-secondary/40 aspect-[4/3] flex items-center justify-center">
+            <Loader2 className="animate-spin text-muted-foreground" />
+          </div>
+        ) : itemCount < 5 ? (
+          <div className="rounded-[2rem] bg-secondary/40 p-6 text-center">
+            <p className="font-serif text-lg italic">{t("shop.notEnoughPieces")}</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {stats.pieces < 3
-                ? t("home.needThreePieces")
-                : t("home.tapStyleALook")}
+              {t("shop.notEnoughPiecesHint")}
             </p>
+            <button
+              onClick={() => go("add")}
+              className="mt-4 h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center gap-2"
+            ><Plus size={12} /> {t("shop.addAPiece")}</button>
           </div>
-
-        )}
-      </section>
-
-        {/* Quick nav */}
-      <section className="px-6 mt-7 grid grid-cols-2 gap-3" aria-labelledby="home-quick-nav">
-        <h2 id="home-quick-nav" className="sr-only col-span-2">{t("home.quickNav")}</h2>
-        <button onClick={() => go("shop")} className="text-left rounded-2xl bg-[var(--champagne)]/30 border border-[var(--champagne)]/50 p-4 active:scale-[0.98] transition">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("home.theEdit")}</p>
-          <p className="font-serif text-lg mt-1">{t("home.shopYourGaps")}</p>
-        </button>
-        <button onClick={() => go("community")} className="text-left rounded-2xl bg-secondary/60 p-4 active:scale-[0.98] transition">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("home.atelier")}</p>
-          <p className="font-serif text-lg mt-1">{t("home.community")}</p>
-        </button>
-      </section>
-
-      {/* Color Lab */}
-      <section className="px-6 mt-3" aria-labelledby="home-color-lab">
-        <h2 id="home-color-lab" className="sr-only">{t("home.colorLab")}</h2>
-        <button
-          onClick={() => go("color-lab")}
-          className="w-full text-left rounded-2xl p-4 active:scale-[0.98] transition border border-border/60"
-          style={{ background: "linear-gradient(135deg, #F2C6C2 0%, #B0E0E6 50%, #F6E27A 100%)" }}
-        >
-          <p className="text-[10px] uppercase tracking-[0.3em] text-background/80 mix-blend-difference">{t("home.colorLab")}</p>
-          <p className="font-serif text-lg mt-1 text-background mix-blend-difference">{t("home.colorHarmony")}</p>
-        </button>
-      </section>
-
-      {/* Stats */}
-      <section className="px-6 mt-5 grid grid-cols-3 gap-3" aria-labelledby="home-stats">
-        <h2 id="home-stats" className="sr-only col-span-3">Stats</h2>
-        {[
-          { n: String(stats.pieces), l: t("home.pieces"), to: "wardrobe" as Screen },
-          { n: String(stats.outfits), l: t("home.outfits"), to: "saved-outfits" as Screen },
-          { n: `${stats.wearRate}%`, l: t("home.wearRate"), to: "insights" as Screen | null },
-        ].map(s => (
-
-          <button
-            key={s.l}
-            onClick={() => s.to && go(s.to)}
-            disabled={!s.to}
-            className="text-left rounded-2xl bg-card border border-border/60 p-4 active:scale-[0.98] transition disabled:active:scale-100 disabled:cursor-default"
-          >
-            <p className="font-serif text-3xl">{s.n}</p>
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">{s.l}</p>
-          </button>
-        ))}
-      </section>
-
-            {/* Curated for you */}
-      <section className="mt-10 animate-fade-up" style={{ animationDelay: "0.1s" }}>
-        <div className="flex items-baseline justify-between px-6 mb-3">
-          <h2 className="font-serif text-2xl italic">{t("home.curatedForYou")}</h2>
-          <button onClick={() => go("saved-outfits")} className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("home.seeAll")}</button>
-        </div>
-        {looksLoading ? (
-          <div className="mx-6 rounded-2xl bg-secondary/40 h-44 flex items-center justify-center">
-            <Loader2 className="animate-spin text-muted-foreground" size={18} />
-          </div>
-        ) : curatedLooks.length === 0 ? (
-          <div className="mx-6 rounded-2xl bg-secondary/40 p-5">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {stats.pieces < 3
-                ? t("home.addMoreForCurated")
-                : t("home.curateRetry")}
-            </p>
+        ) : error || !suggestion ? (
+          <div className="rounded-[2rem] bg-secondary/40 p-6 text-center">
+            <p className="text-sm text-muted-foreground">{error ?? t("shop.couldNotAnalyzeRightNow")}</p>
           </div>
         ) : (
+          <>
+            <div className="relative rounded-[2rem] overflow-hidden shadow-luxe gradient-warm p-6">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-background/60 px-3 py-1.5">
+                <Sparkles size={11} />
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{t("shop.wardrobeIsMissing")}</span>
+              </div>
+              <p className="font-serif text-2xl italic mt-4">{suggestion.title}</p>
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{suggestion.reason}</p>
+              <div className="mt-4 flex gap-2">
+                {suggestion.colors.map((c) => (
+                  <span
+                    key={c}
+                    className="h-7 w-7 rounded-full border border-border/60"
+                    style={{ background: findColorByName(c)?.hex ?? "#CCCCCC" }}
+                    title={c}
+                  />
+                ))}
+              </div>
+              <button
+                onClick={() => go("add")}
+                className="mt-5 h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center gap-2"
+              ><Plus size={12} /> {t("shop.addThisPiece")}</button>
+            </div>
 
-          <div className="flex gap-3 overflow-x-auto no-scrollbar px-6">
-            {curatedLooks.map((look, i) => {
-              const imagePath = curatedImagePaths[i];
-              const signedImage = imagePath ? signedLookImages[imagePath] : null;
-              return (
-                <button key={i} onClick={() => setPreview({ look, imagePath: imagePath ?? null })} className="shrink-0 w-40 text-left active:scale-[0.98] transition">
-                  <div className="overflow-hidden rounded-2xl shadow-soft aspect-[4/5] bg-[#FFFFFF]">
-                    {signedImage ? (
-                      <img src={signedImage} alt="" className="h-full w-full object-contain" />
-                    ) : (
-                      <div className="h-full w-full p-2 grid grid-cols-2 gap-1.5">
-                        {look.item_ids.slice(0, 4).map((id) => {
-                          const src = thumbFor(id);
-                          return (
-                            <div key={id} className="rounded-lg overflow-hidden bg-secondary/30 flex items-center justify-center">
-                              {src ? <img src={src} alt="" className="h-full w-full object-contain p-1" /> : null}
-                            </div>
-                          );
-                        })}
+            {suggestion.pairsWithIds.length > 0 && (
+              <div className="mt-6">
+                <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-3">
+                  {t("shop.wouldPairWith", { count: suggestion.pairsWithIds.length })}
+                </p>
+                <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                  {suggestion.pairsWithIds.map((id) => {
+                    const it = itemsById[id];
+                    if (!it) return null;
+                    const path = toStoragePath(it.image_url);
+                    const src = path ? signed[path] : null;
+                    return (
+                      <div key={id} className="shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-white border border-border/60">
+                        {src && <img src={src} alt="" className="h-full w-full object-contain p-1" />}
                       </div>
-                    )}
-                  </div>
-                  <p className="mt-2 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{look.occasion ? (CURATED_OCCASION_KEYS[look.occasion] ? t(CURATED_OCCASION_KEYS[look.occasion]) : look.occasion) : t("home.lookFallback")}</p>
-                  <p className="text-xs text-muted-foreground truncate">{look.explanation}</p>
-                </button>
-              );
-            })}
-          </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </section>
 
-            {/* From your wardrobe */}
-      <section className="px-6 mt-10 animate-fade-up" style={{ animationDelay: "0.15s" }}>
-        <div className="flex items-baseline justify-between mb-3">
-          <h2 className="font-serif text-2xl italic">{t("home.fromYourWardrobe")}</h2>
-          <TrendingUp size={14} className="text-muted-foreground" />
-        </div>
-        {recent.length === 0 ? (
-          <button
-            onClick={() => go("wardrobe")}
-            className="w-full text-left rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground"
-          >{t("home.addFirstPieces")}</button>
-        ) : (
-
-          <div className="grid grid-cols-3 gap-2">
-            {recent.map((it) => {
-              const path = toStoragePath(it.image_url);
-              const src = path ? recentSigned[path] : null;
-              return (
-                <button
-                  key={it.id}
-                  onClick={() => go("wardrobe")}
-                  className="rounded-xl overflow-hidden aspect-square active:scale-[0.98]"
-                  style={{ background: "#FFFFFF" }}
-                >
-                  {src ? (
-                    <img src={src} alt={it.category ?? "wardrobe item"} className="h-full w-full object-contain p-1.5" loading="lazy" />
-                  ) : (
-                                       <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground">{t("home.noImage")}</div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {preview && (
-        <OutfitViewerSheet
-          itemIds={preview.look.item_ids}
-          occasion={preview.look.occasion}
-          explanation={preview.look.explanation}
-          canvasPath={preview.imagePath}
-          canvasUrl={preview.imagePath ? signedLookImages[preview.imagePath] ?? null : null}
-          onEditOnCanvas={(layout) => {
-            const look = preview.look;
-            setPreview(null);
-            openBuilder({ itemIds: look.item_ids, occasion: look.occasion || undefined, layout });
-          }}
-          onClose={() => setPreview(null)}
-          onTryOn={(ids) => { setPreview(null); openAvatarTryOn(ids); }}
-          onSaved={() => setOutfitsCount((c) => c + 1)}
-        />
-      )}
+      <p className="px-6 mt-6 text-[11px] text-muted-foreground leading-relaxed">
+        {t("shop.disclaimer")}
+      </p>
     </div>
-
   );
 }
