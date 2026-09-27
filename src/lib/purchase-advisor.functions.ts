@@ -528,7 +528,22 @@ export const analyzePurchase = createServerFn({ method: "POST" })
 // wins — the model explains the ranking, it doesn't get to override it.
 // ============================================================================
 
-const MultiCompareInputSchema = z.object({ items: z.array(InputSchema).min(2).max(6) });
+const CachedFactsSchema = z.object({
+  source: z.literal("cached"),
+  product: z.object({
+    title: z.string().nullable(), brand: z.string().nullable(), price: z.string().nullable(),
+    currency: z.string().nullable(), imageUrl: z.string().nullable(), sourceUrl: z.string().nullable(),
+    category: z.string().nullable(), subcategory: z.string().nullable(), colors: z.array(z.string()),
+    length: z.string().nullable(), sleeveLength: z.string().nullable(), fit: z.string().nullable(), styleTags: z.array(z.string()),
+  }),
+  duplicateVerdict: z.enum(["certain", "maybe", "new"]),
+  pairsWithCount: z.number(),
+  wardrobeGap: z.boolean(),
+  isLabelOnly: z.boolean(),
+});
+export type CachedFacts = z.infer<typeof CachedFactsSchema>;
+
+const MultiCompareInputSchema = z.object({ items: z.array(z.union([InputSchema, CachedFactsSchema])).min(2).max(6) });
 
 type ComparedProductOut = {
   title: string | null;
@@ -544,6 +559,15 @@ type ComparedItem = {
   verdict: "buy" | "maybe" | "skip";
   confidence: "high" | "medium" | "low";
   wardrobe: { duplicate: boolean; pairsWithCount: number; wardrobeGap: boolean; dressPreferenceViolation: boolean };
+  // Everything the "is this the same item as I already own?" judgment for THIS one product
+  // depends on, opaque to the client — pass it back unchanged as this same item's `source` on a
+  // later comparePurchases call (e.g. after adding one more piece to the comparison) and this
+  // product will be judged identically rather than silently re-scraped and re-read by the vision
+  // model a second time. That re-read is never guaranteed to land on the exact same category,
+  // color or duplicate call as the first one — a borderline read can tip either way between two
+  // separate calls — which is exactly what made the SAME shoe come back "maybe" once and "skip"
+  // the next time, for no reason connected to the item itself or to anything the person did.
+  cacheKey: CachedFacts;
 };
 
 export type ComparePurchasesResult =
@@ -596,7 +620,30 @@ export const comparePurchases = createServerFn({ method: "POST" })
     const model = gateway("google/gemini-2.5-flash");
 
     const resolvedAll = await Promise.all(
-      data.items.map((item) => resolveProductAndWardrobeFacts(item, model, langCode, supabase, userId)),
+      data.items.map(async (item) => {
+        if (item.source === "cached") {
+          // Trust the client's cached facts outright — skip re-scraping and re-analyzing an item
+          // whose result was already shown and hasn't been asked to change. See ComparedItem's
+          // cacheKey field for why this exists at all.
+          const p = item.product;
+          return {
+            ok: true as const,
+            product: {
+              title: p.title, brand: p.brand, price: p.price, currency: p.currency, imageUrl: p.imageUrl, sourceUrl: p.sourceUrl,
+              description: null, category: p.category, subcategory: p.subcategory, colors: p.colors, material: null,
+              length: p.length, sleeveLength: p.sleeveLength, fit: p.fit, styleTags: p.styleTags,
+            },
+            wardrobe: [] as WardrobeItem[], // size only affects a confidence tweak below; an empty
+            // array is never wrong in the direction that matters (it can only make confidence
+            // read as slightly more cautious ("low" instead of "medium"), never overstate it.
+            duplicate: item.duplicateVerdict === "new" ? null : { score: item.duplicateVerdict === "certain" ? 1 : 0.7, match: null as unknown as WardrobeItem, verdict: item.duplicateVerdict },
+            similarItemsCount: 0,
+            pairsWithCount: item.pairsWithCount,
+            wardrobeGap: item.wardrobeGap,
+          };
+        }
+        return resolveProductAndWardrobeFacts(item, model, langCode, supabase, userId);
+      }),
     );
     const firstError = resolvedAll.find((r): r is { ok: false; error: string } => !r.ok);
     if (firstError) return firstError;
@@ -611,11 +658,13 @@ export const comparePurchases = createServerFn({ method: "POST" })
         : false,
     );
 
+    const isLabelOnly = data.items.map((it) => (it.source === "cached" ? it.isLabelOnly : it.source === "label"));
+
     const verdicts = resolved.map((r, i) =>
       computeVerdict({
         dressViolation: violations[i], hasCategory: !!r.product.category, duplicate: r.duplicate,
         pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, wardrobeSize: r.wardrobe.length,
-        isLabelOnly: data.items[i].source === "label",
+        isLabelOnly: isLabelOnly[i],
       }),
     );
 
@@ -624,6 +673,18 @@ export const comparePurchases = createServerFn({ method: "POST" })
       verdict: verdicts[i].verdict,
       confidence: verdicts[i].confidence,
       wardrobe: { duplicate: r.duplicate?.verdict === "certain", pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, dressPreferenceViolation: violations[i] },
+      cacheKey: {
+        source: "cached" as const,
+        product: {
+          title: r.product.title, brand: r.product.brand, price: r.product.price, currency: r.product.currency, imageUrl: r.product.imageUrl, sourceUrl: r.product.sourceUrl,
+          category: r.product.category, subcategory: r.product.subcategory, colors: r.product.colors,
+          length: r.product.length, sleeveLength: r.product.sleeveLength, fit: r.product.fit, styleTags: r.product.styleTags,
+        },
+        duplicateVerdict: r.duplicate?.verdict ?? "new",
+        pairsWithCount: r.pairsWithCount,
+        wardrobeGap: r.wardrobeGap,
+        isLabelOnly: isLabelOnly[i],
+      },
     }));
 
     const tiers = items.map((it) => desirabilityTier(it.wardrobe.dressPreferenceViolation, it.wardrobe.duplicate, it.verdict));
