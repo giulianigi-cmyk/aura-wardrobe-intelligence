@@ -30,6 +30,19 @@ const GARMENT_LABELS = new Set([
   "Belt", "Left-shoe", "Right-shoe", "Bag", "Scarf",
 ]);
 
+// Body-coverage garments naturally fill a large share of a full-body photo; small worn or carried
+// accessories never do, even when the model has correctly picked them out. A single "must cover
+// at least 1.5% of the frame" cutoff was silently discarding real, correctly-segmented shoes, bags,
+// sunglasses, belts and hats every time — they're always small in a full-length photo, so they
+// never had a chance to clear the same bar as a shirt or a pair of trousers. Each label gets its
+// own realistic floor instead. Uncovered by any label here at all — a watch, a bracelet, a
+// necklace, earrings — this segmentation model's fixed category set has no such class, and no
+// version of this threshold can produce one; that limitation lives one level up, not here.
+const SMALL_ACCESSORY_LABELS = new Set(["Sunglasses", "Belt", "Left-shoe", "Right-shoe", "Bag", "Hat", "Scarf"]);
+function minPixelsFor(label: string, totalPixels: number): number {
+  return Math.floor(totalPixels * (SMALL_ACCESSORY_LABELS.has(label) ? 0.0015 : 0.015));
+}
+
 async function loadImage(dataUrl: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const el = new Image();
@@ -143,7 +156,6 @@ export async function segmentOutfitPhoto(imageDataUrl: string): Promise<{ label:
     const { maskWidth: maskW, maskHeight: maskH, masksByLabel: byLabel } = seg;
 
     const totalPixels = maskW * maskH;
-    const minPixels = Math.floor(totalPixels * 0.015);
 
     // Used only to map pixels between mask space and the original photo's own coordinates — see
     // scaleX/scaleY below. Color sampling for the final crop comes straight from the original
@@ -166,7 +178,7 @@ export async function segmentOutfitPhoto(imageDataUrl: string): Promise<{ label:
     const scaleY = img.naturalHeight / maskH;
 
     for (const [label, mask] of byLabel) {
-      if (maskNonZero(mask) < minPixels) continue;
+      if (maskNonZero(mask) < minPixelsFor(label, totalPixels)) continue;
       const bbox = tightBoundingBox(mask, maskW, maskH);
       if (!bbox) continue;
 
@@ -375,7 +387,6 @@ export async function cropItemFromSegmentation(
     if (!candidates.length) return null;
 
     const total = mw * mh;
-    const minPixels = Math.floor(total * 0.015);
     const minRegionPixels = Math.max(24, Math.floor(total * 0.002));
 
     // bbox in mask pixel space (original + padded).
@@ -398,7 +409,7 @@ export async function cropItemFromSegmentation(
     let chosen: Uint8Array | null = null;
     for (const label of candidates) {
       const src = masksByLabel.get(label);
-      if (!src || maskNonZero(src) < minPixels) continue;
+      if (!src || maskNonZero(src) < minPixelsFor(label, total)) continue;
 
       // Intersect with the padded bbox.
       let work: Uint8Array<ArrayBufferLike> = new Uint8Array(total);
