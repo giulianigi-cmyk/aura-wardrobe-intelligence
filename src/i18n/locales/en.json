@@ -533,7 +533,8 @@
       "jumbo": "Jumbo"
     },
     "historicalRetailPriceFromImportHint": "Estimated from the original price found on the page — please check it.",
-    "lowResolutionWarning": "This photo is {{width}}×{{height}}px — a bit low-resolution. You can still add it as-is."
+    "lowResolutionWarning": "This photo is {{width}}×{{height}}px — a bit low-resolution. You can still add it as-is.",
+    "toastAnalysisFailed": "Couldn’t analyze the photo. You can fill in the details by hand."
   },
   "stylistChat": {
     "feedbackLiked": "I like this outfit",
@@ -782,8 +783,8 @@
     "recoverEvent": "Recover",
     "dismissedEventsCount": "{{count}} dismissed events",
     "removedFromCalendar": "· removed from calendar",
-    "couldntDeleteEvent": "Couldn't delete that event",
-    "deleteEventAria": "Delete permanently",
+    "couldntDeleteEvent": "Couldn’t delete the event",
+    "deleteEventAria": "Delete event",
     "openOnCanvasAria": "Open on canvas",
     "chatPromptEventWithTime": "I have \"{{title}}\" on {{date}} at {{time}}. What do you recommend I wear?",
     "chatPromptEventWithLocationAndTime": "I have \"{{title}}\" on {{date}} at {{time}}, at {{location}}. What do you recommend I wear?"
@@ -879,7 +880,10 @@
     "saveButton": "Save",
     "editWornEntryAria": "Edit this entry",
     "editWornEntryTitle": "Edit entry",
-    "toastWornEntryUpdated": "Updated"
+    "toastWornEntryUpdated": "Updated",
+    "addAPiece": "Add a piece",
+    "couldntUpdateOutfit": "Couldn’t update the outfit",
+    "sizeLabel": "Size {{size}}"
   },
   "outfitBuilder": {
     "itemNoImage": "This item has no image yet",
@@ -1064,7 +1068,24 @@
     "saveButton": "Save",
     "startTimeAria": "Start time",
     "endTimeAria": "End time",
-    "timeHint": "Optional — lets AURA suggest one outfit across nearby activities instead of a separate look for each."
+    "timeHint": "Optional — lets AURA suggest one outfit across nearby activities instead of a separate look for each.",
+    "addSelected_one": "Add {{count}} to this trip",
+    "addSelected_other": "Add {{count}} to this trip",
+    "alreadyOnList": "Already here",
+    "copyFromTrip": "Copy from another trip",
+    "essentialsCopied_one": "{{count}} item added to your list",
+    "essentialsCopied_other": "{{count}} items added to your list",
+    "kindLeisure": "Leisure",
+    "kindMixed": "Mixed",
+    "kindWork": "Work",
+    "noEssentialsThere": "That trip has no essentials list yet.",
+    "noOtherTrips": "You don’t have another trip to copy from yet.",
+    "saveToCanvasAria": "Save {{name}} to canvas",
+    "selectAll": "All",
+    "selectNone": "None",
+    "selectedCount_one": "{{count}} selected",
+    "selectedCount_other": "{{count}} selected",
+    "uncategorized": "Other"
   },
   "batchReview": {
     "couldntLoadBatch": "Couldn't load this batch.",
@@ -1709,7 +1730,15 @@
     "addItemPlaceholder": "Add item…",
     "addItemAria": "Add item",
     "newPresetPlaceholder": "e.g. Business, Beach, Ski",
-    "newPreset": "New preset"
+    "newPreset": "New preset",
+    "copyFromList": "Copy items from…",
+    "copyItemsFrom": "Copy items from another list",
+    "copySuffix": "copy",
+    "duplicateAria": "Duplicate {{name}}",
+    "duplicated": "List duplicated — edit it to fit the new trip",
+    "itemsCopied_one": "{{count}} item added",
+    "itemsCopied_other": "{{count}} items added",
+    "nothingNew": "Everything from that list is already here"
   },
   "tripCreate": {
     "typeWork": "Work",
@@ -1795,7 +1824,12 @@
     "defaultOutfitName": "Outfit of {{date}}",
     "outfitSaved": "Outfit saved",
     "loggedAsWorn": "Marked as worn",
-    "couldNotSaveOutfit": "Couldn’t save the outfit. Try again."
+    "couldNotSaveOutfit": "Couldn’t save the outfit. Try again.",
+    "previousCandidate": "Previous piece",
+    "nextCandidate": "Next piece",
+    "searchWardrobeInstead": "Search the wardrobe",
+    "searchWardrobeTitle": "Find the right piece",
+    "wardrobeSearchEmpty": "No pieces found"
   },
   "avatar": {
     "title": "My Avatar",
@@ -1915,5 +1949,14 @@
     "Diamonds": "Diamonds",
     "Sequins": "Sequins",
     "Synthetic": "Synthetic"
+  },
+  "outfitViewer": {
+    "canvas": "Canvas",
+    "composing": "Composing the canvas",
+    "onAvatar": "Avatar",
+    "photo": "Photo",
+    "pieces": "Pieces",
+    "saveCanvas": "Save canvas",
+    "seeCanvas": "See canvas"
   }
 }
