@@ -533,7 +533,8 @@
       "jumbo": "Jumbo"
     },
     "historicalRetailPriceFromImportHint": "Estimé à partir du prix d'origine trouvé sur la page — veuillez le vérifier.",
-    "lowResolutionWarning": "Cette photo fait {{width}}×{{height}}px — une résolution un peu basse. Vous pouvez quand même l'ajouter."
+    "lowResolutionWarning": "Cette photo fait {{width}}×{{height}}px — une résolution un peu basse. Vous pouvez quand même l'ajouter.",
+    "toastAnalysisFailed": "Impossible d’analyser la photo. Vous pouvez remplir les détails à la main."
   },
   "stylistChat": {
     "feedbackLiked": "J'aime cette tenue",
@@ -782,8 +783,8 @@
     "recoverEvent": "Récupérer",
     "dismissedEventsCount": "{{count}} événements ignorés",
     "removedFromCalendar": "· retiré du calendrier",
-    "couldntDeleteEvent": "Impossible de supprimer cet événement",
-    "deleteEventAria": "Supprimer définitivement",
+    "couldntDeleteEvent": "Impossible de supprimer l’événement",
+    "deleteEventAria": "Supprimer l’événement",
     "openOnCanvasAria": "Ouvrir sur la toile",
     "chatPromptEventWithTime": "J'ai \"{{title}}\" le {{date}} à {{time}}. Que me conseilles-tu de porter ?",
     "chatPromptEventWithLocationAndTime": "J'ai \"{{title}}\" le {{date}} à {{time}}, à {{location}}. Que me conseilles-tu de porter ?"
@@ -879,7 +880,10 @@
     "saveButton": "Enregistrer",
     "editWornEntryAria": "Modifier cette entrée",
     "editWornEntryTitle": "Modifier l'entrée",
-    "toastWornEntryUpdated": "Mis à jour"
+    "toastWornEntryUpdated": "Mis à jour",
+    "addAPiece": "Ajouter une pièce",
+    "couldntUpdateOutfit": "Impossible de mettre à jour la tenue",
+    "sizeLabel": "Taille {{size}}"
   },
   "outfitBuilder": {
     "itemNoImage": "Cet article n'a pas encore d'image",
@@ -1216,7 +1220,15 @@
     "addItemPlaceholder": "Ajouter un article…",
     "addItemAria": "Ajouter un article",
     "newPresetPlaceholder": "ex. Affaires, Plage, Ski",
-    "newPreset": "Nouveau préréglage"
+    "newPreset": "Nouveau préréglage",
+    "copyFromList": "Copier des pièces depuis…",
+    "copyItemsFrom": "Copier des pièces depuis une autre liste",
+    "copySuffix": "copie",
+    "duplicateAria": "Dupliquer {{name}}",
+    "duplicated": "Liste dupliquée — modifiez-la pour le nouveau voyage",
+    "itemsCopied_one": "{{count}} pièce ajoutée",
+    "itemsCopied_other": "{{count}} pièces ajoutées",
+    "nothingNew": "Tout ce qui est dans cette liste est déjà ici"
   },
   "tripCreate": {
     "typeWork": "Travail",
@@ -1302,7 +1314,12 @@
     "defaultOutfitName": "Tenue du {{date}}",
     "outfitSaved": "Tenue enregistrée",
     "loggedAsWorn": "Marqué comme porté",
-    "couldNotSaveOutfit": "Impossible d’enregistrer la tenue. Réessayez."
+    "couldNotSaveOutfit": "Impossible d’enregistrer la tenue. Réessayez.",
+    "previousCandidate": "Pièce précédente",
+    "nextCandidate": "Pièce suivante",
+    "searchWardrobeInstead": "Chercher dans la garde-robe",
+    "searchWardrobeTitle": "Trouver la bonne pièce",
+    "wardrobeSearchEmpty": "Aucune pièce trouvée"
   },
   "avatar": {
     "title": "Mon avatar",
@@ -1876,7 +1893,24 @@
     "saveButton": "Enregistrer",
     "startTimeAria": "Heure de début",
     "endTimeAria": "Heure de fin",
-    "timeHint": "Facultatif — permet à AURA de suggérer une seule tenue pour des activités proches au lieu d'un look différent pour chacune."
+    "timeHint": "Facultatif — permet à AURA de suggérer une seule tenue pour des activités proches au lieu d'un look différent pour chacune.",
+    "addSelected_one": "Ajouter {{count}} à ce voyage",
+    "addSelected_other": "Ajouter {{count}} à ce voyage",
+    "alreadyOnList": "Déjà présent",
+    "copyFromTrip": "Copier depuis un autre voyage",
+    "essentialsCopied_one": "{{count}} pièce ajoutée à votre liste",
+    "essentialsCopied_other": "{{count}} pièces ajoutées à votre liste",
+    "kindLeisure": "Loisirs",
+    "kindMixed": "Mixte",
+    "kindWork": "Travail",
+    "noEssentialsThere": "Ce voyage n’a pas encore de liste d’essentiels.",
+    "noOtherTrips": "Vous n’avez pas encore d’autre voyage à copier.",
+    "saveToCanvasAria": "Enregistrer {{name}} dans le canvas",
+    "selectAll": "Tout",
+    "selectNone": "Aucun",
+    "selectedCount_one": "{{count}} sélectionné",
+    "selectedCount_other": "{{count}} sélectionnés",
+    "uncategorized": "Autre"
   },
   "materials": {
     "Cotton": "Coton",
@@ -1915,5 +1949,14 @@
     "Diamonds": "Diamants",
     "Sequins": "Paillettes",
     "Synthetic": "Synthétique"
+  },
+  "outfitViewer": {
+    "canvas": "Canvas",
+    "composing": "Composition du canvas",
+    "onAvatar": "Avatar",
+    "photo": "Photo",
+    "pieces": "Pièces",
+    "saveCanvas": "Enregistrer le canvas",
+    "seeCanvas": "Voir le canvas"
   }
 }
