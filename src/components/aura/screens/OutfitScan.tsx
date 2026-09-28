@@ -646,7 +646,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
         }
         const { error } = await supabase.from("outfits").insert({
           user_id: user.id,
-          name: outfitName.trim() || t("outfitScan.defaultOutfitName", { date: new Date(outfitDate).toLocaleDateString() }),
+          name: outfitName.trim() || t("outfitScan.defaultOutfitName", { date: new Date(outfitDate).toLocaleDateString(), defaultValue: "Outfit del {{date}}" }),
           item_ids: finishedItemIds,
           canvas_image_url: canvasPath,
           thumbnail_path: thumbPath,
@@ -654,7 +654,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
         } as never);
         if (error) throw error;
         outfitsCache.invalidate();
-        toast.success(t("outfitScan.outfitSaved"));
+        toast.success(t("outfitScan.outfitSaved", { defaultValue: "Outfit salvato" }));
       }
 
       if (markWorn) {
@@ -669,11 +669,11 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
         }
         const res = await confirmWorn({ data: { itemIds: finishedItemIds, wornAt: outfitDate, photoDetectionId } });
         if (!res.ok) throw new Error(res.error);
-        toast.success(t("outfitScan.loggedAsWorn"));
+        toast.success(t("outfitScan.loggedAsWorn", { defaultValue: "Segnato come indossato" }));
       }
     } catch (e) {
       console.error("[AURA outfit-scan] saving the outfit failed", e);
-      toast.error(t("outfitScan.couldNotSaveOutfit"));
+      toast.error(t("outfitScan.couldNotSaveOutfit", { defaultValue: "Non sono riuscita a salvare l’outfit. Riprova." }));
       setSavingOutfit(false);
       return; // stay on this step so nothing typed here is lost and it can be retried
     }
@@ -771,10 +771,10 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                     <button
                       onClick={() => void openWardrobeSearch(it.key)}
                       className="text-[10px] uppercase tracking-widest text-muted-foreground underline"
-                    >{t("outfitScan.notThisOneSearch")}</button>
+                    >{t("outfitScan.notThisOneSearch", { defaultValue: "Non è questo? Cerca" })}</button>
                     <button
                       onClick={() => removeItem(it.key)}
-                      aria-label={t("outfitScan.removeFromOutfit")}
+                      aria-label={t("outfitScan.removeFromOutfit", { defaultValue: "Togli dall’outfit" })}
                       className="text-muted-foreground"
                     ><Trash2 size={13} /></button>
                   </div>
@@ -801,7 +801,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                         <button
                           onClick={() => cycleCandidate(it.key, -1)}
                           disabled={!hasPrev}
-                          aria-label={t("outfitScan.previousCandidate")}
+                          aria-label={t("outfitScan.previousCandidate", { defaultValue: "Capo precedente" })}
                           className="h-6 w-6 rounded-full bg-secondary/60 flex items-center justify-center disabled:opacity-30"
                         >‹</button>
                         <div className="h-20 w-20 rounded-xl overflow-hidden" style={{ background: "#FFFFFF" }}>
@@ -810,7 +810,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                         <button
                           onClick={() => cycleCandidate(it.key, 1)}
                           disabled={!hasNext}
-                          aria-label={t("outfitScan.nextCandidate")}
+                          aria-label={t("outfitScan.nextCandidate", { defaultValue: "Capo successivo" })}
                           className="h-6 w-6 rounded-full bg-secondary/60 flex items-center justify-center disabled:opacity-30"
                         >›</button>
                       </div>
@@ -832,7 +832,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                   <button
                     onClick={() => void openWardrobeSearch(it.key)}
                     className="mt-2 w-full h-9 rounded-full text-[10px] uppercase tracking-[0.3em] text-muted-foreground underline"
-                  >{t("outfitScan.searchWardrobeInstead")}</button>
+                  >{t("outfitScan.searchWardrobeInstead", { defaultValue: "Cerca nel guardaroba" })}</button>
                 </div>
               );
             }
@@ -857,7 +857,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                     <button
                       onClick={() => void openWardrobeSearch(it.key)}
                       className="mt-3 w-full h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground active:scale-[0.98]"
-                    >{t("outfitScan.alreadyInWardrobeSearch")}</button>
+                    >{t("outfitScan.alreadyInWardrobeSearch", { defaultValue: "È già nel guardaroba? Cercalo" })}</button>
                     {it.sourceMaskDataUrl ? (
                       <button
                         onClick={() => void reconstructItem(it.key)}
@@ -877,7 +877,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           <button
             onClick={() => void openWardrobeSearch("__add__")}
             className="w-full h-11 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center justify-center gap-2 active:scale-[0.98]"
-          ><Plus size={13} /> {t("outfitScan.addPieceFromWardrobe")}</button>
+          ><Plus size={13} /> {t("outfitScan.addPieceFromWardrobe", { defaultValue: "Aggiungi un capo dal guardaroba" })}</button>
 
           <div className="pt-2 pb-4 flex gap-2">
             <button
@@ -889,7 +889,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
               disabled={toSave.length === 0 && !scanItems.some((it) => it.status === "confirmed-duplicate")}
               className="flex-1 h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              <Check size={14} /> {toSave.length > 0 ? t("outfitScan.saveItemsCount", { count: toSave.length }) : t("outfitScan.continueToOutfit")}
+              <Check size={14} /> {toSave.length > 0 ? t("outfitScan.saveItemsCount", { count: toSave.length }) : t("outfitScan.continueToOutfit", { defaultValue: "Continua" })}
             </button>
           </div>
         </div>
@@ -904,8 +904,8 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
 
       {stage === "saveOutfit" && (
         <div className="mx-6 mt-8">
-          <p className="font-serif text-2xl italic text-center">{t("outfitScan.saveOutfitTitle")}</p>
-          <p className="mt-2 text-sm text-muted-foreground leading-relaxed text-center">{t("outfitScan.saveOutfitHint", { count: finishedItemIds.length })}</p>
+          <p className="font-serif text-2xl italic text-center">{t("outfitScan.saveOutfitTitle", { defaultValue: "Salva l’outfit" })}</p>
+          <p className="mt-2 text-sm text-muted-foreground leading-relaxed text-center">{t("outfitScan.saveOutfitHint", { count: finishedItemIds.length, defaultValue_one: "Questo outfit è fatto da {{count}} capo.", defaultValue_other: "Questo outfit è fatto da {{count}} capi." })}</p>
 
           {photoDataUrl && (
             <img src={photoDataUrl} alt="" className="mt-5 mx-auto max-h-56 rounded-2xl object-contain" />
@@ -914,23 +914,23 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           <div className="mt-5 space-y-3">
             <label className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
               <input type="checkbox" checked={saveAsOutfit} onChange={(e) => setSaveAsOutfit(e.target.checked)} className="h-4 w-4" />
-              <span className="text-sm">{t("outfitScan.saveAsOutfitToggle")}</span>
+              <span className="text-sm">{t("outfitScan.saveAsOutfitToggle", { defaultValue: "Salva come outfit (con la foto)" })}</span>
             </label>
             {saveAsOutfit && (
               <input
                 value={outfitName}
                 onChange={(e) => setOutfitName(e.target.value)}
-                placeholder={t("outfitScan.outfitNamePlaceholder")}
+                placeholder={t("outfitScan.outfitNamePlaceholder", { defaultValue: "Nome dell’outfit (facoltativo)" })}
                 className="w-full h-11 rounded-full border border-border bg-background px-4 text-sm outline-none"
               />
             )}
             <label className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
               <input type="checkbox" checked={markWorn} onChange={(e) => setMarkWorn(e.target.checked)} className="h-4 w-4" />
-              <span className="text-sm">{t("outfitScan.markWornToggle")}</span>
+              <span className="text-sm">{t("outfitScan.markWornToggle", { defaultValue: "Segna i capi come indossati" })}</span>
             </label>
             {(markWorn || saveAsOutfit) && (
               <div className="flex items-center gap-3 rounded-2xl border border-border bg-background px-4 py-2.5">
-                <span className="text-[10px] uppercase tracking-widest text-muted-foreground shrink-0">{t("outfitScan.outfitDateLabel")}</span>
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground shrink-0">{t("outfitScan.outfitDateLabel", { defaultValue: "Data" })}</span>
                 <input
                   type="date"
                   value={outfitDate}
@@ -947,12 +947,12 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
               onClick={() => void finishOutfit()}
               disabled={savingOutfit}
               className="h-12 rounded-full bg-foreground text-background text-xs uppercase tracking-[0.25em] inline-flex items-center justify-center gap-2 disabled:opacity-50"
-            >{savingOutfit && <Loader2 size={14} className="animate-spin" />} {t("outfitScan.saveOutfitButton")}</button>
+            >{savingOutfit && <Loader2 size={14} className="animate-spin" />} {t("outfitScan.saveOutfitButton", { defaultValue: "Salva" })}</button>
             <button
               onClick={skipSavingOutfit}
               disabled={savingOutfit}
               className="h-12 rounded-full border border-border text-xs uppercase tracking-[0.25em] disabled:opacity-50"
-            >{t("outfitScan.skipSavingOutfit")}</button>
+            >{t("outfitScan.skipSavingOutfit", { defaultValue: "Salta" })}</button>
           </div>
         </div>
       )}
@@ -962,7 +962,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
             <button onClick={() => setSearchForKey(null)} className="h-10 w-10 rounded-full border border-border flex items-center justify-center active:scale-90">
               <ArrowLeft size={16} />
             </button>
-            <h1 className="font-serif text-xl italic">{t("outfitScan.searchWardrobeTitle")}</h1>
+            <h1 className="font-serif text-xl italic">{t("outfitScan.searchWardrobeTitle", { defaultValue: "Trova il capo giusto" })}</h1>
           </div>
           <div className="flex-1 overflow-y-auto">
             <PiecePicker
@@ -974,7 +974,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                 if (item) pickFromWardrobeSearch(item);
               }}
               loading={wardrobeSignedLoading}
-              emptyHint={t("outfitScan.wardrobeSearchEmpty")}
+              emptyHint={t("outfitScan.wardrobeSearchEmpty", { defaultValue: "Nessun capo trovato" })}
             />
           </div>
         </div>
