@@ -467,6 +467,7 @@ export const analyzePurchase = createServerFn({ method: "POST" })
       "Speak directly TO the person — \"il tuo guardaroba\", \"possiedi\", \"puoi abbinarlo\" (translated naturally into the target language) — never in the third person (\"la persona ha...\", \"l'utente possiede...\"). Sound like a stylist giving a real, personal opinion, not a database printing out matched fields — no generic filler a stock listing could produce (\"è un capo versatile\", \"aggiunge un tocco di stile\") unless tied to a specific, concrete reason from the facts below.",
       "NEVER say or imply that YOU (the app) or the person already bought, chose, or picked this item — a verdict is advice about a decision not yet made, never a report of one that already happened. (A genuinely already-purchased item is a different, past-tense case this prompt does not cover.)",
       "Never state the exact pairing-count number anywhere in your text, for any verdict — it's always shown separately, right below what you write, so stating it again would be a plain repetition of the same fact the person already just read.",
+      "Grammar matters: use the correct grammatical gender and article for every product noun in the target language — e.g. in Italian \"i sandali\" (masculine plural, never \"le sandali\"), \"le décolleté\" / \"le pumps\" (feminine), \"gli stivaletti\", \"le sneakers\", \"la borsa\", \"il blazer\". Agree adjectives and past participles accordingly.",
       `Respond in ${langName}.`,
       "Keep it under 280 characters — that's the hard limit this app enforces, so a longer reason gets cut off mid-sentence rather than shown in full. Say less, not more, if there isn't room to finish a thought.",
       `The decided verdict is ${verdict.toUpperCase()}. ${verdictShape}`,
@@ -699,8 +700,14 @@ export const comparePurchases = createServerFn({ method: "POST" })
     const allSameTier = tiers.every((t) => t === tiers[0]);
     const langName = LANGUAGE_NAMES[langCode] ?? "English";
     const letters = ["A", "B", "C", "D", "E", "F"];
+    // The person never sees the letters — only the pieces themselves (their brand and model, in a
+    // ranked list of their own numbering). Letters exist purely so the model can give its ranking
+    // back in a form this code can parse; the reason text must name pieces by what they are.
+    const nameOfItem = (i: number) =>
+      [items[i].product.brand, items[i].product.title].filter(Boolean).join(" ").slice(0, 70) ||
+      [resolved[i].product.subcategory, resolved[i].product.category].filter(Boolean).join(" ") || "this piece";
     const describeItem = (label: string, r: Extract<(typeof resolvedAll)[number], { ok: true }>, verdict: ComparedItem["verdict"], violation: boolean) => [
-      `${label}: ${r.product.category ?? "unknown category"}${r.product.subcategory ? " / " + r.product.subcategory : ""}, colors: ${r.product.colors.join(", ") || "unclear"}, brand: ${r.product.brand || "unknown"}, price: ${r.product.price ?? "unknown"}. Individual verdict already decided: ${verdict.toUpperCase()}.`,
+      `${label} ("${nameOfItem(letters.indexOf(label))}"): ${r.product.category ?? "unknown category"}${r.product.subcategory ? " / " + r.product.subcategory : ""}, colors: ${r.product.colors.join(", ") || "unclear"}, brand: ${r.product.brand || "unknown"}, price: ${r.product.price ?? "unknown"}. Individual verdict already decided: ${verdict.toUpperCase()}.`,
       r.duplicate?.verdict === "certain" ? `${label} is a near-duplicate of something already owned.` : r.duplicate?.verdict === "maybe" ? `${label} is similar to something already owned, not a certain duplicate.` : `${label}: nothing similar already owned.`,
       `${label} would pair with about ${r.pairsWithCount} piece(s) already owned.`,
       r.wardrobeGap ? `${label} fills a real gap — nothing comparable owned yet.` : `${label} is not a gap — comparable pieces already owned.`,
@@ -710,8 +717,10 @@ export const comparePurchases = createServerFn({ method: "POST" })
     const system = [
       "You are an elegant, knowledgeable personal stylist helping the person decide, among SEVERAL specific products they're considering, what order they'd be worth getting in — first choice, second choice, and so on, including honestly saying when one (or all) genuinely isn't worth buying at all. Each product's individual buy/maybe/skip verdict is already decided (given below) — you are NOT re-deciding those.",
       "Speak directly TO the person — \"il tuo guardaroba\", \"possiedi\", \"ti starebbe meglio\" (translated naturally into the target language) — never in the third person. Sound like a stylist giving a real, personal opinion, not a database printing out matched fields.",
+      "NEVER mention the letters A, B, C… in your reason, not even in brackets like \"(C)\" or \"(A e B)\" — the person cannot see them and has no idea what they refer to. Name each piece by its brand and model instead (e.g. \"i sandali Rene Caovilla Cleo\", \"le Louboutin Iriza\"), or by a short natural description when several share a brand. The letters are only for the \"ranking\" array in the JSON.",
       "Your reason must reflect the full picture honestly: if every option is a SKIP, say plainly that none is really worth it, while still noting which would be the least bad if forced to pick. If several are a BUY, you can recommend more than one while still stating which comes first. Never imply a SKIP item is a good purchase just because it ranks above another SKIP.",
       "NEVER say or imply that YOU (the app) or the person already bought, chose, or picked any of these — this is advice about a decision not yet made.",
+      "Grammar matters: use the correct grammatical gender and article for every product noun in the target language — e.g. in Italian \"i sandali\" (masculine plural, never \"le sandali\"), \"le décolleté\" / \"le pumps\" (feminine), \"gli stivaletti\", \"le sneakers\", \"la borsa\", \"il blazer\". Agree adjectives and past participles accordingly.",
       `Respond in ${langName}.`,
       "Keep it under 320 characters — a bit more room than the single-item advisor, since a real ranking across several pieces needs a little more space to state honestly.",
       "Each item already has a fixed, non-negotiable tier — see below. Produce a full ranking (best to worst) of ALL items: you may reorder freely WITHIN the same tier (using the softer signals below, your own styling judgment, or genuinely calling two items in a tier equivalent), but a lower-tier item must never be placed above a higher-tier one — that ordering is already decided and is not yours to change.",
@@ -736,7 +745,10 @@ export const comparePurchases = createServerFn({ method: "POST" })
       // else: keep the deterministic fallbackRanking — a malformed or tier-violating response
       // from the model is silently corrected rather than shipped, same "never let the model
       // override a hard rule" principle as the rest of this file.
-      reason = truncateAtBoundary(parsed.reason, 340);
+      // Safety net for the rule above: a stray "(C)" / "(A e B)" reference to the internal letters
+      // means nothing to the person reading this, so it is removed rather than shown.
+      const withoutLetterRefs = parsed.reason.replace(/\s*\((?:[A-F](?:\s*(?:,|e|and|y|et|&|\/)\s*[A-F])*)\)/g, "");
+      reason = truncateAtBoundary(withoutLetterRefs, 340);
     } catch (e) {
       console.error("[AURA purchase-advisor] compare reason generation failed", e);
       reason = COULD_NOT_COMPARE[langCode] ?? COULD_NOT_COMPARE.en;
