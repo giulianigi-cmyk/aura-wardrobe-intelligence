@@ -195,15 +195,21 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
     const aspect = it.aspect > 0 ? it.aspect : 1;
     // A bag or shoe whose box is mostly empty (thin strap, chain, long handles, a strappy stiletto
     // sandal) is enlarged so that its BODY reaches the size a compact one would (up to +35%).
+    // Bags cap lower than shoes: at +35% a top-handle bag with a long strap was coming out visibly
+    // oversized next to the jeans it sits beside.
+    const strapCap = it.bucket === "bag" ? 1.2 : 1.35;
     const strapK = (it.bucket === "bag" || it.bucket === "shoes") && it.fill != null && it.fill > 0 && it.fill < 0.6
-      ? Math.min(1.35, Math.sqrt(0.6 / Math.max(it.fill, 0.25)))
+      ? Math.min(strapCap, Math.sqrt(0.6 / Math.max(it.fill, 0.25)))
       : 1;
     const f = realScale(it) * strapK;
     // Garments: the real LENGTH sets the height cap (a mini skirt is short, a maxi long);
     // the width cap stays put so wide pieces can't overflow. Bags and shoes: the real
     // WIDTH is what matters, so both caps follow it.
     const byLength = it.bucket === "top" || it.bucket === "bottom" || it.bucket === "dress" || it.bucket === "outer";
-    const visualK = it.bucket === "bag" ? 0.90 : 1;
+    // Bags 0.85 (was 0.90) and tops 1.10: a bag read a little too big and a top a little too small
+    // against the trousers in the finished flat-lay. The top's headroom is real — the anchor never
+    // starts below 25% of the canvas, so a top up to ~38% tall does not push it down.
+    const visualK = it.bucket === "bag" ? 0.85 : it.bucket === "top" ? 1.10 : 1;
 
 const w = Math.min(
   box.w * W * shrink * (byLength ? 1 : f),
