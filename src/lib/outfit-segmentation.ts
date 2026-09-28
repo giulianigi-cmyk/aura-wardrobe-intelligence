@@ -370,13 +370,17 @@ function connectedComponents(mask: Uint8Array, w: number, h: number): Component[
  * and keeping only the connected component that belongs to this item.
  * Compositing/cropping happens at the ORIGINAL photo resolution.
  * Returns null when there is no confident match (caller should fall back).
+ * fullPhotoMaskDataUrl mirrors segmentOutfitPhoto's own field of the same name — white where this
+ * item is, black everywhere else, at the photo's real resolution — for callers (OutfitScan's
+ * "reconstruct hidden parts" action) that need to hand FASHN's Edit endpoint a mask aligned to the
+ * whole photo, not just this tight crop.
  */
 export async function cropItemFromSegmentation(
   photoKey: string,
   photoDataUrl: string,
   category: string,
   bbox: NormalizedBBox | null,
-): Promise<string | null> {
+): Promise<{ crop: string; fullPhotoMaskDataUrl: string } | null> {
   try {
     if (!bbox) return null;
     const seg = await getSegmentationMasksCached(photoKey, photoDataUrl);
@@ -510,7 +514,37 @@ export async function cropItemFromSegmentation(
       console.debug("[AURA segmentation-crop]", { category, mask: [mw, mh], source: [ow, oh], crop: [cw, ch] });
     }
 
-    return canvas.toDataURL("image/png");
+    // Full-photo mask, same construction as segmentOutfitPhoto's fullPhotoMaskDataUrl: `chosen`
+    // (mask-space, binary) drawn onto a mask-sized canvas, then stretched up to the photo's real
+    // dimensions — that stretch is exactly what un-does whatever non-uniform resize the
+    // segmentation model applied getting from the photo's shape to mask space in the first place.
+    let fullPhotoMaskDataUrl = "";
+    const fullMaskCanvas = document.createElement("canvas");
+    fullMaskCanvas.width = mw; fullMaskCanvas.height = mh;
+    const fullMaskCtx = fullMaskCanvas.getContext("2d");
+    if (fullMaskCtx) {
+      const maskImg = fullMaskCtx.createImageData(mw, mh);
+      const md = maskImg.data;
+      for (let i = 0; i < chosen.length; i++) {
+        const v = chosen[i] > 127 ? 255 : 0;
+        md[i * 4] = v; md[i * 4 + 1] = v; md[i * 4 + 2] = v; md[i * 4 + 3] = 255;
+      }
+      fullMaskCtx.putImageData(maskImg, 0, 0);
+      if (ow !== mw || oh !== mh) {
+        const scaledCanvas = document.createElement("canvas");
+        scaledCanvas.width = ow; scaledCanvas.height = oh;
+        const scaledCtx = scaledCanvas.getContext("2d");
+        if (scaledCtx) {
+          scaledCtx.imageSmoothingEnabled = false;
+          scaledCtx.drawImage(fullMaskCanvas, 0, 0, ow, oh);
+          fullPhotoMaskDataUrl = scaledCanvas.toDataURL("image/png");
+        }
+      } else {
+        fullPhotoMaskDataUrl = fullMaskCanvas.toDataURL("image/png");
+      }
+    }
+
+    return { crop: canvas.toDataURL("image/png"), fullPhotoMaskDataUrl };
   } catch (e) {
     console.error("[AURA outfit-segmentation] item crop failed", e);
     return null;
