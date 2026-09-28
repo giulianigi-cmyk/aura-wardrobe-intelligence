@@ -137,7 +137,8 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
             let cropUrl: string | null = null;
             if (src && path) {
               try {
-                cropUrl = await cropItemFromSegmentation(path, src, it.category ?? "", it.bbox);
+                const result = await cropItemFromSegmentation(path, src, it.category ?? "", it.bbox);
+                cropUrl = result?.crop ?? null;
               } catch (segErr) {
                 console.error("[AURA batch-review] segmentation failed for item, falling back to plain crop", it.id, segErr);
               }
