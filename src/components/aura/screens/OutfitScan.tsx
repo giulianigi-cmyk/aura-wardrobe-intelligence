@@ -11,8 +11,8 @@ import type { TablesInsert } from "@/integrations/supabase/types";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { DetectedItemCard } from "@/components/aura/DetectedItemCard";
 import { PiecePicker } from "../PiecePicker";
-import { analyzeWardrobeImage } from "@/lib/ai-analyze.functions";
-import { segmentOutfitPhoto } from "@/lib/outfit-segmentation";
+import { detectOutfitPhotoItems } from "@/lib/outfit-scan-detect.functions";
+import { cropItemFromSegmentation } from "@/lib/outfit-segmentation";
 import { findBestMatch, findTopMatches, type DedupeResult } from "@/lib/outfit-dedupe";
 import { findVisualDuplicates, confirmWearEvent } from "@/lib/outfit-wear.functions";
 import { startGarmentExtraction, checkGarmentExtraction } from "@/lib/outfit-garment-extract.functions";
@@ -23,6 +23,35 @@ async function dataUrlToFile(dataUrl: string, filename: string): Promise<File> {
   const resp = await fetch(dataUrl);
   const blob = await resp.blob();
   return new File([blob], filename, { type: blob.type || "image/png" });
+}
+
+/** Plain rectangular crop straight from the bbox, no per-pixel mask — the fallback for whenever
+ *  cropItemFromSegmentation finds no confident region for this category (rare, but the AI
+ *  detector can flag something the segmentation model's fixed label set has no match for, or a
+ *  connected-component that fails its own sanity checks). No transparency: the caller marks the
+ *  resulting ScanItem `transparent: false` accordingly. */
+async function cropFromBBox(photoDataUrl: string, bbox: { x: number; y: number; width: number; height: number } | null): Promise<string | null> {
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("image load failed"));
+      el.src = photoDataUrl;
+    });
+    const b = bbox ?? { x: 0, y: 0, width: 1, height: 1 };
+    const sx = Math.round(b.x * img.naturalWidth);
+    const sy = Math.round(b.y * img.naturalHeight);
+    const sw = Math.max(8, Math.round(b.width * img.naturalWidth));
+    const sh = Math.max(8, Math.round(b.height * img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = sw; canvas.height = sh;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    return canvas.toDataURL("image/jpeg", 0.92);
+  } catch {
+    return null;
+  }
 }
 
 type ScanItem = {
@@ -91,7 +120,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
       });
   }, [user]);
   const wardrobeCache = useWardrobeCacheActions();
-  const analyze = useServerFn(analyzeWardrobeImage);
+  const detectOutfitPhotoItemsFn = useServerFn(detectOutfitPhotoItems);
   const findVisualDupes = useServerFn(findVisualDuplicates);
   const confirmWorn = useServerFn(confirmWearEvent);
   const startReconstruction = useServerFn(startGarmentExtraction);
@@ -137,49 +166,56 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
       setWardrobe(existingList);
 
       setProgressLabel(t("outfitScan.analyzingOutfit"));
-      const segments = await segmentOutfitPhoto(dataUrl);
-      if (!segments.length) {
+      const detection = await detectOutfitPhotoItemsFn({ data: { imageDataUrl: dataUrl } });
+      if (!detection.ok || detection.items.length === 0) {
         toast.error(t("outfitScan.noClothingRecognized"));
         reset();
         return;
       }
+      const detected = detection.items;
+      // One key for this whole photo — cropItemFromSegmentation caches the (expensive) local
+      // segmentation pass per key, so every item below shares the SAME single model run instead
+      // of paying for it once per item.
+      const photoKey = `outfit-scan-${Date.now()}`;
 
       const built: ScanItem[] = [];
-      for (let i = 0; i < segments.length; i++) {
-        const seg = segments[i];
-        setProgressLabel(t("outfitScan.identifyingItem", { current: i + 1, total: segments.length }));
+      for (let i = 0; i < detected.length; i++) {
+        const d = detected[i];
+        setProgressLabel(t("outfitScan.identifyingItem", { current: i + 1, total: detected.length }));
 
-        let meta: {
-          category: string; subcategory: string; colors: string[];
-          materials: string[]; seasons: string[]; brand: string;
-          formality: number | null; dayEvening: string; sleeveLength: string;
-          length: string; fit: string; heelHeight: string; toeShape: string;
-          closure: string; gender: string; styleTags: string[];
-          model: string; bagSizeClass: string;
+        const meta = {
+          category: d.category, subcategory: d.subcategory, colors: d.colors,
+          materials: d.materials, seasons: d.seasons,
+          // The multi-item detector doesn't attempt brand/model/bag-size-class — a full outfit
+          // photo rarely shows a legible logo the way a close-up single-item photo does, and
+          // guessing here would violate the same "never invent" rule as everywhere else. The
+          // review card's brand field still autocompletes from existingBrands either way.
+          brand: "",
+          formality: d.formality ?? null, dayEvening: d.dayEvening || "", sleeveLength: d.sleeveLength || "",
+          length: d.length || "", fit: d.fit || "", heelHeight: "", toeShape: "",
+          closure: "", gender: d.gender || "", styleTags: d.styleTags ?? [],
+          model: "", bagSizeClass: "",
         };
+
+        // Crop: AI-guided segmentation first (uses the detector's own category + bounding box to
+        // find the right pixel-level region — much less likely to grab the wrong thing than
+        // segmenting blind), a plain bbox rectangle if that finds nothing usable.
+        let cropImageUrl: string;
+        let sourceMaskDataUrl = "";
+        let transparent = true;
         try {
-          const r = await analyze({ data: { imageDataUrl: seg.imageDataUrl } });
-          // Every one of these fields was already coming back from this
-          // same analyze() call — the code just wasn't reading most of
-          // them, so a piece added via outfit scan came out with far
-          // fewer details than the same piece added one at a time.
-          meta = {
-            category: r.category, subcategory: r.subcategory, colors: r.colors,
-            materials: r.materials, seasons: r.seasons, brand: r.brand,
-            formality: r.formality ?? null, dayEvening: r.dayEvening || "", sleeveLength: r.sleeveLength || "",
-            length: r.length || "", fit: r.fit || "", heelHeight: r.heelHeight || "", toeShape: r.toeShape || "",
-            closure: r.closure || "", gender: r.gender || "", styleTags: r.styleTags ?? [],
-            model: (r as { model?: string }).model ?? "",
-            bagSizeClass: (r as { bagSizeClass?: string }).bagSizeClass ?? "",
-          };
+          const cropped = await cropItemFromSegmentation(photoKey, dataUrl, d.category, d.bbox);
+          if (cropped) {
+            cropImageUrl = cropped.crop;
+            sourceMaskDataUrl = cropped.fullPhotoMaskDataUrl;
+          } else {
+            cropImageUrl = (await cropFromBBox(dataUrl, d.bbox)) ?? dataUrl;
+            transparent = false;
+          }
         } catch (e) {
-          console.warn("[AURA outfit-scan] analyze failed for segment", i, e);
-          meta = {
-            category: "", subcategory: "", colors: [], materials: [], seasons: [], brand: "",
-            formality: null, dayEvening: "", sleeveLength: "",
-            length: "", fit: "", heelHeight: "", toeShape: "", closure: "", gender: "", styleTags: [],
-            model: "", bagSizeClass: "",
-          };
+          console.warn("[AURA outfit-scan] segmentation crop failed for item, falling back to plain bbox crop", i, e);
+          cropImageUrl = (await cropFromBBox(dataUrl, d.bbox)) ?? dataUrl;
+          transparent = false;
         }
 
         let dedupe = findBestMatch(
@@ -204,7 +240,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
         if (dedupe.verdict !== "certain" && meta.category) {
           try {
             const { computeGarmentEmbedding } = await import("@/lib/visual-embedding");
-            const embedding = await computeGarmentEmbedding(seg.imageDataUrl);
+            const embedding = await computeGarmentEmbedding(cropImageUrl);
             const res = await findVisualDupes({ data: { category: meta.category, embedding } });
             if (res.ok && res.matches.length) {
               const best = res.matches[0];
@@ -261,8 +297,8 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           seasons: meta.seasons,
           brand: meta.brand || "",
           description,
-          imageDataUrl: seg.imageDataUrl,
-          transparent: true,
+          imageDataUrl: cropImageUrl,
+          transparent,
           dedupe,
           candidates,
           candidateIndex: 0,
@@ -286,7 +322,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           model: meta.model,
           bagSizeClass: meta.bagSizeClass,
           sourcePhotoDataUrl: dataUrl,
-          sourceMaskDataUrl: seg.fullPhotoMaskDataUrl,
+          sourceMaskDataUrl,
           reconstructing: false,
         });
       }
@@ -685,15 +721,21 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                 onChange={(patch) => updateItem(it.key, patch)}
                 onRemove={() => removeItem(it.key)}
                 existingBrands={existingBrands}
+                // No mask (the plain-bbox fallback crop, used when segmentation found no
+                // confident region for this category) means there's nothing reliable to tell
+                // FASHN's Edit endpoint to reconstruct — hiding the button here beats offering an
+                // action that would fail without a clear reason why.
                 footer={
-                  <button
-                    onClick={() => void reconstructItem(it.key)}
-                    disabled={it.reconstructing}
-                    className="mt-3 w-full h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-1.5"
-                  >
-                    {it.reconstructing ? <Loader2 size={11} className="animate-spin" /> : null}
-                    {it.reconstructing ? t("outfitScan.reconstructing") : t("outfitScan.reconstructHiddenParts")}
-                  </button>
+                  it.sourceMaskDataUrl ? (
+                    <button
+                      onClick={() => void reconstructItem(it.key)}
+                      disabled={it.reconstructing}
+                      className="mt-3 w-full h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-1.5"
+                    >
+                      {it.reconstructing ? <Loader2 size={11} className="animate-spin" /> : null}
+                      {it.reconstructing ? t("outfitScan.reconstructing") : t("outfitScan.reconstructHiddenParts")}
+                    </button>
+                  ) : undefined
                 }
               />
             );
