@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 import { analyzeWardrobeGap, type GapSuggestion } from "@/lib/wardrobe-gap.functions";
-import { analyzePurchase, comparePurchases, type PurchaseAdvisorResult, type ComparePurchasesResult } from "@/lib/purchase-advisor.functions";
+import { analyzePurchase, comparePurchases, type PurchaseAdvisorResult, type ComparePurchasesResult, type CachedFacts } from "@/lib/purchase-advisor.functions";
 import { findColorByName } from "@/lib/color-palette";
 
 type LinkMode = "url" | "photo" | "label";
@@ -71,38 +71,44 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
   const MAX_COMPARE = 6;
   const addCompareSlot = () => setCompareSlots((prev) => (prev.length < MAX_COMPARE ? [...prev, blankCompareSlot()] : prev));
 
-  // Pasting several links at once, one per line — the one-slot-at-a-time flow (still there,
-  // for a link plus a photo mixed in) is tedious for "I have 5 tabs open, which is worth it",
-  // which is exactly the real case this is for. Replaces the current slots outright rather than
-  // appending, since re-pasting an edited list is the more likely second use than adding to it.
-  const [bulkUrls, setBulkUrls] = useState("");
-  const bulkUrlList = bulkUrls.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
-  const applyBulkUrls = () => {
-    const urls = bulkUrlList.slice(0, MAX_COMPARE);
-    if (urls.length < 2) return;
-    setCompareSlots(urls.map((url) => ({ mode: "url" as const, url, photoDataUrl: null })));
-    setBulkUrls("");
-    setCompareResult(null); setCompareError(null);
-  };
   const removeCompareSlot = (i: number) => setCompareSlots((prev) => (prev.length > 2 ? prev.filter((_, idx) => idx !== i) : prev));
   const resetCompare = () => {
     setCompareResult(null); setCompareError(null); setCompareSlots([blankCompareSlot(), blankCompareSlot()]);
+    urlFactsCache.current = {};
   };
   const compareSlotReady = (s: CompareSlot) => (s.mode === "url" ? s.url.trim().length > 0 : !!s.photoDataUrl);
+
+  // Facts already resolved for a given product URL, from the last successful compare — reused so
+  // that adding one more piece and comparing again doesn't silently re-scrape and re-read pieces
+  // already shown, which was flipping their own duplicate/verdict call at random (a borderline
+  // vision read landing differently on a second look, unconnected to anything actually changing).
+  const urlFactsCache = useRef<Record<string, CachedFacts>>({});
 
   const runCompare = async () => {
     if (!compareSlots.every(compareSlotReady)) return;
     setComparing(true); setCompareResult(null); setCompareError(null);
     try {
       const { data: sess } = await supabase.auth.getSession();
-      const items = compareSlots.map((s) =>
-        s.mode === "url"
-          ? ({ source: "url" as const, url: s.url.trim(), accessToken: sess.session?.access_token })
-          : ({ source: "photo" as const, imageDataUrl: s.photoDataUrl! }),
-      );
+      const items = compareSlots.map((s) => {
+        if (s.mode === "url") {
+          const cached = urlFactsCache.current[s.url.trim()];
+          if (cached) return cached;
+          return { source: "url" as const, url: s.url.trim(), accessToken: sess.session?.access_token };
+        }
+        return { source: "photo" as const, imageDataUrl: s.photoDataUrl! };
+      });
       const res = await comparePurchaseFn({ data: { items } });
-      if (res.ok) setCompareResult(res);
-      else setCompareError(res.error);
+      if (res.ok) {
+        setCompareResult(res);
+        // Remember this result's facts for every URL slot, so the next compare (after adding or
+        // removing a piece) can skip re-resolving anything unchanged.
+        res.items.forEach((it, i) => {
+          const slot = compareSlots[i];
+          if (slot?.mode === "url") urlFactsCache.current[slot.url.trim()] = it.cacheKey;
+        });
+      } else {
+        setCompareError(res.error);
+      }
     } catch (e) {
       console.error("[AURA shop] compare failed", e);
       setCompareError(t("shop.purchaseAnalysisFailed"));
@@ -210,22 +216,6 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
 
         {advisorMode === "compare" ? (
           <div className="rounded-2xl bg-secondary/40 p-4">
-            <div className="rounded-2xl bg-background border border-border/60 p-3 mb-3">
-              <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2">{t("shop.pasteMultipleLinksLabel")}</p>
-              <textarea
-                value={bulkUrls}
-                onChange={(e) => setBulkUrls(e.target.value)}
-                placeholder={t("shop.pasteMultipleLinksPlaceholder")}
-                rows={3}
-                className="w-full bg-secondary/40 rounded-2xl px-4 py-2.5 text-sm outline-none placeholder:text-muted-foreground/50 resize-none"
-              />
-              <button
-                onClick={applyBulkUrls}
-                disabled={bulkUrlList.length < 2}
-                className="mt-2 w-full h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.25em] text-muted-foreground disabled:opacity-40"
-              >{t("shop.useTheseLinks", { count: Math.min(bulkUrlList.length, MAX_COMPARE) })}</button>
-            </div>
-
             <div className="space-y-3">
               {compareSlots.map((slot, i) => (
                 <div key={i} className="rounded-2xl bg-background border border-border/60 p-3">
