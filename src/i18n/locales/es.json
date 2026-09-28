@@ -533,7 +533,8 @@
       "jumbo": "Jumbo"
     },
     "historicalRetailPriceFromImportHint": "Estimado a partir del precio original encontrado en la página — verifícalo.",
-    "lowResolutionWarning": "Esta foto es de {{width}}×{{height}}px — una resolución algo baja. Puedes añadirla igualmente."
+    "lowResolutionWarning": "Esta foto es de {{width}}×{{height}}px — una resolución algo baja. Puedes añadirla igualmente.",
+    "toastAnalysisFailed": "No he podido analizar la foto. Puedes rellenar los detalles a mano."
   },
   "stylistChat": {
     "feedbackLiked": "Me gusta este outfit",
@@ -782,8 +783,8 @@
     "recoverEvent": "Recuperar",
     "dismissedEventsCount": "{{count}} eventos descartados",
     "removedFromCalendar": "· eliminado del calendario",
-    "couldntDeleteEvent": "No se pudo eliminar ese evento",
-    "deleteEventAria": "Eliminar definitivamente",
+    "couldntDeleteEvent": "No he podido eliminar el evento",
+    "deleteEventAria": "Eliminar evento",
     "openOnCanvasAria": "Abrir en el lienzo",
     "chatPromptEventWithTime": "Tengo \"{{title}}\" el {{date}} a las {{time}}. ¿Qué me recomiendas ponerme?",
     "chatPromptEventWithLocationAndTime": "Tengo \"{{title}}\" el {{date}} a las {{time}}, en {{location}}. ¿Qué me recomiendas ponerme?"
@@ -879,7 +880,10 @@
     "saveButton": "Guardar",
     "editWornEntryAria": "Editar esta entrada",
     "editWornEntryTitle": "Editar entrada",
-    "toastWornEntryUpdated": "Actualizado"
+    "toastWornEntryUpdated": "Actualizado",
+    "addAPiece": "Añadir una prenda",
+    "couldntUpdateOutfit": "No he podido actualizar el outfit",
+    "sizeLabel": "Talla {{size}}"
   },
   "outfitBuilder": {
     "itemNoImage": "Esta prenda aún no tiene imagen",
@@ -1064,7 +1068,24 @@
     "saveButton": "Guardar",
     "startTimeAria": "Hora de inicio",
     "endTimeAria": "Hora de fin",
-    "timeHint": "Opcional — permite que AURA sugiera un solo look para actividades cercanas en vez de uno distinto para cada una."
+    "timeHint": "Opcional — permite que AURA sugiera un solo look para actividades cercanas en vez de uno distinto para cada una.",
+    "addSelected_one": "Añadir {{count}} a este viaje",
+    "addSelected_other": "Añadir {{count}} a este viaje",
+    "alreadyOnList": "Ya está",
+    "copyFromTrip": "Copiar de otro viaje",
+    "essentialsCopied_one": "{{count}} prenda añadida a tu lista",
+    "essentialsCopied_other": "{{count}} prendas añadidas a tu lista",
+    "kindLeisure": "Ocio",
+    "kindMixed": "Mixto",
+    "kindWork": "Trabajo",
+    "noEssentialsThere": "Ese viaje aún no tiene lista de imprescindibles.",
+    "noOtherTrips": "Todavía no tienes otro viaje del que copiar.",
+    "saveToCanvasAria": "Guardar {{name}} en el canvas",
+    "selectAll": "Todos",
+    "selectNone": "Ninguno",
+    "selectedCount_one": "{{count}} seleccionado",
+    "selectedCount_other": "{{count}} seleccionados",
+    "uncategorized": "Otros"
   },
   "batchReview": {
     "couldntLoadBatch": "No se pudo cargar este lote.",
@@ -1709,7 +1730,15 @@
     "addItemPlaceholder": "Añadir artículo…",
     "addItemAria": "Añadir artículo",
     "newPresetPlaceholder": "ej. Negocios, Playa, Esquí",
-    "newPreset": "Nuevo preset"
+    "newPreset": "Nuevo preset",
+    "copyFromList": "Copiar prendas de…",
+    "copyItemsFrom": "Copiar prendas de otra lista",
+    "copySuffix": "copia",
+    "duplicateAria": "Duplicar {{name}}",
+    "duplicated": "Lista duplicada: edítala para adaptarla al nuevo viaje",
+    "itemsCopied_one": "{{count}} prenda añadida",
+    "itemsCopied_other": "{{count}} prendas añadidas",
+    "nothingNew": "Todo lo de esa lista ya está aquí"
   },
   "tripCreate": {
     "typeWork": "Trabajo",
@@ -1795,7 +1824,12 @@
     "defaultOutfitName": "Outfit del {{date}}",
     "outfitSaved": "Outfit guardado",
     "loggedAsWorn": "Marcado como usado",
-    "couldNotSaveOutfit": "No he podido guardar el outfit. Inténtalo de nuevo."
+    "couldNotSaveOutfit": "No he podido guardar el outfit. Inténtalo de nuevo.",
+    "previousCandidate": "Prenda anterior",
+    "nextCandidate": "Prenda siguiente",
+    "searchWardrobeInstead": "Buscar en el armario",
+    "searchWardrobeTitle": "Encuentra la prenda correcta",
+    "wardrobeSearchEmpty": "No se encontraron prendas"
   },
   "avatar": {
     "title": "Mi avatar",
@@ -1915,5 +1949,14 @@
     "Diamonds": "Diamantes",
     "Sequins": "Lentejuelas",
     "Synthetic": "Sintético"
+  },
+  "outfitViewer": {
+    "canvas": "Canvas",
+    "composing": "Componiendo el canvas",
+    "onAvatar": "Avatar",
+    "photo": "Foto",
+    "pieces": "Prendas",
+    "saveCanvas": "Guardar canvas",
+    "seeCanvas": "Ver canvas"
   }
 }
