@@ -30,3 +30,50 @@ export const detectOutfitPhotoItems = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return detectOutfitItems(data.imageDataUrl);
   });
+
+// ---------------------------------------------------------------------------
+// Storing the scanned outfit photo so a wear event confirmed from "Scansiona un outfit" shows up
+// with its picture in the worn history and "My outfit photos", exactly like one confirmed from
+// LogWear. Same bucket, same table, same row shape as startOutfitPhotoDetection writes — just
+// without running detection or matching a second time (the scan already did both, and the person
+// already reviewed the result). Idempotent per (user, photoHash): re-saving the same photo reuses
+// the existing row rather than tripping the unique index.
+// ---------------------------------------------------------------------------
+const SavePhotoInput = z.object({
+  photoDataUrl: z.string().min(20),
+  photoHash: z.string().min(10),
+});
+
+export const saveScanPhotoForWear = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => SavePhotoInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: existing } = await (supabaseAdmin.from("outfit_photo_detections" as never) as any)
+      .select("id").eq("user_id", context.userId).eq("photo_hash", data.photoHash).maybeSingle();
+    if (existing) return { ok: true as const, detectionId: (existing as { id: string }).id };
+
+    const photoPath = `${context.userId}/wear-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+    const base64 = data.photoDataUrl.split(",")[1] ?? "";
+    const buffer = Buffer.from(base64, "base64");
+    const { error: uploadErr } = await supabaseAdmin.storage
+      .from("outfit-photos")
+      .upload(photoPath, buffer, { contentType: "image/jpeg", upsert: false });
+    if (uploadErr) return { ok: false as const, error: `Could not save photo: ${uploadErr.message}` };
+
+    const { data: row, error: insertErr } = await (supabaseAdmin.from("outfit_photo_detections" as never) as any)
+      .insert({
+        user_id: context.userId,
+        photo_path: photoPath,
+        photo_hash: data.photoHash,
+        target_person: "unknown",
+        detections: [],
+        candidates: [],
+        status: "pending",
+      })
+      .select("id")
+      .single();
+    if (insertErr) return { ok: false as const, error: insertErr.message };
+    return { ok: true as const, detectionId: (row as { id: string }).id };
+  });
