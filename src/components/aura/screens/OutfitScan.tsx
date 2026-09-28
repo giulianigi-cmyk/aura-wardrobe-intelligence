@@ -1,17 +1,20 @@
 import { useRef, useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Camera, Check, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Camera, Check, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Screen } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useWardrobeCacheActions } from "@/lib/wardrobe-query";
+import { useOutfitsCacheActions } from "@/lib/outfits-query";
+import { uploadOutfitThumb } from "@/lib/outfit-thumb";
+import { compressImageForUpload } from "@/lib/image-compress";
 import type { TablesInsert } from "@/integrations/supabase/types";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { DetectedItemCard } from "@/components/aura/DetectedItemCard";
 import { PiecePicker } from "../PiecePicker";
-import { detectOutfitPhotoItems } from "@/lib/outfit-scan-detect.functions";
+import { detectOutfitPhotoItems, saveScanPhotoForWear } from "@/lib/outfit-scan-detect.functions";
 import { cropItemFromSegmentation } from "@/lib/outfit-segmentation";
 import { findBestMatch, findTopMatches, type DedupeResult } from "@/lib/outfit-dedupe";
 import { findVisualDuplicates, confirmWearEvent } from "@/lib/outfit-wear.functions";
@@ -23,6 +26,20 @@ async function dataUrlToFile(dataUrl: string, filename: string): Promise<File> {
   const resp = await fetch(dataUrl);
   const blob = await resp.blob();
   return new File([blob], filename, { type: blob.type || "image/png" });
+}
+
+async function sha256Hex(blob: Blob): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function fileToDataUrl(f: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(f);
+  });
 }
 
 /** Plain rectangular crop straight from the bbox, no per-pixel mask — the fallback for whenever
@@ -101,6 +118,27 @@ type ScanItem = {
 };
 
 
+/** A ScanItem for a piece the person already owns, added by hand from the wardrobe. Only the
+ *  fields the review list and the save step actually read for a confirmed-duplicate matter here. */
+function ownedScanItem(item: WardrobeItem, sourcePhoto: string): ScanItem {
+  const colors = (item.colors && item.colors.length ? item.colors : item.color ? [item.color] : []) as string[];
+  return {
+    key: `owned-${item.id}-${Date.now()}`,
+    category: item.category ?? "", subcategory: item.subcategory ?? "", colors,
+    materials: [], seasons: [], brand: item.brand ?? "",
+    description: [colors[0], item.subcategory || item.category || ""].filter(Boolean).join(" "),
+    imageDataUrl: "", transparent: false,
+    dedupe: { score: 1, match: item, verdict: "certain" },
+    candidates: [{ item, score: 1 }], candidateIndex: 0,
+    status: "confirmed-duplicate",
+    price: "", currency: "EUR", size: "", styles: [], occasions: [],
+    purchaseDate: new Date().toISOString().slice(0, 10),
+    sleeveLength: "", formality: null, dayEvening: "", length: "", fit: "", heelHeight: "", toeShape: "",
+    closure: "", gender: "", styleTags: [], model: "", bagSizeClass: "",
+    sourcePhotoDataUrl: sourcePhoto, sourceMaskDataUrl: "", reconstructing: false,
+  };
+}
+
 export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -129,12 +167,19 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
-  const [stage, setStage] = useState<"idle" | "analyzing" | "review" | "saving" | "logWorn">("idle");
+  const [stage, setStage] = useState<"idle" | "analyzing" | "review" | "saving" | "saveOutfit">("idle");
   // The full set of item ids this outfit ends up made of once saving finishes — the newly-created
   // ones (captured as each insert succeeds below) plus whichever were already-owned matches the
-  // person confirmed as duplicates. Used only if they say yes to "did you wear this today?".
+  // person confirmed as duplicates — what the "save this outfit" step below is built from.
   const [finishedItemIds, setFinishedItemIds] = useState<string[]>([]);
-  const [loggingWorn, setLoggingWorn] = useState(false);
+  const [savingOutfit, setSavingOutfit] = useState(false);
+  const todayIso = () => new Date().toISOString().slice(0, 10);
+  const [outfitName, setOutfitName] = useState("");
+  const [outfitDate, setOutfitDate] = useState(todayIso());
+  const [saveAsOutfit, setSaveAsOutfit] = useState(true);
+  const [markWorn, setMarkWorn] = useState(true);
+  const outfitsCache = useOutfitsCacheActions();
+  const savePhotoForWear = useServerFn(saveScanPhotoForWear);
   const [progressLabel, setProgressLabel] = useState("");
   const [scanItems, setScanItems] = useState<ScanItem[]>([]);
   const [wardrobe, setWardrobe] = useState<WardrobeItem[]>([]);
@@ -145,6 +190,8 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
     setScanItems([]);
     setStage("idle");
     setProgressLabel("");
+    setOutfitName(""); setOutfitDate(todayIso()); setSaveAsOutfit(true); setMarkWorn(true);
+    setFinishedItemIds([]);
   };
 
   const onPick = async (file: File | null) => {
@@ -370,10 +417,22 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
       finally { setWardrobeSignedLoading(false); }
     }
   };
+  const ADD_FROM_WARDROBE = "__add__";
   const pickFromWardrobeSearch = (item: WardrobeItem) => {
     if (!searchForKey) return;
     const path = toStoragePath(item.image_url);
     if (path && wardrobeSigned[path]) setMatchThumbs((prev) => ({ ...prev, [item.id]: wardrobeSigned[path] }));
+    if (searchForKey === ADD_FROM_WARDROBE) {
+      // A piece the scan never detected at all (or detected as something else entirely) but that
+      // IS in the closet — added straight to this outfit as an already-owned piece, no new
+      // wardrobe entry created.
+      setScanItems((prev) => {
+        if (prev.some((it) => it.status === "confirmed-duplicate" && it.dedupe.match?.id === item.id)) return prev;
+        return [...prev, ownedScanItem(item, photoDataUrl ?? "")];
+      });
+      setSearchForKey(null);
+      return;
+    }
     updateItem(searchForKey, {
       dedupe: { score: 1, match: item, verdict: "certain" },
       // Choosing a specific item via search IS the confirmation — unlike cycling through the
@@ -446,8 +505,8 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
     // but should still reach the "did you wear this today?" step below rather than silently doing
     // nothing — skip straight there instead of returning early.
     if (toSave.length === 0) {
-      setFinishedItemIds(duplicateIds);
-      setStage(duplicateIds.length ? "logWorn" : "idle");
+      setFinishedItemIds(Array.from(new Set(duplicateIds)));
+      setStage(duplicateIds.length ? "saveOutfit" : "idle");
       if (!duplicateIds.length) { reset(); go("wardrobe"); }
       return;
     }
@@ -542,9 +601,9 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
     // Every piece this outfit is actually made of: the ones just saved as new, plus whichever
     // confirmed-duplicate detections point at a piece already owned (computed once, above) — both
     // count if the person says yes to having worn this today.
-    setFinishedItemIds([...newIds, ...duplicateIds]);
+    setFinishedItemIds(Array.from(new Set([...newIds, ...duplicateIds])));
     if (newIds.length + duplicateIds.length > 0) {
-      setStage("logWorn");
+      setStage("saveOutfit");
     } else {
       setStage("idle");
       reset();
@@ -552,26 +611,78 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
     }
   };
 
-  const logAsWornToday = async () => {
-    setLoggingWorn(true);
+  // Final step: turn what was just reviewed into (optionally) a saved outfit — with the scanned
+  // photo attached — and/or a worn entry on a chosen date. Neither is forced: the pieces are
+  // already in the wardrobe by this point, this only decides what else to record about them.
+  const finishOutfit = async () => {
+    if (!user) return;
+    if (!saveAsOutfit && !markWorn) { skipSavingOutfit(); return; }
+    setSavingOutfit(true);
     try {
-      const wornAt = new Date().toISOString().slice(0, 10);
-      const res = await confirmWorn({ data: { itemIds: finishedItemIds, wornAt } });
-      if (!res.ok) throw new Error(res.error);
-      toast.success(t("outfitScan.loggedAsWornToday"));
+      let photoFile: File | null = null;
+      if (photoDataUrl) {
+        try {
+          const raw = await dataUrlToFile(photoDataUrl, "outfit.jpg");
+          photoFile = await compressImageForUpload(raw);
+        } catch (e) {
+          console.warn("[AURA outfit-scan] photo compression failed, saving without the photo", e);
+        }
+      }
+
+      if (saveAsOutfit) {
+        let canvasPath: string | null = null;
+        let thumbPath: string | null = null;
+        if (photoFile) {
+          const path = `${user.id}/outfit-scan-${Date.now()}.jpg`;
+          const up = await supabase.storage.from("outfits").upload(path, photoFile, {
+            contentType: photoFile.type || "image/jpeg", upsert: false, cacheControl: "3600",
+          });
+          if (!up.error) {
+            canvasPath = path;
+            thumbPath = await uploadOutfitThumb(user.id, await fileToDataUrl(photoFile));
+          } else {
+            console.error("[AURA outfit-scan] outfit photo upload failed", up.error);
+          }
+        }
+        const { error } = await supabase.from("outfits").insert({
+          user_id: user.id,
+          name: outfitName.trim() || t("outfitScan.defaultOutfitName", { date: new Date(outfitDate).toLocaleDateString() }),
+          item_ids: finishedItemIds,
+          canvas_image_url: canvasPath,
+          thumbnail_path: thumbPath,
+          occasion: [], season: [], notes: null, layout: null,
+        } as never);
+        if (error) throw error;
+        outfitsCache.invalidate();
+        toast.success(t("outfitScan.outfitSaved"));
+      }
+
+      if (markWorn) {
+        let photoDetectionId: string | null = null;
+        if (photoFile) {
+          try {
+            const res = await savePhotoForWear({ data: { photoDataUrl: await fileToDataUrl(photoFile), photoHash: await sha256Hex(photoFile) } });
+            if (res.ok) photoDetectionId = res.detectionId;
+          } catch (e) {
+            console.warn("[AURA outfit-scan] saving the worn-photo failed, logging the wear without it", e);
+          }
+        }
+        const res = await confirmWorn({ data: { itemIds: finishedItemIds, wornAt: outfitDate, photoDetectionId } });
+        if (!res.ok) throw new Error(res.error);
+        toast.success(t("outfitScan.loggedAsWorn"));
+      }
     } catch (e) {
-      console.error("[AURA outfit-scan] logging as worn failed", e);
-      toast.error(t("outfitScan.couldNotLogWorn"));
-    } finally {
-      setLoggingWorn(false);
-      setStage("idle");
-      reset();
-      go("wardrobe");
+      console.error("[AURA outfit-scan] saving the outfit failed", e);
+      toast.error(t("outfitScan.couldNotSaveOutfit"));
+      setSavingOutfit(false);
+      return; // stay on this step so nothing typed here is lost and it can be retried
     }
+    setSavingOutfit(false);
+    reset();
+    go("wardrobe");
   };
 
-  const skipLoggingWorn = () => {
-    setStage("idle");
+  const skipSavingOutfit = () => {
     reset();
     go("wardrobe");
   };
@@ -642,18 +753,31 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
               return (
                 <div key={it.key} className="rounded-2xl border border-border bg-secondary/30 p-4 flex items-center gap-3">
                   <div className="h-14 w-14 rounded-xl overflow-hidden shrink-0" style={{ background: "#FFFFFF" }}>
-                    {thumb ? <img src={thumb} alt="" className="h-full w-full object-contain p-1" /> : (
+                    {thumb ? <img src={thumb} alt="" className="h-full w-full object-contain p-1" /> : it.imageDataUrl ? (
                       <img src={it.imageDataUrl} alt="" className="h-full w-full object-contain p-1" />
-                    )}
+                    ) : null}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm">{t("outfitScan.alreadyInCloset")}</p>
                     <p className="text-[11px] text-muted-foreground truncate">{it.description}</p>
                   </div>
-                  <button
-                    onClick={() => updateItem(it.key, { status: "confirmed-new" })}
-                    className="shrink-0 text-[10px] uppercase tracking-widest text-muted-foreground underline"
-                  >{t("outfitScan.addAnyway")}</button>
+                  <div className="shrink-0 flex flex-col items-end gap-1">
+                    {it.imageDataUrl && (
+                      <button
+                        onClick={() => updateItem(it.key, { status: "confirmed-new" })}
+                        className="text-[10px] uppercase tracking-widest text-muted-foreground underline"
+                      >{t("outfitScan.addAnyway")}</button>
+                    )}
+                    <button
+                      onClick={() => void openWardrobeSearch(it.key)}
+                      className="text-[10px] uppercase tracking-widest text-muted-foreground underline"
+                    >{t("outfitScan.notThisOneSearch")}</button>
+                    <button
+                      onClick={() => removeItem(it.key)}
+                      aria-label={t("outfitScan.removeFromOutfit")}
+                      className="text-muted-foreground"
+                    ><Trash2 size={13} /></button>
+                  </div>
                 </div>
               );
             }
@@ -726,20 +850,34 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                 // FASHN's Edit endpoint to reconstruct — hiding the button here beats offering an
                 // action that would fail without a clear reason why.
                 footer={
-                  it.sourceMaskDataUrl ? (
+                  <>
+                    {/* The scan found nothing similar in the wardrobe — but that doesn't mean it isn't
+                        there (a piece photographed at an angle, half hidden, in different light).
+                        Looking it up by hand is the way out, not adding a duplicate. */}
                     <button
-                      onClick={() => void reconstructItem(it.key)}
-                      disabled={it.reconstructing}
-                      className="mt-3 w-full h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-1.5"
-                    >
-                      {it.reconstructing ? <Loader2 size={11} className="animate-spin" /> : null}
-                      {it.reconstructing ? t("outfitScan.reconstructing") : t("outfitScan.reconstructHiddenParts")}
-                    </button>
-                  ) : undefined
+                      onClick={() => void openWardrobeSearch(it.key)}
+                      className="mt-3 w-full h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground active:scale-[0.98]"
+                    >{t("outfitScan.alreadyInWardrobeSearch")}</button>
+                    {it.sourceMaskDataUrl ? (
+                      <button
+                        onClick={() => void reconstructItem(it.key)}
+                        disabled={it.reconstructing}
+                        className="mt-2 w-full h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-1.5"
+                      >
+                        {it.reconstructing ? <Loader2 size={11} className="animate-spin" /> : null}
+                        {it.reconstructing ? t("outfitScan.reconstructing") : t("outfitScan.reconstructHiddenParts")}
+                      </button>
+                    ) : null}
+                  </>
                 }
               />
             );
           })}
+
+          <button
+            onClick={() => void openWardrobeSearch("__add__")}
+            className="w-full h-11 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center justify-center gap-2 active:scale-[0.98]"
+          ><Plus size={13} /> {t("outfitScan.addPieceFromWardrobe")}</button>
 
           <div className="pt-2 pb-4 flex gap-2">
             <button
@@ -748,10 +886,10 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
             >{t("outfitScan.startOver")}</button>
             <button
               onClick={save}
-              disabled={toSave.length === 0}
+              disabled={toSave.length === 0 && !scanItems.some((it) => it.status === "confirmed-duplicate")}
               className="flex-1 h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              <Check size={14} /> {t("outfitScan.saveItemsCount", { count: toSave.length })}
+              <Check size={14} /> {toSave.length > 0 ? t("outfitScan.saveItemsCount", { count: toSave.length }) : t("outfitScan.continueToOutfit")}
             </button>
           </div>
         </div>
@@ -764,21 +902,57 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
         </div>
       )}
 
-      {stage === "logWorn" && (
-        <div className="mx-6 mt-16 text-center">
-          <p className="font-serif text-2xl italic">{t("outfitScan.didYouWearThisToday")}</p>
-          <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{t("outfitScan.didYouWearThisTodayHint")}</p>
+      {stage === "saveOutfit" && (
+        <div className="mx-6 mt-8">
+          <p className="font-serif text-2xl italic text-center">{t("outfitScan.saveOutfitTitle")}</p>
+          <p className="mt-2 text-sm text-muted-foreground leading-relaxed text-center">{t("outfitScan.saveOutfitHint", { count: finishedItemIds.length })}</p>
+
+          {photoDataUrl && (
+            <img src={photoDataUrl} alt="" className="mt-5 mx-auto max-h-56 rounded-2xl object-contain" />
+          )}
+
+          <div className="mt-5 space-y-3">
+            <label className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
+              <input type="checkbox" checked={saveAsOutfit} onChange={(e) => setSaveAsOutfit(e.target.checked)} className="h-4 w-4" />
+              <span className="text-sm">{t("outfitScan.saveAsOutfitToggle")}</span>
+            </label>
+            {saveAsOutfit && (
+              <input
+                value={outfitName}
+                onChange={(e) => setOutfitName(e.target.value)}
+                placeholder={t("outfitScan.outfitNamePlaceholder")}
+                className="w-full h-11 rounded-full border border-border bg-background px-4 text-sm outline-none"
+              />
+            )}
+            <label className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
+              <input type="checkbox" checked={markWorn} onChange={(e) => setMarkWorn(e.target.checked)} className="h-4 w-4" />
+              <span className="text-sm">{t("outfitScan.markWornToggle")}</span>
+            </label>
+            {(markWorn || saveAsOutfit) && (
+              <div className="flex items-center gap-3 rounded-2xl border border-border bg-background px-4 py-2.5">
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground shrink-0">{t("outfitScan.outfitDateLabel")}</span>
+                <input
+                  type="date"
+                  value={outfitDate}
+                  max={todayIso()}
+                  onChange={(e) => setOutfitDate(e.target.value || todayIso())}
+                  className="flex-1 bg-transparent text-sm outline-none text-right"
+                />
+              </div>
+            )}
+          </div>
+
           <div className="mt-6 flex flex-col gap-3">
             <button
-              onClick={() => void logAsWornToday()}
-              disabled={loggingWorn}
+              onClick={() => void finishOutfit()}
+              disabled={savingOutfit}
               className="h-12 rounded-full bg-foreground text-background text-xs uppercase tracking-[0.25em] inline-flex items-center justify-center gap-2 disabled:opacity-50"
-            >{loggingWorn && <Loader2 size={14} className="animate-spin" />} {t("outfitScan.yesLogAsWorn")}</button>
+            >{savingOutfit && <Loader2 size={14} className="animate-spin" />} {t("outfitScan.saveOutfitButton")}</button>
             <button
-              onClick={skipLoggingWorn}
-              disabled={loggingWorn}
+              onClick={skipSavingOutfit}
+              disabled={savingOutfit}
               className="h-12 rounded-full border border-border text-xs uppercase tracking-[0.25em] disabled:opacity-50"
-            >{t("outfitScan.noJustAddPieces")}</button>
+            >{t("outfitScan.skipSavingOutfit")}</button>
           </div>
         </div>
       )}
