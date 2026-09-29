@@ -413,7 +413,8 @@
     "logWearLink": "What did I wear?",
     "toastComputingVisualFingerprints": "Computing visual fingerprints — {{done}}/{{total}}…",
     "toastVisualFingerprintsDone": "Visual fingerprints ready for {{count}} pieces",
-    "createOutfitFromThisButton": "Create outfit from this"
+    "createOutfitFromThisButton": "Create outfit from this",
+    "logWearAria": "Log what you’re wearing"
   },
   "addItem": {
     "toastSelectImage": "Please select an image",
