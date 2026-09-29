@@ -52,7 +52,13 @@ const LookSchema = z.object({
 });
 const OutputSchema = z.object({
   today: LookSchema,
-  curated: z.array(LookSchema).min(1).max(4),
+  // No .min(1) here on purpose — the mirror of the note further down on RetryOutputSchema. A
+  // response with a perfectly good "today" look but an empty or missing "curated" array used to
+  // fail this schema outright, throwing away the whole thing (today included) instead of using
+  // what was actually usable. The missing-occasions retry below already exists precisely to fill
+  // in whatever curated looks didn't make it — but it only ever runs if parsing succeeds here
+  // first, so this alone was silently defeating that whole safety net.
+  curated: z.array(LookSchema).max(4),
 });
 export type DailyLook = z.infer<typeof LookSchema>;
 export type DailyLooksResult = z.infer<typeof OutputSchema>;
