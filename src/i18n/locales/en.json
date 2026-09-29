@@ -1829,7 +1829,11 @@
     "nextCandidate": "Next piece",
     "searchWardrobeInstead": "Search the wardrobe",
     "searchWardrobeTitle": "Find the right piece",
-    "wardrobeSearchEmpty": "No pieces found"
+    "wardrobeSearchEmpty": "No pieces found",
+    "reconstructNoteLabel": "Here’s what I noticed — edit if needed",
+    "reconstructNotePlaceholder": "E.g. flowers applied at the waist, not the bust; cutouts at the sides",
+    "cancel": "Cancel",
+    "reconstructNoteLoading": "Looking at where the details are…"
   },
   "avatar": {
     "title": "My Avatar",
