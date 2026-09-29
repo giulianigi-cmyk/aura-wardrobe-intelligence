@@ -18,7 +18,7 @@ import { detectOutfitPhotoItems, saveScanPhotoForWear } from "@/lib/outfit-scan-
 import { cropItemFromSegmentation } from "@/lib/outfit-segmentation";
 import { findBestMatch, findTopMatches, type DedupeResult } from "@/lib/outfit-dedupe";
 import { findVisualDuplicates, confirmWearEvent } from "@/lib/outfit-wear.functions";
-import { startGarmentExtraction, checkGarmentExtraction } from "@/lib/outfit-garment-extract.functions";
+import { startGarmentExtraction, checkGarmentExtraction, describeGarmentDetails } from "@/lib/outfit-garment-extract.functions";
 import { trimFileMargins } from "@/lib/auto-crop";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 
@@ -418,6 +418,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
     }
   };
   const ADD_FROM_WARDROBE = "__add__";
+  const describeGarment = useServerFn(describeGarmentDetails);
   const pickFromWardrobeSearch = (item: WardrobeItem) => {
     if (!searchForKey) return;
     const path = toStoragePath(item.image_url);
@@ -453,12 +454,28 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   // real cost. Same submit-then-poll pattern as the avatar try-on
   // feature: short, repeated status checks rather than one long
   // request, which is what actually holds up on flaky connections.
+  //
+  // description is an override for the auto-generated "color + category" guess (e.g. "black
+  // dress") — genuinely spatial details like where an appliqué sits or where a cutout is are
+  // exactly what that guess can never capture, but the person looking at their own photo can name
+  // in one line. Reconstruction is still a generative guess at whatever the photo doesn't show,
+  // never a guarantee — a good description narrows that guess, it doesn't eliminate it.
   const reconstructItem = async (key: string) => {
     const item = scanItems.find((it) => it.key === key);
     if (!item || item.reconstructing) return;
     updateItem(key, { reconstructing: true });
     try {
-      const garmentDescription = [item.colors[0], item.subcategory || item.category].filter(Boolean).join(" ");
+      // The AI's own read of where each design detail sits — see describeGarmentDetails — used
+      // silently as reconstruction guidance. Nothing about this is shown or asked of the person;
+      // a plain color + category fallback covers the rare case where that call itself fails.
+      const fallback = [item.colors[0], item.subcategory || item.category].filter(Boolean).join(" ");
+      let garmentDescription = fallback;
+      try {
+        const described = await describeGarment({ data: { imageDataUrl: item.imageDataUrl } });
+        if (described.ok) garmentDescription = described.description;
+      } catch (e) {
+        console.warn("[AURA outfit-scan] auto-description failed, using the plain fallback", e);
+      }
       const started = await startReconstruction({
         data: {
           imageDataUrl: item.sourcePhotoDataUrl,
@@ -673,7 +690,12 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
       }
     } catch (e) {
       console.error("[AURA outfit-scan] saving the outfit failed", e);
-      toast.error(t("outfitScan.couldNotSaveOutfit", { defaultValue: "Non sono riuscita a salvare l’outfit. Riprova." }));
+      // Temporarily showing the raw error alongside the friendly message — the generic toast
+      // alone gave no way to tell which of several possible causes (storage upload, the outfits
+      // insert, the wear-event RPC) was actually failing. Once the real cause is confirmed this
+      // detail should come back out.
+      const detail = e instanceof Error ? e.message : typeof e === "object" && e && "message" in e ? String((e as { message: unknown }).message) : String(e);
+      toast.error(`${t("outfitScan.couldNotSaveOutfit", { defaultValue: "Non sono riuscita a salvare l’outfit. Riprova." })} (${detail})`);
       setSavingOutfit(false);
       return; // stay on this step so nothing typed here is lost and it can be retried
     }
