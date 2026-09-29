@@ -1829,7 +1829,11 @@
     "nextCandidate": "Prenda siguiente",
     "searchWardrobeInstead": "Buscar en el armario",
     "searchWardrobeTitle": "Encuentra la prenda correcta",
-    "wardrobeSearchEmpty": "No se encontraron prendas"
+    "wardrobeSearchEmpty": "No se encontraron prendas",
+    "reconstructNoteLabel": "Esto es lo que he visto — corrígelo si hace falta",
+    "reconstructNotePlaceholder": "Ej: flores aplicadas en la cintura, no en el pecho; aberturas en los laterales",
+    "cancel": "Cancelar",
+    "reconstructNoteLoading": "Mirando dónde están los detalles…"
   },
   "avatar": {
     "title": "Mi avatar",
