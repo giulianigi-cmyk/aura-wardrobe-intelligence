@@ -413,7 +413,8 @@
     "logWearLink": "¿Qué llevé puesto?",
     "toastComputingVisualFingerprints": "Calculando huellas visuales — {{done}}/{{total}}…",
     "toastVisualFingerprintsDone": "Huellas visuales listas para {{count}} prendas",
-    "createOutfitFromThisButton": "Crear outfit a partir de esto"
+    "createOutfitFromThisButton": "Crear outfit a partir de esto",
+    "logWearAria": "Registrar lo que llevas puesto"
   },
   "addItem": {
     "toastSelectImage": "Selecciona una imagen",
