@@ -11,7 +11,52 @@
 import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { generateText } from "ai";
 import { submitFashnEdit, checkFashnStatus } from "./fashn.server";
+
+// ---------------------------------------------------------------------------
+// Auto-describing WHERE a garment's design details sit, before reconstruction runs — so the
+// person doesn't have to type it by hand. A generic "black dress" gives the reconstruction model
+// almost nothing to work with for exactly the details a single occluded photo is hardest to get
+// right (an appliqué's real position, a cutout's exact placement); a model that already looked at
+// the photo and named those positions gives it something real to hold onto. The field in
+// OutfitScan.tsx stays editable — this fills it in as a starting point, not a locked answer, since
+// the photo can still be ambiguous or partially hide the very detail being described.
+// ---------------------------------------------------------------------------
+const DescribeInput = z.object({ imageDataUrl: z.string().min(1) });
+
+export const describeGarmentDetails = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => DescribeInput.parse(input))
+  .handler(async ({ data }) => {
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key) throw new Error("Missing LOVABLE_API_KEY");
+    const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
+    const gateway = createLovableAiGatewayProvider(key);
+    const model = gateway("google/gemini-2.5-flash");
+
+    const prompt = [
+      "Look at this garment photo — a cropped, isolated view of one piece, possibly with some background or the person's skin still visible around its edges.",
+      "In ONE short sentence, name the garment's type, color, and the exact position of every visible design detail — appliqués, flowers, cutouts, embellishments, trims, unusual seams — using clear spatial terms (waist, bust, hip, neckline, side, hem, sleeve, etc.).",
+      "Only mention details that are actually visible in the photo — never guess at something you can't see, and never describe a plain garment as having details it doesn't have.",
+      "Be concrete and literal, not evocative: this sentence is used as a factual instruction for image reconstruction, not a description for a person.",
+      "Respond with ONLY that one sentence — no preamble, no quotes, no markdown.",
+    ].join(" ");
+
+    try {
+      const result = await generateText({
+        model,
+        abortSignal: AbortSignal.timeout(20_000),
+        messages: [{ role: "user", content: [{ type: "text", text: prompt }, { type: "image", image: data.imageDataUrl }] }],
+      });
+      const description = result.text.trim().replace(/^["']|["']$/g, "");
+      if (!description) return { ok: false as const, error: "No description generated" };
+      return { ok: true as const, description };
+    } catch (e) {
+      console.error("[AURA garment-extract] auto-description failed", e);
+      return { ok: false as const, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
 
 const StartInput = z.object({
   imageDataUrl: z.string().min(1),
