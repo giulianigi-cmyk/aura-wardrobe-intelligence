@@ -1319,7 +1319,11 @@
     "nextCandidate": "Pièce suivante",
     "searchWardrobeInstead": "Chercher dans la garde-robe",
     "searchWardrobeTitle": "Trouver la bonne pièce",
-    "wardrobeSearchEmpty": "Aucune pièce trouvée"
+    "wardrobeSearchEmpty": "Aucune pièce trouvée",
+    "reconstructNoteLabel": "Voici ce que j’ai remarqué — corrigez si besoin",
+    "reconstructNotePlaceholder": "Ex : fleurs appliquées à la taille, pas sur la poitrine ; découpes sur les côtés",
+    "cancel": "Annuler",
+    "reconstructNoteLoading": "Je regarde où se trouvent les détails…"
   },
   "avatar": {
     "title": "Mon avatar",
