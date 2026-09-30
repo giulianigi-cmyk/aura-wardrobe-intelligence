@@ -1137,7 +1137,9 @@
     "scanOneOutfit": "Scanner une tenue",
     "scanOneOutfitHint": "Une photo, plusieurs articles détectés en une fois",
     "batchScanPhotos": "Scanner des photos en lot",
-    "batchScanPhotosHint": "Jusqu'à 150 photos à la fois, traitées en arrière-plan"
+    "batchScanPhotosHint": "Jusqu'à 150 photos à la fois, traitées en arrière-plan",
+    "logWear": "Enregistrer ce que vous portez",
+    "logWearHint": "Confirmez la tenue du jour parmi vos pièces déjà possédées"
   },
   "itemCropAdjuster": {
     "couldntApplyCrop": "Impossible d'appliquer ce recadrage — veuillez réessayer.",
