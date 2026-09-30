@@ -311,7 +311,22 @@ export const confirmWearEvent = createServerFn({ method: "POST" })
       if (isDuplicatePhotoEvent) {
         const { data: existing } = await (context.supabase.from("wardrobe_events" as never) as any)
           .select("id").eq("source_photo_detection_id", data.photoDetectionId).eq("user_id", context.userId).maybeSingle();
-        if (existing) return { ok: true as const, eventId: (existing as { id: string }).id };
+        if (existing) {
+          const existingId = (existing as { id: string }).id;
+          // The event row surviving from that earlier attempt is only half the story — if
+          // whatever failed back then did so BEFORE the item links were written (a separate
+          // step from the event row itself), the event exists but is invisible everywhere that
+          // reads it by its items (My Outfit's own list filters out any entry with none). Make
+          // sure the items are actually attached before calling this a successful no-op, not
+          // just the bare event row.
+          const { data: existingItems } = await (context.supabase.from("wardrobe_event_items" as never) as any)
+            .select("item_id").eq("event_id", existingId);
+          if (!existingItems?.length && data.itemIds.length) {
+            await (context.supabase.from("wardrobe_event_items" as never) as any)
+              .insert(data.itemIds.map((item_id) => ({ event_id: existingId, item_id })));
+          }
+          return { ok: true as const, eventId: existingId };
+        }
       }
       return { ok: false as const, error: error.message };
     }
