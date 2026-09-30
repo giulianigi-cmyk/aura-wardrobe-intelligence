@@ -1324,7 +1324,8 @@
     "reconstructNoteLabel": "Voici ce que j’ai remarqué — corrigez si besoin",
     "reconstructNotePlaceholder": "Ex : fleurs appliquées à la taille, pas sur la poitrine ; découpes sur les côtés",
     "cancel": "Annuler",
-    "reconstructNoteLoading": "Je regarde où se trouvent les détails…"
+    "reconstructNoteLoading": "Je regarde où se trouvent les détails…",
+    "adjustCrop": "Ajuster le cadrage"
   },
   "avatar": {
     "title": "Mon avatar",
