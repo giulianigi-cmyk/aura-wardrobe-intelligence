@@ -1834,7 +1834,8 @@
     "reconstructNoteLabel": "Here’s what I noticed — edit if needed",
     "reconstructNotePlaceholder": "E.g. flowers applied at the waist, not the bust; cutouts at the sides",
     "cancel": "Cancel",
-    "reconstructNoteLoading": "Looking at where the details are…"
+    "reconstructNoteLoading": "Looking at where the details are…",
+    "adjustCrop": "Adjust crop"
   },
   "avatar": {
     "title": "My Avatar",
