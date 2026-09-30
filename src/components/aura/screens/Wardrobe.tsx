@@ -6,7 +6,7 @@ import { isShoeCategory, sizeEquivalences } from "@/lib/size-conversion";
 import { MaterialCombobox } from "@/components/aura/MaterialCombobox";
 import { AddSourceSheet } from "@/components/aura/AddSourceSheet";
 
-import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown, Shirt } from "lucide-react";
+import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { migrateLegacyTaxonomy } from "@/lib/migrate-legacy-taxonomy.functions";
@@ -819,19 +819,9 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
             );
           })()}
 
-          {/* The only way to reach "What did I wear?" (LogWear) — its own camera-linked entry
-              point here was removed at some point without a replacement, leaving the whole
-              screen unreachable even though nothing else about it changed. Kept as its own
-              button rather than folded into AddSourceSheet: that sheet is entirely about adding
-              NEW pieces, while this confirms wear on pieces already owned — a different action,
-              not a fourth flavor of "add". */}
-          <button
-            onClick={() => go("log-wear")}
-            aria-label={t("wardrobe.logWearAria")}
-            className="h-12 w-12 rounded-full border border-border flex items-center justify-center active:scale-90 transition shrink-0"
-          >
-            <Shirt size={16} />
-          </button>
+          {/* "Registra indossato" is reached through the "+" sheet now (fourth option there),
+              not its own icon — a standalone button here was tried and reverted: the product
+              decision is one entry point for this whole family of photo-driven actions. */}
 
           <button
             onClick={() => setAddSheetOpen(true)}
