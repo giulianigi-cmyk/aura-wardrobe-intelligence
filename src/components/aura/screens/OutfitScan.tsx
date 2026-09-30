@@ -7,6 +7,7 @@ import type { Screen } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useWardrobeCacheActions } from "@/lib/wardrobe-query";
+import { useOutfitPlansCacheActions } from "@/lib/outfit-plans-query";
 import { compressImageForUpload } from "@/lib/image-compress";
 import type { TablesInsert } from "@/integrations/supabase/types";
 import type { WardrobeItem } from "@/lib/aura-types";
@@ -83,9 +84,6 @@ type ScanItem = {
   imageDataUrl: string;
   transparent: boolean;
   dedupe: DedupeResult;
-  // Alternative candidates from the wardrobe, ranked — see findTopMatches. Lets the "is this the
-  // same item?" card offer real alternatives (with their own match %) instead of a single guess
-  // the person could only accept or reject outright with no other option but a full manual search.
   candidates: { item: WardrobeItem; score: number }[];
   candidateIndex: number;
   status: "pending" | "confirmed-new" | "confirmed-duplicate";
@@ -107,24 +105,13 @@ type ScanItem = {
   styleTags: string[];
   model: string;
   bagSizeClass: string;
-  // For the "reconstruct hidden parts" action below — the full original
-  // outfit photo plus this item's own full-photo-aligned mask, kept
-  // only for as long as the review screen is open (never saved to the
-  // wardrobe). See outfit-segmentation.ts's fullPhotoMaskDataUrl for
-  // why the mask has to be full-photo-sized rather than just the crop.
   sourcePhotoDataUrl: string;
   sourceMaskDataUrl: string;
-  // The detector's own bounding box for this item, kept around so "Adatta ritaglio" can open
-  // right where it already thinks the piece is instead of a blank full-photo box — see
-  // ItemCropAdjuster. null for a piece added by hand from the wardrobe (ownedScanItem), which has
-  // no detection box to speak of.
   bbox: { x: number; y: number; width: number; height: number } | null;
   reconstructing: boolean;
 };
 
 
-/** A ScanItem for a piece the person already owns, added by hand from the wardrobe. Only the
- *  fields the review list and the save step actually read for a confirmed-duplicate matter here. */
 function ownedScanItem(item: WardrobeItem, sourcePhoto: string): ScanItem {
   const colors = (item.colors && item.colors.length ? item.colors : item.color ? [item.color] : []) as string[];
   return {
@@ -147,10 +134,6 @@ function ownedScanItem(item: WardrobeItem, sourcePhoto: string): ScanItem {
 export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   const { t } = useTranslation();
   const { user } = useAuth();
-  // Same brand-autocomplete data source as AddItem.tsx and
-  // BatchReview.tsx — fetched once, passed to every detected item's
-  // card, so a brand already saved anywhere in the wardrobe suggests
-  // itself here too instead of needing to be retyped by hand.
   const [existingBrands, setExistingBrands] = useState<string[]>([]);
   useEffect(() => {
     if (!user) return;
@@ -163,6 +146,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
       });
   }, [user]);
   const wardrobeCache = useWardrobeCacheActions();
+  const outfitPlansCache = useOutfitPlansCacheActions();
   const detectOutfitPhotoItemsFn = useServerFn(detectOutfitPhotoItems);
   const findVisualDupes = useServerFn(findVisualDuplicates);
   const confirmWorn = useServerFn(confirmWearEvent);
@@ -172,15 +156,13 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
-  const [stage, setStage] = useState<"idle" | "analyzing" | "review" | "saving" | "saveOutfit">("idle");
-  // The full set of item ids this outfit ends up made of once saving finishes — the newly-created
-  // ones (captured as each insert succeeds below) plus whichever were already-owned matches the
-  // person confirmed as duplicates — what the "save this outfit" step below is built from.
+  const [stage, setStage] = useState<"idle" | "analyzing" | "review" | "saving" | "savingMyOutfit" | "myOutfitFailed" | "assignCalendar">("idle");
   const [finishedItemIds, setFinishedItemIds] = useState<string[]>([]);
   const [savingOutfit, setSavingOutfit] = useState(false);
   const todayIso = () => new Date().toISOString().slice(0, 10);
-  const [outfitDate, setOutfitDate] = useState(todayIso());
-  const [markWorn, setMarkWorn] = useState(true);
+  const [calendarDate, setCalendarDate] = useState(todayIso());
+  const [assignToCalendar, setAssignToCalendar] = useState(false);
+  const [myOutfitEventId, setMyOutfitEventId] = useState<string | null>(null);
   const savePhotoForWear = useServerFn(saveScanPhotoForWear);
   const [progressLabel, setProgressLabel] = useState("");
   const [scanItems, setScanItems] = useState<ScanItem[]>([]);
@@ -192,7 +174,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
     setScanItems([]);
     setStage("idle");
     setProgressLabel("");
-    setOutfitDate(todayIso()); setMarkWorn(true);
+    setCalendarDate(todayIso()); setAssignToCalendar(false); setMyOutfitEventId(null);
     setFinishedItemIds([]);
   };
 
@@ -222,9 +204,6 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
         return;
       }
       const detected = detection.items;
-      // One key for this whole photo — cropItemFromSegmentation caches the (expensive) local
-      // segmentation pass per key, so every item below shares the SAME single model run instead
-      // of paying for it once per item.
       const photoKey = `outfit-scan-${Date.now()}`;
 
       const built: ScanItem[] = [];
@@ -235,10 +214,6 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
         const meta = {
           category: d.category, subcategory: d.subcategory, colors: d.colors,
           materials: d.materials, seasons: d.seasons,
-          // The multi-item detector doesn't attempt brand/model/bag-size-class — a full outfit
-          // photo rarely shows a legible logo the way a close-up single-item photo does, and
-          // guessing here would violate the same "never invent" rule as everywhere else. The
-          // review card's brand field still autocompletes from existingBrands either way.
           brand: "",
           formality: d.formality ?? null, dayEvening: d.dayEvening || "", sleeveLength: d.sleeveLength || "",
           length: d.length || "", fit: d.fit || "", heelHeight: "", toeShape: "",
@@ -246,9 +221,6 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           model: "", bagSizeClass: "",
         };
 
-        // Crop: AI-guided segmentation first (uses the detector's own category + bounding box to
-        // find the right pixel-level region — much less likely to grab the wrong thing than
-        // segmenting blind), a plain bbox rectangle if that finds nothing usable.
         let cropImageUrl: string;
         let sourceMaskDataUrl = "";
         let transparent = true;
@@ -271,21 +243,11 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           { category: meta.category, subcategory: meta.subcategory, colors: meta.colors, brand: meta.brand || null },
           existingList,
         );
-        // Same scoring, but keeps the top 3 instead of only the single best — the "is this the
-        // same item?" card below offers these as real alternatives (each with its own match %),
-        // not just an accept/reject on one guess.
         const candidates = findTopMatches(
           { category: meta.category, subcategory: meta.subcategory, colors: meta.colors, brand: meta.brand || null },
           existingList,
           3,
         ).map((c) => ({ item: c.item, score: c.score }));
-        // Visual comparison, second pass — only worth the round-trip when
-        // attributes alone weren't already confident. This was the real
-        // gap the ADR's original plan aimed at (import dedup, not wear
-        // detection): a scan-imported piece was checked for duplicates
-        // by attributes only, even after the visual embedding
-        // infrastructure existed for LogWear. Silently skipped (never
-        // blocks the scan) if the embedding model or the request fails.
         if (dedupe.verdict !== "certain" && meta.category) {
           try {
             const { computeGarmentEmbedding } = await import("@/lib/visual-embedding");
@@ -301,9 +263,6 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                     match: matchedItem,
                     verdict: best.visualSimilarity >= 0.9 ? "certain" : best.visualSimilarity >= 0.6 ? "maybe" : "new",
                   };
-                  // Keep `candidates` consistent with what `dedupe` now shows: promote this
-                  // visually-boosted match to the front (or insert it) so cycling through
-                  // candidates below never contradicts the one already selected.
                   const already = candidates.findIndex((c) => c.item.id === matchedItem.id);
                   if (already >= 0) candidates.splice(already, 1);
                   candidates.unshift({ item: matchedItem, score: best.visualSimilarity });
@@ -321,8 +280,6 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
             if (map[path]) setMatchThumbs((prev) => ({ ...prev, [dedupe.match!.id]: map[path] }));
           }
         }
-        // Thumbnails for every alternative too, not just the top pick — needed as soon as the
-        // person cycles to a different candidate.
         if (candidates.length) {
           const urls = await resolveWardrobeUrls(candidates.map((c) => c.item));
           setMatchThumbs((prev) => {
@@ -377,7 +334,6 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
         });
       }
 
-
       setScanItems(built);
       setStage("review");
     } catch (e) {
@@ -393,8 +349,6 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   const removeItem = (key: string) =>
     setScanItems((prev) => prev.filter((it) => it.key !== key));
 
-  // Step through the ranked alternatives (see findTopMatches) for one detection's "is this the
-  // same item?" card — never past either end of the list.
   const cycleCandidate = (key: string, dir: 1 | -1) =>
     setScanItems((prev) => prev.map((it) => {
       if (it.key !== key || !it.candidates.length) return it;
@@ -407,8 +361,6 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
       };
     }));
 
-  // Manual "search the wardrobe" fallback, for when none of the ranked candidates are actually
-  // right — the same escape hatch LogWear's wear-confirmation already gives, ported here.
   const [searchForKey, setSearchForKey] = useState<string | null>(null);
   const [wardrobeSigned, setWardrobeSigned] = useState<Record<string, string>>({});
   const [wardrobeSignedLoading, setWardrobeSignedLoading] = useState(false);
@@ -423,10 +375,6 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   const ADD_FROM_WARDROBE = "__add__";
   const describeGarment = useServerFn(describeGarmentDetails);
 
-  // Manual crop adjustment — draws straight from the original outfit photo at full resolution,
-  // no model involved. The automatic detection's box is sometimes too tight (a sleeve or hem cut
-  // off) with nothing in the review screen to fix it except discarding the piece; this is that
-  // fix, reusing the exact same tool BatchReview's own "Adatta ritaglio" already uses.
   const [adjustingKey, setAdjustingKey] = useState<string | null>(null);
   const adjustingItem = scanItems.find((it) => it.key === adjustingKey) ?? null;
   const applyManualCrop = (key: string, dataUrl: string, box: FractionalBox) =>
@@ -436,9 +384,6 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
     const path = toStoragePath(item.image_url);
     if (path && wardrobeSigned[path]) setMatchThumbs((prev) => ({ ...prev, [item.id]: wardrobeSigned[path] }));
     if (searchForKey === ADD_FROM_WARDROBE) {
-      // A piece the scan never detected at all (or detected as something else entirely) but that
-      // IS in the closet — added straight to this outfit as an already-owned piece, no new
-      // wardrobe entry created.
       setScanItems((prev) => {
         if (prev.some((it) => it.status === "confirmed-duplicate" && it.dedupe.match?.id === item.id)) return prev;
         return [...prev, ownedScanItem(item, photoDataUrl ?? "")];
@@ -448,9 +393,6 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
     }
     updateItem(searchForKey, {
       dedupe: { score: 1, match: item, verdict: "certain" },
-      // Choosing a specific item via search IS the confirmation — unlike cycling through the
-      // ranked candidates above, there's no reason to ask "is this the same item?" again about
-      // the exact piece the person just looked for and picked themselves.
       status: "confirmed-duplicate",
       candidates: [{ item, score: 1 }],
       candidateIndex: 0,
@@ -458,28 +400,11 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
     setSearchForKey(null);
   };
 
-  // Sends the item through FASHN's Edit model (see
-  // outfit-garment-extract.functions.ts) to reconstruct whatever's
-  // hidden behind an arm, another garment, or a fold — for the crops
-  // that came out looking obviously wrong (a sleeve cut off, a chunk
-  // missing) rather than every item by default, since each call has a
-  // real cost. Same submit-then-poll pattern as the avatar try-on
-  // feature: short, repeated status checks rather than one long
-  // request, which is what actually holds up on flaky connections.
-  //
-  // description is an override for the auto-generated "color + category" guess (e.g. "black
-  // dress") — genuinely spatial details like where an appliqué sits or where a cutout is are
-  // exactly what that guess can never capture, but the person looking at their own photo can name
-  // in one line. Reconstruction is still a generative guess at whatever the photo doesn't show,
-  // never a guarantee — a good description narrows that guess, it doesn't eliminate it.
   const reconstructItem = async (key: string) => {
     const item = scanItems.find((it) => it.key === key);
     if (!item || item.reconstructing) return;
     updateItem(key, { reconstructing: true });
     try {
-      // The AI's own read of where each design detail sits — see describeGarmentDetails — used
-      // silently as reconstruction guidance. Nothing about this is shown or asked of the person;
-      // a plain color + category fallback covers the rare case where that call itself fails.
       const fallback = [item.colors[0], item.subcategory || item.category].filter(Boolean).join(" ");
       let garmentDescription = fallback;
       try {
@@ -500,14 +425,12 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
         return;
       }
       if (started.done) {
-        // Lovable's own AI Gateway path — already a genuine transparent PNG, no separate
-        // background-removal pass needed (unlike the FASHN fallback below).
         updateItem(key, { imageDataUrl: started.imageDataUrl, transparent: true });
         toast.success(t("outfitScan.reconstructionDone"));
         return;
       }
       const predictionId = started.predictionId;
-      const deadline = Date.now() + 90_000; // matches the avatar try-on feature's own ceiling
+      const deadline = Date.now() + 90_000;
       while (Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 2000));
         const check = await checkReconstruction({ data: { predictionId } });
@@ -516,11 +439,6 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           return;
         }
         if (check.done) {
-          // FASHN's "edit" model paints a plain background — it's a diffusion model, it cannot
-          // output real per-pixel alpha no matter how the prompt asks. Genuine transparency comes
-          // from running the same background-removal step every other wardrobe photo already
-          // gets, on this result, so a reconstructed piece looks and behaves exactly like one
-          // cropped from a normal photo — same clean cutout, saved the same way.
           let finalImageDataUrl = check.imageDataUrl;
           let finalTransparent = false;
           try {
@@ -550,13 +468,11 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
     const duplicateIds = scanItems
       .filter((it) => it.status === "confirmed-duplicate" && it.dedupe.match)
       .map((it) => it.dedupe.match!.id);
-    // An outfit that turned out to be entirely pieces already owned has nothing new to upload,
-    // but should still reach the "did you wear this today?" step below rather than silently doing
-    // nothing — skip straight there instead of returning early.
     if (toSave.length === 0) {
-      setFinishedItemIds(Array.from(new Set(duplicateIds)));
-      setStage(duplicateIds.length ? "saveOutfit" : "idle");
-      if (!duplicateIds.length) { reset(); go("wardrobe"); }
+      const allItemIds = Array.from(new Set(duplicateIds));
+      setFinishedItemIds(allItemIds);
+      if (allItemIds.length) void saveToMyOutfit(allItemIds);
+      else { reset(); go("wardrobe"); }
       return;
     }
     setStage("saving");
@@ -613,11 +529,6 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           .from("wardrobe_items").insert(payload).select("*").single();
         if (insErr) throw insErr;
 
-        // Fire-and-forget, same as AddItem.tsx's save() — a piece added
-        // via outfit scan gets a visual fingerprint too, not just one
-        // added through the single-item flow. Without this, every
-        // batch-scanned piece stayed invisible to visual dedup/matching
-        // forever unless someone later ran the wardrobe-wide backfill.
         void (async () => {
           try {
             const { computeGarmentEmbedding, EMBEDDING_MODEL_VERSION } = await import("@/lib/visual-embedding");
@@ -633,10 +544,6 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           }
         })();
 
-        // See AddItem.tsx for why this replaces the old DOM event —
-        // same reasoning, batch-scanned pieces now reach every screen's
-        // cache directly instead of depending on one happening to be
-        // mounted.
         wardrobeCache.addItem(inserted as WardrobeItem);
         newIds.push((inserted as { id: string }).id);
         ok++;
@@ -647,12 +554,10 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
     }
     if (ok) toast.success(t("outfitScan.addedPiecesToCloset", { count: ok }));
     if (failed) toast.error(t("outfitScan.itemsCouldNotBeSaved", { count: failed }));
-    // Every piece this outfit is actually made of: the ones just saved as new, plus whichever
-    // confirmed-duplicate detections point at a piece already owned (computed once, above) — both
-    // count if the person says yes to having worn this today.
-    setFinishedItemIds(Array.from(new Set([...newIds, ...duplicateIds])));
-    if (newIds.length + duplicateIds.length > 0) {
-      setStage("saveOutfit");
+    const allItemIds = Array.from(new Set([...newIds, ...duplicateIds]));
+    setFinishedItemIds(allItemIds);
+    if (allItemIds.length > 0) {
+      void saveToMyOutfit(allItemIds);
     } else {
       setStage("idle");
       reset();
@@ -660,13 +565,9 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
     }
   };
 
-  // Final step: turn what was just reviewed into (optionally) a saved outfit — with the scanned
-  // photo attached — and/or a worn entry on a chosen date. Neither is forced: the pieces are
-  // already in the wardrobe by this point, this only decides what else to record about them.
-  const finishOutfit = async () => {
+  const saveToMyOutfit = async (itemIds: string[]) => {
     if (!user) return;
-    if (!markWorn) { skipSavingOutfit(); return; }
-    setSavingOutfit(true);
+    setStage("savingMyOutfit");
     try {
       let photoFile: File | null = null;
       if (photoDataUrl) {
@@ -687,26 +588,45 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           console.warn("[AURA outfit-scan] saving the worn-photo failed, logging the wear without it", e);
         }
       }
-      const res = await confirmWorn({ data: { itemIds: finishedItemIds, wornAt: outfitDate, photoDetectionId } });
+      const res = await confirmWorn({ data: { itemIds, wornAt: todayIso(), photoDetectionId } });
       if (!res.ok) throw new Error(res.error);
-      toast.success(t("outfitScan.loggedAsWorn", { defaultValue: "Segnato come indossato" }));
+      setMyOutfitEventId(res.eventId ?? null);
+      setStage("assignCalendar");
     } catch (e) {
-      console.error("[AURA outfit-scan] saving the outfit failed", e);
-      // Temporarily showing the raw error alongside the friendly message — the generic toast
-      // alone gave no way to tell which of several possible causes (storage upload, the outfits
-      // insert, the wear-event RPC) was actually failing. Once the real cause is confirmed this
-      // detail should come back out.
+      console.error("[AURA outfit-scan] saving to My Outfit failed", e);
       const detail = e instanceof Error ? e.message : typeof e === "object" && e && "message" in e ? String((e as { message: unknown }).message) : String(e);
       toast.error(`${t("outfitScan.couldNotSaveOutfit", { defaultValue: "Non sono riuscita a salvare l’outfit. Riprova." })} (${detail})`);
-      setSavingOutfit(false);
-      return; // stay on this step so nothing typed here is lost and it can be retried
+      setStage("myOutfitFailed");
     }
-    setSavingOutfit(false);
-    reset();
-    go("wardrobe");
   };
 
-  const skipSavingOutfit = () => {
+  const finishCalendar = async () => {
+    if (!user) return;
+    if (!assignToCalendar) { reset(); go("wardrobe"); return; }
+    setSavingOutfit(true);
+    try {
+      const status = calendarDate <= todayIso() ? "worn" : "planned";
+      const { data: planRow, error } = await supabase.from("outfit_plans").insert({
+        user_id: user.id,
+        date: calendarDate,
+        item_ids: finishedItemIds,
+        status,
+      } as never).select("id").single();
+      if (error) throw error;
+      const planId = (planRow as { id: string }).id;
+      if (myOutfitEventId) {
+        await (supabase.from("wardrobe_events" as never) as any)
+          .update({ outfit_plan_id: planId }).eq("id", myOutfitEventId);
+      }
+      outfitPlansCache.invalidate();
+      toast.success(t("outfitScan.addedToCalendar", { defaultValue: "Aggiunto al calendario" }));
+    } catch (e) {
+      console.error("[AURA outfit-scan] calendar assignment failed", e);
+      toast.error(t("outfitScan.couldNotAddToCalendar", { defaultValue: "Non sono riuscita ad aggiungerlo al calendario. Riprova." }));
+      setSavingOutfit(false);
+      return;
+    }
+    setSavingOutfit(false);
     reset();
     go("wardrobe");
   };
@@ -869,22 +789,12 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                 onChange={(patch) => updateItem(it.key, patch)}
                 onRemove={() => removeItem(it.key)}
                 existingBrands={existingBrands}
-                // No mask (the plain-bbox fallback crop, used when segmentation found no
-                // confident region for this category) means there's nothing reliable to tell
-                // FASHN's Edit endpoint to reconstruct — hiding the button here beats offering an
-                // action that would fail without a clear reason why.
                 footer={
                   <>
-                    {/* Fixes the crop itself — the actual framing being too tight/small — which
-                        neither the wardrobe search nor reconstruction below can do: one finds an
-                        existing piece, the other guesses at hidden parts, neither redraws the box. */}
                     <button
                       onClick={() => setAdjustingKey(it.key)}
                       className="mt-3 w-full h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground active:scale-[0.98]"
                     >{t("outfitScan.adjustCrop", { defaultValue: "Adatta ritaglio" })}</button>
-                    {/* The scan found nothing similar in the wardrobe — but that doesn't mean it isn't
-                        there (a piece photographed at an angle, half hidden, in different light).
-                        Looking it up by hand is the way out, not adding a duplicate. */}
                     <button
                       onClick={() => void openWardrobeSearch(it.key)}
                       className="mt-2 w-full h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground active:scale-[0.98]"
@@ -933,33 +843,50 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
         </div>
       )}
 
-      {stage === "saveOutfit" && (
+      {stage === "savingMyOutfit" && (
+        <div className="mx-6 mt-16 text-center">
+          <Loader2 size={20} className="mx-auto animate-spin text-muted-foreground" />
+          <p className="mt-4 text-sm text-muted-foreground">{t("outfitScan.savingToMyOutfit", { defaultValue: "Salvo l’outfit in My Outfit…" })}</p>
+        </div>
+      )}
+
+      {stage === "myOutfitFailed" && (
+        <div className="mx-6 mt-16 text-center">
+          <p className="font-serif text-xl italic">{t("outfitScan.couldNotSaveToMyOutfit", { defaultValue: "Non sono riuscita a salvarlo in My Outfit" })}</p>
+          <div className="mt-6 flex flex-col gap-3">
+            <button
+              onClick={() => void saveToMyOutfit(finishedItemIds)}
+              className="h-12 rounded-full bg-foreground text-background text-xs uppercase tracking-[0.25em]"
+            >{t("outfitScan.retry", { defaultValue: "Riprova" })}</button>
+            <button
+              onClick={() => { reset(); go("wardrobe"); }}
+              className="h-12 rounded-full border border-border text-xs uppercase tracking-[0.25em]"
+            >{t("outfitScan.skipSavingOutfit", { defaultValue: "Salta" })}</button>
+          </div>
+        </div>
+      )}
+
+      {stage === "assignCalendar" && (
         <div className="mx-6 mt-8">
-          <p className="font-serif text-2xl italic text-center">{t("outfitScan.saveOutfitTitle", { defaultValue: "Salva l’outfit" })}</p>
-          <p className="mt-2 text-sm text-muted-foreground leading-relaxed text-center">{t("outfitScan.saveOutfitHint", { count: finishedItemIds.length, defaultValue_one: "Questo outfit è fatto da {{count}} capo.", defaultValue_other: "Questo outfit è fatto da {{count}} capi." })}</p>
+          <p className="font-serif text-2xl italic text-center">{t("outfitScan.savedToMyOutfitTitle", { defaultValue: "Salvato in My Outfit" })}</p>
+          <p className="mt-2 text-sm text-muted-foreground leading-relaxed text-center">{t("outfitScan.assignCalendarHint", { defaultValue: "Vuoi assegnarlo anche a una data nel calendario?" })}</p>
 
           {photoDataUrl && (
             <img src={photoDataUrl} alt="" className="mt-5 mx-auto max-h-56 rounded-2xl object-contain" />
           )}
 
           <div className="mt-5 space-y-3">
-            {/* This is the only save this screen offers now — a saved-outfit "canvas" entry
-                (no photo, name-only, shown in the separate Salvati grid) was tried here too and
-                removed: a real outfit photo belongs with the rest of the photo-based wear history
-                — pieces, canvas, avatar try-on all in one place — not split off into a second,
-                photo-less list. */}
             <label className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
-              <input type="checkbox" checked={markWorn} onChange={(e) => setMarkWorn(e.target.checked)} className="h-4 w-4" />
-              <span className="text-sm">{t("outfitScan.markWornToggle", { defaultValue: "Segna i capi come indossati" })}</span>
+              <input type="checkbox" checked={assignToCalendar} onChange={(e) => setAssignToCalendar(e.target.checked)} className="h-4 w-4" />
+              <span className="text-sm">{t("outfitScan.assignCalendarToggle", { defaultValue: "Aggiungi anche al calendario" })}</span>
             </label>
-            {markWorn && (
+            {assignToCalendar && (
               <div className="flex items-center gap-3 rounded-2xl border border-border bg-background px-4 py-2.5">
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground shrink-0">{t("outfitScan.outfitDateLabel", { defaultValue: "Data" })}</span>
                 <input
                   type="date"
-                  value={outfitDate}
-                  max={todayIso()}
-                  onChange={(e) => setOutfitDate(e.target.value || todayIso())}
+                  value={calendarDate}
+                  onChange={(e) => setCalendarDate(e.target.value || todayIso())}
                   className="flex-1 bg-transparent text-sm outline-none text-right"
                 />
               </div>
@@ -968,15 +895,17 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
 
           <div className="mt-6 flex flex-col gap-3">
             <button
-              onClick={() => void finishOutfit()}
+              onClick={() => void finishCalendar()}
               disabled={savingOutfit}
               className="h-12 rounded-full bg-foreground text-background text-xs uppercase tracking-[0.25em] inline-flex items-center justify-center gap-2 disabled:opacity-50"
-            >{savingOutfit && <Loader2 size={14} className="animate-spin" />} {t("outfitScan.saveOutfitButton", { defaultValue: "Salva" })}</button>
-            <button
-              onClick={skipSavingOutfit}
-              disabled={savingOutfit}
-              className="h-12 rounded-full border border-border text-xs uppercase tracking-[0.25em] disabled:opacity-50"
-            >{t("outfitScan.skipSavingOutfit", { defaultValue: "Salta" })}</button>
+            >{savingOutfit && <Loader2 size={14} className="animate-spin" />} {assignToCalendar ? t("outfitScan.saveOutfitButton", { defaultValue: "Salva" }) : t("outfitScan.doneButton", { defaultValue: "Fatto" })}</button>
+            {assignToCalendar && (
+              <button
+                onClick={() => { reset(); go("wardrobe"); }}
+                disabled={savingOutfit}
+                className="h-12 rounded-full border border-border text-xs uppercase tracking-[0.25em] disabled:opacity-50"
+              >{t("outfitScan.skipSavingOutfit", { defaultValue: "Salta" })}</button>
+            )}
           </div>
         </div>
       )}
