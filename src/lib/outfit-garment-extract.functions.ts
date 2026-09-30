@@ -78,19 +78,61 @@ function buildExtractionPrompt(garmentDescription?: string): string {
     `Extract ${subject} from this photo as a clean, professional ghost-mannequin product photo.`,
     "Remove the person's body, skin, face, hair, and every other garment or accessory.",
     "Reconstruct any part of this item that is hidden behind an arm, another piece of clothing, or a fold, using the visible parts of the same item as your only guide — do not invent a different color, pattern, or design detail.",
-    "Show the item alone, fully laid out, centered on a plain white background, as if photographed for a product catalog.",
+    "Keep every visible embellishment, appliqué, cutout, seam, strap, and trim in EXACTLY the position it appears in the photo — never relocate, resize, duplicate, or omit a design element just because part of it is occluded; extend or complete it in place rather than moving it elsewhere on the garment.",
+    "Show the item alone, fully laid out, centered on a transparent background — no shadow, no reflection, no gradient, no backdrop of any kind, just the garment itself with a clean, fully transparent PNG background, as if it had been cut out of a product photo.",
     "Preserve the garment's true color, fabric texture, and construction exactly as shown in the photo.",
   ].join(" ");
 }
 
+/** The primary path: Lovable's own AI Gateway (the same LOVABLE_API_KEY every other AI call in
+ *  this app already uses — no separate provider account, no extra secret) has genuine image
+ *  EDITING models (the GPT Image family) capable of exactly this — extracting one garment from a
+ *  photo, filling in an occluded region, and outputting a real transparent PNG directly, without
+ *  the flat white-background-then-remove-it detour the FASHN path needed. Runs as one ordinary
+ *  request/response — no submit-then-poll needed here, since a single call is nowhere near the
+ *  length that caused FASHN's long-lived-connection failures. Returns null (not an error) on
+ *  anything that looks like the model didn't cooperate, so the caller can fall back to FASHN
+ *  rather than surface a confusing failure for what is, for now, the newer of the two paths and
+ *  the less proven in production. */
+async function extractViaLovableAi(imageDataUrl: string, maskDataUrl: string, prompt: string): Promise<string | null> {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) return null;
+  try {
+    const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
+    const gateway = createLovableAiGatewayProvider(key);
+    const { generateImage } = await import("ai");
+    const result = await generateImage({
+      model: gateway.imageModel("openai/gpt-image-2"),
+      prompt: { images: [imageDataUrl], text: prompt, mask: maskDataUrl },
+      abortSignal: AbortSignal.timeout(45_000),
+    });
+    const image = result.image;
+    if (!image) return null;
+    return `data:${image.mediaType || "image/png"};base64,${image.base64}`;
+  } catch (e) {
+    console.error("[AURA garment-extract] Lovable AI Gateway extraction failed, falling back to FASHN", e);
+    return null;
+  }
+}
+
+export type StartExtractionResult =
+  | { ok: true; done: true; imageDataUrl: string }
+  | { ok: true; done: false; predictionId: string }
+  | { ok: false; error: string };
+
 export const startGarmentExtraction = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => StartInput.parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<StartExtractionResult> => {
     const prompt = buildExtractionPrompt(data.garmentDescription);
+
+    const lovableResult = await extractViaLovableAi(data.imageDataUrl, data.maskDataUrl, prompt);
+    if (lovableResult) return { ok: true, done: true, imageDataUrl: lovableResult };
+
+    // Fallback: the older FASHN-based path, unchanged. See fashn.server.ts.
     const result = await submitFashnEdit(data.imageDataUrl, prompt, data.maskDataUrl);
-    if (!result.ok) return { ok: false as const, error: result.error };
-    return { ok: true as const, predictionId: result.predictionId };
+    if (!result.ok) return { ok: false, error: result.error };
+    return { ok: true, done: false, predictionId: result.predictionId };
   });
 
 const CheckInput = z.object({ predictionId: z.string().min(1) });
