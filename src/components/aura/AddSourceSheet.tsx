@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Camera, Images, Plus } from "lucide-react";
+import { Camera, Images, Plus, Shirt } from "lucide-react";
 
-export type AddSourceChoice = "add" | "batch-scan" | "outfit-scan";
+export type AddSourceChoice = "add" | "batch-scan" | "outfit-scan" | "log-wear";
 
 /**
  * Unified entry point for adding pieces to the closet: one piece with full
@@ -14,6 +14,14 @@ export type AddSourceChoice = "add" | "batch-scan" | "outfit-scan";
  * wardrobe over time in the background vs. capturing what's on right now
  * and reviewing it immediately) and merging them would make one of the
  * two worse at its own job.
+ *
+ * "Registra indossato" (log-wear) lives here too, as a fourth choice, even
+ * though it doesn't add anything new to the closet — it confirms wear on
+ * pieces already owned. A separate standalone icon for it was tried and
+ * reverted: the deliberate product decision is ONE entry point into this
+ * whole family of "here's a photo, do something with it" actions, not one
+ * icon per action — that's exactly why the old standalone camera button
+ * was removed in the first place when this sheet was introduced.
  */
 export function AddSourceSheet({
   open,
@@ -90,6 +98,16 @@ export function AddSourceSheet({
           <div>
             <p className="text-sm font-medium">{t("addSourceSheet.scanOneOutfit")}</p>
             <p className="text-xs text-muted-foreground">{t("addSourceSheet.scanOneOutfitHint")}</p>
+          </div>
+        </button>
+        <button
+          onClick={() => onChoose("log-wear")}
+          className="w-full flex items-center gap-3 rounded-2xl border border-border p-4 text-left active:scale-[0.98] transition"
+        >
+          <Shirt size={18} />
+          <div>
+            <p className="text-sm font-medium">{t("addSourceSheet.logWear")}</p>
+            <p className="text-xs text-muted-foreground">{t("addSourceSheet.logWearHint")}</p>
           </div>
         </button>
       </div>
