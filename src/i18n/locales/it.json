@@ -1837,7 +1837,16 @@
     "reconstructNotePlaceholder": "Es: fiori applicati in vita, non sul seno; cut-out sui fianchi",
     "cancel": "Annulla",
     "reconstructNoteLoading": "Sto guardando dove sono i dettagli…",
-    "adjustCrop": "Adatta ritaglio"
+    "adjustCrop": "Adatta ritaglio",
+    "savingToMyOutfit": "Salvo l’outfit in My Outfit…",
+    "couldNotSaveToMyOutfit": "Non sono riuscita a salvarlo in My Outfit",
+    "retry": "Riprova",
+    "savedToMyOutfitTitle": "Salvato in My Outfit",
+    "assignCalendarHint": "Vuoi assegnarlo anche a una data nel calendario?",
+    "assignCalendarToggle": "Aggiungi anche al calendario",
+    "doneButton": "Fatto",
+    "addedToCalendar": "Aggiunto al calendario",
+    "couldNotAddToCalendar": "Non sono riuscita ad aggiungerlo al calendario. Riprova."
   },
   "avatar": {
     "title": "Il mio avatar",
