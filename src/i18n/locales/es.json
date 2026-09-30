@@ -1837,7 +1837,16 @@
     "reconstructNotePlaceholder": "Ej: flores aplicadas en la cintura, no en el pecho; aberturas en los laterales",
     "cancel": "Cancelar",
     "reconstructNoteLoading": "Mirando dónde están los detalles…",
-    "adjustCrop": "Ajustar recorte"
+    "adjustCrop": "Ajustar recorte",
+    "savingToMyOutfit": "Guardando en My Outfit…",
+    "couldNotSaveToMyOutfit": "No he podido guardarlo en My Outfit",
+    "retry": "Reintentar",
+    "savedToMyOutfitTitle": "Guardado en My Outfit",
+    "assignCalendarHint": "¿Quieres asignarle también una fecha en el calendario?",
+    "assignCalendarToggle": "Añadir también al calendario",
+    "doneButton": "Hecho",
+    "addedToCalendar": "Añadido al calendario",
+    "couldNotAddToCalendar": "No he podido añadirlo al calendario. Inténtalo de nuevo."
   },
   "avatar": {
     "title": "Mi avatar",
