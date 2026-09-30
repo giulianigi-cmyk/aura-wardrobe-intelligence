@@ -1834,7 +1834,8 @@
     "reconstructNoteLabel": "Esto es lo que he visto — corrígelo si hace falta",
     "reconstructNotePlaceholder": "Ej: flores aplicadas en la cintura, no en el pecho; aberturas en los laterales",
     "cancel": "Cancelar",
-    "reconstructNoteLoading": "Mirando dónde están los detalles…"
+    "reconstructNoteLoading": "Mirando dónde están los detalles…",
+    "adjustCrop": "Ajustar recorte"
   },
   "avatar": {
     "title": "Mi avatar",
