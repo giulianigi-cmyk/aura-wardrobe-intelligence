@@ -298,7 +298,23 @@ export const confirmWearEvent = createServerFn({ method: "POST" })
       _occasion: data.occasion ?? undefined,
       _source_photo_detection_id: data.photoDetectionId ?? undefined,
     });
-    if (error) return { ok: false as const, error: error.message };
+    if (error) {
+      // A retry after a partial failure elsewhere in the same save (the outfit-save step that
+      // used to run alongside this one, or just a flaky connection) re-sends the exact same
+      // photo — and the wear event for it was already created successfully the first time. The
+      // person sees "couldn't save, try again", tries again, and this unique constraint (one
+      // wear event per source photo) turns what should be a harmless no-op into a hard failure,
+      // even though the thing they actually wanted (this outfit logged as worn) already happened.
+      // Look up that existing event and report success instead of asking them to keep retrying
+      // something that's already done.
+      const isDuplicatePhotoEvent = data.photoDetectionId && /wardrobe_events_one_per_photo_detection/i.test(error.message);
+      if (isDuplicatePhotoEvent) {
+        const { data: existing } = await (context.supabase.from("wardrobe_events" as never) as any)
+          .select("id").eq("source_photo_detection_id", data.photoDetectionId).eq("user_id", context.userId).maybeSingle();
+        if (existing) return { ok: true as const, eventId: (existing as { id: string }).id };
+      }
+      return { ok: false as const, error: error.message };
+    }
 
     // Fire-and-forget, same reliability Style Memory already has
     // everywhere else in the app (see Phase 2 design §1) — a lost
