@@ -7,8 +7,6 @@ import type { Screen } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useWardrobeCacheActions } from "@/lib/wardrobe-query";
-import { useOutfitsCacheActions } from "@/lib/outfits-query";
-import { uploadOutfitThumb } from "@/lib/outfit-thumb";
 import { compressImageForUpload } from "@/lib/image-compress";
 import type { TablesInsert } from "@/integrations/supabase/types";
 import type { WardrobeItem } from "@/lib/aura-types";
@@ -181,11 +179,8 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   const [finishedItemIds, setFinishedItemIds] = useState<string[]>([]);
   const [savingOutfit, setSavingOutfit] = useState(false);
   const todayIso = () => new Date().toISOString().slice(0, 10);
-  const [outfitName, setOutfitName] = useState("");
   const [outfitDate, setOutfitDate] = useState(todayIso());
-  const [saveAsOutfit, setSaveAsOutfit] = useState(true);
   const [markWorn, setMarkWorn] = useState(true);
-  const outfitsCache = useOutfitsCacheActions();
   const savePhotoForWear = useServerFn(saveScanPhotoForWear);
   const [progressLabel, setProgressLabel] = useState("");
   const [scanItems, setScanItems] = useState<ScanItem[]>([]);
@@ -197,7 +192,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
     setScanItems([]);
     setStage("idle");
     setProgressLabel("");
-    setOutfitName(""); setOutfitDate(todayIso()); setSaveAsOutfit(true); setMarkWorn(true);
+    setOutfitDate(todayIso()); setMarkWorn(true);
     setFinishedItemIds([]);
   };
 
@@ -670,7 +665,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   // already in the wardrobe by this point, this only decides what else to record about them.
   const finishOutfit = async () => {
     if (!user) return;
-    if (!saveAsOutfit && !markWorn) { skipSavingOutfit(); return; }
+    if (!markWorn) { skipSavingOutfit(); return; }
     setSavingOutfit(true);
     try {
       let photoFile: File | null = null;
@@ -683,48 +678,18 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
         }
       }
 
-      if (saveAsOutfit) {
-        let canvasPath: string | null = null;
-        let thumbPath: string | null = null;
-        if (photoFile) {
-          const path = `${user.id}/outfit-scan-${Date.now()}.jpg`;
-          const up = await supabase.storage.from("outfits").upload(path, photoFile, {
-            contentType: photoFile.type || "image/jpeg", upsert: false, cacheControl: "3600",
-          });
-          if (!up.error) {
-            canvasPath = path;
-            thumbPath = await uploadOutfitThumb(user.id, await fileToDataUrl(photoFile));
-          } else {
-            console.error("[AURA outfit-scan] outfit photo upload failed", up.error);
-          }
+      let photoDetectionId: string | null = null;
+      if (photoFile) {
+        try {
+          const res = await savePhotoForWear({ data: { photoDataUrl: await fileToDataUrl(photoFile), photoHash: await sha256Hex(photoFile) } });
+          if (res.ok) photoDetectionId = res.detectionId;
+        } catch (e) {
+          console.warn("[AURA outfit-scan] saving the worn-photo failed, logging the wear without it", e);
         }
-        const { error } = await supabase.from("outfits").insert({
-          user_id: user.id,
-          name: outfitName.trim() || t("outfitScan.defaultOutfitName", { date: new Date(outfitDate).toLocaleDateString(), defaultValue: "Outfit del {{date}}" }),
-          item_ids: finishedItemIds,
-          canvas_image_url: canvasPath,
-          thumbnail_path: thumbPath,
-          occasion: [], season: [], notes: null, layout: null,
-        } as never);
-        if (error) throw error;
-        outfitsCache.invalidate();
-        toast.success(t("outfitScan.outfitSaved", { defaultValue: "Outfit salvato" }));
       }
-
-      if (markWorn) {
-        let photoDetectionId: string | null = null;
-        if (photoFile) {
-          try {
-            const res = await savePhotoForWear({ data: { photoDataUrl: await fileToDataUrl(photoFile), photoHash: await sha256Hex(photoFile) } });
-            if (res.ok) photoDetectionId = res.detectionId;
-          } catch (e) {
-            console.warn("[AURA outfit-scan] saving the worn-photo failed, logging the wear without it", e);
-          }
-        }
-        const res = await confirmWorn({ data: { itemIds: finishedItemIds, wornAt: outfitDate, photoDetectionId } });
-        if (!res.ok) throw new Error(res.error);
-        toast.success(t("outfitScan.loggedAsWorn", { defaultValue: "Segnato come indossato" }));
-      }
+      const res = await confirmWorn({ data: { itemIds: finishedItemIds, wornAt: outfitDate, photoDetectionId } });
+      if (!res.ok) throw new Error(res.error);
+      toast.success(t("outfitScan.loggedAsWorn", { defaultValue: "Segnato come indossato" }));
     } catch (e) {
       console.error("[AURA outfit-scan] saving the outfit failed", e);
       // Temporarily showing the raw error alongside the friendly message — the generic toast
@@ -978,23 +943,16 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           )}
 
           <div className="mt-5 space-y-3">
-            <label className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
-              <input type="checkbox" checked={saveAsOutfit} onChange={(e) => setSaveAsOutfit(e.target.checked)} className="h-4 w-4" />
-              <span className="text-sm">{t("outfitScan.saveAsOutfitToggle", { defaultValue: "Salva come outfit (con la foto)" })}</span>
-            </label>
-            {saveAsOutfit && (
-              <input
-                value={outfitName}
-                onChange={(e) => setOutfitName(e.target.value)}
-                placeholder={t("outfitScan.outfitNamePlaceholder", { defaultValue: "Nome dell’outfit (facoltativo)" })}
-                className="w-full h-11 rounded-full border border-border bg-background px-4 text-sm outline-none"
-              />
-            )}
+            {/* This is the only save this screen offers now — a saved-outfit "canvas" entry
+                (no photo, name-only, shown in the separate Salvati grid) was tried here too and
+                removed: a real outfit photo belongs with the rest of the photo-based wear history
+                — pieces, canvas, avatar try-on all in one place — not split off into a second,
+                photo-less list. */}
             <label className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
               <input type="checkbox" checked={markWorn} onChange={(e) => setMarkWorn(e.target.checked)} className="h-4 w-4" />
               <span className="text-sm">{t("outfitScan.markWornToggle", { defaultValue: "Segna i capi come indossati" })}</span>
             </label>
-            {(markWorn || saveAsOutfit) && (
+            {markWorn && (
               <div className="flex items-center gap-3 rounded-2xl border border-border bg-background px-4 py-2.5">
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground shrink-0">{t("outfitScan.outfitDateLabel", { defaultValue: "Data" })}</span>
                 <input
