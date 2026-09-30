@@ -13,6 +13,8 @@ import { compressImageForUpload } from "@/lib/image-compress";
 import type { TablesInsert } from "@/integrations/supabase/types";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { DetectedItemCard } from "@/components/aura/DetectedItemCard";
+import { ItemCropAdjuster, type FractionalBox } from "@/components/aura/ItemCropAdjuster";
+import { removeBackgroundClient } from "@/lib/bg-removal-client";
 import { PiecePicker } from "../PiecePicker";
 import { detectOutfitPhotoItems, saveScanPhotoForWear } from "@/lib/outfit-scan-detect.functions";
 import { cropItemFromSegmentation } from "@/lib/outfit-segmentation";
@@ -114,6 +116,11 @@ type ScanItem = {
   // why the mask has to be full-photo-sized rather than just the crop.
   sourcePhotoDataUrl: string;
   sourceMaskDataUrl: string;
+  // The detector's own bounding box for this item, kept around so "Adatta ritaglio" can open
+  // right where it already thinks the piece is instead of a blank full-photo box — see
+  // ItemCropAdjuster. null for a piece added by hand from the wardrobe (ownedScanItem), which has
+  // no detection box to speak of.
+  bbox: { x: number; y: number; width: number; height: number } | null;
   reconstructing: boolean;
 };
 
@@ -135,7 +142,7 @@ function ownedScanItem(item: WardrobeItem, sourcePhoto: string): ScanItem {
     purchaseDate: new Date().toISOString().slice(0, 10),
     sleeveLength: "", formality: null, dayEvening: "", length: "", fit: "", heelHeight: "", toeShape: "",
     closure: "", gender: "", styleTags: [], model: "", bagSizeClass: "",
-    sourcePhotoDataUrl: sourcePhoto, sourceMaskDataUrl: "", reconstructing: false,
+    sourcePhotoDataUrl: sourcePhoto, sourceMaskDataUrl: "", bbox: null, reconstructing: false,
   };
 }
 
@@ -370,6 +377,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           bagSizeClass: meta.bagSizeClass,
           sourcePhotoDataUrl: dataUrl,
           sourceMaskDataUrl,
+          bbox: d.bbox,
           reconstructing: false,
         });
       }
@@ -419,6 +427,15 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   };
   const ADD_FROM_WARDROBE = "__add__";
   const describeGarment = useServerFn(describeGarmentDetails);
+
+  // Manual crop adjustment — draws straight from the original outfit photo at full resolution,
+  // no model involved. The automatic detection's box is sometimes too tight (a sleeve or hem cut
+  // off) with nothing in the review screen to fix it except discarding the piece; this is that
+  // fix, reusing the exact same tool BatchReview's own "Adatta ritaglio" already uses.
+  const [adjustingKey, setAdjustingKey] = useState<string | null>(null);
+  const adjustingItem = scanItems.find((it) => it.key === adjustingKey) ?? null;
+  const applyManualCrop = (key: string, dataUrl: string, box: FractionalBox) =>
+    updateItem(key, { imageDataUrl: dataUrl, bbox: box, transparent: false });
   const pickFromWardrobeSearch = (item: WardrobeItem) => {
     if (!searchForKey) return;
     const path = toStoragePath(item.image_url);
@@ -487,6 +504,13 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
         toast.error(started.error || t("outfitScan.reconstructionFailed"));
         return;
       }
+      if (started.done) {
+        // Lovable's own AI Gateway path — already a genuine transparent PNG, no separate
+        // background-removal pass needed (unlike the FASHN fallback below).
+        updateItem(key, { imageDataUrl: started.imageDataUrl, transparent: true });
+        toast.success(t("outfitScan.reconstructionDone"));
+        return;
+      }
       const predictionId = started.predictionId;
       const deadline = Date.now() + 90_000; // matches the avatar try-on feature's own ceiling
       while (Date.now() < deadline) {
@@ -497,7 +521,20 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           return;
         }
         if (check.done) {
-          updateItem(key, { imageDataUrl: check.imageDataUrl, transparent: false });
+          // FASHN's "edit" model paints a plain background — it's a diffusion model, it cannot
+          // output real per-pixel alpha no matter how the prompt asks. Genuine transparency comes
+          // from running the same background-removal step every other wardrobe photo already
+          // gets, on this result, so a reconstructed piece looks and behaves exactly like one
+          // cropped from a normal photo — same clean cutout, saved the same way.
+          let finalImageDataUrl = check.imageDataUrl;
+          let finalTransparent = false;
+          try {
+            const bgRemoved = await removeBackgroundClient(check.imageDataUrl);
+            if (bgRemoved.ok) { finalImageDataUrl = bgRemoved.imageDataUrl; finalTransparent = true; }
+          } catch (e) {
+            console.warn("[AURA outfit-scan] background removal on reconstructed image failed, keeping its plain background", e);
+          }
+          updateItem(key, { imageDataUrl: finalImageDataUrl, transparent: finalTransparent });
           toast.success(t("outfitScan.reconstructionDone"));
           return;
         }
@@ -873,12 +910,19 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                 // action that would fail without a clear reason why.
                 footer={
                   <>
+                    {/* Fixes the crop itself — the actual framing being too tight/small — which
+                        neither the wardrobe search nor reconstruction below can do: one finds an
+                        existing piece, the other guesses at hidden parts, neither redraws the box. */}
+                    <button
+                      onClick={() => setAdjustingKey(it.key)}
+                      className="mt-3 w-full h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground active:scale-[0.98]"
+                    >{t("outfitScan.adjustCrop", { defaultValue: "Adatta ritaglio" })}</button>
                     {/* The scan found nothing similar in the wardrobe — but that doesn't mean it isn't
                         there (a piece photographed at an angle, half hidden, in different light).
                         Looking it up by hand is the way out, not adding a duplicate. */}
                     <button
                       onClick={() => void openWardrobeSearch(it.key)}
-                      className="mt-3 w-full h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground active:scale-[0.98]"
+                      className="mt-2 w-full h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground active:scale-[0.98]"
                     >{t("outfitScan.alreadyInWardrobeSearch", { defaultValue: "È già nel guardaroba? Cercalo" })}</button>
                     {it.sourceMaskDataUrl ? (
                       <button
@@ -978,6 +1022,18 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           </div>
         </div>
       )}
+      {adjustingItem && (
+        <ItemCropAdjuster
+          src={adjustingItem.sourcePhotoDataUrl}
+          initialBox={adjustingItem.bbox}
+          onCancel={() => setAdjustingKey(null)}
+          onSave={({ dataUrl, box }) => {
+            applyManualCrop(adjustingItem.key, dataUrl, box);
+            setAdjustingKey(null);
+          }}
+        />
+      )}
+
       {searchForKey && (
         <div className="fixed inset-0 z-50 bg-background flex flex-col">
           <div className="px-6 pt-14 pb-3 flex items-center gap-3 border-b border-border/60">
