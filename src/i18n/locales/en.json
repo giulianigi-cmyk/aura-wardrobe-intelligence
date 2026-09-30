@@ -1647,7 +1647,9 @@
     "scanOneOutfit": "Scan one outfit",
     "scanOneOutfitHint": "One photo, multiple items detected at once",
     "batchScanPhotos": "Batch scan photos",
-    "batchScanPhotosHint": "Up to 150 photos at once, processed in the background"
+    "batchScanPhotosHint": "Up to 150 photos at once, processed in the background",
+    "logWear": "Log what you’re wearing",
+    "logWearHint": "Confirm today’s outfit from pieces you already own"
   },
   "itemCropAdjuster": {
     "couldntApplyCrop": "Couldn't apply that crop — please try again.",
