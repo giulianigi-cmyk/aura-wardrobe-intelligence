@@ -1834,7 +1834,8 @@
     "reconstructNoteLabel": "Ho notato questo — correggi se serve",
     "reconstructNotePlaceholder": "Es: fiori applicati in vita, non sul seno; cut-out sui fianchi",
     "cancel": "Annulla",
-    "reconstructNoteLoading": "Sto guardando dove sono i dettagli…"
+    "reconstructNoteLoading": "Sto guardando dove sono i dettagli…",
+    "adjustCrop": "Adatta ritaglio"
   },
   "avatar": {
     "title": "Il mio avatar",
