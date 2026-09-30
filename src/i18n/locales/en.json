@@ -1837,7 +1837,16 @@
     "reconstructNotePlaceholder": "E.g. flowers applied at the waist, not the bust; cutouts at the sides",
     "cancel": "Cancel",
     "reconstructNoteLoading": "Looking at where the details are…",
-    "adjustCrop": "Adjust crop"
+    "adjustCrop": "Adjust crop",
+    "savingToMyOutfit": "Saving to My Outfit…",
+    "couldNotSaveToMyOutfit": "Couldn’t save it to My Outfit",
+    "retry": "Retry",
+    "savedToMyOutfitTitle": "Saved to My Outfit",
+    "assignCalendarHint": "Want to also assign it a date on the calendar?",
+    "assignCalendarToggle": "Also add to the calendar",
+    "doneButton": "Done",
+    "addedToCalendar": "Added to the calendar",
+    "couldNotAddToCalendar": "Couldn’t add it to the calendar. Try again."
   },
   "avatar": {
     "title": "My Avatar",
