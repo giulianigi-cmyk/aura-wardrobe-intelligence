@@ -50,6 +50,19 @@ const LookSchema = z.object({
   occasion: z.string().min(1),
   explanation: z.string(),
 });
+
+// The model occasionally returns "curated" as a bare object (one look, not wrapped in an array)
+// or omits it as null/undefined rather than an empty array — neither is the "too few items" case
+// z.array(...).min(1) or even a plain z.array(...) actually guards against: those still reject
+// outright on a value that isn't an array AT ALL (Zod's own "invalid_type" error), throwing away
+// a perfectly good "today" look along with it. Normalizing the shape here, before validation,
+// means a wrong TYPE for curated is treated as gracefully as a wrong LENGTH already is.
+const toLookArray = (v: unknown): unknown[] => {
+  if (Array.isArray(v)) return v;
+  if (v && typeof v === "object") return [v];
+  return [];
+};
+
 const OutputSchema = z.object({
   today: LookSchema,
   // No .min(1) here on purpose — the mirror of the note further down on RetryOutputSchema. A
@@ -58,7 +71,7 @@ const OutputSchema = z.object({
   // what was actually usable. The missing-occasions retry below already exists precisely to fill
   // in whatever curated looks didn't make it — but it only ever runs if parsing succeeds here
   // first, so this alone was silently defeating that whole safety net.
-  curated: z.array(LookSchema).max(4),
+  curated: z.preprocess(toLookArray, z.array(LookSchema).max(4)),
 });
 export type DailyLook = z.infer<typeof LookSchema>;
 export type DailyLooksResult = z.infer<typeof OutputSchema>;
@@ -665,7 +678,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
         // look from the model is simply ignored there instead of being
         // treated as a reason to throw everything away.
         const RetryOutputSchema = z.object({
-          curated: z.array(LookSchema).min(1),
+          curated: z.preprocess(toLookArray, z.array(LookSchema).min(1)),
         });
 
         try {
