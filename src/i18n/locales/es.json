@@ -1647,7 +1647,9 @@
     "scanOneOutfit": "Escanear un look",
     "scanOneOutfitHint": "Una foto, varias prendas detectadas a la vez",
     "batchScanPhotos": "Escaneo por lotes",
-    "batchScanPhotosHint": "Hasta 150 fotos a la vez, procesadas en segundo plano"
+    "batchScanPhotosHint": "Hasta 150 fotos a la vez, procesadas en segundo plano",
+    "logWear": "Registrar lo que llevas puesto",
+    "logWearHint": "Confirma el look de hoy con prendas que ya tienes"
   },
   "itemCropAdjuster": {
     "couldntApplyCrop": "No se pudo aplicar ese recorte — inténtalo de nuevo.",
