@@ -1647,7 +1647,9 @@
     "scanOneOutfit": "Scansiona un outfit",
     "scanOneOutfitHint": "Una foto, più capi rilevati insieme",
     "batchScanPhotos": "Scansione foto in lotto",
-    "batchScanPhotosHint": "Fino a 150 foto insieme, elaborate in background"
+    "batchScanPhotosHint": "Fino a 150 foto insieme, elaborate in background",
+    "logWear": "Registra indossato",
+    "logWearHint": "Conferma cosa indossi oggi tra i capi che hai già"
   },
   "itemCropAdjuster": {
     "couldntApplyCrop": "Impossibile applicare il ritaglio — riprova.",
