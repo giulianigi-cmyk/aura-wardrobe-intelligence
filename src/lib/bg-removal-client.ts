@@ -1,5 +1,3 @@
-import { removeBackground } from "@imgly/background-removal";
-
 export async function removeBackgroundClient(
   imageDataUrl: string,
 ): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string } > {
@@ -16,6 +14,9 @@ export async function removeBackgroundClient(
     // reasons. Trades processing time for accuracy; there's no
     // configuration that guarantees a clean hole every time, this only
     // improves the odds.
+    // Loaded on first use: the library is only needed when a cutout is actually being made,
+    // so it stays out of the bundle every screen pays for at startup.
+    const { removeBackground } = await import("@imgly/background-removal");
     const blob = await removeBackground(imageDataUrl, { model: "isnet" });
     const dataUrl: string = await new Promise((resolve, reject) => {
       const r = new FileReader();

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import QRCode from "qrcode";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Download, Loader2, Share2, QrCode as QrIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -37,12 +36,14 @@ function useQrDataUrl(username: string | null) {
   useEffect(() => {
     if (!username) { setDataUrl(null); return; }
     let cancelled = false;
-    QRCode.toDataURL(addFriendUrl(username), {
-      width: 1024,
-      margin: 2,
-      errorCorrectionLevel: "M",
-      color: { dark: "#1A1714", light: "#FFFFFF" },
-    })
+    // qrcode is loaded only when a QR code is actually shown.
+    import("qrcode")
+      .then(({ default: QRCode }) => QRCode.toDataURL(addFriendUrl(username), {
+        width: 1024,
+        margin: 2,
+        errorCorrectionLevel: "M",
+        color: { dark: "#1A1714", light: "#FFFFFF" },
+      }))
       .then((url) => { if (!cancelled) setDataUrl(url); })
       .catch(() => { if (!cancelled) setDataUrl(null); });
     return () => { cancelled = true; };
