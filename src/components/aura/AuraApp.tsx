@@ -111,7 +111,7 @@ export type StylistChatInit = {
 
 function Inner() {
   const { user, loading, recovery } = useAuth();
-  const { profile, loading: profileLoading } = useProfile();
+  const { profile, loading: profileLoading, settled: profileSettled } = useProfile();
   const [screen, setScreen] = useState<Screen>("splash");
   const [builderInit, setBuilderInit] = useState<BuilderInit>(null);
   const [stylistChatInit, setStylistChatInit] = useState<StylistChatInit>(null);
@@ -215,18 +215,19 @@ function Inner() {
     return () => { cancelled = true; clearTimeout(t); };
   }, [user]);
 
+  // Leave the splash as soon as the app actually knows where to go — no fixed wait. A signed-in
+  // user still waits for the profile fetch (normally a single fast query) so a fresh sign-up is
+  // routed to profile setup instead of landing on Home with an incomplete profile.
   useEffect(() => {
     if (loading) return;
     if (screen !== "splash") return;
     if (recovery) { setScreen("reset"); return; }
-    const t = setTimeout(() => {
-      if (!onboarded) setScreen("onboarding");
-      else if (!user) setScreen("auth");
-      else if (!profileLoading && profile && !profile.setup_complete) setScreen("profile-setup");
-      else setScreen("home");
-    }, 1600);
-    return () => clearTimeout(t);
-  }, [loading, profileLoading, screen, onboarded, user, profile, recovery]);
+    if (!onboarded) setScreen("onboarding");
+    else if (!user) setScreen("auth");
+    else if (!profileSettled) return;
+    else if (profile && !profile.setup_complete) setScreen("profile-setup");
+    else setScreen("home");
+  }, [loading, profileSettled, screen, onboarded, user, profile, recovery]);
 
   useEffect(() => {
     if (loading || screen === "splash" || screen === "reset") return;

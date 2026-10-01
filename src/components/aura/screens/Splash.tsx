@@ -22,7 +22,7 @@ export function Splash({ go }: { go: (s: Screen) => void }) {
       {/* Descriptive summary + navigable actions for users and AI agents */}
       <section
         className="absolute bottom-24 left-0 right-0 px-8 text-center animate-fade-in"
-        style={{ animationDelay: "0.6s" }}
+        style={{ animationDelay: "0.1s" }}
         aria-label={t("splash.introAria")}
       >
         <p className="text-sm text-foreground/80 leading-relaxed max-w-xs mx-auto">
@@ -46,7 +46,7 @@ export function Splash({ go }: { go: (s: Screen) => void }) {
         </nav>
       </section>
 
-      <div className="absolute bottom-10 left-0 right-0 text-center animate-fade-in" style={{ animationDelay: "1s" }}>
+      <div className="absolute bottom-10 left-0 right-0 text-center animate-fade-in" style={{ animationDelay: "0.15s" }}>
         <p className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground/70">
           {t("splash.est")}
         </p>

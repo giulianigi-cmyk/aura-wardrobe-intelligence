@@ -163,5 +163,9 @@ export function useProfile() {
     return { error, url: path };
   }, [update]);
 
-  return { profile, avatarUrl, loading: profileQuery.isLoading, reload, update, uploadAvatar };
+  // `settled`: the profile fetch has finished one way or the other (row loaded, or the
+  // load/create failed). Unlike `loading`, it is never briefly false before the very first
+  // fetch has started — AuraApp relies on that to route a fresh sign-up to profile setup.
+  const settled = profileQuery.isSuccess || profileQuery.isError;
+  return { profile, avatarUrl, loading: profileQuery.isLoading, settled, reload, update, uploadAvatar };
 }
