@@ -40,6 +40,13 @@ export const DetectedItemSchema = z.object({
   closure: z.string().optional(),
   gender: z.string().optional(),
   styleTags: z.array(z.string()).optional(),
+  // Only requested by "Scansiona un outfit" (detectOutfitItems(..., { detailed: true })): the
+  // visual identity of the piece, used to tell apart near-identical wardrobe items. Optional so
+  // batch scan and LogWear, which don't ask for them, are unaffected.
+  pattern: z.string().optional(),
+  colorShade: z.string().optional(),
+  visualDescription: z.string().optional(),
+  details: z.array(z.string()).optional(),
 });
 
 export const DetectOutputSchema = z.object({

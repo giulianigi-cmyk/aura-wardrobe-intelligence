@@ -1846,7 +1846,11 @@
     "assignCalendarToggle": "Añadir también al calendario",
     "doneButton": "Hecho",
     "addedToCalendar": "Añadido al calendario",
-    "couldNotAddToCalendar": "No he podido añadirlo al calendario. Inténtalo de nuevo."
+    "couldNotAddToCalendar": "No he podido añadirlo al calendario. Inténtalo de nuevo.",
+    "comparingWithWardrobe": "Comparando con tu armario…",
+    "alternatives": "Alternativas",
+    "noConfidentMatch": "Ninguna coincidencia segura en tu armario: elige tú la prenda o añádela como nueva.",
+    "visualCheckUnavailable": "Comparación visual no disponible: comprueba tú la prenda."
   },
   "avatar": {
     "title": "Mi avatar",
