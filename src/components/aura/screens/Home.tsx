@@ -82,6 +82,9 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
   // run, but quietly: the looks already on screen stay visible instead of flashing back to the
   // loading skeleton each time.
   const looksShownRef = useRef(false);
+  // Composed images already retried in this app session (key: date + fingerprint + look), so a
+  // look whose image keeps failing is retried once per app launch, not on every tab return.
+  const imageRetriesRef = useRef(new Set<string>());
   const [looksError, setLooksError] = useState<string | null>(null);
   // Look opened full-screen by tapping a card (see OutfitPreviewSheet).
   const [preview, setPreview] = useState<{ look: DailyLook; imagePath: string | null } | null>(null);
@@ -200,48 +203,67 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
         // just leaves that image null, and the render below falls back
         // to the plain thumbnail grid for that one look — never blocks
         // the suggestion itself from showing.
+        const toComposeItems = async (ids: string[]): Promise<ComposeItem[]> => {
+          const picks = ids.map((id) => allItems.find((it) => it.id === id)).filter((it): it is WardrobeItem => Boolean(it));
+          const signedForPicks = await resolveWardrobeUrls(picks);
+          return picks
+            .map((it) => {
+              const path = toStoragePath(it.image_url);
+              const url = path ? signedForPicks[path] : null;
+              return url ? { id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length } : null;
+            })
+            .filter((x): x is NonNullable<typeof x> => x != null);
+        };
+        const composeLook = async (look: DailyLook | null): Promise<string | null> =>
+          look?.item_ids.length ? await composeAndUploadOutfitImage(user.id, await toComposeItems(look.item_ids)) : null;
+
         const composeImagesFor = async (
           todayLookForImage: DailyLook | null,
           curatedForImages: DailyLook[],
         ): Promise<{ todayPath: string | null; curatedPaths: (string | null)[] }> => {
-          const toComposeItems = async (ids: string[]): Promise<ComposeItem[]> => {
-            const picks = ids.map((id) => allItems.find((it) => it.id === id)).filter((it): it is WardrobeItem => Boolean(it));
-            const signedForPicks = await resolveWardrobeUrls(picks);
-            return picks
-              .map((it) => {
-                const path = toStoragePath(it.image_url);
-                const url = path ? signedForPicks[path] : null;
-                return url ? { id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length } : null;
-              })
-              .filter((x): x is NonNullable<typeof x> => x != null);
-          };
-
-          const todayPath = todayLookForImage?.item_ids.length
-            ? await composeAndUploadOutfitImage(user.id, await toComposeItems(todayLookForImage.item_ids))
-            : null;
-          const curatedPaths = await Promise.all(
-            curatedForImages.map(async (l) =>
-              l.item_ids.length ? await composeAndUploadOutfitImage(user.id, await toComposeItems(l.item_ids)) : null,
-            ),
-          );
+          const todayPath = await composeLook(todayLookForImage);
+          const curatedPaths = await Promise.all(curatedForImages.map((l) => composeLook(l)));
           return { todayPath, curatedPaths };
         };
 
         if (cacheStillValid(cachedRow)) {
           useRow(cachedRow!);
-          // Backfill for a row cached before this feature existed —
-          // valid item_ids, no composed image yet. Fire-and-forget: the
-          // grid fallback already covers this visit, no reason to make
-          // the person wait on it.
-          if (!cachedRow!.today_image_path && !(cachedRow!.curated_image_paths?.length)) {
+          // Composes whichever images this cached row is still missing — a row cached before
+          // composed images existed (none at all), or one where some compositions failed (an image
+          // that didn't load, the phone running short on memory, the app sent to the background
+          // mid-way). Previously only the "none at all" case was retried, so a look whose image
+          // failed once stayed a plain thumbnail grid for the rest of the day. Only the missing
+          // ones are redone, each at most once per app session. Fire-and-forget: the grid fallback
+          // already covers this visit. Nothing is uploaded for a composition that fails again.
+          const row = cachedRow!;
+          const keyBase = `${row.date}:${row.wardrobe_fingerprint}`;
+          const knownCurated = curated_.map((_, i) => row.curated_image_paths?.[i] ?? null);
+          // useRow assigned these inside a closure, which TS's narrowing can't see.
+          const todayForRetry = today_ as DailyLook | null;
+          const curatedForRetry = curated_;
+          const retryToday = !row.today_image_path && !!todayForRetry?.item_ids.length && !imageRetriesRef.current.has(`${keyBase}:today`);
+          const retryIdx = curated_
+            .map((l, i) => (!knownCurated[i] && l.item_ids.length && !imageRetriesRef.current.has(`${keyBase}:${i}`) ? i : -1))
+            .filter((i) => i >= 0);
+          if (retryToday || retryIdx.length) {
+            if (retryToday) imageRetriesRef.current.add(`${keyBase}:today`);
+            retryIdx.forEach((i) => imageRetriesRef.current.add(`${keyBase}:${i}`));
             void (async () => {
-              const { todayPath, curatedPaths } = await composeImagesFor(today_, curated_);
+              // Same order as a fresh generation: today's image first, then the curated ones.
+              const todayPath = retryToday ? await composeLook(todayForRetry) : (row.today_image_path ?? null);
+              const fresh = await Promise.all(retryIdx.map((i) => composeLook(curatedForRetry[i])));
+              const curatedPaths = [...knownCurated];
+              retryIdx.forEach((i, k) => { curatedPaths[i] = fresh[k]; });
+              if (todayPath === (row.today_image_path ?? null) && fresh.every((p) => !p)) return; // nothing new
               setTodayImagePath(todayPath);
               setCuratedImagePaths(curatedPaths);
               try {
+                // Only onto the same day's row: never overwrite a newer generation.
                 await (supabase.from("home_suggestions" as never) as any)
                   .update({ today_image_path: todayPath, curated_image_paths: curatedPaths })
-                  .eq("user_id", user.id);
+                  .eq("user_id", user.id)
+                  .eq("date", row.date)
+                  .eq("wardrobe_fingerprint", row.wardrobe_fingerprint);
               } catch (err) {
                 console.error("[AURA home] failed to backfill suggestion images", err);
               }
