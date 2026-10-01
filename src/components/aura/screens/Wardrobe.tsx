@@ -993,7 +993,9 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
               key={it.id}
               onClick={() => (selectMode ? toggleSelected(it.id) : (() => { setDetail(it); setConfirmDelete(false); })())}
               className="group animate-fade-up text-left"
-              style={{ animationDelay: `${i * 0.04}s` }}
+              // Stagger only the first row or so: an uncapped delay kept piece #100 invisible for 4s
+              // and the last of a 461-piece wardrobe for 18s.
+              style={{ animationDelay: `${Math.min(i, 11) * 0.04}s` }}
             >
               <div className={`relative overflow-hidden rounded-[1.25rem] border aspect-[4/5] ${selectMode && isSelected ? "border-foreground border-2" : "border-border/50"}`} style={{ background: "#FFFFFF" }}>
                 {src ? (
@@ -1001,6 +1003,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
                     src={src} alt={`${it.brand ?? label} piece`}
                     className="h-full w-full object-contain p-1 transition-transform duration-500 group-active:scale-95"
                     loading="lazy"
+                    decoding="async"
                   />
                 ) : (
                   <div className="h-full w-full animate-pulse" style={{ background: "#EDEDED" }} />

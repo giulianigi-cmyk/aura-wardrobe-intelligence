@@ -22,6 +22,7 @@ import type { WardrobeLocation } from "@/lib/wardrobe-location";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { logWardrobeEvent, confirmOutfitPlanWorn, deleteWornEvent, updateWornEvent } from "@/lib/wardrobe-events";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
+import { signStoragePaths } from "@/lib/signed-url-cache";
 import { useWardrobeItems, useWardrobeImages, useWardrobeCacheActions } from "@/lib/wardrobe-query";
 import { useOutfitPlans, outfitPlansQueryKey, useOutfitPlansCacheActions } from "@/lib/outfit-plans-query";
 import { useOutfits, useOutfitsCacheActions } from "@/lib/outfits-query";
@@ -125,14 +126,10 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
       // canvas thumbnail in the "My Outfits" grid had zero diagnostic
       // trace. Logs and skips only the missing ones now, instead of
       // failing the whole batch silently.
-      const { data: urls, error: signErr } = await supabase.storage.from("outfits").createSignedUrls(paths, 60 * 60);
+      const { urls, error: signErr, failed } = await signStoragePaths("outfits", paths, 60 * 60);
       if (signErr) console.error("[AURA my-outfits] canvas thumbnail signing failed", signErr);
-      const map: Record<string, string> = {};
-      urls?.forEach((r, idx) => {
-        if (r.signedUrl) map[paths[idx]] = r.signedUrl;
-        else if (r.error) console.error("[AURA my-outfits] no signed URL for outfit canvas", paths[idx], r.error);
-      });
-      setSigned(map);
+      failed.forEach((f) => console.error("[AURA my-outfits] no signed URL for outfit canvas", f.path, f.error));
+      setSigned(urls);
     })();
   }, [outfits]);
   // Shared cache (see outfit-plans-query.ts) — same duplication fix as

@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { signStoragePaths } from "@/lib/signed-url-cache";
 import type { WardrobeItem } from "@/lib/aura-types";
 
 /** Extract the storage-relative path from either a raw storage path
@@ -24,16 +24,11 @@ export async function resolveWardrobeUrls(items: WardrobeItem[]): Promise<Record
     ...thumbPaths,
   ]));
   if (!paths.length) return {};
-  const { data, error } = await supabase.storage.from("wardrobe").createSignedUrls(paths, 60 * 60);
-  if (error || !data) {
-    console.error("[AURA] sign wardrobe urls", error);
-    return {};
-  }
-  const map: Record<string, string> = {};
-  data.forEach((row, i) => {
-    if (row.signedUrl) map[paths[i]] = row.signedUrl;
-  });
-  return map;
+  // Shared cache: the same file keeps the same URL across screens, so the browser doesn't
+  // download it again (see signed-url-cache.ts).
+  const { urls, error } = await signStoragePaths("wardrobe", paths, 60 * 60);
+  if (error) console.error("[AURA] sign wardrobe urls", error);
+  return urls;
 }
 
 /** Picks the thumbnail signed URL for a grid view when the item has one,
