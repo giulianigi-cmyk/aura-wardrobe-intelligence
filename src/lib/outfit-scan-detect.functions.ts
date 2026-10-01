@@ -28,7 +28,9 @@ export const detectOutfitPhotoItems = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }) => {
-    return detectOutfitItems(data.imageDataUrl);
+    // Detailed mode: also returns pattern, exact shade, a precise visual description and the
+    // distinctive details, which the wardrobe matching step (outfit-match.ts) relies on.
+    return detectOutfitItems(data.imageDataUrl, { detailed: true });
   });
 
 // ---------------------------------------------------------------------------

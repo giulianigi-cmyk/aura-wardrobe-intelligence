@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n/config";
 import { ArrowLeft, Camera, Check, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Screen } from "../AuraApp";
@@ -17,7 +18,9 @@ import { removeBackgroundClient } from "@/lib/bg-removal-client";
 import { PiecePicker } from "../PiecePicker";
 import { detectOutfitPhotoItems, saveScanPhotoForWear } from "@/lib/outfit-scan-detect.functions";
 import { cropItemFromSegmentation } from "@/lib/outfit-segmentation";
-import { findBestMatch, findTopMatches, type DedupeResult } from "@/lib/outfit-dedupe";
+import type { DedupeResult } from "@/lib/outfit-dedupe";
+import { rankCandidates, retrieveCandidates, verdictForScore, type DetectedGarment, type MatchConfidence, type Pattern, type RankedCandidate, type VisualScore } from "@/lib/outfit-match";
+import { rerankOutfitCandidates } from "@/lib/outfit-scan-match.functions";
 import { findVisualDuplicates, confirmWearEvent } from "@/lib/outfit-wear.functions";
 import { startGarmentExtraction, checkGarmentExtraction, describeGarmentDetails } from "@/lib/outfit-garment-extract.functions";
 import { trimFileMargins } from "@/lib/auto-crop";
@@ -72,6 +75,45 @@ async function cropFromBBox(photoDataUrl: string, bbox: { x: number; y: number; 
   }
 }
 
+/** Same bbox crop, downscaled for the visual comparison with the wardrobe (outfit-match.ts level 2):
+ *  ~640px JPEG keeps shade, pattern and details readable while staying small to upload. The crop
+ *  keeps some context around the garment on purpose — the model is told which piece to look at. */
+async function cropForMatch(photoDataUrl: string, bbox: { x: number; y: number; width: number; height: number } | null): Promise<string | null> {
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("image load failed"));
+      el.src = photoDataUrl;
+    });
+    const b = bbox ?? { x: 0, y: 0, width: 1, height: 1 };
+    const pad = 0.04;
+    const x0 = Math.max(0, b.x - pad), y0 = Math.max(0, b.y - pad);
+    const x1 = Math.min(1, b.x + b.width + pad), y1 = Math.min(1, b.y + b.height + pad);
+    const sw = Math.max(8, Math.round((x1 - x0) * img.naturalWidth));
+    const sh = Math.max(8, Math.round((y1 - y0) * img.naturalHeight));
+    const scale = Math.min(1, 640 / Math.max(sw, sh));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(sw * scale); canvas.height = Math.round(sh * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, Math.round(x0 * img.naturalWidth), Math.round(y0 * img.naturalHeight), sw, sh, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.85);
+  } catch {
+    return null;
+  }
+}
+
+/** Runs async jobs with a small concurrency limit (independent per-garment comparisons). */
+async function runLimited<T>(jobs: (() => Promise<T>)[], limit: number): Promise<T[]> {
+  const results = new Array<T>(jobs.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, jobs.length) }, async () => {
+    while (next < jobs.length) { const i = next++; results[i] = await jobs[i](); }
+  }));
+  return results;
+}
+
 type ScanItem = {
   key: string;
   category: string;
@@ -84,8 +126,11 @@ type ScanItem = {
   imageDataUrl: string;
   transparent: boolean;
   dedupe: DedupeResult;
-  candidates: { item: WardrobeItem; score: number }[];
+  candidates: RankedCandidate[];
   candidateIndex: number;
+  /** outfit-match.ts verdict: high = proposed directly, medium = confirm with alternatives, low = no match forced. */
+  confidence: MatchConfidence;
+  visualChecked: boolean;
   status: "pending" | "confirmed-new" | "confirmed-duplicate";
   price: string;
   currency: string;
@@ -122,6 +167,7 @@ function ownedScanItem(item: WardrobeItem, sourcePhoto: string): ScanItem {
     imageDataUrl: "", transparent: false,
     dedupe: { score: 1, match: item, verdict: "certain" },
     candidates: [{ item, score: 1 }], candidateIndex: 0,
+    confidence: "high", visualChecked: false,
     status: "confirmed-duplicate",
     price: "", currency: "EUR", size: "", styles: [], occasions: [],
     purchaseDate: new Date().toISOString().slice(0, 10),
@@ -129,6 +175,37 @@ function ownedScanItem(item: WardrobeItem, sourcePhoto: string): ScanItem {
     closure: "", gender: "", styleTags: [], model: "", bagSizeClass: "",
     sourcePhotoDataUrl: sourcePhoto, sourceMaskDataUrl: "", bbox: null, reconstructing: false,
   };
+}
+
+/** Up to 4 wardrobe candidates for one detected garment, best first, each with its picture, a short
+ *  name and the match percentage (outfit-match.ts). Tapping one selects it. */
+function CandidateStrip({ candidates, selectedIndex, thumbs, onSelect }: {
+  candidates: RankedCandidate[];
+  selectedIndex: number | null;
+  thumbs: Record<string, string>;
+  onSelect: (index: number) => void;
+}) {
+  return (
+    <div className="mt-3 grid grid-cols-4 gap-2">
+      {candidates.slice(0, 4).map((c, i) => {
+        const label = [c.item.colors?.[0] ?? c.item.color, c.item.subcategory || c.item.category].filter(Boolean).join(" ");
+        const selected = i === selectedIndex;
+        return (
+          <button
+            key={c.item.id}
+            onClick={() => onSelect(i)}
+            className={`min-w-0 rounded-xl border p-1 text-center active:scale-[0.97] ${selected ? "border-foreground border-2" : "border-border"}`}
+          >
+            <div className="aspect-square rounded-lg overflow-hidden" style={{ background: "#FFFFFF" }}>
+              {thumbs[c.item.id] && <img src={thumbs[c.item.id]} alt="" className="h-full w-full object-contain p-0.5" />}
+            </div>
+            <p className="mt-1 text-[10px] font-medium">{Math.round(c.score * 100)}%</p>
+            <p className="text-[9px] leading-tight text-muted-foreground truncate">{label}</p>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 export function OutfitScan({ go }: { go: (s: Screen) => void }) {
@@ -148,6 +225,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
   const wardrobeCache = useWardrobeCacheActions();
   const outfitPlansCache = useOutfitPlansCacheActions();
   const detectOutfitPhotoItemsFn = useServerFn(detectOutfitPhotoItems);
+  const rerankCandidates = useServerFn(rerankOutfitCandidates);
   const findVisualDupes = useServerFn(findVisualDuplicates);
   const confirmWorn = useServerFn(confirmWearEvent);
   const startReconstruction = useServerFn(startGarmentExtraction);
@@ -207,6 +285,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
       const photoKey = `outfit-scan-${Date.now()}`;
 
       const built: ScanItem[] = [];
+      const toMatch: { index: number; retrieved: ReturnType<typeof retrieveCandidates>; matchCrop: string | null; detected: typeof detected[number] }[] = [];
       for (let i = 0; i < detected.length; i++) {
         const d = detected[i];
         setProgressLabel(t("outfitScan.identifyingItem", { current: i + 1, total: detected.length }));
@@ -239,58 +318,29 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           transparent = false;
         }
 
-        let dedupe = findBestMatch(
-          { category: meta.category, subcategory: meta.subcategory, colors: meta.colors, brand: meta.brand || null },
-          existingList,
-        );
-        const candidates = findTopMatches(
-          { category: meta.category, subcategory: meta.subcategory, colors: meta.colors, brand: meta.brand || null },
-          existingList,
-          3,
-        ).map((c) => ({ item: c.item, score: c.score }));
-        if (dedupe.verdict !== "certain" && meta.category) {
+        // LEVEL 1 — retrieval of plausible candidates (outfit-match.ts). The on-device visual
+        // embedding, when it finds neighbours, only widens this pool; it no longer decides.
+        const garment: DetectedGarment = {
+          category: meta.category, subcategory: meta.subcategory, colors: meta.colors,
+          pattern: (d.pattern as Pattern | undefined) ?? null, materials: meta.materials,
+          sleeveLength: meta.sleeveLength, length: meta.length, fit: meta.fit,
+        };
+        let visualIds: string[] = [];
+        if (meta.category) {
           try {
             const { computeGarmentEmbedding } = await import("@/lib/visual-embedding");
             const embedding = await computeGarmentEmbedding(cropImageUrl);
             const res = await findVisualDupes({ data: { category: meta.category, embedding } });
-            if (res.ok && res.matches.length) {
-              const best = res.matches[0];
-              if (best.visualSimilarity > dedupe.score) {
-                const matchedItem = existingList.find((w) => w.id === best.wardrobeItemId) ?? null;
-                if (matchedItem) {
-                  dedupe = {
-                    score: best.visualSimilarity,
-                    match: matchedItem,
-                    verdict: best.visualSimilarity >= 0.9 ? "certain" : best.visualSimilarity >= 0.6 ? "maybe" : "new",
-                  };
-                  const already = candidates.findIndex((c) => c.item.id === matchedItem.id);
-                  if (already >= 0) candidates.splice(already, 1);
-                  candidates.unshift({ item: matchedItem, score: best.visualSimilarity });
-                }
-              }
-            }
+            if (res.ok) visualIds = res.matches.map((m) => m.wardrobeItemId);
           } catch (e) {
-            console.error("[AURA outfit-scan] visual dedup check failed, keeping attribute-only result", e);
+            console.error("[AURA outfit-scan] visual embedding lookup failed, using metadata retrieval only", e);
           }
         }
-        if (dedupe.match) {
-          const path = toStoragePath(dedupe.match.image_url);
-          if (path) {
-            const map = await resolveWardrobeUrls([dedupe.match]);
-            if (map[path]) setMatchThumbs((prev) => ({ ...prev, [dedupe.match!.id]: map[path] }));
-          }
-        }
-        if (candidates.length) {
-          const urls = await resolveWardrobeUrls(candidates.map((c) => c.item));
-          setMatchThumbs((prev) => {
-            const next = { ...prev };
-            for (const c of candidates) {
-              const p = toStoragePath(c.item.image_url);
-              if (p && urls[p]) next[c.item.id] = urls[p];
-            }
-            return next;
-          });
-        }
+        const retrieved = retrieveCandidates(garment, existingList, { visualIds });
+        const matchCrop = retrieved.length ? await cropForMatch(dataUrl, d.bbox) : null;
+        toMatch.push({ index: built.length, retrieved, matchCrop, detected: d });
+        const dedupe: DedupeResult = { score: 0, match: null, verdict: "new" };
+        const candidates: RankedCandidate[] = [];
 
         const description = [meta.colors[0], meta.subcategory || meta.category].filter(Boolean).join(" ");
 
@@ -308,7 +358,9 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           dedupe,
           candidates,
           candidateIndex: 0,
-          status: dedupe.verdict === "certain" ? "confirmed-duplicate" : dedupe.verdict === "maybe" ? "pending" : "confirmed-new",
+          confidence: "low",
+          visualChecked: false,
+          status: "confirmed-new",
           price: "",
           currency: "EUR",
           size: "",
@@ -334,6 +386,66 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
         });
       }
 
+      // LEVEL 2 — visual reranking: the garment in the photo vs the real pictures of its candidates,
+      // one request per garment, run in parallel. A failed comparison falls back to the metadata
+      // ranking, capped so it can never look certain (rankCandidates).
+      if (toMatch.length) {
+        setProgressLabel(t("outfitScan.comparingWithWardrobe", { defaultValue: "Confronto con il tuo guardaroba…" }));
+        const verdicts = await runLimited(toMatch.map((m) => async () => {
+          if (!m.retrieved.length) return rankCandidates([], null);
+          let visual: VisualScore[] | null = null;
+          if (m.matchCrop) {
+            try {
+              const res = await rerankCandidates({
+                data: {
+                  targetImageDataUrl: m.matchCrop,
+                  garment: {
+                    category: m.detected.category,
+                    subcategory: m.detected.subcategory || undefined,
+                    pattern: m.detected.pattern,
+                    colorShade: m.detected.colorShade,
+                    colors: m.detected.colors.slice(0, 3),
+                    description: m.detected.visualDescription || m.detected.description,
+                    details: m.detected.details,
+                  },
+                  candidateIds: m.retrieved.map((r) => r.item.id),
+                  language: i18n.language,
+                },
+              });
+              if (res.ok) visual = res.scores;
+              else console.warn("[AURA outfit-scan] visual comparison unavailable, using metadata ranking", res.error);
+            } catch (e) {
+              console.warn("[AURA outfit-scan] visual comparison failed, using metadata ranking", e);
+            }
+          }
+          return rankCandidates(m.retrieved, visual);
+        }), 3);
+        toMatch.forEach((m, k) => {
+          const v = verdicts[k];
+          const b = built[m.index];
+          b.candidates = v.match && !v.candidates.some((c) => c.item.id === v.match!.item.id) ? [v.match, ...v.candidates] : v.candidates;
+          b.candidateIndex = 0;
+          b.confidence = v.confidence;
+          b.visualChecked = v.visualChecked;
+          b.dedupe = v.match
+            ? { score: v.match.score, match: v.match.item, verdict: v.confidence === "high" ? "certain" : "maybe" }
+            : { score: v.candidates[0]?.score ?? 0, match: null, verdict: "new" };
+          b.status = v.confidence === "high" ? "confirmed-duplicate" : v.confidence === "medium" ? "pending" : "confirmed-new";
+        });
+        const shown = built.flatMap((b) => b.candidates.map((c) => c.item));
+        if (shown.length) {
+          const urls = await resolveWardrobeUrls(shown);
+          setMatchThumbs((prev) => {
+            const next = { ...prev };
+            for (const it of shown) {
+              const p = toStoragePath(it.image_url);
+              if (p && urls[p]) next[it.id] = urls[p];
+            }
+            return next;
+          });
+        }
+      }
+
       setScanItems(built);
       setStage("review");
     } catch (e) {
@@ -357,7 +469,20 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
       return {
         ...it,
         candidateIndex: nextIndex,
-        dedupe: { score: c.score, match: c.item, verdict: c.score >= 0.9 ? "certain" : c.score >= 0.6 ? "maybe" : "new" },
+        dedupe: { score: c.score, match: c.item, verdict: verdictForScore(c.score) },
+      };
+    }));
+
+  /** The person picks one of the listed alternatives directly. */
+  const chooseCandidate = (key: string, index: number, confirm: boolean) =>
+    setScanItems((prev) => prev.map((it) => {
+      if (it.key !== key || !it.candidates[index]) return it;
+      const c = it.candidates[index];
+      return {
+        ...it,
+        candidateIndex: index,
+        dedupe: { score: c.score, match: c.item, verdict: verdictForScore(c.score) },
+        ...(confirm ? { status: "confirmed-duplicate" as const } : {}),
       };
     }));
 
@@ -702,7 +827,10 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                     ) : null}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm">{t("outfitScan.alreadyInCloset")}</p>
+                    <p className="text-sm">
+                      {t("outfitScan.alreadyInCloset")}
+                      {it.dedupe.score < 1 ? <span className="text-muted-foreground"> · {Math.round(it.dedupe.score * 100)}%</span> : null}
+                    </p>
                     <p className="text-[11px] text-muted-foreground truncate">{it.description}</p>
                   </div>
                   <div className="shrink-0 flex flex-col items-end gap-1">
@@ -763,6 +891,18 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                       </p>
                     </div>
                   </div>
+                  {it.candidates[it.candidateIndex]?.reason && (
+                    <p className="mt-2 text-[11px] text-muted-foreground text-center">{it.candidates[it.candidateIndex].reason}</p>
+                  )}
+                  {!it.visualChecked && (
+                    <p className="mt-1 text-[10px] text-muted-foreground text-center">{t("outfitScan.visualCheckUnavailable", { defaultValue: "Confronto visivo non disponibile: verifica tu il capo." })}</p>
+                  )}
+                  {it.candidates.length > 1 && (
+                    <>
+                      <p className="mt-3 text-[10px] uppercase tracking-[0.3em] text-muted-foreground text-center">{t("outfitScan.alternatives", { defaultValue: "Alternative" })}</p>
+                      <CandidateStrip candidates={it.candidates} selectedIndex={it.candidateIndex} thumbs={matchThumbs} onSelect={(i) => chooseCandidate(it.key, i, false)} />
+                    </>
+                  )}
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <button
                       onClick={() => updateItem(it.key, { status: "confirmed-new" })}
@@ -791,6 +931,14 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
                 existingBrands={existingBrands}
                 footer={
                   <>
+                    {it.confidence === "low" && wardrobe.length > 0 && (
+                      <div className="mt-3 rounded-2xl border border-dashed border-border p-3">
+                        <p className="text-[11px] text-muted-foreground text-center">{t("outfitScan.noConfidentMatch", { defaultValue: "Nessun match sicuro nel guardaroba — scegli tu il capo o aggiungilo come nuovo." })}</p>
+                        {it.candidates.length > 0 && (
+                          <CandidateStrip candidates={it.candidates} selectedIndex={null} thumbs={matchThumbs} onSelect={(i) => chooseCandidate(it.key, i, true)} />
+                        )}
+                      </div>
+                    )}
                     <button
                       onClick={() => setAdjustingKey(it.key)}
                       className="mt-3 w-full h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground active:scale-[0.98]"

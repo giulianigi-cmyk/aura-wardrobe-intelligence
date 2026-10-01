@@ -1336,7 +1336,11 @@
     "assignCalendarToggle": "Ajouter aussi au calendrier",
     "doneButton": "Terminé",
     "addedToCalendar": "Ajouté au calendrier",
-    "couldNotAddToCalendar": "Impossible de l’ajouter au calendrier. Réessayez."
+    "couldNotAddToCalendar": "Impossible de l’ajouter au calendrier. Réessayez.",
+    "comparingWithWardrobe": "Comparaison avec votre garde-robe…",
+    "alternatives": "Alternatives",
+    "noConfidentMatch": "Aucune correspondance sûre dans votre garde-robe — choisissez vous-même la pièce ou ajoutez-la comme nouvelle.",
+    "visualCheckUnavailable": "Comparaison visuelle indisponible : vérifiez vous-même la pièce."
   },
   "avatar": {
     "title": "Mon avatar",

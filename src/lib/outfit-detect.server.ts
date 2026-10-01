@@ -10,6 +10,7 @@ import {
   CLOSURE_OPTIONS, GENDER_OPTIONS, STYLE_TAG_OPTIONS,
 } from "./wardrobe-options";
 import { parseAiJson } from "./ai-json";
+import { PATTERNS } from "./outfit-match";
 import {
   DETECT_CATEGORIES,
   DETECT_SEASONS,
@@ -19,7 +20,22 @@ import {
 
 const ALL_SUBCATEGORIES = Array.from(new Set(Object.values(SUBCATEGORY_OPTIONS).flat()));
 
-function buildPrompt(): string {
+// Extra instructions for "Scansiona un outfit" only (detailed mode). The goal there is not just
+// "these are trousers" but enough visual identity to pick the RIGHT trousers out of a wardrobe with
+// several similar ones — shade, pattern, cut, distinctive details — without inventing anything.
+function detailedSection(): string[] {
+  return [
+    "VISUAL IDENTITY — these extra fields are used to find this exact piece among similar ones in the person's wardrobe, so be precise and literal:",
+    "- colors: judge the garment's TRUE colour, mentally correcting for warm/cool light, shadows and camera white balance. Do not collapse neighbouring colours: navy is not black, ivory/cream is not pure white, camel is not beige, charcoal is not black, burgundy is not brown, olive is not dark green. If a dark garment shows any blue (or brown, green, red) cast in its lit areas, pick that colour, not black.",
+    `- pattern: EXACTLY one of ${PATTERNS.join(", ")}. "pinstripe" = thin, widely spaced vertical lines on tailored fabric; "stripes" = any other stripes; "check" = plaid/tartan/gingham/windowpane; "textured" = no print but a visible weave or knit texture (tweed, cable knit, bouclé). Use "solid" only when the visible fabric clearly has no print.`,
+    '- colorShade: 1-3 words naming the exact shade as seen, e.g. "dark navy", "warm ivory", "light heather grey".',
+    '- visualDescription: 12-30 words describing the piece as precisely as a shop listing would: shade, pattern, apparent material/texture, silhouette and fit (e.g. straight, wide-leg, cropped, oversized, tailored), length, rise/waist, and construction (collar, lapels, sleeves, buttons, zips, pockets, belt, pleats). Example: "dark navy pinstripe tailored trousers, high waist, straight slightly wide leg, pressed front crease, fine wool-like fabric".',
+    "- details: 0-5 short strings, only DISTINCTIVE visible details that would identify this exact piece (logo, print motif, embroidery, unusual buttons, hardware, buckle, cut-outs, appliqués, fringe, sequins, contrast stitching, unusual collar or sleeve shape). Empty array if none.",
+    "NEVER invent what is not visible: if part of the garment is hidden (by a coat, a bag, hands, cropping), describe only the visible part and say so in visualDescription. If the material is not recognisable from the photo, leave materials empty rather than guessing.",
+  ];
+}
+
+function buildPrompt(detailed = false): string {
   return [
     "You analyze a photo of a person wearing an outfit and identify every distinct visible garment, shoe, bag and accessory.",
     "COMPLETENESS — a common failure is stopping after the obvious top+bottom and missing everything smaller: sunglasses, a watch, a bracelet, a necklace, earrings, a belt, a hat, a scarf are all real, separate \"Accessories\" items and must be detected too whenever visible, even partially, even small in frame, even in one hand (like sunglasses being worn) or on one wrist. Before finishing, deliberately re-scan the photo head to wrist to ankle for anything not yet listed — bags and shoes are easy to catch, small accessories are what gets missed.",
@@ -46,8 +62,11 @@ function buildPrompt(): string {
     "Do not detect skin, hair, or background as items. Do not detect the same physical item twice. Return between 1 and 12 items, ordered roughly top-to-bottom on the body.",
     "If the photo does not clearly show a person wearing clothes, return an empty items array.",
     "",
+    ...(detailed ? [...detailedSection(), ""] : []),
     "Respond with ONLY a single valid JSON object, no markdown fences, no extra text, in exactly this shape:",
-    '{"items": [{"category": "", "subcategory": "", "colors": [], "description": "", "materials": [], "seasons": [], "confidence": 0.9, "bbox": {"x": 0, "y": 0, "width": 0, "height": 0}, "formality": 3, "dayEvening": "day", "sleeveLength": "", "length": "", "fit": "", "heelHeight": "", "toeShape": "", "closure": "", "gender": "", "styleTags": []}]}',
+    detailed
+      ? '{"items": [{"category": "", "subcategory": "", "colors": [], "description": "", "materials": [], "seasons": [], "confidence": 0.9, "bbox": {"x": 0, "y": 0, "width": 0, "height": 0}, "formality": 3, "dayEvening": "day", "sleeveLength": "", "length": "", "fit": "", "heelHeight": "", "toeShape": "", "closure": "", "gender": "", "styleTags": [], "pattern": "solid", "colorShade": "", "visualDescription": "", "details": []}]}'
+      : '{"items": [{"category": "", "subcategory": "", "colors": [], "description": "", "materials": [], "seasons": [], "confidence": 0.9, "bbox": {"x": 0, "y": 0, "width": 0, "height": 0}, "formality": 3, "dayEvening": "day", "sleeveLength": "", "length": "", "fit": "", "heelHeight": "", "toeShape": "", "closure": "", "gender": "", "styleTags": []}]}',
   ].join("\n");
 }
 
@@ -86,6 +105,10 @@ function sanitize(output: z.infer<typeof DetectOutputSchema>): DetectedOutfitIte
         closure: CLOSURE_OPTIONS.includes(it.closure ?? "") ? it.closure : undefined,
         gender: GENDER_OPTIONS.includes(it.gender ?? "") ? it.gender : undefined,
         styleTags: (it.styleTags ?? []).filter((s) => STYLE_TAG_OPTIONS.includes(s)).slice(0, 3),
+        pattern: (PATTERNS as readonly string[]).includes((it.pattern ?? "").toLowerCase()) ? it.pattern!.toLowerCase() : undefined,
+        colorShade: it.colorShade?.trim().slice(0, 40) || undefined,
+        visualDescription: it.visualDescription?.trim().slice(0, 300) || undefined,
+        details: it.details?.length ? it.details.map((d) => d.trim()).filter(Boolean).slice(0, 5).map((d) => d.slice(0, 60)) : undefined,
       };
     });
 }
@@ -95,14 +118,14 @@ export type DetectOutfitResult =
   | { ok: false; error: string; items: DetectedOutfitItem[] };
 
 /** Run the multi-item outfit detector against a base64 data URL. */
-export async function detectOutfitItems(imageDataUrl: string): Promise<DetectOutfitResult> {
+export async function detectOutfitItems(imageDataUrl: string, opts: { detailed?: boolean } = {}): Promise<DetectOutfitResult> {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) throw new Error("Missing LOVABLE_API_KEY");
   const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
   const gateway = createLovableAiGatewayProvider(key);
   const model = gateway("google/gemini-2.5-flash");
 
-  const promptText = buildPrompt();
+  const promptText = buildPrompt(opts.detailed);
   const buildMessages = () => [
     {
       role: "user" as const,
