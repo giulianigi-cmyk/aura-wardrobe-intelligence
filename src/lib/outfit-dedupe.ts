@@ -51,10 +51,20 @@ export function scoreMatch(
 ): number {
   if (!detected.category || detected.category !== existing.category) return 0;
 
-  let score = 0.25; // same category baseline
-
   const existingColors = existing.colors?.length ? existing.colors : (existing.color ? [existing.color] : []);
   const colorOverlap = detected.colors.some((c) => existingColors.includes(c));
+
+  // Color is checked before anything else counts for much: a green dress and a red dress sharing
+  // a category, a subcategory, a length and a fit were still reaching "maybe" (and once, close to
+  // 70%) with zero colors in common — every OTHER attribute here is a detail of the SAME garment,
+  // but color is the one thing a person glances at first and would never call "the same piece" if
+  // it's wrong. Without any color overlap, every other signal below still gets recorded (so two
+  // detections sharing nothing visible don't look identical to two sharing everything but color),
+  // but the total is capped well under the 0.6 "maybe" floor — it can be noted, never confused for
+  // a real candidate.
+  const NO_COLOR_CAP = 0.45;
+
+  let score = 0.25; // same category baseline
   if (colorOverlap) score += 0.25;
 
   const existingSub = existing.subcategory ?? "";
@@ -84,7 +94,8 @@ export function scoreMatch(
   if (detected.length && existing.length && detected.length === existing.length) score += 0.05;
   if (detected.fit && existing.fit && detected.fit === existing.fit) score += 0.05;
 
-  return Math.min(1, score);
+  const capped = colorOverlap ? score : Math.min(score, NO_COLOR_CAP);
+  return Math.min(1, capped);
 }
 
 type DetectedForMatch = {
