@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, X, Plus, Loader2, Sparkles, Cloud, Trash2, Luggage, LayoutGrid, User } from "lucide-react";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -115,25 +115,23 @@ export function Planner({ go, openStylistChat, openBuilder, openAvatarTryOn, foc
   // and AIStylist.tsx also draw from.
   const { data: signed = {} } = useWardrobeImages(items);
 
+  // Spinner only for the very first load; later re-checks (every return to this tab) keep the
+  // calendar on screen while they refresh.
+  const loadedOnceRef = useRef(false);
   const reload = useCallback(async () => {
     if (!user) { setLoading(false); return; }
-    setLoading(true);
-    const [{ data: ev }, { data: dismissed }] = await Promise.all([
-      (supabase.from("calendar_events_cache" as never) as any)
-        .select("id, title, start_time, end_time, location, all_day, removed_from_source")
-        .eq("user_id", user.id)
-        .eq("dismissed_by_user", false)
-        .eq("permanently_deleted_by_user", false)
-        .order("start_time"),
-      (supabase.from("calendar_events_cache" as never) as any)
-        .select("id, title, start_time, end_time, location, all_day, removed_from_source")
-        .eq("user_id", user.id)
-        .eq("dismissed_by_user", true)
-        .eq("permanently_deleted_by_user", false)
-        .order("start_time"),
-    ]);
-    setCalendarEvents((ev ?? []) as ImportedEvent[]);
-    setDismissedEvents((dismissed ?? []) as ImportedEvent[]);
+    if (!loadedOnceRef.current) setLoading(true);
+    // One request for both lists (active and dismissed), split client-side by the flag.
+    const { data } = await (supabase.from("calendar_events_cache" as never) as any)
+      .select("id, title, start_time, end_time, location, all_day, removed_from_source, dismissed_by_user")
+      .eq("user_id", user.id)
+      .eq("permanently_deleted_by_user", false)
+      .order("start_time");
+    const rows = (data ?? []) as (ImportedEvent & { dismissed_by_user: boolean | null })[];
+    const strip = ({ dismissed_by_user: _d, ...ev }: ImportedEvent & { dismissed_by_user: boolean | null }) => ev as ImportedEvent;
+    setCalendarEvents(rows.filter((r) => r.dismissed_by_user === false).map(strip));
+    setDismissedEvents(rows.filter((r) => r.dismissed_by_user === true).map(strip));
+    loadedOnceRef.current = true;
     setLoading(false);
   }, [user]);
 
