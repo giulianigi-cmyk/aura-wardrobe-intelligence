@@ -109,6 +109,9 @@ export function useProfile() {
     queryKey: [...profileQueryKey(user?.id), "avatar", profile?.profile_image ?? null],
     queryFn: () => resolveAvatarUrl(profile?.profile_image),
     enabled: !!user,
+    // The signed URL is valid for an hour. Without a staleTime every screen that mounts
+    // useProfile() re-signed it, producing a new URL and a fresh download of the same photo.
+    staleTime: 50 * 60 * 1000,
   });
   const avatarUrl = avatarQuery.data ?? null;
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useTranslation } from "react-i18next";
 import { Bell, Search, Sparkles, TrendingUp, MapPin, Loader2 } from "lucide-react";
@@ -78,6 +78,10 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
   const [curatedImagePaths, setCuratedImagePaths] = useState<(string | null)[]>([]);
   const [signedLookImages, setSignedLookImages] = useState<Record<string, string>>({});
   const [looksLoading, setLooksLoading] = useState(true);
+  // True once looks have been shown at least once. Re-checks on every return to this tab still
+  // run, but quietly: the looks already on screen stay visible instead of flashing back to the
+  // loading skeleton each time.
+  const looksShownRef = useRef(false);
   const [looksError, setLooksError] = useState<string | null>(null);
   // Look opened full-screen by tapping a card (see OutfitPreviewSheet).
   const [preview, setPreview] = useState<{ look: DailyLook; imagePath: string | null } | null>(null);
@@ -134,7 +138,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
     if (latitude != null && longitude != null && wxLoading) return;
 
     void (async () => {
-      setLooksLoading(true);
+      if (!looksShownRef.current) setLooksLoading(true);
       setLooksError(null);
       let today_: DailyLook | null = null;
       let curated_: DailyLook[] = [];
@@ -321,6 +325,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
         } catch (err) {
           console.error("[AURA home] failed to sign look thumbnails", err);
         }
+        if (today_ || curated_.length) looksShownRef.current = true;
         setLooksLoading(false);
       }
     })();
