@@ -123,6 +123,7 @@ import { PhoneFrame } from "./PhoneFrame";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
 import { useChatNotifications } from "@/hooks/use-chat-notifications";
+import { applyStoredLanguage } from "@/i18n/config";
 
 export type Screen =
     | "splash" | "onboarding" | "auth" | "reset" | "profile-setup"
@@ -441,11 +442,14 @@ function Inner() {
         {!isMainTab && (
         <div key={screen} className="absolute inset-0 animate-fade-in">
           <ErrorBoundary onReset={() => go("home")}>
-          {/* Plain background while a code-split screen downloads (usually already prefetched). */}
-          <Suspense fallback={<div className="h-full w-full bg-background" />}>
+          {/* Entry screens are not code-split and stay OUTSIDE the Suspense boundary: React hydrates
+              Suspense content later than the rest, after AuraApp has already switched to the saved
+              language, which would make the server-rendered splash mismatch again (#418). */}
           {screen === "splash" && <Splash go={go} />}
           {screen === "onboarding" && <Onboarding onDone={finishOnboarding} />}
           {screen === "auth" && <Auth />}
+          {/* Plain background while a code-split screen downloads (usually already prefetched). */}
+          <Suspense fallback={<div className="h-full w-full bg-background" />}>
           {screen === "reset" && <ResetPassword onDone={() => setScreen(user ? "home" : "auth")} />}
           {screen === "profile-setup" && <ProfileSetup onDone={() => setScreen("home")} />}
 
@@ -513,6 +517,9 @@ function Inner() {
 
 
 export function AuraApp() {
+  // Server and first client render both use English (no hydration mismatch); the language saved
+  // on this device is applied right after hydration. See i18n/config.ts.
+  useEffect(() => { applyStoredLanguage(); }, []);
   return (
     <AuthProvider>
       <Inner />

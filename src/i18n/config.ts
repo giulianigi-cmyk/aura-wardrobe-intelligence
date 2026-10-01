@@ -30,7 +30,13 @@ export const LANGUAGE_LABELS: Record<SupportedLanguage, string> = {
 // except localStorage, which is why that screen writes the same key
 // this reads. Without this, closing the app mid-signup and reopening it
 // would silently revert to English regardless of what was chosen.
-function initialLanguage(): SupportedLanguage {
+//
+// That stored language is NOT used for the very first render, though: the server always renders
+// in English (it can't read localStorage), and the first client render must produce the same
+// markup or React reports a hydration mismatch (#418) and rebuilds the whole tree. So i18n starts
+// in English everywhere, the stored language's translations are preloaded here, and AuraApp
+// switches to it right after hydration (see applyStoredLanguage).
+export function storedLanguage(): SupportedLanguage {
   if (typeof window === "undefined") return "en";
   try {
     const stored = window.localStorage.getItem("aura.language");
@@ -79,7 +85,7 @@ if (!i18n.isInitialized) {
     resources: {
       en: { translation: en },
     },
-    lng: initialLanguage(),
+    lng: "en", // same as the server render; the stored language is applied after hydration
     fallbackLng: "en",
     interpolation: { escapeValue: false },
     react: { bindI18nStore: "added" },
@@ -87,7 +93,14 @@ if (!i18n.isInitialized) {
   // Every existing `i18n.changeLanguage(...)` call keeps working unchanged: switching to a
   // language that isn't loaded yet fetches it here.
   i18n.on("languageChanged", (lng) => { void ensureLanguageLoaded(lng); });
-  void ensureLanguageLoaded(i18n.language);
+  // Start downloading the saved language now, so it is usually ready by the time it is applied.
+  void ensureLanguageLoaded(storedLanguage());
+}
+
+/** Switches to the language saved on this device. Call once, after hydration. */
+export function applyStoredLanguage(): void {
+  const lng = storedLanguage();
+  if (lng !== i18n.language) void i18n.changeLanguage(lng);
 }
 
 export default i18n;
