@@ -1,9 +1,6 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import en from "./locales/en.json";
-import it from "./locales/it.json";
-import es from "./locales/es.json";
-import fr from "./locales/fr.json";
 
 export const SUPPORTED_LANGUAGES = ["it", "en", "es", "fr"] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
@@ -44,18 +41,53 @@ function initialLanguage(): SupportedLanguage {
   return "en";
 }
 
+// Only English (the server-render language and the fallback for any missing key) is bundled.
+// Every other language is a separate chunk downloaded only when it is actually selected, so the
+// startup bundle no longer carries all four translation files. Until a chunk arrives, missing
+// keys fall back to English; once it is added, `bindI18nStore: "added"` re-renders every
+// translated component with the right language.
+const languageLoaders: Record<Exclude<SupportedLanguage, "en">, () => Promise<{ default: Record<string, unknown> }>> = {
+  it: () => import("./locales/it.json"),
+  es: () => import("./locales/es.json"),
+  fr: () => import("./locales/fr.json"),
+};
+
+const pendingLoads = new Map<string, Promise<void>>();
+
+/** Makes sure the translations for `lng` are loaded. Safe to call repeatedly. */
+export function ensureLanguageLoaded(lng: string): Promise<void> {
+  const loader = languageLoaders[lng as keyof typeof languageLoaders];
+  if (!loader || i18n.hasResourceBundle(lng, "translation")) return Promise.resolve();
+  let pending = pendingLoads.get(lng);
+  if (!pending) {
+    pending = loader()
+      .then((m) => {
+        i18n.addResourceBundle(lng, "translation", m.default, true, true);
+      })
+      .catch((err) => {
+        // Network hiccup: forget the failed attempt so the next change of language retries.
+        pendingLoads.delete(lng);
+        console.error(`[AURA i18n] could not load "${lng}" translations`, err);
+      });
+    pendingLoads.set(lng, pending);
+  }
+  return pending;
+}
+
 if (!i18n.isInitialized) {
   void i18n.use(initReactI18next).init({
     resources: {
       en: { translation: en },
-      it: { translation: it },
-      es: { translation: es },
-      fr: { translation: fr },
     },
     lng: initialLanguage(),
     fallbackLng: "en",
     interpolation: { escapeValue: false },
+    react: { bindI18nStore: "added" },
   });
+  // Every existing `i18n.changeLanguage(...)` call keeps working unchanged: switching to a
+  // language that isn't loaded yet fetches it here.
+  i18n.on("languageChanged", (lng) => { void ensureLanguageLoaded(lng); });
+  void ensureLanguageLoaded(i18n.language);
 }
 
 export default i18n;
