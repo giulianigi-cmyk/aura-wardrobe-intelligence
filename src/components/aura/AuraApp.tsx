@@ -123,6 +123,8 @@ import { PhoneFrame } from "./PhoneFrame";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
 import { useChatNotifications } from "@/hooks/use-chat-notifications";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidateWardrobeItems } from "@/lib/wardrobe-query";
 import { applyStoredLanguage } from "@/i18n/config";
 
 export type Screen =
@@ -317,6 +319,24 @@ function Inner() {
     }, 4000);
     return () => { cancelled = true; clearTimeout(t); };
   }, [user]);
+
+  // One-off thumbnail backfill for older wardrobe items (owner account only for now — see
+  // wardrobe-thumb-backfill.ts). Starts after the outfit backfill, runs in batches in the
+  // background, and refreshes the wardrobe list once it has written anything.
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const t = setTimeout(() => {
+      if (cancelled) return;
+      void import("@/lib/wardrobe-thumb-backfill").then(async (m) => {
+        if (user.id !== m.THUMB_BACKFILL_OWNER_ID) return;
+        const res = await m.backfillWardrobeThumbs(user.id);
+        if (res.done > 0) invalidateWardrobeItems(queryClient, user.id);
+      });
+    }, 8000);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [user, queryClient]);
 
   // Leave the splash as soon as the app actually knows where to go — no fixed wait. A signed-in
   // user still waits for the profile fetch (normally a single fast query) so a fresh sign-up is
