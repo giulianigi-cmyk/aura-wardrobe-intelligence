@@ -1,5 +1,5 @@
 import { Copy, Loader2, Share2, Sparkles, Search, Calendar as CalendarIcon, Trash2, Check, X, Archive, ArchiveRestore, Plus, Pencil, LayoutGrid, User } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useServerFn } from "@tanstack/react-start";
 import { updateTripOutfitPlanItems } from "@/lib/trips.functions";
@@ -22,6 +22,7 @@ import type { WardrobeLocation } from "@/lib/wardrobe-location";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { logWardrobeEvent, confirmOutfitPlanWorn, deleteWornEvent, updateWornEvent } from "@/lib/wardrobe-events";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
+import { signStoragePaths } from "@/lib/signed-url-cache";
 import { useWardrobeItems, useWardrobeImages, useWardrobeCacheActions } from "@/lib/wardrobe-query";
 import { useOutfitPlans, outfitPlansQueryKey, useOutfitPlansCacheActions } from "@/lib/outfit-plans-query";
 import { useOutfits, useOutfitsCacheActions } from "@/lib/outfits-query";
@@ -125,14 +126,10 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
       // canvas thumbnail in the "My Outfits" grid had zero diagnostic
       // trace. Logs and skips only the missing ones now, instead of
       // failing the whole batch silently.
-      const { data: urls, error: signErr } = await supabase.storage.from("outfits").createSignedUrls(paths, 60 * 60);
+      const { urls, error: signErr, failed } = await signStoragePaths("outfits", paths, 60 * 60);
       if (signErr) console.error("[AURA my-outfits] canvas thumbnail signing failed", signErr);
-      const map: Record<string, string> = {};
-      urls?.forEach((r, idx) => {
-        if (r.signedUrl) map[paths[idx]] = r.signedUrl;
-        else if (r.error) console.error("[AURA my-outfits] no signed URL for outfit canvas", paths[idx], r.error);
-      });
-      setSigned(map);
+      failed.forEach((f) => console.error("[AURA my-outfits] no signed URL for outfit canvas", f.path, f.error));
+      setSigned(urls);
     })();
   }, [outfits]);
   // Shared cache (see outfit-plans-query.ts) — same duplication fix as
@@ -205,6 +202,9 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
   };
   const [todayCalEvents, setTodayCalEvents] = useState<CalEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  // After the first load, re-checks on returning to this tab happen in the background: today's
+  // plans and pending confirmations stay on screen instead of being swapped for a spinner.
+  const loadedOnceRef = useRef(false);
   const [occasion, setOccasion] = useState<string>("Everyday");
   const [aiBusy, setAiBusy] = useState(false);
   const [query, setQuery] = useState("");
@@ -239,7 +239,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
 
   const load = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
+    if (!loadedOnceRef.current) setLoading(true);
     try {
     const today = todayIso();
     const [{ data: ev }, { data: cal }] = await Promise.all([
@@ -275,10 +275,13 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
       if (photoDetectionIds.length) {
         const { data: detections } = await (supabase.from("outfit_photo_detections" as never) as any)
           .select("id, photo_path").in("id", photoDetectionIds);
-        for (const d of (detections ?? []) as { id: string; photo_path: string | null }[]) {
-          if (!d.photo_path) continue; // photo retention disabled, or already cleared
-          const { data: signed } = await supabase.storage.from("outfit-photos").createSignedUrl(d.photo_path, 3600);
-          if (signed?.signedUrl) photoByDetectionId.set(d.id, signed.signedUrl);
+        // photo_path is null when photo retention is disabled or the photo was already cleared.
+        const withPhoto = ((detections ?? []) as { id: string; photo_path: string | null }[])
+          .filter((d): d is { id: string; photo_path: string } => Boolean(d.photo_path));
+        // One batch request (and cached URLs on later visits) instead of one request per photo.
+        const { urls: photoUrls } = await signStoragePaths("outfit-photos", withPhoto.map((d) => d.photo_path), 3600);
+        for (const d of withPhoto) {
+          if (photoUrls[d.photo_path]) photoByDetectionId.set(d.id, photoUrls[d.photo_path]);
         }
       }
 
@@ -305,6 +308,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
       // entries failed to load.
       console.error("[AURA stylist] load failed", e);
     } finally {
+      loadedOnceRef.current = true;
       setLoading(false);
     }
   }, [user, outfits]);

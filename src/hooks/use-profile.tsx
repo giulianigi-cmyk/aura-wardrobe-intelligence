@@ -109,6 +109,9 @@ export function useProfile() {
     queryKey: [...profileQueryKey(user?.id), "avatar", profile?.profile_image ?? null],
     queryFn: () => resolveAvatarUrl(profile?.profile_image),
     enabled: !!user,
+    // The signed URL is valid for an hour. Without a staleTime every screen that mounts
+    // useProfile() re-signed it, producing a new URL and a fresh download of the same photo.
+    staleTime: 50 * 60 * 1000,
   });
   const avatarUrl = avatarQuery.data ?? null;
 
@@ -163,5 +166,9 @@ export function useProfile() {
     return { error, url: path };
   }, [update]);
 
-  return { profile, avatarUrl, loading: profileQuery.isLoading, reload, update, uploadAvatar };
+  // `settled`: the profile fetch has finished one way or the other (row loaded, or the
+  // load/create failed). Unlike `loading`, it is never briefly false before the very first
+  // fetch has started — AuraApp relies on that to route a fresh sign-up to profile setup.
+  const settled = profileQuery.isSuccess || profileQuery.isError;
+  return { profile, avatarUrl, loading: profileQuery.isLoading, settled, reload, update, uploadAvatar };
 }

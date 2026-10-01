@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Settings as SettingsIcon, Share2, ChevronRight, LogOut, Pencil, Check, X, Camera, Loader2, User, Info, QrCode } from "lucide-react";
 import { toast } from "sonner";
@@ -8,12 +8,14 @@ import { useProfile } from "@/hooks/use-profile";
 import { WeatherPanel } from "../WeatherPanel";
 import { MyBrands } from "../MyBrands";
 import { supabase } from "@/integrations/supabase/client";
-import { AvatarCropper } from "../AvatarCropper";
 import { USERNAME_RE } from "@/lib/community";
 import { AURA_APP_URL, nativeShareText } from "@/lib/aura-share";
 import { QrFullscreen } from "../MyQrCode";
 import { ProfileSocial } from "../ProfileSocial";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
+
+// The cropper (react-easy-crop) is only needed while a new profile photo is being cropped.
+const AvatarCropper = lazy(() => import("../AvatarCropper").then((m) => ({ default: m.AvatarCropper })));
 
 
 const STYLES = [
@@ -164,7 +166,9 @@ export function Profile({ go: _go, openConversation, openUserProfile }: { go: (s
     <div className="h-full overflow-y-auto no-scrollbar pb-28">
       {qrOpen && <QrFullscreen userId={user?.id} onClose={() => setQrOpen(false)} />}
       {cropSrc && (
-        <AvatarCropper src={cropSrc} onCancel={() => setCropSrc(null)} onSave={onCropSave} />
+        <Suspense fallback={null}>
+          <AvatarCropper src={cropSrc} onCancel={() => setCropSrc(null)} onSave={onCropSave} />
+        </Suspense>
       )}
       <input ref={fileRef} type="file" accept="image/*" className="hidden"
         onChange={e => { onPickAvatar(e.target.files?.[0] ?? null); if (fileRef.current) fileRef.current.value = ""; }} />

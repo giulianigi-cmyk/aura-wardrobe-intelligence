@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useTranslation } from "react-i18next";
 import { Bell, Search, Sparkles, TrendingUp, MapPin, Loader2 } from "lucide-react";
@@ -10,7 +10,8 @@ import { describeWeather, suggestOutfit, weatherLabelKey } from "@/lib/weather";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import type { WardrobeItem } from "@/lib/aura-types";
-import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
+import { resolveWardrobeUrls, thumbSrc, toStoragePath } from "@/lib/wardrobe-image";
+import { signStoragePaths } from "@/lib/signed-url-cache";
 import { composeAndUploadOutfitImage, type ComposeItem } from "@/lib/compose-outfit-canvas";
 import { OutfitViewerSheet } from "@/components/aura/OutfitViewerSheet";
 import { useWardrobeItems } from "@/lib/wardrobe-query";
@@ -77,6 +78,10 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
   const [curatedImagePaths, setCuratedImagePaths] = useState<(string | null)[]>([]);
   const [signedLookImages, setSignedLookImages] = useState<Record<string, string>>({});
   const [looksLoading, setLooksLoading] = useState(true);
+  // True once looks have been shown at least once. Re-checks on every return to this tab still
+  // run, but quietly: the looks already on screen stay visible instead of flashing back to the
+  // loading skeleton each time.
+  const looksShownRef = useRef(false);
   const [looksError, setLooksError] = useState<string | null>(null);
   // Look opened full-screen by tapping a card (see OutfitPreviewSheet).
   const [preview, setPreview] = useState<{ look: DailyLook; imagePath: string | null } | null>(null);
@@ -133,7 +138,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
     if (latitude != null && longitude != null && wxLoading) return;
 
     void (async () => {
-      setLooksLoading(true);
+      if (!looksShownRef.current) setLooksLoading(true);
       setLooksError(null);
       let today_: DailyLook | null = null;
       let curated_: DailyLook[] = [];
@@ -320,6 +325,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
         } catch (err) {
           console.error("[AURA home] failed to sign look thumbnails", err);
         }
+        if (today_ || curated_.length) looksShownRef.current = true;
         setLooksLoading(false);
       }
     })();
@@ -333,11 +339,9 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
     void (async () => {
       const paths = [todayImagePath, ...curatedImagePaths].filter((p): p is string => Boolean(p));
       if (!paths.length) { setSignedLookImages({}); return; }
-      const { data: urls, error } = await supabase.storage.from("outfits").createSignedUrls(paths, 60 * 60);
+      const { urls, error } = await signStoragePaths("outfits", paths, 60 * 60);
       if (error) { console.error("[AURA home] failed to sign composed look images", error); return; }
-      const map: Record<string, string> = {};
-      urls?.forEach((r, i) => { if (r.signedUrl) map[paths[i]] = r.signedUrl; });
-      setSignedLookImages(map);
+      setSignedLookImages(urls);
     })();
   }, [todayImagePath, curatedImagePaths]);
 
@@ -353,6 +357,13 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
     if (!it) return null;
     const path = toStoragePath(it.image_url);
     return path ? looksSigned[path] ?? null : null;
+  };
+  // The curated cards' 2×2 piece grid is ~70px per piece: the 400px thumbnail is plenty and
+  // ~36× lighter than the original cut-out (falls back to the original when there isn't one).
+  const smallThumbFor = (id: string): string | null => {
+    const it = itemById[id];
+    if (!it) return null;
+    return thumbSrc(it, looksSigned) || null;
   };
 
   useEffect(() => {
@@ -568,7 +579,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
                     ) : (
                       <div className="h-full w-full p-2 grid grid-cols-2 gap-1.5">
                         {look.item_ids.slice(0, 4).map((id) => {
-                          const src = thumbFor(id);
+                          const src = smallThumbFor(id);
                           return (
                             <div key={id} className="rounded-lg overflow-hidden bg-secondary/30 flex items-center justify-center">
                               {src ? <img src={src} alt="" className="h-full w-full object-contain p-1" /> : null}

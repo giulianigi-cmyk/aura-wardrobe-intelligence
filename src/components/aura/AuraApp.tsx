@@ -1,48 +1,121 @@
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useState, type ComponentType } from "react";
 import { Splash } from "./screens/Splash";
 import { Onboarding } from "./screens/Onboarding";
 import { Auth } from "./screens/Auth";
-import { ResetPassword } from "./screens/ResetPassword";
-import { ProfileSetup } from "./screens/ProfileSetup";
 import { Home } from "./screens/Home";
 import { Wardrobe } from "./screens/Wardrobe";
-import { AddItem } from "./screens/AddItem";
 import { AIStylist } from "./screens/AIStylist";
-import { StylistChat } from "./screens/StylistChat";
-import { OutfitScan } from "./screens/OutfitScan";
-import { BatchScan } from "./screens/BatchScan";
-import { BatchReview } from "./screens/BatchReview";
-import { Trips } from "./screens/Trips";
-import { TripCreate } from "./screens/TripCreate";
-import { TripDetail } from "./screens/TripDetail";
-import { EssentialPresets } from "./screens/EssentialPresets";
 import { Planner } from "./screens/Planner";
-import { Shop } from "./screens/Shop";
-import { ColorLab } from "./screens/ColorLab";
-import { Community } from "./screens/Community";
 import { Profile } from "./screens/Profile";
-import { Insights } from "./screens/Insights";
-import { Settings } from "./screens/Settings";
-import { PersonalInfo } from "./screens/PersonalInfo";
-import { StylePreferences } from "./screens/StylePreferences";
-import { SettingsSizes } from "./screens/SettingsSizes";
-import { SettingsLanguage } from "./screens/SettingsLanguage";
-import { SettingsWardrobeLocations } from "./screens/SettingsWardrobeLocations";
-import { SettingsDressPreferences } from "./screens/SettingsDressPreferences";
-import { NotificationSettings } from "./screens/NotificationSettings";
-import { SettingsCalendar } from "./screens/SettingsCalendar";
-import { PrivacySettings } from "./screens/PrivacySettings";
-import { Notifications } from "./screens/Notifications";
-import { Invite } from "./screens/Invite";
-import { StorageDebug } from "./screens/StorageDebug";
-import { Chats } from "./screens/Chats";
-import { ChatThread } from "./screens/ChatThread";
-import { OutfitBuilder } from "./screens/OutfitBuilder";
-import { PersonalColorAnalysis } from "./screens/PersonalColorAnalysis";
-import { Avatar } from "./screens/Avatar";
-import { AvatarTryOn } from "./screens/AvatarTryOn";
-import { LogWear } from "./screens/LogWear";
-import { UserProfile } from "./screens/UserProfile";
+
+// A deploy replaces the hashed chunk files, so a tab left open across a release can fail to
+// download a screen it hasn't opened yet. Reload once to pick up the new build instead of
+// showing the error screen; the session flag prevents a reload loop if the network is down.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function lazyScreen<M extends Record<K, ComponentType<any>>, K extends keyof M & string>(
+  load: () => Promise<M>,
+  name: K,
+) {
+  return lazy(() =>
+    load().then(
+      (m) => {
+        try { sessionStorage.removeItem("aura:chunk-reload"); } catch { /* ignore */ }
+        return { default: m[name] };
+      },
+      (err) => {
+        if (typeof window !== "undefined") {
+          try {
+            if (!sessionStorage.getItem("aura:chunk-reload")) {
+              sessionStorage.setItem("aura:chunk-reload", "1");
+              window.location.reload();
+            }
+          } catch { /* storage unavailable: fall through to the error boundary */ }
+        }
+        throw err;
+      },
+    ),
+  );
+}
+
+// Screens outside the five tabs and the entry flow are code-split: each one is downloaded the
+// first time it is needed instead of being part of the initial bundle. `screenLoaders` is also
+// used to prefetch the most common ones once the app is idle (see the effect in Inner), so
+// opening them later is normally instant.
+const screenLoaders = {
+  ResetPassword: () => import("./screens/ResetPassword"),
+  ProfileSetup: () => import("./screens/ProfileSetup"),
+  AddItem: () => import("./screens/AddItem"),
+  StylistChat: () => import("./screens/StylistChat"),
+  OutfitScan: () => import("./screens/OutfitScan"),
+  BatchScan: () => import("./screens/BatchScan"),
+  BatchReview: () => import("./screens/BatchReview"),
+  Trips: () => import("./screens/Trips"),
+  TripCreate: () => import("./screens/TripCreate"),
+  TripDetail: () => import("./screens/TripDetail"),
+  EssentialPresets: () => import("./screens/EssentialPresets"),
+  Shop: () => import("./screens/Shop"),
+  ColorLab: () => import("./screens/ColorLab"),
+  Community: () => import("./screens/Community"),
+  Insights: () => import("./screens/Insights"),
+  Settings: () => import("./screens/Settings"),
+  PersonalInfo: () => import("./screens/PersonalInfo"),
+  StylePreferences: () => import("./screens/StylePreferences"),
+  SettingsSizes: () => import("./screens/SettingsSizes"),
+  SettingsLanguage: () => import("./screens/SettingsLanguage"),
+  SettingsWardrobeLocations: () => import("./screens/SettingsWardrobeLocations"),
+  SettingsDressPreferences: () => import("./screens/SettingsDressPreferences"),
+  NotificationSettings: () => import("./screens/NotificationSettings"),
+  SettingsCalendar: () => import("./screens/SettingsCalendar"),
+  PrivacySettings: () => import("./screens/PrivacySettings"),
+  Notifications: () => import("./screens/Notifications"),
+  Invite: () => import("./screens/Invite"),
+  StorageDebug: () => import("./screens/StorageDebug"),
+  Chats: () => import("./screens/Chats"),
+  ChatThread: () => import("./screens/ChatThread"),
+  OutfitBuilder: () => import("./screens/OutfitBuilder"),
+  PersonalColorAnalysis: () => import("./screens/PersonalColorAnalysis"),
+  Avatar: () => import("./screens/Avatar"),
+  AvatarTryOn: () => import("./screens/AvatarTryOn"),
+  LogWear: () => import("./screens/LogWear"),
+  UserProfile: () => import("./screens/UserProfile"),
+} as const;
+
+const ResetPassword = lazyScreen(screenLoaders.ResetPassword, "ResetPassword");
+const ProfileSetup = lazyScreen(screenLoaders.ProfileSetup, "ProfileSetup");
+const AddItem = lazyScreen(screenLoaders.AddItem, "AddItem");
+const StylistChat = lazyScreen(screenLoaders.StylistChat, "StylistChat");
+const OutfitScan = lazyScreen(screenLoaders.OutfitScan, "OutfitScan");
+const BatchScan = lazyScreen(screenLoaders.BatchScan, "BatchScan");
+const BatchReview = lazyScreen(screenLoaders.BatchReview, "BatchReview");
+const Trips = lazyScreen(screenLoaders.Trips, "Trips");
+const TripCreate = lazyScreen(screenLoaders.TripCreate, "TripCreate");
+const TripDetail = lazyScreen(screenLoaders.TripDetail, "TripDetail");
+const EssentialPresets = lazyScreen(screenLoaders.EssentialPresets, "EssentialPresets");
+const Shop = lazyScreen(screenLoaders.Shop, "Shop");
+const ColorLab = lazyScreen(screenLoaders.ColorLab, "ColorLab");
+const Community = lazyScreen(screenLoaders.Community, "Community");
+const Insights = lazyScreen(screenLoaders.Insights, "Insights");
+const Settings = lazyScreen(screenLoaders.Settings, "Settings");
+const PersonalInfo = lazyScreen(screenLoaders.PersonalInfo, "PersonalInfo");
+const StylePreferences = lazyScreen(screenLoaders.StylePreferences, "StylePreferences");
+const SettingsSizes = lazyScreen(screenLoaders.SettingsSizes, "SettingsSizes");
+const SettingsLanguage = lazyScreen(screenLoaders.SettingsLanguage, "SettingsLanguage");
+const SettingsWardrobeLocations = lazyScreen(screenLoaders.SettingsWardrobeLocations, "SettingsWardrobeLocations");
+const SettingsDressPreferences = lazyScreen(screenLoaders.SettingsDressPreferences, "SettingsDressPreferences");
+const NotificationSettings = lazyScreen(screenLoaders.NotificationSettings, "NotificationSettings");
+const SettingsCalendar = lazyScreen(screenLoaders.SettingsCalendar, "SettingsCalendar");
+const PrivacySettings = lazyScreen(screenLoaders.PrivacySettings, "PrivacySettings");
+const Notifications = lazyScreen(screenLoaders.Notifications, "Notifications");
+const Invite = lazyScreen(screenLoaders.Invite, "Invite");
+const StorageDebug = lazyScreen(screenLoaders.StorageDebug, "StorageDebug");
+const Chats = lazyScreen(screenLoaders.Chats, "Chats");
+const ChatThread = lazyScreen(screenLoaders.ChatThread, "ChatThread");
+const OutfitBuilder = lazyScreen(screenLoaders.OutfitBuilder, "OutfitBuilder");
+const PersonalColorAnalysis = lazyScreen(screenLoaders.PersonalColorAnalysis, "PersonalColorAnalysis");
+const Avatar = lazyScreen(screenLoaders.Avatar, "Avatar");
+const AvatarTryOn = lazyScreen(screenLoaders.AvatarTryOn, "AvatarTryOn");
+const LogWear = lazyScreen(screenLoaders.LogWear, "LogWear");
+const UserProfile = lazyScreen(screenLoaders.UserProfile, "UserProfile");
 
 import { TabBar } from "./TabBar";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -50,6 +123,9 @@ import { PhoneFrame } from "./PhoneFrame";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
 import { useChatNotifications } from "@/hooks/use-chat-notifications";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidateWardrobeItems } from "@/lib/wardrobe-query";
+import { applyStoredLanguage } from "@/i18n/config";
 
 export type Screen =
     | "splash" | "onboarding" | "auth" | "reset" | "profile-setup"
@@ -111,7 +187,7 @@ export type StylistChatInit = {
 
 function Inner() {
   const { user, loading, recovery } = useAuth();
-  const { profile, loading: profileLoading } = useProfile();
+  const { profile, loading: profileLoading, settled: profileSettled } = useProfile();
   const [screen, setScreen] = useState<Screen>("splash");
   const [builderInit, setBuilderInit] = useState<BuilderInit>(null);
   const [stylistChatInit, setStylistChatInit] = useState<StylistChatInit>(null);
@@ -198,6 +274,35 @@ function Inner() {
 
   useChatNotifications(openConversation);
 
+  // Once a signed-in user is on a main tab and the browser is idle, download the screens people
+  // open most often, so tapping into them doesn't wait on the network. Screens that pull in
+  // heavy on-device models (colour analysis, avatar, try-on, batch review, outfit scan) are
+  // deliberately left out and load only when opened.
+  useEffect(() => {
+    if (!user || typeof window === "undefined") return;
+    const frequent = [
+      screenLoaders.AddItem, screenLoaders.OutfitBuilder, screenLoaders.StylistChat,
+      screenLoaders.LogWear, screenLoaders.Trips, screenLoaders.TripDetail, screenLoaders.TripCreate,
+      screenLoaders.Shop, screenLoaders.Insights, screenLoaders.Settings, screenLoaders.Notifications,
+      screenLoaders.Community, screenLoaders.Chats, screenLoaders.ChatThread, screenLoaders.UserProfile,
+    ];
+    let cancelled = false;
+    const idle = (cb: () => void) => {
+      const w = window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number };
+      if (w.requestIdleCallback) w.requestIdleCallback(cb, { timeout: 2000 });
+      else setTimeout(cb, 200);
+    };
+    const t = setTimeout(() => {
+      const next = () => {
+        const load = frequent.shift();
+        if (cancelled || !load) return;
+        load().catch(() => { /* prefetch only — the real navigation retries */ }).finally(() => idle(next));
+      };
+      idle(next);
+    }, 1500);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [user]);
+
   useEffect(() => {
     if (recovery) setScreen("reset");
   }, [recovery]);
@@ -215,18 +320,37 @@ function Inner() {
     return () => { cancelled = true; clearTimeout(t); };
   }, [user]);
 
+  // One-off thumbnail backfill for older wardrobe items (owner account only for now — see
+  // wardrobe-thumb-backfill.ts). Starts after the outfit backfill, runs in batches in the
+  // background, and refreshes the wardrobe list once it has written anything.
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const t = setTimeout(() => {
+      if (cancelled) return;
+      void import("@/lib/wardrobe-thumb-backfill").then(async (m) => {
+        if (user.id !== m.THUMB_BACKFILL_OWNER_ID) return;
+        const res = await m.backfillWardrobeThumbs(user.id);
+        if (res.done > 0) invalidateWardrobeItems(queryClient, user.id);
+      });
+    }, 8000);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [user, queryClient]);
+
+  // Leave the splash as soon as the app actually knows where to go — no fixed wait. A signed-in
+  // user still waits for the profile fetch (normally a single fast query) so a fresh sign-up is
+  // routed to profile setup instead of landing on Home with an incomplete profile.
   useEffect(() => {
     if (loading) return;
     if (screen !== "splash") return;
     if (recovery) { setScreen("reset"); return; }
-    const t = setTimeout(() => {
-      if (!onboarded) setScreen("onboarding");
-      else if (!user) setScreen("auth");
-      else if (!profileLoading && profile && !profile.setup_complete) setScreen("profile-setup");
-      else setScreen("home");
-    }, 1600);
-    return () => clearTimeout(t);
-  }, [loading, profileLoading, screen, onboarded, user, profile, recovery]);
+    if (!onboarded) setScreen("onboarding");
+    else if (!user) setScreen("auth");
+    else if (!profileSettled) return;
+    else if (profile && !profile.setup_complete) setScreen("profile-setup");
+    else setScreen("home");
+  }, [loading, profileSettled, screen, onboarded, user, profile, recovery]);
 
   useEffect(() => {
     if (loading || screen === "splash" || screen === "reset") return;
@@ -338,9 +462,14 @@ function Inner() {
         {!isMainTab && (
         <div key={screen} className="absolute inset-0 animate-fade-in">
           <ErrorBoundary onReset={() => go("home")}>
+          {/* Entry screens are not code-split and stay OUTSIDE the Suspense boundary: React hydrates
+              Suspense content later than the rest, after AuraApp has already switched to the saved
+              language, which would make the server-rendered splash mismatch again (#418). */}
           {screen === "splash" && <Splash go={go} />}
           {screen === "onboarding" && <Onboarding onDone={finishOnboarding} />}
           {screen === "auth" && <Auth />}
+          {/* Plain background while a code-split screen downloads (usually already prefetched). */}
+          <Suspense fallback={<div className="h-full w-full bg-background" />}>
           {screen === "reset" && <ResetPassword onDone={() => setScreen(user ? "home" : "auth")} />}
           {screen === "profile-setup" && <ProfileSetup onDone={() => setScreen("home")} />}
 
@@ -396,6 +525,7 @@ function Inner() {
                   This profile is not available.
                 </div>
           )}
+          </Suspense>
           </ErrorBoundary>
         </div>
         )}
@@ -407,6 +537,9 @@ function Inner() {
 
 
 export function AuraApp() {
+  // Server and first client render both use English (no hydration mismatch); the language saved
+  // on this device is applied right after hydration. See i18n/config.ts.
+  useEffect(() => { applyStoredLanguage(); }, []);
   return (
     <AuthProvider>
       <Inner />
