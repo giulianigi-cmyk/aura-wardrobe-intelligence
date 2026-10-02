@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
-import { Sparkles, Loader2, Plus, Link as LinkIcon, Check, HelpCircle, X as XIcon, Camera, Tag, ExternalLink, Scale, Minus } from "lucide-react";
+import { Sparkles, Loader2, Plus, Link as LinkIcon, Check, HelpCircle, X as XIcon, Camera, Tag, ExternalLink, Minus } from "lucide-react";
 import type { Screen } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -211,7 +211,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
           <button
             onClick={() => { setAdvisorMode("compare"); resetAdvisor(); }}
             className={`flex-1 h-9 rounded-full inline-flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-widest transition ${advisorMode === "compare" ? "bg-foreground text-background" : "bg-secondary/40 text-muted-foreground"}`}
-          ><Scale size={11} /> {t("shop.advisorModeCompare")}</button>
+          >{t("shop.advisorModeCompare")}</button>
         </div>
 
         {advisorMode === "compare" ? (
@@ -281,7 +281,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
               disabled={comparing || !compareSlots.every(compareSlotReady)}
               className="mt-3 w-full h-11 rounded-full bg-foreground text-background flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.3em] disabled:opacity-60"
             >
-              {comparing ? <Loader2 size={13} className="animate-spin" /> : <Scale size={13} />}
+              {comparing && <Loader2 size={13} className="animate-spin" />}
               {t("shop.compareThesePieces")}
             </button>
 
