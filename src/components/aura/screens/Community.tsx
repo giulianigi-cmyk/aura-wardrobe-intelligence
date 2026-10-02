@@ -2,14 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Heart, MessageCircle, Loader2, Search, UserPlus, Check, X, Trash2, Send } from "lucide-react";
+import { Loader2, Search, UserPlus, Check, X } from "lucide-react";
 import type { Screen } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { ConversationList } from "../ConversationList";
 import {
-  USERNAME_RE, initials, signPaths, listFriendships, getFeed, getComments, searchProfiles,
-  type Friendship, type FeedRow, type ShareComment, type SearchResult,
+  USERNAME_RE, initials, signPaths, listFriendships, searchProfiles,
+  type Friendship, type SearchResult,
 } from "@/lib/community";
 
 function Avatar({ url, username, size = 36 }: { url?: string | null; username?: string | null; size?: number }) {
@@ -93,166 +93,17 @@ function UsernameSheet({ onSaved }: { onSaved: (u: string) => void }) {
   );
 }
 
-/* ------------------------------------------------------------------ feed */
-
-function FeedCard({ row, avatar, image, onChanged, meId, onOpenProfile }: {
-  row: FeedRow; avatar?: string | null; image?: string | null;
-  onChanged: () => void; meId: string; onOpenProfile?: (id: string) => void;
-}) {
-  const { t } = useTranslation();
-  const [liked, setLiked] = useState(row.liked_by_me);
-  const [likes, setLikes] = useState(Number(row.like_count));
-  const [openComments, setOpenComments] = useState(false);
-  const [comments, setComments] = useState<ShareComment[]>([]);
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [body, setBody] = useState("");
-  const [imgFailed, setImgFailed] = useState(false);
-
-  useEffect(() => { setLiked(row.liked_by_me); setLikes(Number(row.like_count)); }, [row.liked_by_me, row.like_count]);
-
-  const toggleLike = async () => {
-    const next = !liked;
-    setLiked(next); setLikes((n) => n + (next ? 1 : -1));
-    const { error } = next
-      ? await supabase.from("outfit_likes").insert({ share_id: row.share_id, user_id: meId })
-      : await supabase.from("outfit_likes").delete().eq("share_id", row.share_id).eq("user_id", meId);
-    if (error) {
-      setLiked(!next); setLikes((n) => n + (next ? -1 : 1));
-      toast.error(error.code === "23505" ? t("community.toastAlreadyLiked") : error.message);
-    }
-  };
-
-  const loadComments = useCallback(async () => {
-    setLoadingComments(true);
-    try { setComments(await getComments(row.share_id)); }
-    catch (e) { toast.error(e instanceof Error ? e.message : t("community.toastCouldNotLoadComments")); }
-    finally { setLoadingComments(false); }
-  }, [row.share_id]);
-
-  const toggleComments = () => {
-    const next = !openComments;
-    setOpenComments(next);
-    if (next) void loadComments();
-  };
-
-  const addComment = async () => {
-    const text = body.trim();
-    if (!text) return;
-    const { error } = await supabase.from("outfit_comments").insert({ share_id: row.share_id, user_id: meId, body: text });
-    if (error) { toast.error(error.message); return; }
-    setBody("");
-    await loadComments();
-    onChanged();
-  };
-
-  const removeComment = async (id: string) => {
-    const { error } = await supabase.from("outfit_comments").delete().eq("id", id).eq("user_id", meId);
-    if (error) { toast.error(error.message); return; }
-    await loadComments();
-    onChanged();
-  };
-
-  return (
-    <article className="animate-fade-up">
-      <div className="px-6 flex items-center justify-between mb-3">
-        <button
-          type="button"
-          onClick={() => onOpenProfile?.(row.direction === "outgoing" ? row.shared_with : row.shared_by)}
-          className="flex items-center gap-3 text-left active:scale-[0.98] transition"
-        >
-          <Avatar url={avatar} username={row.other_username} />
-          <div>
-            <p className="text-sm font-medium">{row.other_username ?? "—"}</p>
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              {row.direction === "outgoing" ? t("community.youShared") : t("community.sharedWithYou")}
-            </p>
-          </div>
-        </button>
-      </div>
-
-      <div className="relative" style={{ background: "#FFFFFF" }}>
-        {image && !imgFailed ? (
-          <img
-            src={image}
-            alt={row.outfit_name ?? "Outfit"}
-            onError={() => setImgFailed(true)}
-            className="aspect-[4/5] w-full object-contain"
-          />
-        ) : (
-          <div className="aspect-[4/5] w-full flex items-center justify-center text-xs text-muted-foreground">
-            {row.canvas_image_url ? t("community.imageUnavailable") : t("community.noCanvasImage")}
-          </div>
-        )}
-      </div>
-
-      <div className="px-6 mt-3 flex items-center gap-4">
-        <button onClick={() => void toggleLike()} className="flex items-center gap-1.5 active:scale-90 transition">
-          <Heart size={18} fill={liked ? "currentColor" : "none"} /><span className="text-xs">{likes}</span>
-        </button>
-        <button onClick={toggleComments} className="flex items-center gap-1.5 active:scale-90 transition">
-          <MessageCircle size={18} /><span className="text-xs">{Number(row.comment_count)}</span>
-        </button>
-      </div>
-
-      {row.outfit_name && (
-        <p className="px-6 mt-2 text-sm leading-relaxed">
-          <span className="font-medium">{row.other_username ?? ""}</span>{" "}
-          <span className="text-foreground/80">{row.outfit_name}</span>
-        </p>
-      )}
-
-      {openComments && (
-        <div className="px-6 mt-3 space-y-2">
-          {loadingComments ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : comments.length === 0 ? (
-            <p className="text-xs text-muted-foreground">{t("community.noCommentsYet")}</p>
-          ) : comments.map((c) => (
-            <div key={c.id} className="flex items-start gap-2">
-              <p className="text-sm flex-1">
-                <span className="font-medium">{c.username ?? "—"}</span>{" "}
-                <span className="text-foreground/80">{c.body}</span>
-              </p>
-              {c.user_id === meId && (
-                <button onClick={() => void removeComment(c.id)} aria-label={t("community.deleteCommentAria")} className="text-muted-foreground active:scale-90">
-                  <Trash2 size={13} />
-                </button>
-              )}
-            </div>
-          ))}
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder={t("community.addCommentPlaceholder")}
-              className="flex-1 bg-secondary/60 rounded-full px-4 py-2.5 text-sm outline-none"
-            />
-            <button
-              onClick={() => void addComment()}
-              disabled={!body.trim()}
-              aria-label={t("community.sendCommentAria")}
-              className="h-9 w-9 rounded-full bg-foreground text-background flex items-center justify-center disabled:opacity-40 active:scale-90"
-            ><Send size={14} /></button>
-          </div>
-        </div>
-      )}
-    </article>
-  );
-}
-
 /* ------------------------------------------------------------------ main */
 
 export function Community({ go, openConversation, openUserProfile }: { go: (s: Screen) => void; openConversation?: (id: string) => void; openUserProfile?: (id: string) => void }) {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [tab, setTab] = useState<"feed" | "chat" | "friends">("feed");
+  // The shared-outfit feed was removed from Community (product decision): chats and friends
+  // remain. Existing outfit_shares rows are left untouched.
+  const [tab, setTab] = useState<"chat" | "friends">("chat");
   const [username, setUsername] = useState<string | null>(null);
   const [profileReady, setProfileReady] = useState(false);
 
-  const [feed, setFeed] = useState<FeedRow[]>([]);
-  const [feedImages, setFeedImages] = useState<Record<string, string>>({});
-  const [feedAvatars, setFeedAvatars] = useState<Record<string, string>>({});
-  const [loadingFeed, setLoadingFeed] = useState(true);
 
   const [friends, setFriends] = useState<Friendship[]>([]);
   const [friendAvatars, setFriendAvatars] = useState<Record<string, string>>({});
@@ -278,25 +129,6 @@ export function Community({ go, openConversation, openUserProfile }: { go: (s: S
     return () => { on = false; };
   }, [user]);
 
-  const loadFeed = useCallback(async () => {
-    if (!user) return;
-    setLoadingFeed(true);
-    try {
-      const rows = await getFeed();
-      setFeed(rows);
-      const [imgs, avs] = await Promise.all([
-        signPaths("outfits", rows.map((r) => r.canvas_image_url)),
-        signPaths("avatars", rows.map((r) => r.other_profile_image)),
-      ]);
-      setFeedImages(imgs);
-      setFeedAvatars(avs);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("community.toastCouldNotLoadFeed"));
-    } finally {
-      setLoadingFeed(false);
-    }
-  }, [user]);
-
   const loadFriends = useCallback(async () => {
     if (!user) return;
     setLoadingFriends(true);
@@ -312,10 +144,9 @@ export function Community({ go, openConversation, openUserProfile }: { go: (s: S
   }, [user]);
 
   useEffect(() => {
-    if (!user || !username) { setLoadingFeed(false); setLoadingFriends(false); return; }
-    void loadFeed();
+    if (!user || !username) { setLoadingFriends(false); return; }
     void loadFriends();
-  }, [user, username, loadFeed, loadFriends]);
+  }, [user, username, loadFriends]);
 
   // debounced username search
   useEffect(() => {
@@ -343,7 +174,7 @@ export function Community({ go, openConversation, openUserProfile }: { go: (s: S
     const { error } = await supabase.from("friends").update({ status: "accepted" }).eq("id", f.friendship_id);
     if (error) { toast.error(error.message); return; }
     toast.success(t("community.toastNowFriends", { name: f.username ?? t("community.someone") }));
-    await Promise.all([loadFriends(), loadFeed()]);
+    await loadFriends();
   };
 
   const removeFriendship = async (f: Friendship, label: string) => {
@@ -352,7 +183,7 @@ export function Community({ go, openConversation, openUserProfile }: { go: (s: S
       : await supabase.from("friends").delete().eq("id", f.friendship_id);
     if (error) { toast.error(error.message); return; }
     toast.success(label);
-    await Promise.all([loadFriends(), loadFeed()]);
+    await loadFriends();
   };
 
   if (!user) {
@@ -380,12 +211,12 @@ export function Community({ go, openConversation, openUserProfile }: { go: (s: S
       </header>
 
       <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar px-6">
-        {(["feed", "chat", "friends"] as const).map((c) => (
+        {(["chat", "friends"] as const).map((c) => (
           <button
             key={c}
             onClick={() => setTab(c)}
             className={`shrink-0 rounded-full px-4 py-2 text-xs transition ${tab === c ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"}`}
-          >{c === "feed" ? t("community.tabFeed") : c === "chat" ? t("community.tabChat") : t("community.tabFriends")}</button>
+          >{c === "chat" ? t("community.tabChat") : t("community.tabFriends")}</button>
         ))}
       </div>
 
@@ -394,7 +225,7 @@ export function Community({ go, openConversation, openUserProfile }: { go: (s: S
           openThread={(id) => (openConversation ? openConversation(id) : go("chats"))}
           onStartChat={() => go("chats")}
         />
-      ) : tab === "friends" ? (
+      ) : (
         <div className="mt-6 px-6 space-y-8">
           <section>
             <div className="flex items-center gap-2 bg-secondary/60 rounded-full px-4 py-2.5">
@@ -498,36 +329,6 @@ export function Community({ go, openConversation, openUserProfile }: { go: (s: S
             </>
           )}
         </div>
-      ) : loadingFeed ? (
-        <div className="flex justify-center py-16"><Loader2 className="animate-spin" /></div>
-      ) : feed.length === 0 ? (
-        <section className="mx-6 mt-6 rounded-3xl bg-card border border-border/60 p-8 text-center shadow-soft animate-fade-up">
-          <div className="mx-auto h-14 w-14 rounded-full bg-secondary/60 flex items-center justify-center mb-4">
-            <Heart size={20} />
-          </div>
-          <h2 className="font-serif text-2xl italic">{t("community.nothingSharedYet")}</h2>
-          <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-            {t("community.feedEmptyDesc")}
-          </p>
-          <button
-            onClick={() => setTab("friends")}
-            className="mt-6 h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98]"
-          >{t("community.findFriends")}</button>
-        </section>
-      ) : (
-        <section className="mt-6 space-y-8">
-          {feed.map((row) => (
-            <FeedCard
-              key={row.share_id}
-              row={row}
-              meId={user.id}
-              avatar={row.other_profile_image ? feedAvatars[row.other_profile_image] : null}
-              image={row.canvas_image_url ? feedImages[row.canvas_image_url] : null}
-              onChanged={() => void loadFeed()}
-              onOpenProfile={openUserProfile}
-            />
-          ))}
-        </section>
       )}
 
       {profileReady && !username && <UsernameSheet onSaved={(u) => setUsername(u)} />}

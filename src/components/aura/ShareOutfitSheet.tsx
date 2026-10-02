@@ -14,20 +14,16 @@ import {
 import { saveOutfitPlan } from "@/lib/outfit-plan.functions";
 import { useOutfitPlansCacheActions } from "@/lib/outfit-plans-query";
 
-type ShareMode = "friend" | "feed" | "external";
+// "feed" (posting to every friend) was removed together with the Community feed.
+type ShareMode = "friend" | "external";
 
 /** Bottom sheet to share one of the user's own outfits — reachable from
  *  AIStylist's "My Outfits" list, i.e. for an outfit already saved,
  *  distinct from the richer share sheet OutfitBuilder shows right after
- *  building/saving one. Three genuinely different destinations:
+ *  building/saving one. Two genuinely different destinations:
  * - "friend": sends the outfit as a real message inside a private 1:1
  *   conversation (reuses the same chat pipeline ChatThread's outfit
  *   attach uses) — visible only to that person, ever.
- * - "feed": posts to `outfit_shares` with shared_with = NULL, visible to
- *   every accepted friend (see get_shared_feed RPC). This is the only
- *   path that is actually a feed; it used to be faked by picking friends
- *   one by one, which created a private post per person while looking
- *   like a public feed post — confusing, and fixed here.
  * - "external": outside AURA entirely (WhatsApp, Instagram, TikTok,
  *   email, copy link, the OS share sheet) — previously only available
  *   from OutfitBuilder's own post-save flow, never from here, so
@@ -197,26 +193,6 @@ export function ShareOutfitSheet({ outfitId, onClose }: { outfitId: string; onCl
     if (!failed) onClose();
   };
 
-  const shareToFeed = async () => {
-    setBusy(true);
-    const { data: userData } = await supabase.auth.getUser();
-    const me = userData.user?.id;
-    if (!me) { setBusy(false); toast.error(t("shareOutfitSheet.youAreSignedOut")); return; }
-
-    const { error } = await supabase
-      .from("outfit_shares")
-      .insert({ outfit_id: outfitId, shared_by: me, shared_with: null });
-    setBusy(false);
-    if (error && error.code === "23505") {
-      toast(t("shareOutfitSheet.alreadyOnFeed"));
-      onClose();
-      return;
-    }
-    if (error) { toast.error(error.message); return; }
-    toast.success(t("shareOutfitSheet.sharedToFeed"));
-    onClose();
-  };
-
   return createPortal(
     <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur flex items-end" onClick={onClose}>
       <div
@@ -230,10 +206,6 @@ export function ShareOutfitSheet({ outfitId, onClose }: { outfitId: string; onCl
             onClick={() => setMode("friend")}
             className={`flex-1 h-9 rounded-full text-[11px] uppercase tracking-[0.2em] transition ${mode === "friend" ? "bg-foreground text-background" : "text-muted-foreground"}`}
           >{t("shareOutfitSheet.modeFriend")}</button>
-          <button
-            onClick={() => setMode("feed")}
-            className={`flex-1 h-9 rounded-full text-[11px] uppercase tracking-[0.2em] transition ${mode === "feed" ? "bg-foreground text-background" : "text-muted-foreground"}`}
-          >{t("shareOutfitSheet.modeFeed")}</button>
           <button
             onClick={() => void openExternal()}
             className={`flex-1 h-9 rounded-full text-[11px] uppercase tracking-[0.2em] transition ${mode === "external" ? "bg-foreground text-background" : "text-muted-foreground"}`}
@@ -280,15 +252,6 @@ export function ShareOutfitSheet({ outfitId, onClose }: { outfitId: string; onCl
               >{busy && <Loader2 size={12} className="animate-spin" />} {t("shareOutfitSheet.sendInChat")}</button>
             </>
           )
-        ) : mode === "feed" ? (
-          <>
-            <p className="text-xs text-muted-foreground px-1 leading-relaxed">{t("shareOutfitSheet.modeFeedHint")}</p>
-            <button
-              onClick={() => void shareToFeed()}
-              disabled={busy}
-              className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-50 inline-flex items-center justify-center gap-2"
-            >{busy && <Loader2 size={12} className="animate-spin" />} {t("shareOutfitSheet.shareToFeedButton")}</button>
-          </>
         ) : loadingExternal ? (
           <div className="flex justify-center py-8"><Loader2 className="animate-spin" size={18} /></div>
         ) : !shareAsset ? (
