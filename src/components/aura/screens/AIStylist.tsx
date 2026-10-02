@@ -246,7 +246,10 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
       (supabase.from("wardrobe_events" as never) as any)
         .select("id, event_date, occasion, outfit_id, source_photo_detection_id")
         .eq("user_id", user.id).eq("event_type", "worn")
-        .order("event_date", { ascending: false }).limit(30),
+        // Newest first within the same day too: several wears logged on one date (a morning photo,
+        // then an evening scan) otherwise came back in arbitrary order, so the one just saved
+        // could land below an older one and look like it hadn't been saved.
+        .order("event_date", { ascending: false }).order("created_at", { ascending: false }).limit(30),
       (supabase.from("calendar_events_cache" as never) as any)
         .select("id, title, start_time, all_day")
         .eq("user_id", user.id)
