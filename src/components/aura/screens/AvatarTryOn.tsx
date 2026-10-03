@@ -9,6 +9,7 @@ import { resolveWardrobeUrls } from "@/lib/wardrobe-image";
 import { prepareAvatarTryOn, startTryOnStep, checkTryOnStep, finalizeAvatarTryOn } from "@/lib/avatar-tryon.functions";
 import { restoreOriginalFaceAligned } from "@/lib/face-restore";
 import { saveOutfitPlan } from "@/lib/outfit-plan.functions";
+import { selectTryOnItems } from "@/lib/tryon-select";
 import type { Screen } from "../AuraApp";
 
 type WardrobeItem = { id: string; category: string | null; subcategory: string | null; image_url: string | null };
@@ -94,13 +95,24 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
     return { ok: false, error: t("avatar.errorTitle") };
   };
 
-  const generate = async (itemIds: string[], forceRegenerate = false) => {
+  const generate = async (allItemIds: string[], forceRegenerate = false) => {
     const myRun = ++runToken.current;
     setStage("generating");
     setErrorMessage(null);
     setErrorCode(null);
     setProgress(null);
     try {
+      // At most 6 pieces go on the avatar (one try-on step each): the main garments, shoes and bag
+      // first, small jewellery last (tryon-select.ts). Whole outfits from the stylist or a scan
+      // often have more, and used to fail with a raw validation error.
+      let itemIds = allItemIds;
+      if (allItemIds.length > 6) {
+        const { data: rows } = await supabase.from("wardrobe_items").select("id, category, subcategory").in("id", allItemIds);
+        const byId = new Map(((rows ?? []) as { id: string; category: string | null; subcategory: string | null }[]).map((r) => [r.id, r]));
+        const { kept, dropped } = selectTryOnItems(allItemIds.map((id) => byId.get(id) ?? { id, category: null, subcategory: null }));
+        itemIds = kept.map((x) => x.id);
+        if (dropped.length) toast.message(t("avatar.tooManyPieces", { count: dropped.length }));
+      }
       const prepared = await prepare({ data: { itemIds, forceRegenerate } });
       if (myRun !== runToken.current) return; // superseded by a newer attempt
       if (!prepared.ok) {
@@ -109,7 +121,12 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
         // The error screen below branches on this to send the person to
         // set one up instead of offering a Retry button that would just
         // fail identically forever.
-        setErrorMessage(prepared.error === "no_avatar" ? t("avatar.noAvatarYetBody") : prepared.message);
+        const blocked = prepared.error === "unsupported_category" ? (prepared as { category?: string }).category : undefined;
+        setErrorMessage(
+          prepared.error === "no_avatar" ? t("avatar.noAvatarYetBody")
+          : prepared.error === "unsupported_category" && blocked ? `${blocked} ${t("avatar.unsupportedCategory")}`
+          : t("avatar.genericError"),
+        );
         setErrorCode(prepared.error);
         setStage("error");
         return;
@@ -136,7 +153,8 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
         const stepResult = await runOneStep(currentModelImage, prepared.orderedItemIds[i], hasDressInOutfit);
         if (myRun !== runToken.current) return; // superseded
         if (!stepResult.ok) {
-          setErrorMessage(stepResult.error);
+          console.error("[AURA avatar-tryon] step failed", stepResult.error);
+          setErrorMessage(t("avatar.genericError"));
           setStage("error");
           return;
         }
@@ -150,7 +168,8 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
       const final = await finalize({ data: { itemIds, finalImageDataUrl: currentModelImage } });
       if (myRun !== runToken.current) return; // superseded
       if (!final.ok) {
-        setErrorMessage(final.error);
+        console.error("[AURA avatar-tryon] finalize failed", final.error);
+        setErrorMessage(t("avatar.genericError"));
         setStage("error");
         return;
       }
@@ -160,7 +179,8 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
     } catch (e) {
       if (myRun !== runToken.current) return;
       console.error("[AURA avatar-tryon] generate failed", e);
-      setErrorMessage(e instanceof Error ? e.message : t("avatar.errorTitle"));
+      // Never a raw technical message (it used to show a JSON validation error).
+      setErrorMessage(t("avatar.genericError"));
       setStage("error");
     } finally {
       if (myRun === runToken.current) setProgress(null);

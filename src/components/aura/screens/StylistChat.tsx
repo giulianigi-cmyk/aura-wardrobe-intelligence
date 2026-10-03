@@ -236,6 +236,8 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
                     feedbackContext: feedbackContext ?? null,
           todayDate: todayIso(),
           pinnedItemId: opts?.pinnedItemId ?? null,
+          // The last outfit proposed in this chat, so "una borsa più piccola" changes only the bag.
+          previousItemIds: [...history].reverse().find((m) => m.role === "assistant" && !m.uiOnly && m.itemIds?.length)?.itemIds ?? null,
           items: items.map((it) => ({
             id: it.id,
             category: it.category,

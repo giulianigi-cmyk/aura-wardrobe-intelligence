@@ -4,7 +4,7 @@
 // what occupies the same place in the outfit.
 
 /** Which categories a piece of this category replaces in an outfit. */
-const REPLACES: Record<string, string[]> = {
+export const REPLACES: Record<string, string[]> = {
   Dresses: ["Dresses", "Jumpsuits", "Tops", "Bottoms"],
   Jumpsuits: ["Dresses", "Jumpsuits", "Tops", "Bottoms"],
   Tops: ["Tops", "Dresses", "Jumpsuits"],

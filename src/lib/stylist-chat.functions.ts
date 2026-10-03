@@ -13,6 +13,7 @@ import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, typ
 import { loadWearHistory, rotationOrder, wearFields, ROTATION_PROMPT_RULE } from "./outfit-rotation";
 import { searchWardrobe, pieceLabel } from "./wardrobe-search";
 import { ensureAnchor } from "./outfit-anchor";
+import { applyPieceChange, detectPieceChange } from "./chat-piece-change";
 
 /** Pieces sent to the model besides the ones the message names (which are always sent). */
 const CATALOG_CAP = 320;
@@ -77,6 +78,9 @@ const InputSchema = z.object({
   // A piece the person picked from the photos AURA showed ("which one do you mean?"): it MUST be in
   // the outfit of this turn.
   pinnedItemId: z.string().nullable().optional(),
+  // The outfit AURA proposed last in this conversation: lets "una borsa più piccola" change only
+  // the bag (chat-piece-change.ts) instead of producing a whole new outfit.
+  previousItemIds: z.array(z.string()).max(12).nullable().optional(),
 });
 
 // Lenient on purpose: a reply with five choices, or an activityKind outside the list, used to fail
@@ -231,12 +235,23 @@ export const stylistChat = createServerFn({ method: "POST" })
     // names are always in the catalog, first — the catalog used to be the first 200 pieces only,
     // which is how an existing Balenciaga dress was declared non-existent.
     const latestUserText = [...data.messages].reverse().find((m) => m.role === "user")?.content ?? "";
-    const search = data.feedbackContext ? null : searchWardrobe(latestUserText, data.items);
+    const categoryById = new Map(data.items.map((it) => [it.id, it.category ?? null]));
+    const knownIds = new Set(data.items.map((it) => it.id));
+    const previousIds = (data.previousItemIds ?? []).filter((id) => knownIds.has(id));
+    const pieceChange = data.feedbackContext ? null : detectPieceChange(latestUserText, previousIds, (id) => categoryById.get(id));
+    const rawSearch = data.feedbackContext ? null : searchWardrobe(latestUserText, data.items);
+    // "una borsa più piccola" names a TYPE of piece, not one to look up: no "which bag?" question.
+    const search = pieceChange && rawSearch && !rawSearch.brand ? null : rawSearch;
     const allowedIds = new Set(allowedItems.map((it) => it.id));
     const searchAllowed = (search?.matches ?? []).filter((it) => allowedIds.has(it.id));
     const searchExcluded = (search?.matches ?? []).filter((it) => !allowedIds.has(it.id));
     const pinned = data.pinnedItemId ? allowedItems.find((it) => it.id === data.pinnedItemId) ?? null : null;
-    const forcedIds = new Set([...(pinned ? [pinned.id] : []), ...searchAllowed.slice(0, 40).map((it) => it.id)]);
+    const forcedIds = new Set([
+      ...(pinned ? [pinned.id] : []),
+      ...searchAllowed.slice(0, 40).map((it) => it.id),
+      // the pieces of the outfit being adjusted must be in what the model sees
+      ...(pieceChange ? previousIds.filter((id) => allowedIds.has(id)) : []),
+    ]);
     const ordered = [
       ...allowedItems.filter((it) => forcedIds.has(it.id)),
       ...rotationOrder(allowedItems.filter((it) => !forcedIds.has(it.id)), wearHistory, todayIsoForRotation).slice(0, CATALOG_CAP),
@@ -427,6 +442,9 @@ export const stylistChat = createServerFn({ method: "POST" })
       ...styleMemorySection,
 
       ...searchLines,
+      ...(pieceChange
+        ? [`CHANGE ONLY ONE PIECE: the person asks to change only the ${pieceChange.targetCategories.join("/")} of your last outfit. Keep EXACTLY these pieces, unchanged: ${pieceChange.keepIds.join(", ")}. Propose a different piece only for ${pieceChange.targetCategories.join("/")}, matching what they asked (e.g. smaller, longer, more casual) and the rest of the outfit. item_ids = the kept pieces + the new one(s). In your reply talk about the new piece only, naming it by brand, colour and type; never describe the kept pieces as new or different.`]
+        : []),
       `Wardrobe catalog (JSON, ${catalog.length} of the ${allowedItems.length} pieces available — the pieces named in the conversation are always included): ${JSON.stringify(compactCatalog)}`,
       "",
       "Respond with ONLY a single valid JSON object, no markdown fences, no extra text, in exactly this shape:",
@@ -777,6 +795,33 @@ export const stylistChat = createServerFn({ method: "POST" })
             console.error("[AURA stylist-chat] invented-context repair failed, shipping original", err);
           }
         }
+      }
+
+      // One-piece change: every other piece of the previous outfit stays, whatever the model returned.
+      if (pieceChange) {
+        const catOf = (id: string) => categoryById.get(id) ?? null;
+        const changedOthers = pieceChange.keepIds.some((id) => !finalItemIds.includes(id));
+        if (changedOthers) {
+          try {
+            const r5 = await generateText({
+              model, system, abortSignal: AbortSignal.timeout(REPAIR_CALL_TIMEOUT_MS),
+              messages: [
+                ...history,
+                { role: "assistant", content: text || "(no response)" },
+                { role: "user", content: `You changed more than I asked. Keep exactly these pieces: ${pieceChange.keepIds.join(", ")} and change only the ${pieceChange.targetCategories.join("/")}. Reply again with ONLY the JSON object.` },
+              ],
+            });
+            const fixed = parseAiJson(r5.text, OutputSchema);
+            const fixedIds = fixed.item_ids.filter((id) => validIds.has(id));
+            if (pieceChange.keepIds.every((id) => fixedIds.includes(id)) && fixed.reply.trim()) {
+              finalItemIds = fixedIds;
+              finalReply = fixed.reply;
+            }
+          } catch (err) {
+            console.error("[AURA stylist-chat] one-piece change repair failed, enforcing in code", err instanceof Error ? err.message : String(err));
+          }
+        }
+        finalItemIds = applyPieceChange(finalItemIds, pieceChange, previousIds, catOf);
       }
 
       // A piece the person asked for by name (or picked from the photos) is part of the outfit: if the
