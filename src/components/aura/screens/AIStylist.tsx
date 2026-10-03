@@ -219,6 +219,15 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
   // My Outfit photo framing (photo-framing.ts), per wear event; the photo file itself is untouched.
   const [framings, setFramings] = useState<Record<string, PhotoFraming | null>>({});
   const [framingEntry, setFramingEntry] = useState<WornEntry | null>(null);
+  // My Outfit grid: 2 or 3 photos per row (remembered on this device), and the photo opened as a card.
+  const [photoColumns, setPhotoColumnsState] = useState<2 | 3>(() => {
+    try { return localStorage.getItem("aura.myOutfitColumns") === "3" ? 3 : 2; } catch { return 2; }
+  });
+  const setPhotoColumns = (n: 2 | 3) => {
+    setPhotoColumnsState(n);
+    try { localStorage.setItem("aura.myOutfitColumns", String(n)); } catch { /* not persisted */ }
+  };
+  const [openPhotoId, setOpenPhotoId] = useState<string | null>(null);
   // Saved on the account (outfit_photo_detections.photo_framing); a framing chosen before that
   // existed was kept on this device only, and is still read as a fallback.
   const framingOf = (eventId: string): PhotoFraming | null =>
@@ -892,46 +901,34 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
           myOutfitPhotoEntries.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("aiStylist.noOutfitPhotosYet")}</p>
           ) : (
-            <div className="space-y-2">
-              {myOutfitPhotoEntries.map((w) => (
-                <div key={w.eventId} className="rounded-2xl border border-border/60 bg-card p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-muted-foreground">
-                      {dateLabel(w.date)}{w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}
-                    </p>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => setFramingEntry(w)}
-                        aria-label={t("photoFraming.title")}
-                        title={t("photoFraming.title")}
-                        className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground"
-                      ><Crop size={12} /></button>
-                      <button
-                        onClick={() => startEditWorn(w)}
-                        aria-label={t("aiStylist.editWornEntryAria")}
-                        className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground"
-                      ><Pencil size={12} /></button>
-                      <button
-                        onClick={() => setConfirmDeleteWorn(w)}
-                        aria-label={t("aiStylist.deleteWornEntryAria")}
-                        className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground"
-                      ><Trash2 size={13} /></button>
-                    </div>
-                  </div>
-                  {w.photoUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setViewing({ itemIds: w.itemIds, title: `${dateLabel(w.date)}${w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}`, occasion: w.occasion, photoUrl: w.photoUrl, photoFraming: framingOf(w.eventId) })}
-                      className="block w-full mb-2 active:scale-[0.99]"
-                    >
-                      <FramedPhoto src={w.photoUrl} framing={framingOf(w.eventId)} className="rounded-xl" />
-                    </button>
-                  )}
-                  <ItemThumbs ids={w.itemIds} size="h-14 w-14" />
-                  {lookButtons({ itemIds: w.itemIds, title: `${dateLabel(w.date)}${w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}`, occasion: w.occasion, photoUrl: w.photoUrl })}
-                </div>
-              ))}
-            </div>
+            <>
+              {/* Photos only, 2 (bigger) or 3 (smaller) per row; a tap opens the full card. */}
+              <div className="flex justify-end gap-1 mb-2">
+                {([2, 3] as const).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setPhotoColumns(n)}
+                    aria-label={t("aiStylist.photoColumnsAria", { count: n })}
+                    aria-pressed={photoColumns === n}
+                    className={`h-7 px-3 rounded-full text-[10px] uppercase tracking-[0.15em] inline-flex items-center gap-1 ${photoColumns === n ? "bg-foreground text-background" : "border border-border text-muted-foreground"}`}
+                  ><LayoutGrid size={11} /> {n}</button>
+                ))}
+              </div>
+              <div className={`grid gap-2 ${photoColumns === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+                {myOutfitPhotoEntries.map((w) => (
+                  <button
+                    key={w.eventId}
+                    type="button"
+                    onClick={() => setOpenPhotoId(w.eventId)}
+                    aria-label={`${dateLabel(w.date)}${w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}`}
+                    className="block w-full active:scale-[0.98]"
+                  >
+                    <FramedPhoto src={w.photoUrl!} framing={framingOf(w.eventId)} className="rounded-xl" />
+                  </button>
+                ))}
+              </div>
+            </>
           )
         ) : (
           <>
@@ -1158,6 +1155,57 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
           }}
         />
       )}
+
+      {(() => {
+        const w = openPhotoId ? myOutfitPhotoEntries.find((e) => e.eventId === openPhotoId) : null;
+        if (!w) return null;
+        return (
+          <div className="fixed inset-0 z-[55] bg-background overflow-y-auto animate-fade-in">
+            <div className="px-6 pt-6 pb-28">
+              <button
+                type="button"
+                onClick={() => setOpenPhotoId(null)}
+                aria-label={t("aiStylist.closePhoto")}
+                className="h-10 w-10 rounded-full bg-secondary/60 flex items-center justify-center mb-4"
+              ><X size={16} /></button>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-muted-foreground">
+                  {dateLabel(w.date)}{w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}
+                </p>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => setFramingEntry(w)}
+                    aria-label={t("photoFraming.title")}
+                    title={t("photoFraming.title")}
+                    className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground"
+                  ><Crop size={12} /></button>
+                  <button
+                    onClick={() => startEditWorn(w)}
+                    aria-label={t("aiStylist.editWornEntryAria")}
+                    className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground"
+                  ><Pencil size={12} /></button>
+                  <button
+                    onClick={() => setConfirmDeleteWorn(w)}
+                    aria-label={t("aiStylist.deleteWornEntryAria")}
+                    className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground"
+                  ><Trash2 size={13} /></button>
+                </div>
+              </div>
+              {w.photoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setViewing({ itemIds: w.itemIds, title: `${dateLabel(w.date)}${w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}`, occasion: w.occasion, photoUrl: w.photoUrl, photoFraming: framingOf(w.eventId) })}
+                  className="block w-full mb-2 active:scale-[0.99]"
+                >
+                  <FramedPhoto src={w.photoUrl} framing={framingOf(w.eventId)} className="rounded-xl" />
+                </button>
+              )}
+              <ItemThumbs ids={w.itemIds} size="h-14 w-14" />
+              {lookButtons({ itemIds: w.itemIds, title: `${dateLabel(w.date)}${w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}`, occasion: w.occasion, photoUrl: w.photoUrl })}
+            </div>
+          </div>
+        );
+      })()}
 
       {editingWorn && (
         <div className="fixed inset-0 z-[70] bg-background flex flex-col animate-fade-in">

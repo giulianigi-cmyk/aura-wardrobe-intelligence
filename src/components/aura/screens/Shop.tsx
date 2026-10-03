@@ -280,7 +280,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
     <div className="h-full overflow-y-auto no-scrollbar pb-28">
       <header className="px-6 pt-14 pb-3">
         <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("shop.theEdit")}</p>
-        <h1 className="font-serif text-4xl mt-1">{t("shop.headerPrefix")} <span className="italic">{t("shop.headerEmphasis")}</span></h1>
+        <h1 className="font-serif italic text-4xl mt-1">{t("shop.headerPrefix")} {t("shop.headerEmphasis")}</h1>
       </header>
 
       <section className="px-6 mt-6">

@@ -221,10 +221,9 @@ export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | n
 
   // Signature: the same "aura" wordmark as the Splash screen — Cormorant Garamond
   // italic, in the app's text grey, at its reference size (100px on a 1080px canvas).
-  // Bottom-RIGHT with a safety margin: the Home cards clip the image with rounded
-  // corners (up to ~108 canvas px of radius on the small "Curated" cards); at the
-  // baseline (18px from the bottom) that corner only cuts beyond x ≈ W − 48, so a
-  // right edge at W − SIGNATURE_RIGHT_MARGIN stays fully visible. The OutfitBuilder
+  // Bottom-RIGHT, the same distance from the bottom as from the right edge (the
+  // baseline used to sit 18px from the bottom, so the mark looked pushed against it);
+  // the Home cards' rounded corners (up to ~108 canvas px of radius) don't reach it. The OutfitBuilder
   // canvas uses the same size and position (see its watermark), so every outfit
   // canvas — AI or manual, new or reopened — carries the same mark.
   // It sits inside the strip outfit-layout.ts keeps empty (BOTTOM_RESERVED).
@@ -240,7 +239,7 @@ export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | n
   ctx.textBaseline = "alphabetic";
   // tight tracking like the wordmark (tracking-tight); ignored where unsupported
   (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = "-2px";
-  ctx.fillText("aura", CANVAS_W - SIGNATURE_RIGHT_MARGIN, CANVAS_H - 18);
+  ctx.fillText("aura", CANVAS_W - SIGNATURE_RIGHT_MARGIN, CANVAS_H - SIGNATURE_RIGHT_MARGIN);
   ctx.restore();
 
 

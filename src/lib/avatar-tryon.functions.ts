@@ -82,7 +82,9 @@ const KEEP_PERSON_HINT = "Change only the garment. Keep the person's face, facia
 function openLayerHint(underLayer: "dress" | "top" | null | undefined): string {
   if (!underLayer) return "";
   const under = underLayer === "dress" ? "the dress" : "the top";
-  return `This shirt is worn as an open layer over ${under} already on the person: leave it unbuttoned and open (or knotted at the waist), with ${under} clearly visible underneath — never button it closed over ${under} and never remove ${under}.`;
+  // Short and first in the prompt: a long sentence after the other hints was ignored and the shirt
+  // came out buttoned closed over the dress, turning it into a skirt.
+  return `Open shirt, fully unbuttoned, worn loose over ${under}. Keep ${under} visible down the whole front; do not button it, do not cover or remove ${under}.`;
 }
 
 /** Web Crypto (crypto.subtle), not node:crypto's createHash — this runs on
@@ -278,7 +280,7 @@ export const startTryOnStep = createServerFn({ method: "POST" })
     }
 
     const result = await submitFashnRun(data.modelImageDataUrl, garmentImage, {
-      prompt: [lengthPromptHint(item.length), outerwearOverDressHint(item.category, data.hasDressInOutfit ?? false), openLayerHint(data.underLayer), KEEP_PERSON_HINT]
+      prompt: [openLayerHint(data.underLayer), outerwearOverDressHint(item.category, data.hasDressInOutfit ?? false), lengthPromptHint(item.length), KEEP_PERSON_HINT]
         .filter(Boolean).join(" ") || undefined,
     });
     if (!result.ok) return { ok: false as const, error: result.error };

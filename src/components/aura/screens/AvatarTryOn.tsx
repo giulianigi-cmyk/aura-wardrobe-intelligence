@@ -28,6 +28,25 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// The save step accepts up to 10 MB (avatar-tryon.functions.ts finalizeAvatarTryOn): a larger result
+// is re-encoded as JPEG instead of failing the whole look at the very end.
+const MAX_UPLOAD_DATA_URL = 12_000_000; // ≈ 9 MB of image
+async function fitForUpload(dataUrl: string): Promise<string> {
+  if (dataUrl.length <= MAX_UPLOAD_DATA_URL) return dataUrl;
+  const img = new Image();
+  img.src = dataUrl;
+  await img.decode();
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  canvas.getContext("2d")!.drawImage(img, 0, 0);
+  for (const q of [0.9, 0.8, 0.7]) {
+    const out = canvas.toDataURL("image/jpeg", q);
+    if (out.length <= MAX_UPLOAD_DATA_URL) return out;
+  }
+  return canvas.toDataURL("image/jpeg", 0.6);
+}
+
 /** itemIds: pass when arriving from an outfit already picked elsewhere
  *  (AIStylist, SavedOutfits, TripDetail, OutfitBuilder) — the picker step
  *  is skipped and generation starts immediately. Leave undefined to open
@@ -88,6 +107,15 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
    *  ~2s until FASHN reports done or failed. Never a single long-held
    *  request — see avatar-tryon.functions.ts for why that mattered. */
   const runOneStep = async (modelImageDataUrl: string, itemId: string, hasDressInOutfit: boolean, underLayer: "dress" | "top" | null = null): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string }> => {
+    // One retry: a single try-on step occasionally fails or times out at the provider, and that
+    // used to throw away the whole look.
+    const first = await runOneStepOnce(modelImageDataUrl, itemId, hasDressInOutfit, underLayer);
+    if (first.ok) return first;
+    console.warn("[AURA avatar-tryon] step failed, retrying once", first.error);
+    return runOneStepOnce(modelImageDataUrl, itemId, hasDressInOutfit, underLayer);
+  };
+
+  const runOneStepOnce = async (modelImageDataUrl: string, itemId: string, hasDressInOutfit: boolean, underLayer: "dress" | "top" | null): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string }> => {
     const started = await startStep({ data: { modelImageDataUrl, itemId, hasDressInOutfit, underLayer } });
     if (!started.ok) return { ok: false, error: started.error };
 
@@ -179,7 +207,7 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
       }
       currentModelImage = await restoreOriginalFaceAligned(originalAvatarImage, currentModelImage);
 
-      const final = await finalize({ data: { itemIds, finalImageDataUrl: currentModelImage } });
+      const final = await finalize({ data: { itemIds, finalImageDataUrl: await fitForUpload(currentModelImage) } });
       if (myRun !== runToken.current) return; // superseded
       if (!final.ok) {
         console.error("[AURA avatar-tryon] finalize failed", final.error);

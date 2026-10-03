@@ -733,7 +733,7 @@
       "onTrend": "On trend",
       "statusPiece": "Status piece"
     },
-    "differsFrom": "Different from your {{label}}: {{details}}",
+    "differsFrom": "Compared with your {{label}}, it adds: {{details}}",
     "detail": {
       "slingback": "slingback",
       "maryJane": "Mary Jane",
@@ -920,6 +920,8 @@
     "toastWornEntryDeleted": "Removed",
     "deleteWornEntryAria": "Delete this entry",
     "noOutfitPhotosYet": "No outfit photos logged yet.",
+    "photoColumnsAria": "{{count}} photos per row",
+    "closePhoto": "Close",
     "deleteWornEntryTitle": "Delete this entry?",
     "deleteWornEntryHint": "This removes it from your history and updates how often these pieces show as worn.",
     "date": "Date",

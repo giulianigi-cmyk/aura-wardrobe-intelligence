@@ -19,7 +19,8 @@ export const DETAILS: Record<string, string[]> = {
   embellished: ["crystal", "cristall", "strass", "swarovski", "rhinestone", "embellish", "gioiello", "jewel", "bijou", "pearl", "perle"],
   metallic: ["metallic", "metallizzat", "laminat", "specchio", "mirror", "metalizad", "métallisé"],
   platform: ["platform", "plateau", "plataforma"],
-  ankleStrap: ["ankle strap", "cinturino", "correa al tobillo", "bride cheville"],
+  // "cinturino" alone is any strap (a slingback's back strap included), so only the ankle wording counts.
+  ankleStrap: ["ankle strap", "ankle-strap", "cinturino alla caviglia", "cinturino caviglia", "cinturino sulla caviglia", "correa al tobillo", "bride cheville", "bride à la cheville"],
   openToe: ["peep toe", "open toe", "spuntat", "punta aperta"],
   kittenHeel: ["kitten heel", "kitten"],
   quilted: ["quilted", "trapuntat", "matelass", "acolchad"],
@@ -40,7 +41,14 @@ export const DETAIL_WORDS_FOR_KEY: Record<string, string> = Object.fromEntries([
   ["shoulder", "shoulder carry"], ["crossbody", "crossbody carry"], ["handheld", "handheld carry"],
 ]);
 
+// Parts of a retailer description about the lining, the sole or the insole ("fodera in camoscio",
+// "suola in cuoio", "leather lining"): they say nothing about how the piece looks, and read as a
+// detail they made a patent shoe look "suede".
+const HIDDEN_PART = /\b(fodera|foderat\w*|suola|soletta|sottopiede|plantare|interno|lining|lined|insole|outsole|sole|forro|suela|plantilla|doublure|semelle|intérieur)\b[^.,;:\n]*/g;
+// English puts the material first: "suede lining", "leather sole".
+const HIDDEN_PART_BEFORE = /\b[\w-]+\s+(lining|insole|outsole|sole)\b/g;
+
 export function detailsIn(text: string): Set<string> {
-  const t = ` ${text.toLowerCase()} `;
+  const t = ` ${text.toLowerCase().replace(HIDDEN_PART_BEFORE, " ").replace(HIDDEN_PART, " ")} `;
   return new Set(Object.entries(DETAILS).filter(([, words]) => words.some((w) => t.includes(w))).map(([k]) => k));
 }
