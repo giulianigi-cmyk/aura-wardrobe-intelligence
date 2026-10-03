@@ -56,3 +56,42 @@ export function selectTryOnItems<T extends TryOnCandidate>(items: T[], max = MAX
     dropped: items.filter((_, i) => !keep.has(i)),
   };
 }
+
+// ---- Layering order and styling for the try-on chain ----
+// Each try-on step dresses the result of the previous one, so ORDER is layering: what goes
+// underneath must come first. A shirt applied before a dress was covered by it; a shirt applied
+// after it came out buttoned closed over it, hiding the dress.
+
+type Layerable = { category: string | null; subcategory?: string | null };
+
+// Tops worn as an open layer over something else (button-front or knit layers).
+const OVER_TOPS = new Set(["shirt", "blouse", "cardigan", "sweater", "hoodie", "sweatshirt", "tunic"]);
+const OPEN_FRONT_TOPS = new Set(["shirt", "blouse", "cardigan"]);
+
+function layerRank(it: Layerable): number {
+  const c = it.category ?? "";
+  const sub = (it.subcategory ?? "").toLowerCase();
+  if (c === "Underwear" || c === "Swimwear") return 0;
+  if (c === "Dresses" || c === "Jumpsuits") return 1;
+  if (c === "Tops" || c === "Activewear") return OVER_TOPS.has(sub) ? 4 : 2;
+  if (c === "Bottoms") return 3;
+  if (c === "Outerwear") return 5;
+  if (c === "Shoes") return 6;
+  if (c === "Bags") return 7;
+  return 8;
+}
+
+/** Try-on order: underneath first (dress, base top), then bottoms, then layers worn over them,
+ *  outerwear, shoes, bag, accessories. Stable for pieces of the same layer. */
+export function orderForTryOn<T extends Layerable>(items: T[]): T[] {
+  return items.map((it, i) => ({ it, i, r: layerRank(it) })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.it);
+}
+
+/** What lies under an open-front top in this outfit, if anything. */
+export function underLayerFor(item: Layerable, outfit: Layerable[]): "dress" | "top" | null {
+  const sub = (item.subcategory ?? "").toLowerCase();
+  if (item.category !== "Tops" || !OPEN_FRONT_TOPS.has(sub)) return null;
+  if (outfit.some((o) => o.category === "Dresses" || o.category === "Jumpsuits")) return "dress";
+  if (outfit.some((o) => o !== item && (o.category === "Tops" || o.category === "Activewear") && layerRank(o) === 2)) return "top";
+  return null;
+}

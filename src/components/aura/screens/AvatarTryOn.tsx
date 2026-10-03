@@ -9,7 +9,7 @@ import { resolveWardrobeUrls } from "@/lib/wardrobe-image";
 import { prepareAvatarTryOn, startTryOnStep, checkTryOnStep, finalizeAvatarTryOn } from "@/lib/avatar-tryon.functions";
 import { restoreOriginalFaceAligned } from "@/lib/face-restore";
 import { saveOutfitPlan } from "@/lib/outfit-plan.functions";
-import { selectTryOnItems } from "@/lib/tryon-select";
+import { orderForTryOn, selectTryOnItems, underLayerFor } from "@/lib/tryon-select";
 import { PiecePicker } from "../PiecePicker";
 import type { WardrobeItem as FullWardrobeItem } from "@/lib/aura-types";
 import type { Screen } from "../AuraApp";
@@ -87,8 +87,8 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
   /** Runs one chained garment step to completion: submit, then poll every
    *  ~2s until FASHN reports done or failed. Never a single long-held
    *  request — see avatar-tryon.functions.ts for why that mattered. */
-  const runOneStep = async (modelImageDataUrl: string, itemId: string, hasDressInOutfit: boolean): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string }> => {
-    const started = await startStep({ data: { modelImageDataUrl, itemId, hasDressInOutfit } });
+  const runOneStep = async (modelImageDataUrl: string, itemId: string, hasDressInOutfit: boolean, underLayer: "dress" | "top" | null = null): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string }> => {
+    const started = await startStep({ data: { modelImageDataUrl, itemId, hasDressInOutfit, underLayer } });
     if (!started.ok) return { ok: false, error: started.error };
 
     for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
@@ -114,12 +114,16 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
       // Small jewellery (thin bracelets, rings, watches…) is skipped too: it doesn't read on a
       // full-body image and each piece costs a try-on step.
       let itemIds = allItemIds;
+      const underLayerById: Record<string, "dress" | "top" | null> = {};
       {
         const { data: rows } = await supabase.from("wardrobe_items").select("id, category, subcategory, style_tags, material").in("id", allItemIds);
         type Row = { id: string; category: string | null; subcategory: string | null; style_tags: string[] | null; material: string[] | null };
         const byId = new Map(((rows ?? []) as Row[]).map((r) => [r.id, r]));
         const { kept, dropped } = selectTryOnItems(allItemIds.map((id) => byId.get(id) ?? { id, category: null, subcategory: null, style_tags: null, material: null }));
-        itemIds = kept.map((x) => x.id);
+        // Each step dresses the previous result, so the order is the layering: underneath first.
+        const ordered = orderForTryOn(kept);
+        itemIds = ordered.map((x) => x.id);
+        ordered.forEach((x) => { underLayerById[x.id] = underLayerFor(x, ordered); });
         if (dropped.length) toast.message(t("avatar.tooManyPieces", { count: dropped.length }));
       }
       const prepared = await prepare({ data: { itemIds, forceRegenerate } });
@@ -159,7 +163,7 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
       const total = prepared.orderedItemIds.length;
       for (let i = 0; i < total; i++) {
         setProgress({ step: i + 1, total });
-        const stepResult = await runOneStep(currentModelImage, prepared.orderedItemIds[i], hasDressInOutfit);
+        const stepResult = await runOneStep(currentModelImage, prepared.orderedItemIds[i], hasDressInOutfit, underLayerById[prepared.orderedItemIds[i]] ?? null);
         if (myRun !== runToken.current) return; // superseded
         if (!stepResult.ok) {
           console.error("[AURA avatar-tryon] step failed", stepResult.error);
@@ -167,12 +171,13 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
           setStage("error");
           return;
         }
-        // Real face detection + alignment, not a fixed-position guess —
-        // see face-restore.ts. Safe by construction: if either face
-        // can't be detected, this returns stepResult.imageDataUrl
-        // completely unchanged rather than risking a misaligned paste.
-        currentModelImage = await restoreOriginalFaceAligned(originalAvatarImage, stepResult.imageDataUrl);
+        // The raw result feeds the next step. The original face used to be pasted back after EVERY
+        // step and that retouched image fed to the next one: with 4–6 pieces the pastes stacked up
+        // and deformed the face. It is now restored once, on the final image (face-restore.ts),
+        // and only when the alignment checks out.
+        currentModelImage = stepResult.imageDataUrl;
       }
+      currentModelImage = await restoreOriginalFaceAligned(originalAvatarImage, currentModelImage);
 
       const final = await finalize({ data: { itemIds, finalImageDataUrl: currentModelImage } });
       if (myRun !== runToken.current) return; // superseded
