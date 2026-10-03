@@ -761,7 +761,9 @@
     "feedbackFailed": "No se pudo guardar. Inténtalo de nuevo.",
     "notSimilar": "No es parecido",
     "alreadyOwnSimilar": "Ya tengo uno así",
-    "saidOwned": "Indicaste que ya tienes uno así."
+    "saidOwned": "Indicaste que ya tienes uno así.",
+    "alternativePreferred": "Entre las alternativas ({{names}}) es la que más aporta a tu armario.",
+    "alternativeOther": "Alternativa a {{names}}: se sustituyen, basta con una."
   },
   "planner": {
     "calendar": "Calendario",

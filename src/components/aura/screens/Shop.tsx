@@ -400,6 +400,13 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                           {it.wardrobe.similarTo && !it.wardrobe.differsFrom && (
                             <p className="mt-1 text-[11px] text-muted-foreground leading-snug">{it.wardrobe.similarTo === "said-owned" ? t("shop.saidOwned") : t("shop.similarTo", { label: it.wardrobe.similarTo })}</p>
                           )}
+                          {it.alternative && (
+                            <p className="mt-1 text-[11px] text-foreground/80 leading-snug">
+                              {it.alternative.preferred
+                                ? t("shop.alternativePreferred", { names: it.alternative.withNames.join(", ") })
+                                : t("shop.alternativeOther", { names: it.alternative.withNames.join(", ") })}
+                            </p>
+                          )}
                           <FashionAndDifferences fashion={it.fashion} differsFrom={it.wardrobe.differsFrom} />
                         </div>
                       </div>

@@ -6,7 +6,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseAiJson } from "./ai-json";
 import { resolveProductImageUrl } from "./import-url.functions";
 import { analyzeWardrobeImageCore } from "./ai-analyze.functions";
-import { closestOwnedPiece, comparablePieces, ownedPieceLabel, similarOwnedPiece } from "./purchase-similarity";
+import { closestOwnedPiece, comparablePieces, ownedPieceLabel, ownedText, similarOwnedPiece } from "./purchase-similarity";
+import { detailsIn } from "./garment-details";
+import { alternativeGroups } from "./compare-alternatives";
 import { alreadyOwnedPieces, loadWardrobeFeedback, notSimilarItemIds, productKey } from "./wardrobe-feedback";
 import { ownedEquivalent } from "./gap-ownership";
 
@@ -252,7 +254,7 @@ async function resolveProductAndWardrobeFacts(
   supabase: SupabaseClient<any, any, any>,
   userId: string,
 ): Promise<
-  | { ok: true; product: PurchaseProduct; wardrobe: WardrobeItem[]; duplicate: { verdict: "certain" | "maybe"; itemId: string; label: string } | null; similarItemsCount: number; comparableLabels: string[]; pairsWithCount: number; wardrobeGap: boolean; fashion: FashionSignals | null; differsFrom: { label: string; differences: string[] } | null }
+  | { ok: true; product: PurchaseProduct; wardrobe: WardrobeItem[]; duplicate: { verdict: "certain" | "maybe"; itemId: string; label: string } | null; similarItemsCount: number; comparableLabels: string[]; pairsWithCount: number; wardrobeGap: boolean; fashion: FashionSignals | null; differsFrom: { label: string; differences: string[] } | null; novelDetails: string[] }
   | { ok: false; error: string }
 > {
   const product: PurchaseProduct = {
@@ -365,6 +367,10 @@ async function resolveProductAndWardrobeFacts(
     : saidOwned ? { verdict: "maybe" as const, itemId: SAID_OWNED_ID, label: "a piece of this kind and colour the person told AURA they already own" } : null;
   const closest = closestOwnedPiece(shape, comparableWardrobe);
   const differsFrom = closest && closest.differences.length ? { label: closest.label, differences: closest.differences } : null;
+  // Details of this product that NO owned piece of the same category has (e.g. a slingback when
+  // no slingback is owned) — what it would genuinely add (compare-alternatives.ts).
+  const ownedDetails = new Set(wardrobe.filter((it) => it.category === product.category).flatMap((it) => [...detailsIn(ownedText(it))]));
+  const novelDetails = [...detailsIn([product.subcategory, productText].filter(Boolean).join(" "))].filter((d) => !ownedDetails.has(d));
   const comparable = comparablePieces(product, comparableWardrobe);
   const similarItemsCount = comparable.length;
   const comparableLabels = comparable.slice(0, 2).map(ownedPieceLabel);
@@ -389,7 +395,7 @@ async function resolveProductAndWardrobeFacts(
     }
   }
 
-  return { ok: true, product, wardrobe, duplicate, similarItemsCount, comparableLabels, pairsWithCount, wardrobeGap, fashion, differsFrom };
+  return { ok: true, product, wardrobe, duplicate, similarItemsCount, comparableLabels, pairsWithCount, wardrobeGap, fashion, differsFrom, novelDetails };
 }
 
 /** The deterministic verdict logic, extracted so both the single-item flow and the
@@ -581,6 +587,7 @@ const CachedFactsSchema = z.object({
   comparableLabels: z.array(z.string()).optional(),
   differsFrom: z.object({ label: z.string(), differences: z.array(z.string()) }).nullable().optional(),
   fashion: FashionSignalsSchema.nullable().optional(),
+  novelDetails: z.array(z.string()).optional(),
   pairsWithCount: z.number(),
   wardrobeGap: z.boolean(),
   isLabelOnly: z.boolean(),
@@ -604,6 +611,8 @@ type ComparedItem = {
   confidence: "high" | "medium" | "low";
   wardrobe: { duplicate: boolean; similarTo: string | null; differsFrom: { label: string; differences: string[] } | null; pairsWithCount: number; wardrobeGap: boolean; dressPreferenceViolation: boolean };
   fashion: FashionSignals | null;
+  /** Pieces of this comparison that do the same job: buy one or the other (compare-alternatives.ts). */
+  alternative: { preferred: boolean; withNames: string[] } | null;
   // Everything the "is this the same item as I already own?" judgment for THIS one product
   // depends on, opaque to the client — pass it back unchanged as this same item's `source` on a
   // later comparePurchases call (e.g. after adding one more piece to the comparison) and this
@@ -686,6 +695,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
             comparableLabels: item.comparableLabels ?? [],
             fashion: item.fashion ?? null,
             differsFrom: item.differsFrom ?? null,
+            novelDetails: item.novelDetails ?? [],
             pairsWithCount: item.pairsWithCount,
             wardrobeGap: item.wardrobeGap,
           };
@@ -720,8 +730,28 @@ export const comparePurchases = createServerFn({ method: "POST" })
       ),
     );
 
+    // Pieces of this comparison that do the same job (same kind, same colour) replace each other:
+    // only the one that adds the most to the wardrobe stays a "buy", the others become "one or the
+    // other" (compare-alternatives.ts) — e.g. a black patent slingback preferred over a black patent
+    // pump when a black pump is already owned and no slingback is.
+    const groups = alternativeGroups(resolved.map((r) => ({
+      category: r.product.category, subcategory: r.product.subcategory, colors: r.product.colors,
+      novelDetails: r.novelDetails, wardrobeGap: r.wardrobeGap, differences: r.differsFrom?.differences ?? [],
+      duplicate: r.duplicate?.verdict === "certain", pairsWithCount: r.pairsWithCount,
+    })));
+    const shortName = (i: number) => [resolved[i].product.brand, resolved[i].product.title].filter(Boolean).join(" ").slice(0, 60) || "—";
+    const alternativeOf = new Map<number, { preferred: boolean; withNames: string[] }>();
+    for (const g of groups) {
+      alternativeOf.set(g.preferred, { preferred: true, withNames: g.others.map(shortName) });
+      for (const o of g.others) {
+        alternativeOf.set(o, { preferred: false, withNames: [shortName(g.preferred)] });
+        if (verdicts[o].verdict === "buy") verdicts[o] = { verdict: "maybe", confidence: verdicts[o].confidence };
+      }
+    }
+
     const items: ComparedItem[] = resolved.map((r, i) => ({
       product: { title: r.product.title, brand: r.product.brand, price: r.product.price, currency: r.product.currency, imageUrl: r.product.imageUrl, sourceUrl: r.product.sourceUrl },
+      alternative: alternativeOf.get(i) ?? null,
       verdict: verdicts[i].verdict,
       confidence: verdicts[i].confidence,
       wardrobe: { duplicate: r.duplicate?.verdict === "certain", similarTo: r.duplicate?.itemId === SAID_OWNED_ID ? SAID_OWNED_ID : r.duplicate?.label || null, differsFrom: r.differsFrom, pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, dressPreferenceViolation: violations[i] },
@@ -738,6 +768,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
         comparableLabels: r.comparableLabels,
         differsFrom: r.differsFrom,
         fashion: r.fashion,
+        novelDetails: r.novelDetails,
         pairsWithCount: r.pairsWithCount,
         wardrobeGap: r.wardrobeGap,
         isLabelOnly: isLabelOnly[i],
@@ -792,6 +823,12 @@ export const comparePurchases = createServerFn({ method: "POST" })
         ? "Every item happens to sit in the same tier here — the full ranking is entirely yours to decide from the softer signals below, including saying some or all are genuinely equivalent."
         : "",
       "",
+      ...groups.map((g) => {
+        const why = (i: number) => resolved[i].novelDetails.length
+          ? `adds ${resolved[i].novelDetails.join(", ")}, which nothing in the wardrobe has`
+          : resolved[i].wardrobeGap ? "fills a gap" : resolved[i].differsFrom ? `is a ${resolved[i].differsFrom!.differences.join("/")} variant of the owned ${resolved[i].differsFrom!.label}` : "is close to what is owned";
+        return `ALTERNATIVES: ${[g.preferred, ...g.others].map((i) => letters[i]).join(", ")} do the same job (same kind and colour) — one replaces the other, so say clearly to buy ONE of them, not all. Prefer ${letters[g.preferred]} ("${shortName(g.preferred)}"): it ${why(g.preferred)}; ${g.others.map((o) => `${letters[o]} ("${shortName(o)}") ${why(o)}`).join("; ")}.`;
+      }),
       "Facts (tier shown for each — higher number is more desirable and must never be ranked below a lower number):",
       ...items.flatMap((it, i) => [...describeItem(letters[i], resolved[i], it.verdict, violations[i]), `${letters[i]}'s tier: ${tiers[i]}`]),
       "",

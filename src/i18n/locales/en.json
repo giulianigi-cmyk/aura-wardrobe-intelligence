@@ -761,7 +761,9 @@
     "feedbackFailed": "Couldn't save. Try again.",
     "notSimilar": "It's not similar",
     "alreadyOwnSimilar": "I already have one like it",
-    "saidOwned": "You told AURA you already have one like it."
+    "saidOwned": "You told AURA you already have one like it.",
+    "alternativePreferred": "Of the alternatives ({{names}}) this one adds the most to your wardrobe.",
+    "alternativeOther": "An alternative to {{names}}: they replace each other, one is enough."
   },
   "planner": {
     "calendar": "Calendar",

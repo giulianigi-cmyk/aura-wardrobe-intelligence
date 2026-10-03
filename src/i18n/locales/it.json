@@ -761,7 +761,9 @@
     "feedbackFailed": "Non è stato possibile salvare. Riprova.",
     "notSimilar": "Non è simile",
     "alreadyOwnSimilar": "Ne ho già uno così",
-    "saidOwned": "Hai indicato che ne hai già uno così."
+    "saidOwned": "Hai indicato che ne hai già uno così.",
+    "alternativePreferred": "Tra le alternative ({{names}}) è quella che aggiunge di più al tuo armadio.",
+    "alternativeOther": "Alternativa a {{names}}: si sostituiscono, ne basta una."
   },
   "planner": {
     "calendar": "Calendario",
