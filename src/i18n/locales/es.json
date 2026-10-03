@@ -2099,5 +2099,14 @@
       "trenchOrWaterproofLayer": "Gabardina o capa impermeable",
       "weatherproofBoots": "Botas impermeables"
     }
+  },
+  "photoFraming": {
+    "title": "Encuadrar la foto",
+    "hint": "Arrastra para moverla, pellizca o usa el control para hacer zoom. La foto original no se modifica.",
+    "zoom": "Zoom",
+    "fit": "Ajustar a la foto",
+    "center": "Centrar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar"
   }
 }

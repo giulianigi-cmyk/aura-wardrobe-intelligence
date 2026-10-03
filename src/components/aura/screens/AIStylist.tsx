@@ -1,4 +1,4 @@
-import { Copy, Loader2, Share2, Sparkles, Search, Calendar as CalendarIcon, Trash2, Check, X, Archive, ArchiveRestore, Plus, Pencil, LayoutGrid, User } from "lucide-react";
+import { Copy, Loader2, Share2, Sparkles, Search, Calendar as CalendarIcon, Trash2, Check, X, Archive, ArchiveRestore, Plus, Pencil, LayoutGrid, User, Crop } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useServerFn } from "@tanstack/react-start";
@@ -12,6 +12,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { ShareOutfitSheet } from "../ShareOutfitSheet";
 import { ItemImageViewer } from "../ItemImageViewer";
 import { OutfitViewerSheet } from "../OutfitViewerSheet";
+import { FramedPhoto, PhotoFramingEditor } from "../FramedPhoto";
+import { loadFraming, saveFraming, type PhotoFraming } from "@/lib/photo-framing";
 import { useLocation } from "@/hooks/use-location";
 import { useWeather } from "@/hooks/use-weather";
 import { describeWeather } from "@/lib/weather";
@@ -54,6 +56,7 @@ type CalEvent = { id: string; title: string | null; start_time: string; all_day:
 /** A look opened in the shared outfit viewer (canvas / pieces / photo, avatar, save, calendar, share). */
 type ViewingLook = {
   itemIds: string[]; title?: string; occasion?: string | null; notes?: string | null;
+  photoFraming?: PhotoFraming | null;
   photoUrl?: string | null; canvasPath?: string | null; outfitId?: string | null;
   savedLayout?: { itemId: string; x: number; y: number; scale: number; rotation: number; z: number }[] | null;
   /** how "open on canvas" behaves for a saved outfit (its own editor entry) */
@@ -210,6 +213,11 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
   const [query, setQuery] = useState("");
   const [shareFor, setShareFor] = useState<string | null>(null);
   const [viewing, setViewing] = useState<ViewingLook | null>(null);
+  // My Outfit photo framing (photo-framing.ts), per wear event; the photo file itself is untouched.
+  const [framings, setFramings] = useState<Record<string, PhotoFraming | null>>({});
+  const [framingEntry, setFramingEntry] = useState<WornEntry | null>(null);
+  const framingOf = (eventId: string): PhotoFraming | null =>
+    eventId in framings ? framings[eventId] : loadFraming(eventId);
   const [assignFor, setAssignFor] = useState<Outfit | null>(null);
   const assignForCanClose = useSheetCanClose(!!assignFor);
   const [assignDate, setAssignDate] = useState<string>(() => todayIso());
@@ -884,6 +892,12 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
                     </p>
                     <div className="flex items-center gap-1 shrink-0">
                       <button
+                        onClick={() => setFramingEntry(w)}
+                        aria-label={t("photoFraming.title")}
+                        title={t("photoFraming.title")}
+                        className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground"
+                      ><Crop size={12} /></button>
+                      <button
                         onClick={() => startEditWorn(w)}
                         aria-label={t("aiStylist.editWornEntryAria")}
                         className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground"
@@ -898,10 +912,10 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
                   {w.photoUrl && (
                     <button
                       type="button"
-                      onClick={() => setViewing({ itemIds: w.itemIds, title: `${dateLabel(w.date)}${w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}`, occasion: w.occasion, photoUrl: w.photoUrl })}
+                      onClick={() => setViewing({ itemIds: w.itemIds, title: `${dateLabel(w.date)}${w.outfitName ? ` · ${w.outfitName}` : w.occasion ? ` · ${w.occasion}` : ""}`, occasion: w.occasion, photoUrl: w.photoUrl, photoFraming: framingOf(w.eventId) })}
                       className="block w-full mb-2 active:scale-[0.99]"
                     >
-                      <img src={w.photoUrl} alt="" className="w-full rounded-xl aspect-[4/5] object-cover" />
+                      <FramedPhoto src={w.photoUrl} framing={framingOf(w.eventId)} className="rounded-xl" />
                     </button>
                   )}
                   <ItemThumbs ids={w.itemIds} size="h-14 w-14" />
@@ -1089,6 +1103,19 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
 
       {shareFor && <ShareOutfitSheet outfitId={shareFor} onClose={() => setShareFor(null)} />}
 
+      {framingEntry?.photoUrl && (
+        <PhotoFramingEditor
+          src={framingEntry.photoUrl}
+          initial={framingOf(framingEntry.eventId)}
+          onCancel={() => setFramingEntry(null)}
+          onConfirm={(f) => {
+            saveFraming(framingEntry.eventId, f);
+            setFramings((m) => ({ ...m, [framingEntry.eventId]: f }));
+            setFramingEntry(null);
+          }}
+        />
+      )}
+
       {viewing && (
         <OutfitViewerSheet
           itemIds={viewing.itemIds}
@@ -1096,6 +1123,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
           occasion={viewing.occasion}
           notes={viewing.notes}
           photoUrl={viewing.photoUrl}
+          photoFraming={viewing.photoFraming}
           canvasPath={viewing.canvasPath}
           outfitId={viewing.outfitId}
           savedLayout={viewing.savedLayout}

@@ -2099,5 +2099,14 @@
       "trenchOrWaterproofLayer": "Trench o strato impermeabile",
       "weatherproofBoots": "Stivali impermeabili"
     }
+  },
+  "photoFraming": {
+    "title": "Inquadra la foto",
+    "hint": "Trascina per spostarla, avvicina due dita o usa il cursore per lo zoom. La foto originale non viene modificata.",
+    "zoom": "Zoom",
+    "fit": "Adatta alla foto",
+    "center": "Centra",
+    "cancel": "Annulla",
+    "confirm": "Conferma"
   }
 }
