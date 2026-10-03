@@ -36,3 +36,20 @@ test("more than 6: garments, shoes and bag first, outfit order preserved", () =>
 test("only small jewellery chosen: still tried on (nothing else to show)", () => {
   assert.deepEqual(selectTryOnItems([it("ring", "Accessories", "Ring")]).kept.map((x) => x.id), ["ring"]);
 });
+
+import { orderForTryOn, underLayerFor } from "./tryon-select";
+
+test("layering order: dress and base top first, the shirt over them, then shoes and bag", () => {
+  const items = [it("bag", "Bags"), it("shirt", "Tops", "Shirt"), it("shoes", "Shoes"), it("dress", "Dresses"), it("earrings", "Accessories", "Earrings")];
+  assert.deepEqual(orderForTryOn(items).map((x) => x.id), ["dress", "shirt", "shoes", "bag", "earrings"]);
+  const sep = [it("shirt", "Tops", "Shirt"), it("skirt", "Bottoms", "Skirt"), it("tank", "Tops", "Tank Top")];
+  assert.deepEqual(orderForTryOn(sep).map((x) => x.id), ["tank", "skirt", "shirt"]);
+});
+
+test("an open-front top knows what is under it", () => {
+  const shirt = it("shirt", "Tops", "Shirt");
+  assert.equal(underLayerFor(shirt, [shirt, it("dress", "Dresses")]), "dress");
+  assert.equal(underLayerFor(shirt, [shirt, it("tank", "Tops", "Tank Top"), it("jeans", "Bottoms", "Jeans")]), "top");
+  assert.equal(underLayerFor(shirt, [shirt, it("jeans", "Bottoms", "Jeans")]), null);
+  assert.equal(underLayerFor(it("tee", "Tops", "T-Shirt"), [it("dress", "Dresses")]), null);
+});

@@ -29,6 +29,10 @@ import { FaceLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 const RIGHT_EYE_LANDMARK = 33;
 const LEFT_EYE_LANDMARK = 263;
 
+/** Largest accepted distance between a mapped original landmark and the generated one, as a
+ *  fraction of the eye distance (≈ a few millimetres on a real face). */
+const MAX_LANDMARK_ERROR = 0.18;
+
 let landmarkerPromise: Promise<FaceLandmarker> | null = null;
 function getFaceLandmarker(): Promise<FaceLandmarker> {
   if (!landmarkerPromise) {
@@ -49,7 +53,11 @@ function getFaceLandmarker(): Promise<FaceLandmarker> {
   return landmarkerPromise;
 }
 
-type EyeAnchors = { rightEye: { x: number; y: number }; leftEye: { x: number; y: number }; imgWidth: number; imgHeight: number };
+type Pt = { x: number; y: number };
+type EyeAnchors = { rightEye: Pt; leftEye: Pt; imgWidth: number; imgHeight: number; /** nose tip, mouth corners, chin */ checks: Pt[] };
+
+// Nose tip, mouth corners, chin: used to VERIFY an eye-based alignment before pasting a face.
+const CHECK_LANDMARKS = [1, 61, 291, 152];
 
 async function detectEyeAnchors(img: HTMLImageElement): Promise<EyeAnchors | null> {
   try {
@@ -60,11 +68,14 @@ async function detectEyeAnchors(img: HTMLImageElement): Promise<EyeAnchors | nul
     const right = lm[RIGHT_EYE_LANDMARK];
     const left = lm[LEFT_EYE_LANDMARK];
     if (!right || !left) return null;
+    const checks = CHECK_LANDMARKS.map((i) => lm[i]).filter(Boolean).map((p) => ({ x: p.x * img.naturalWidth, y: p.y * img.naturalHeight }));
+    if (checks.length !== CHECK_LANDMARKS.length) return null;
     return {
       rightEye: { x: right.x * img.naturalWidth, y: right.y * img.naturalHeight },
       leftEye: { x: left.x * img.naturalWidth, y: left.y * img.naturalHeight },
       imgWidth: img.naturalWidth,
       imgHeight: img.naturalHeight,
+      checks,
     };
   } catch (e) {
     console.error("[AURA face-restore] face detection failed", e);
@@ -79,6 +90,28 @@ function loadImageEl(dataUrl: string): Promise<HTMLImageElement> {
     img.onerror = () => reject(new Error("image decode failed"));
     img.src = dataUrl;
   });
+}
+
+/** Worst distance (px, in the generated image) between the original's nose / mouth / chin mapped by
+ *  the eye-based similarity transform and the same landmarks detected in the generated image. */
+export function landmarkAlignmentError(
+  orig: { rightEye: Pt; leftEye: Pt; checks: Pt[] },
+  gen: { rightEye: Pt; leftEye: Pt; checks: Pt[] },
+): number {
+  const mid = (a: Pt, b: Pt) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const oMid = mid(orig.leftEye, orig.rightEye), gMid = mid(gen.leftEye, gen.rightEye);
+  const oDist = Math.hypot(orig.leftEye.x - orig.rightEye.x, orig.leftEye.y - orig.rightEye.y);
+  const gDist = Math.hypot(gen.leftEye.x - gen.rightEye.x, gen.leftEye.y - gen.rightEye.y);
+  if (oDist < 1 || gDist < 1) return Infinity;
+  const scale = gDist / oDist;
+  const rot = Math.atan2(gen.leftEye.y - gen.rightEye.y, gen.leftEye.x - gen.rightEye.x)
+    - Math.atan2(orig.leftEye.y - orig.rightEye.y, orig.leftEye.x - orig.rightEye.x);
+  return Math.max(...orig.checks.map((p, i) => {
+    const dx = (p.x - oMid.x) * scale, dy = (p.y - oMid.y) * scale;
+    const m = { x: gMid.x + dx * Math.cos(rot) - dy * Math.sin(rot), y: gMid.y + dx * Math.sin(rot) + dy * Math.cos(rot) };
+    const g = gen.checks[i];
+    return g ? Math.hypot(m.x - g.x, m.y - g.y) : Infinity;
+  }));
 }
 
 /** Overlays the ORIGINAL avatar photo's real face onto a FASHN result,
@@ -126,6 +159,17 @@ export async function restoreOriginalFaceAligned(originalDataUrl: string, genera
     );
     const rotation = genAngle - origAngle;
 
+    // Verify before pasting: map the original's nose, mouth corners and chin with the same
+    // transform and compare with where they are in the generated image. Two eyes alone always
+    // "align"; if the head is turned or tilted differently, or the face shape differs, the pasted
+    // face sat on the wrong jaw and mouth — the deformed look reported. Then the generated face is
+    // left as it is.
+    const worst = landmarkAlignmentError(originalEyes, generatedEyes);
+    if (worst > genEyeDist * MAX_LANDMARK_ERROR) {
+      console.warn("[AURA face-restore] faces don't line up (pose differs) — leaving the generated face as it is", { worst, genEyeDist });
+      return generatedDataUrl;
+    }
+
     const w = generatedImg.naturalWidth;
     const h = generatedImg.naturalHeight;
     const base = document.createElement("canvas");
@@ -160,7 +204,9 @@ export async function restoreOriginalFaceAligned(originalDataUrl: string, genera
     // off the GENERATED eye distance so the feather radius matches the
     // actual scale of the result, not the original's.
     faceCtx.globalCompositeOperation = "destination-in";
-    const featherRadius = genEyeDist * 2.6;
+    // Face only (forehead to chin), not hair and neck: a wide paste carried the original's hair
+    // and jawline over the new image.
+    const featherRadius = genEyeDist * 1.7;
     const gradient = faceCtx.createRadialGradient(
       genMid.x, genMid.y, featherRadius * 0.55,
       genMid.x, genMid.y, featherRadius,

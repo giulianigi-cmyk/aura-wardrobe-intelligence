@@ -74,6 +74,17 @@ function outerwearOverDressHint(category: string | null, hasDressInOutfit: boole
   return "This outfit includes a dress underneath. Wear this outerwear piece open (unbuttoned/unzipped) or draped over the shoulders, never buttoned or zipped closed over the dress.";
 }
 
+/** Every step: only the garment changes. Faces were coming out reshaped after several chained steps. */
+const KEEP_PERSON_HINT = "Change only the garment. Keep the person's face, facial features, expression, hair, skin and body shape exactly as in the input photo.";
+
+/** A shirt/blouse/cardigan worn over a dress or a base top (t-shirt, tank, camisole): reported as
+ *  coming out buttoned closed over the dress, hiding it. Styled the way it is actually worn. */
+function openLayerHint(underLayer: "dress" | "top" | null | undefined): string {
+  if (!underLayer) return "";
+  const under = underLayer === "dress" ? "the dress" : "the top";
+  return `This shirt is worn as an open layer over ${under} already on the person: leave it unbuttoned and open (or knotted at the waist), with ${under} clearly visible underneath — never button it closed over ${under} and never remove ${under}.`;
+}
+
 /** Web Crypto (crypto.subtle), not node:crypto's createHash — this runs on
  *  Cloudflare Workers, where Web Crypto is a native runtime API rather
  *  than something routed through the nodejs_compat shim. Buffer (used
@@ -227,6 +238,9 @@ async function signPrediction(userId: string, predictionId: string): Promise<str
 const StepInput = z.object({
   modelImageDataUrl: z.string().min(1),
   itemId: z.string(),
+  // What this step's open-front top (shirt, blouse, cardigan) is worn over, when the outfit has one
+  // (tryon-select.ts underLayerFor): it must stay open or knotted so that piece remains visible.
+  underLayer: z.enum(["dress", "top"]).nullable().optional(),
   // Whether this outfit ALSO includes a dress/jumpsuit elsewhere in the
   // chain — the client knows the full item list, this step only ever
   // sees one item at a time, so it can't work this out on its own. Only
@@ -264,7 +278,7 @@ export const startTryOnStep = createServerFn({ method: "POST" })
     }
 
     const result = await submitFashnRun(data.modelImageDataUrl, garmentImage, {
-      prompt: [lengthPromptHint(item.length), outerwearOverDressHint(item.category, data.hasDressInOutfit ?? false)]
+      prompt: [lengthPromptHint(item.length), outerwearOverDressHint(item.category, data.hasDressInOutfit ?? false), openLayerHint(data.underLayer), KEEP_PERSON_HINT]
         .filter(Boolean).join(" ") || undefined,
     });
     if (!result.ok) return { ok: false as const, error: result.error };
