@@ -733,7 +733,7 @@
       "onTrend": "Tendencia",
       "statusPiece": "Pieza de estatus"
     },
-    "differsFrom": "Distinto de tu {{label}}: {{details}}",
+    "differsFrom": "Frente a tu {{label}}, añade: {{details}}",
     "detail": {
       "slingback": "slingback",
       "maryJane": "Mary Jane",
@@ -920,6 +920,8 @@
     "toastWornEntryDeleted": "Eliminado",
     "deleteWornEntryAria": "Eliminar esta entrada",
     "noOutfitPhotosYet": "Aún no hay fotos de looks registradas.",
+    "photoColumnsAria": "{{count}} fotos por fila",
+    "closePhoto": "Cerrar",
     "deleteWornEntryTitle": "¿Eliminar esta entrada?",
     "deleteWornEntryHint": "Esto la quita de tu historial y actualiza cuántas veces se han usado estas prendas.",
     "date": "Fecha",

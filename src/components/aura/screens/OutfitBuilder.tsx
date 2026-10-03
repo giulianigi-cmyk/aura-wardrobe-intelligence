@@ -1209,10 +1209,12 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
               (compose-outfit-canvas.ts: 100px on a 1080px-wide canvas, right edge
               72px from the side). In container units: 100/1080 ≈ 9.25cqmin, margin
               72/1080 ≈ 6.7cqmin (the canvas width is its short side in both
-              ratios). It used to be capped at 34px, so manual outfits came out
+              ratios). Its baseline sits 72/1080 up like the AI canvases' (the line box
+              puts it ≈1.7cqmin above its bottom, hence bottom 5cqmin).
+              It used to be capped at 34px, so manual outfits came out
               with a much smaller logo than the AI ones. Exported as part of the
               canvas, so saved and reopened outfits carry it once. */}
-          <div className="absolute pointer-events-none select-none" style={{ right: "6.7cqmin", bottom: 0 }}>
+          <div className="absolute pointer-events-none select-none" style={{ right: "6.7cqmin", bottom: "5cqmin" }}>
             <span
               className="font-serif italic tracking-tight text-muted-foreground"
               style={{ fontSize: "9.25cqmin", lineHeight: 1 }}

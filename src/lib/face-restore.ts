@@ -217,7 +217,9 @@ export async function restoreOriginalFaceAligned(originalDataUrl: string, genera
     faceCtx.fillRect(0, 0, w, h);
 
     baseCtx.drawImage(faceLayer, 0, 0);
-    return base.toDataURL("image/png");
+    // JPEG, not PNG: a PNG of the 2k try-on result runs past 10 MB and the save step refused it,
+    // so every look whose face restore succeeded failed at the very end.
+    return base.toDataURL("image/jpeg", 0.92);
   } catch (e) {
     console.error("[AURA face-restore] alignment failed, using generated result as-is", e);
     return generatedDataUrl;
