@@ -7,6 +7,11 @@ import { parseAiJson } from "./ai-json";
 import { resolveProductImageUrl } from "./import-url.functions";
 import { analyzeWardrobeImageCore } from "./ai-analyze.functions";
 import { closestOwnedPiece, comparablePieces, ownedPieceLabel, similarOwnedPiece } from "./purchase-similarity";
+import { alreadyOwnedPieces, loadWardrobeFeedback, notSimilarItemIds, productKey } from "./wardrobe-feedback";
+import { ownedEquivalent } from "./gap-ownership";
+
+/** itemId of a "duplicate" that comes from the person's own "Ce l'ho già", not from a wardrobe piece. */
+export const SAID_OWNED_ID = "said-owned";
 import { applyFashionSignals, fashionFacts, fashionPrompt, FashionSignalsSchema, type FashionSignals } from "./purchase-fashion";
 import { isItemAllowedByDressPreferences, hasAnyPreference, type DressPreferences } from "./dress-preferences";
 import { COLOR_PALETTE } from "./color-palette";
@@ -346,11 +351,21 @@ async function resolveProductAndWardrobeFacts(
   // "vernice" that make it a different piece from an owned one of the same kind.
   const productText = [product.title, product.description, ...(product.styleTags ?? []), product.material].filter(Boolean).join(" ");
   const shape = { ...product, text: productText };
-  const dup = similarOwnedPiece(shape, wardrobe);
-  const duplicate = dup ? { verdict: dup.verdict, itemId: dup.itemId, label: dup.label } : null;
-  const closest = closestOwnedPiece(shape, wardrobe);
+  // The person's corrections (wardrobe-feedback.ts): pieces they said are NOT similar to this very
+  // product are left out of the comparison; a kind of piece they said they already own counts as owned.
+  const feedback = await loadWardrobeFeedback(supabase, userId);
+  const excluded = notSimilarItemIds(feedback, productKey(product));
+  const comparableWardrobe = excluded.size ? wardrobe.filter((it) => !excluded.has(it.id)) : wardrobe;
+  const dup = similarOwnedPiece(shape, comparableWardrobe);
+  const saidOwned = product.category
+    ? ownedEquivalent({ category: product.category, subcategory: product.subcategory ?? "", colors: product.colors }, alreadyOwnedPieces(feedback))
+    : null;
+  const duplicate = dup
+    ? { verdict: dup.verdict, itemId: dup.itemId, label: dup.label }
+    : saidOwned ? { verdict: "maybe" as const, itemId: SAID_OWNED_ID, label: "a piece of this kind and colour the person told AURA they already own" } : null;
+  const closest = closestOwnedPiece(shape, comparableWardrobe);
   const differsFrom = closest && closest.differences.length ? { label: closest.label, differences: closest.differences } : null;
-  const comparable = comparablePieces(product, wardrobe);
+  const comparable = comparablePieces(product, comparableWardrobe);
   const similarItemsCount = comparable.length;
   const comparableLabels = comparable.slice(0, 2).map(ownedPieceLabel);
 
@@ -358,7 +373,7 @@ async function resolveProductAndWardrobeFacts(
   // suggestion: zero comparable pieces owned reads as a genuine gap;
   // several near-identical pieces already owned does not, regardless
   // of how nice the new one looks.
-  const wardrobeGap = product.category ? similarItemsCount === 0 : false;
+  const wardrobeGap = product.category ? similarItemsCount === 0 && !saidOwned : false;
 
   const pairsWithCount = product.category ? countPairings(product.category, product.colors, wardrobe) : 0;
 
@@ -709,7 +724,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
       product: { title: r.product.title, brand: r.product.brand, price: r.product.price, currency: r.product.currency, imageUrl: r.product.imageUrl, sourceUrl: r.product.sourceUrl },
       verdict: verdicts[i].verdict,
       confidence: verdicts[i].confidence,
-      wardrobe: { duplicate: r.duplicate?.verdict === "certain", similarTo: r.duplicate?.label || null, differsFrom: r.differsFrom, pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, dressPreferenceViolation: violations[i] },
+      wardrobe: { duplicate: r.duplicate?.verdict === "certain", similarTo: r.duplicate?.itemId === SAID_OWNED_ID ? SAID_OWNED_ID : r.duplicate?.label || null, differsFrom: r.differsFrom, pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, dressPreferenceViolation: violations[i] },
       fashion: r.fashion,
       cacheKey: {
         source: "cached" as const,

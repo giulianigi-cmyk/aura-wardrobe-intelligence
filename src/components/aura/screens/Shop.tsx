@@ -10,6 +10,9 @@ import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 import { analyzeWardrobeGap, type GapSuggestion } from "@/lib/wardrobe-gap.functions";
 import { analyzePurchase, comparePurchases, type PurchaseAdvisorResult, type ComparePurchasesResult, type CachedFacts } from "@/lib/purchase-advisor.functions";
 import { findColorByName } from "@/lib/color-palette";
+import { productKey } from "@/lib/wardrobe-feedback";
+import { colorNameSimilarity } from "@/lib/outfit-match";
+import { toast } from "sonner";
 
 type LinkMode = "url" | "photo" | "label";
 // The comparison slots deliberately support only the two most common ways someone has a specific
@@ -40,6 +43,11 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
   const [error, setError] = useState<string | null>(null);
   const [itemsById, setItemsById] = useState<Record<string, WardrobeItem>>({});
   const [signed, setSigned] = useState<Record<string, string>>({});
+  // "Ce l'ho già" on the gap suggestion: pick which owned piece it is (or say it isn't uploaded).
+  const [gapRefresh, setGapRefresh] = useState(0);
+  const [ownPickerOpen, setOwnPickerOpen] = useState(false);
+  const [ownCandidatesSigned, setOwnCandidatesSigned] = useState<Record<string, string>>({});
+  const [savingFeedback, setSavingFeedback] = useState(false);
 
   // ---- Purchase Advisor state ----
   const [advisorMode, setAdvisorMode] = useState<"single" | "compare">("single");
@@ -181,6 +189,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
             style: it.style ? (Array.isArray(it.style) ? it.style : [it.style]) : [],
             brand: it.brand ?? null,
             model: (it as { model?: string | null }).model ?? null,
+            details: (it as { details?: string[] | null }).details ?? null,
           })),
         },
       });
@@ -193,7 +202,79 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
       }
       setLoading(false);
     })();
-  }, [user]);
+  }, [user, gapRefresh]);
+
+  // ---- Corrections (wardrobe-feedback.ts) ----
+  const ownCandidates = suggestion
+    ? Object.values(itemsById)
+        .filter((it) => it.category === suggestion.category && !(it as { archived?: boolean }).archived)
+        .map((it) => ({ it, score: Math.max(0, ...suggestion.colors.flatMap((c) => (it.colors ?? []).map((o) => (o === c ? 1 : colorNameSimilarity(c, o) ?? 0)))) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 24)
+        .map((x) => x.it)
+    : [];
+
+  const openOwnPicker = async () => {
+    setOwnPickerOpen(true);
+    if (ownCandidates.length) setOwnCandidatesSigned(await resolveWardrobeUrls(ownCandidates));
+  };
+
+  /** "Ce l'ho già": remembered for this person, and when they point at the piece and its type was
+   *  missing, the type (and for bags how it's carried) is written on it — that's what they said. */
+  const saveAlreadyOwn = async (ownedItem: WardrobeItem | null) => {
+    if (!user || !suggestion || savingFeedback) return;
+    setSavingFeedback(true);
+    try {
+      const { error } = await supabase.from("wardrobe_feedback").insert({
+        user_id: user.id, kind: "already_own", category: suggestion.category, subcategory: suggestion.subcategory,
+        colors: suggestion.colors, owned_item_id: ownedItem?.id ?? null,
+      });
+      if (error) throw error;
+      if (ownedItem) {
+        const edited = (ownedItem as { user_edited_fields?: string[] | null }).user_edited_fields ?? [];
+        const patch: Record<string, unknown> = {};
+        if (!ownedItem.subcategory) {
+          patch.subcategory = suggestion.subcategory;
+          patch.user_edited_fields = [...new Set([...edited, "subcategory"])];
+        }
+        const carry = suggestion.category === "Bags" && (suggestion.subcategory === "Crossbody" ? "crossbody" : suggestion.subcategory === "Shoulder Bag" ? "shoulder" : null);
+        const details = (ownedItem as { details?: string[] | null }).details ?? [];
+        if (carry && !details.includes(carry)) patch.details = [...details, carry];
+        if (Object.keys(patch).length) await supabase.from("wardrobe_items").update(patch as never).eq("id", ownedItem.id);
+      }
+      setOwnPickerOpen(false);
+      toast.success(t("shop.feedbackSaved"));
+      setGapRefresh((n) => n + 1);
+    } catch (e) {
+      console.error("[AURA shop] feedback save failed", e);
+      toast.error(t("shop.feedbackFailed"));
+    } finally {
+      setSavingFeedback(false);
+    }
+  };
+
+  /** Purchase advisor corrections: "Non è simile" (that owned piece isn't like this product) or
+   *  "Ce l'ho già" (I already own one like it). The analysis is then run again. */
+  const saveAdvisorFeedback = async (kind: "not_similar" | "already_own") => {
+    if (!user || !result || !result.ok || savingFeedback) return;
+    setSavingFeedback(true);
+    try {
+      const { error } = await supabase.from("wardrobe_feedback").insert({
+        user_id: user.id, kind,
+        category: result.analysis.category, subcategory: result.analysis.subcategory, colors: result.analysis.colors,
+        product_key: productKey(result.product),
+        owned_item_id: kind === "not_similar" && result.wardrobe.duplicate && result.wardrobe.duplicate.itemId !== "said-owned" ? result.wardrobe.duplicate.itemId : null,
+      });
+      if (error) throw error;
+      toast.success(t("shop.feedbackSaved"));
+      void runCheck();
+    } catch (e) {
+      console.error("[AURA shop] feedback save failed", e);
+      toast.error(t("shop.feedbackFailed"));
+    } finally {
+      setSavingFeedback(false);
+    }
+  };
 
   return (
     <div className="h-full overflow-y-auto no-scrollbar pb-28">
@@ -317,7 +398,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                             {it.verdict === "buy" ? t("shop.verdictBuy") : it.verdict === "maybe" ? t("shop.verdictMaybe") : t("shop.verdictSkip")}
                           </div>
                           {it.wardrobe.similarTo && !it.wardrobe.differsFrom && (
-                            <p className="mt-1 text-[11px] text-muted-foreground leading-snug">{t("shop.similarTo", { label: it.wardrobe.similarTo })}</p>
+                            <p className="mt-1 text-[11px] text-muted-foreground leading-snug">{it.wardrobe.similarTo === "said-owned" ? t("shop.saidOwned") : t("shop.similarTo", { label: it.wardrobe.similarTo })}</p>
                           )}
                           <FashionAndDifferences fashion={it.fashion} differsFrom={it.wardrobe.differsFrom} />
                         </div>
@@ -463,6 +544,18 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
               </div>
               <FashionAndDifferences fashion={result.fashion} differsFrom={result.wardrobe.differsFrom} />
               <p className="mt-2 text-sm text-foreground/80 leading-relaxed">{result.reason}</p>
+              {/* Corrections: remembered for this person and the analysis runs again. */}
+              {result.analysis.category && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {result.wardrobe.duplicate && result.wardrobe.duplicate.itemId !== "said-owned" ? (
+                    <button disabled={savingFeedback || checking} onClick={() => void saveAdvisorFeedback("not_similar")}
+                      className="h-8 px-3 rounded-full border border-border text-[10px] uppercase tracking-widest text-muted-foreground disabled:opacity-60">{t("shop.notSimilar")}</button>
+                  ) : !result.wardrobe.duplicate ? (
+                    <button disabled={savingFeedback || checking} onClick={() => void saveAdvisorFeedback("already_own")}
+                      className="h-8 px-3 rounded-full border border-border text-[10px] uppercase tracking-widest text-muted-foreground disabled:opacity-60">{t("shop.alreadyOwnSimilar")}</button>
+                  ) : null}
+                </div>
+              )}
 
               {/* A dress-preference violation is a hard, explicit personal
                   rule, not an AI opinion — never blend it in with the other
@@ -475,11 +568,17 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
               )}
 
               <div className="mt-3 space-y-1 text-[11px] text-muted-foreground">
-                {result.wardrobe.duplicate?.verdict === "certain" && (
-                  <p className="font-medium text-foreground/80">{result.wardrobe.duplicate.label ? t("shop.duplicateOf", { label: result.wardrobe.duplicate.label }) : t("shop.looksLikeDuplicate")}</p>
-                )}
-                {result.wardrobe.duplicate?.verdict === "maybe" && !result.wardrobe.differsFrom && (
-                  <p>{result.wardrobe.duplicate.label ? t("shop.similarTo", { label: result.wardrobe.duplicate.label }) : t("shop.looksSimilarToOwned")}</p>
+                {result.wardrobe.duplicate?.itemId === "said-owned" ? (
+                  <p>{t("shop.saidOwned")}</p>
+                ) : (
+                  <>
+                    {result.wardrobe.duplicate?.verdict === "certain" && (
+                      <p className="font-medium text-foreground/80">{result.wardrobe.duplicate.label ? t("shop.duplicateOf", { label: result.wardrobe.duplicate.label }) : t("shop.looksLikeDuplicate")}</p>
+                    )}
+                    {result.wardrobe.duplicate?.verdict === "maybe" && !result.wardrobe.differsFrom && (
+                      <p>{result.wardrobe.duplicate.label ? t("shop.similarTo", { label: result.wardrobe.duplicate.label }) : t("shop.looksSimilarToOwned")}</p>
+                    )}
+                  </>
                 )}
                 {result.wardrobe.pairsWithCount > 0 && (
                   <p>{t("shop.wouldPairWithLink", { count: result.wardrobe.pairsWithCount })}</p>
@@ -541,11 +640,45 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                   />
                 ))}
               </div>
-              <button
-                onClick={() => go("add")}
-                className="mt-5 h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center gap-2"
-              ><Plus size={12} /> {t("shop.addThisPiece")}</button>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <button
+                  onClick={() => go("add")}
+                  className="h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center gap-2"
+                ><Plus size={12} /> {t("shop.addThisPiece")}</button>
+                <button
+                  onClick={() => void openOwnPicker()}
+                  className="h-11 px-5 rounded-full border border-foreground/40 text-[10px] uppercase tracking-[0.3em] inline-flex items-center gap-2"
+                ><Check size={12} /> {t("shop.alreadyOwnIt")}</button>
+              </div>
             </div>
+
+            {ownPickerOpen && (
+              <div className="fixed inset-0 z-[70] bg-background/80 backdrop-blur flex items-end justify-center" onClick={() => setOwnPickerOpen(false)}>
+                <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-lg max-h-[80dvh] overflow-y-auto bg-card rounded-t-3xl border-t border-border p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+                  <p className="font-serif italic text-lg">{t("shop.whichOneIsIt")}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{t("shop.whichOneHint")}</p>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {ownCandidates.map((it) => {
+                      const path = toStoragePath(it.image_url);
+                      const src = path ? ownCandidatesSigned[path] : null;
+                      return (
+                        <button key={it.id} disabled={savingFeedback} onClick={() => void saveAlreadyOwn(it)} className="text-left active:scale-95 disabled:opacity-60">
+                          <div className="aspect-square rounded-xl overflow-hidden bg-white border border-border/60">
+                            {src && <img src={src} alt="" className="h-full w-full object-contain p-1" />}
+                          </div>
+                          <p className="mt-1 text-[10px] truncate">{[it.brand, it.colors?.[0]].filter(Boolean).join(" · ")}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    disabled={savingFeedback}
+                    onClick={() => void saveAlreadyOwn(null)}
+                    className="mt-4 w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.25em] disabled:opacity-60"
+                  >{t("shop.notUploadedYet")}</button>
+                </div>
+              </div>
+            )}
 
             {suggestion.pairsWithIds.length > 0 && (
               <div className="mt-6">

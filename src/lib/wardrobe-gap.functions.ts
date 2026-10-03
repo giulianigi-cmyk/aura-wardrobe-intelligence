@@ -6,6 +6,7 @@ import { ITEM_CATEGORIES, SUBCATEGORY_OPTIONS } from "./wardrobe-options";
 import { COLOR_NAMES, COLOR_PALETTE } from "./color-palette";
 import { parseAiJson } from "./ai-json";
 import { ownedEquivalent } from "./gap-ownership";
+import { alreadyOwnedPieces, loadWardrobeFeedback } from "./wardrobe-feedback";
 
 const ItemSchema = z.object({
   id: z.string(),
@@ -15,6 +16,7 @@ const ItemSchema = z.object({
   style: z.array(z.string()).nullable().optional(),
   brand: z.string().nullable().optional(),
   model: z.string().nullable().optional(),
+  details: z.array(z.string()).nullable().optional(),
 });
 
 // This engine had no language handling at all — every suggestion came out in English regardless
@@ -155,12 +157,16 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
       style: it.style ?? [],
       ...(it.brand ? { brand: it.brand } : {}),
       ...(it.model ? { model: it.model } : {}),
+      ...(it.details?.length ? { details: it.details } : {}),
     }));
 
     // Ownership is checked in code after every suggestion (gap-ownership.ts): same category, a type
     // that does the same job (a shoulder bag is worn crossbody too) or no type on file, and a
     // colour that reads the same (Jet Black = Black). The old exact subcategory + colour-name
     // index missed a black YSL bag with no type on file and suggested a "black crossbody bag".
+
+    // "Ce l'ho già" given earlier on a suggestion: counts as owned (wardrobe-feedback.ts).
+    const saidOwned = alreadyOwnedPieces(await loadWardrobeFeedback(context.supabase, context.userId));
 
     const system = [
       "You are an elegant, knowledgeable personal stylist looking at this person's real wardrobe catalog to spot ONE genuinely missing piece — a category + subcategory + color combination that is absent or clearly under-represented, and that would meaningfully increase how many outfits they could put together.",
@@ -224,7 +230,7 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
         const validSubcats = SUBCATEGORY_OPTIONS[candCategory] ?? [];
         const candSubcategory = validSubcats.includes(candidate.subcategory) ? candidate.subcategory : (validSubcats[0] ?? candidate.subcategory);
         const candColors = candidate.colors.filter((c) => COLOR_NAMES.includes(c));
-        const owner = ownedEquivalent({ category: candCategory, subcategory: candSubcategory, colors: candColors }, data.items);
+        const owner = ownedEquivalent({ category: candCategory, subcategory: candSubcategory, colors: candColors }, [...data.items, ...saidOwned]);
         const alreadyOwned = !!owner;
 
         if (!alreadyOwned) {

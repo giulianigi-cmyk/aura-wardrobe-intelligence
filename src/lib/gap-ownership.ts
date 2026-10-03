@@ -5,7 +5,7 @@
 // whether a suggested piece is already owned.
 import { colorNameSimilarity } from "./outfit-match";
 
-export type OwnedLike = { id?: string; category?: string | null; subcategory?: string | null; colors?: string[] | null; model?: string | null; brand?: string | null };
+export type OwnedLike = { id?: string; category?: string | null; subcategory?: string | null; colors?: string[] | null; model?: string | null; brand?: string | null; details?: string[] | null };
 
 /** Owned subcategories that already do the job of the suggested one. */
 const COVERED_BY: Record<string, string[]> = {
@@ -30,6 +30,10 @@ function subcategoryCovers(suggested: string, owned: OwnedLike): boolean {
   if (sub === suggested) return true;
   if ((COVERED_BY[suggested] ?? []).includes(sub)) return true;
   if ((suggested === "Crossbody" || suggested === "Shoulder Bag") && STRAP_WORDS.test(`${owned.model ?? ""}`)) return true;
+  // how the bag can actually be carried, from the photo analysis (garment-details.ts)
+  const carry = owned.details ?? [];
+  if (suggested === "Crossbody" && carry.includes("crossbody")) return true;
+  if (suggested === "Shoulder Bag" && carry.includes("shoulder")) return true;
   return false;
 }
 

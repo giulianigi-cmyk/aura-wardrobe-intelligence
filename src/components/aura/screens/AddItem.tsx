@@ -304,6 +304,9 @@ export function AddItem({ onClose, initialGarment }: {
   const [closure, setClosure] = useState("");
   const [gender, setGender] = useState("");
     const [styleTags, setStyleTags] = useState<string[]>([]);
+    // Construction details / bag carry found by the photo analysis (garment-details.ts). null =
+    // not analysed (the background completion job will add them).
+    const [details, setDetails] = useState<string[] | null>(null);
   const [formality, setFormality] = useState<number | null>(null);
   const [dayEvening, setDayEvening] = useState("");
   const [colors, setColors] = useState<string[]>([]);
@@ -329,7 +332,7 @@ export function AddItem({ onClose, initialGarment }: {
   const resetFields = () => {
     setBrand(""); setSize(""); setCategory("Tops"); setSubcategory(""); setColors([]);
     setLength(""); setSleeveLength(""); setFit(""); setHeelHeight(""); setToeShape("");
-        setClosure(""); setGender(""); setStyleTags([]);
+        setClosure(""); setGender(""); setStyleTags([]); setDetails(null);
     setFormality(null); setDayEvening("");
     setSeasons([]); setStyles([]); setOccasions([]); setMaterials([]);
     setPrice(""); setCurrency("EUR"); setComposition([]);
@@ -395,6 +398,7 @@ export function AddItem({ onClose, initialGarment }: {
         if (result.closure) setClosure(result.closure);
         if (result.gender) setGender(result.gender);
                 if (result.styleTags?.length) setStyleTags(result.styleTags);
+                setDetails(result.details ?? []);
         if (result.formality != null) setFormality(result.formality);
         if (result.dayEvening) setDayEvening(result.dayEvening);
                 if (result.colors?.length && !fromLibrary) setColors(result.colors);
@@ -848,6 +852,7 @@ export function AddItem({ onClose, initialGarment }: {
         closure: closure || null,
                 gender: gender || null,
         style_tags: styleTags,
+        details,
                 formality: formality,
         day_evening: dayEvening || null,
         purchase_date: purchaseDate || null,

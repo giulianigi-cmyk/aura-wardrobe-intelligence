@@ -24,3 +24,9 @@ test("a genuinely missing piece is still suggested", () => {
   assert.equal(ownedEquivalent({ category: "Bags", subcategory: "Crossbody", colors: ["Navy"] }, bags), null); // navy ≠ black
   assert.equal(ownedEquivalent({ category: "Bags", subcategory: "Clutch", colors: ["Jet Black"] }, bags.filter((b) => b.subcategory)), null);
 });
+
+test("a top-handle bag whose analysis says it has a crossbody strap covers 'crossbody'", () => {
+  const owned = [{ id: "coco", category: "Bags", subcategory: "Top Handle Bag", colors: ["Burgundy"], details: ["handheld", "crossbody"] }];
+  assert.equal(ownedEquivalent({ category: "Bags", subcategory: "Crossbody", colors: ["Burgundy"] }, owned)?.id, "coco");
+  assert.equal(ownedEquivalent({ category: "Bags", subcategory: "Crossbody", colors: ["Burgundy"] }, [{ ...owned[0], details: ["handheld"] }]), null);
+});
