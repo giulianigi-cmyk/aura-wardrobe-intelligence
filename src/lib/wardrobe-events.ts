@@ -239,9 +239,12 @@ export async function deleteWornEvent(
     .delete().eq("event_id", eventId);
   if (itemsErr) return { error: itemsErr.message };
 
-  const { error: eventErr } = await (supabase.from("wardrobe_events" as never) as any)
-    .delete().eq("id", eventId).eq("user_id", userId);
+  // .select() so a delete that matched nothing (e.g. blocked by a missing RLS policy, which
+  // returns no error) is reported instead of looking like a success.
+  const { data: deleted, error: eventErr } = await (supabase.from("wardrobe_events" as never) as any)
+    .delete().eq("id", eventId).eq("user_id", userId).select("id");
   if (eventErr) return { error: eventErr.message };
+  if (!deleted?.length) return { error: "wardrobe event not deleted" };
 
   await recomputeWearStats(itemIds, userId);
   return { error: null };
@@ -262,10 +265,11 @@ export async function updateWornEvent(
   nextDate: string,
   userId: string,
 ): Promise<{ error: string | null }> {
-  const { error: dateErr } = await (supabase.from("wardrobe_events" as never) as any)
+  const { data: updated, error: dateErr } = await (supabase.from("wardrobe_events" as never) as any)
     .update({ event_date: nextDate })
-    .eq("id", eventId).eq("user_id", userId);
+    .eq("id", eventId).eq("user_id", userId).select("id");
   if (dateErr) return { error: dateErr.message };
+  if (!updated?.length) return { error: "wardrobe event not updated" };
 
   const previousSet = new Set(previousItemIds);
   const nextSet = new Set(nextItemIds);

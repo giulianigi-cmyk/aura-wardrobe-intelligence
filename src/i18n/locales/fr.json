@@ -891,7 +891,9 @@
     "toastWornEntryUpdated": "Mis à jour",
     "addAPiece": "Ajouter une pièce",
     "couldntUpdateOutfit": "Impossible de mettre à jour la tenue",
-    "sizeLabel": "Taille {{size}}"
+    "sizeLabel": "Taille {{size}}",
+    "toastWornEntryUpdateFailed": "Impossible d'enregistrer les modifications. Réessaie.",
+    "toastWornEntryDeleteFailed": "Impossible de la supprimer. Réessaie."
   },
   "outfitBuilder": {
     "itemNoImage": "Cet article n'a pas encore d'image",
