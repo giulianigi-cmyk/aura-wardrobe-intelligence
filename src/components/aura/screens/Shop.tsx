@@ -722,11 +722,20 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
  *  one of the same kind — shown under a verdict so it's clear what the advice is based on. */
 function FashionAndDifferences({ fashion, differsFrom }: {
   fashion: { iconic: boolean; timeless: boolean; onTrend: boolean; statusPiece: boolean } | null | undefined;
-  differsFrom: { label: string; differences: string[] } | null | undefined;
+  differsFrom: { label: string; differences: string[]; wear?: { changes: string[]; newOccasions: string[] } | null } | null | undefined;
 }) {
   const { t } = useTranslation();
   const chips = fashion ? (["iconic", "timeless", "onTrend", "statusPiece"] as const).filter((k) => fashion[k]) : [];
-  if (!chips.length && !differsFrom) return null;
+  // How it is worn differently from the closest owned piece (heel, day/evening, occasions) — not the
+  // list of construction details it "adds", which read as a description of the owned piece.
+  const wear = differsFrom?.wear;
+  const wearBits = wear
+    ? [
+        ...wear.changes.map((c) => t(`shop.wear.${c}`)),
+        ...(wear.newOccasions.length ? [t("shop.wear.alsoFor", { occasions: wear.newOccasions.map((o) => t(`shop.occasion.${o.replace(/\s+/g, "")}`, { defaultValue: o })).join(", ") })] : []),
+      ]
+    : [];
+  if (!chips.length && !wearBits.length) return null;
   return (
     <div className="mt-1.5 space-y-1">
       {chips.length > 0 && (
@@ -736,12 +745,9 @@ function FashionAndDifferences({ fashion, differsFrom }: {
           ))}
         </div>
       )}
-      {differsFrom && (
+      {differsFrom && wearBits.length > 0 && (
         <p className="text-[11px] text-muted-foreground leading-snug">
-          {t("shop.differsFrom", {
-            label: differsFrom.label,
-            details: differsFrom.differences.map((d) => t(`shop.detail.${d}`, { defaultValue: d })).join(", "),
-          })}
+          {t("shop.wornDifferently", { label: differsFrom.label, details: wearBits.join(", ") })}
         </p>
       )}
     </div>

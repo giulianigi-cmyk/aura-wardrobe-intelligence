@@ -43,8 +43,9 @@ export const DETAIL_WORDS_FOR_KEY: Record<string, string> = Object.fromEntries([
 
 // Parts of a retailer description about the lining, the sole or the insole ("fodera in camoscio",
 // "suola in cuoio", "leather lining"): they say nothing about how the piece looks, and read as a
-// detail they made a patent shoe look "suede".
-const HIDDEN_PART = /\b(fodera|foderat\w*|suola|soletta|sottopiede|plantare|interno|lining|lined|insole|outsole|sole|forro|suela|plantilla|doublure|semelle|intérieur)\b[^.,;:\n]*/g;
+// detail they made a patent shoe look "suede". Same for other versions on offer ("disponibile
+// anche in camoscio").
+const HIDDEN_PART = /\b(disponibile|also available|available in|disponible|fodera|foderat\w*|suola|soletta|sottopiede|plantare|interno|lining|lined|insole|outsole|sole|forro|suela|plantilla|doublure|semelle|intérieur)\b[^.,;:\n]*/g;
 // English puts the material first: "suede lining", "leather sole".
 const HIDDEN_PART_BEFORE = /\b[\w-]+\s+(lining|insole|outsole|sole)\b/g;
 

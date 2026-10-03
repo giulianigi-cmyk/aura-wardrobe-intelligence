@@ -733,7 +733,33 @@
       "onTrend": "Di tendenza",
       "statusPiece": "Pezzo status"
     },
-    "differsFrom": "Rispetto al tuo {{label}} ha in più: {{details}}",
+    "wornDifferently": "Rispetto al tuo {{label}}: {{details}}",
+    "wear": {
+      "higherHeel": "tacco più alto",
+      "lowerHeel": "tacco più basso",
+      "moreEvening": "più da sera",
+      "moreDaytime": "più da giorno",
+      "moreFormal": "più elegante",
+      "moreCasual": "più casual",
+      "alsoFor": "anche per {{occasions}}"
+    },
+    "occasion": {
+      "Everyday": "tutti i giorni",
+      "Work": "lavoro",
+      "BusinessCasual": "business casual",
+      "BusinessFormal": "business formale",
+      "SmartCasual": "smart casual",
+      "Evening": "sera",
+      "Cocktail": "cocktail",
+      "BlackTie": "black tie",
+      "WeddingGuest": "invitata a un matrimonio",
+      "GardenParty": "garden party",
+      "Weekend": "weekend",
+      "Travel": "viaggio",
+      "Resort": "vacanza",
+      "Formal": "occasioni formali",
+      "Sport": "sport"
+    },
     "detail": {
       "slingback": "slingback",
       "maryJane": "Mary Jane",

@@ -16,3 +16,7 @@ test("a generic strap is not an ankle strap; the ankle wording is", () => {
 test("the upper's own material still counts", () => {
   assert.equal(detailsIn("Mocassini in camoscio, suola in gomma").has("suede"), true);
 });
+
+test("other versions on offer are not details of this one", () => {
+  assert.deepEqual([...detailsIn("Slingback in vernice nera. Disponibile anche in camoscio")].sort(), ["patent", "slingback"]);
+});
