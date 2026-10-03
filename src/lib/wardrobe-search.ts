@@ -195,3 +195,15 @@ export function searchWardrobe<T extends SearchableItem>(message: string, items:
 export function pieceLabel(it: SearchableItem): string {
   return [it.brand, (it.colors ?? [])[0], it.subcategory || it.category, it.model].filter(Boolean).join(" · ");
 }
+
+/** English words a single search word stands for ("lino" → linen, "nera" → black and its shades),
+ *  for simple text filters over stored (English) values. */
+export function expandSearchWord(word: string): string[] {
+  const w = normalizeText(word);
+  if (!w) return [];
+  const out = new Set<string>([w]);
+  for (const [k, words] of Object.entries(COLOR_WORDS)) if (words.some((x) => normalizeText(x) === w)) (COLOR_STORED[k] ?? [k]).forEach((s) => out.add(s));
+  for (const [k, words] of Object.entries(MATERIAL_WORDS)) if (words.some((x) => normalizeText(x) === w)) out.add(k);
+  for (const [k, words] of Object.entries(TYPE_WORDS)) if (words.some((x) => normalizeText(x) === w)) k.split("/").forEach((s) => out.add(normalizeText(s)));
+  return [...out];
+}

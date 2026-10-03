@@ -1056,30 +1056,30 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         </div>
       )}
       {anchorItem && (
-        <div className="mx-6 mt-2 rounded-2xl border border-border/60 bg-card px-3 py-2 flex items-center gap-3">
+        <div className="mx-6 mt-2 rounded-2xl border border-border/60 bg-card px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-2">
           {(() => {
             const path = toStoragePath(anchorItem.image_url);
             const url = path ? signed[path] : "";
             return url ? <img src={url} alt="" className="h-10 w-10 rounded-lg object-contain bg-secondary/40 shrink-0" /> : null;
           })()}
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("outfitBuilder.anchorLabel")}</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground whitespace-nowrap">{t("outfitBuilder.anchorLabel")}</p>
             <p className="text-sm truncate">{[anchorItem.brand, anchorItem.subcategory ?? anchorItem.category, anchorItem.color].filter(Boolean).join(" · ")}</p>
           </div>
-          <button
-            onClick={() => { if (occasion) void aiSuggest(); else setOccasionAsk("pick"); }}
-            disabled={aiBusy || loading}
-            className="h-8 px-3 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] inline-flex items-center gap-1.5 disabled:opacity-50 shrink-0"
-          >
-            {aiBusy ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-            {t("outfitBuilder.anchorGenerate")}
-          </button>
           <button
             onClick={() => setAnchorItemId(null)}
             aria-label={t("outfitBuilder.anchorRelease")}
             title={t("outfitBuilder.anchorRelease")}
             className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground shrink-0"
           ><X size={13} /></button>
+          <button
+            onClick={() => { if (occasion) void aiSuggest(); else setOccasionAsk("pick"); }}
+            disabled={aiBusy || loading}
+            className="w-full h-9 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+          >
+            {aiBusy ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+            {t("outfitBuilder.anchorGenerate")}
+          </button>
         </div>
       )}
       {aiExplanation && (

@@ -7,7 +7,7 @@ import type { WardrobeItem } from "@/lib/aura-types";
 import { useAuth } from "@/hooks/use-auth";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 import { ColorWheelPicker } from "@/components/ColorWheelPicker";
-import { normalizeText, searchWardrobe } from "@/lib/wardrobe-search";
+import { expandSearchWord, normalizeText, searchWardrobe } from "@/lib/wardrobe-search";
 
 /**
  * Dedicated, discoverable entry point for color analysis — separate from
@@ -33,7 +33,7 @@ export function ColorLab({ go }: { go: (s: Screen) => void }) {
     return items.filter((it) => {
       if (bySynonyms.has(it.id)) return true;
       const hay = normalizeText([it.brand, it.model, it.category, it.subcategory, it.color, ...(it.colors ?? []), ...(Array.isArray(it.material) ? it.material : [])].filter(Boolean).join(" "));
-      return tokens.every((tk) => hay.includes(tk));
+      return tokens.every((tk) => expandSearchWord(tk).some((w) => hay.includes(w)));
     });
   }, [items, query]);
 

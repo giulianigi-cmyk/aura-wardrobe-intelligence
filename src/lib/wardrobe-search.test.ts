@@ -79,3 +79,11 @@ test("usage tags: day/work-only vs evening-only", () => {
   assert.equal(isEveningOnlyUsage(["Cocktail", "Work"], "evening"), false);
   assert.equal(isEveningOnlyUsage(["Evening"], "both"), false);
 });
+
+import { expandSearchWord } from "./wardrobe-search";
+test("single search words expand to the stored English values", () => {
+  assert.ok(expandSearchWord("lino").includes("linen"));
+  assert.ok(expandSearchWord("nera").includes("black"));
+  assert.ok(expandSearchWord("gonna").includes("skirt"));
+  assert.deepEqual(expandSearchWord("zara"), ["zara"]);
+});
