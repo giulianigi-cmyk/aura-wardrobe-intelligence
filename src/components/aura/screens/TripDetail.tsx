@@ -152,6 +152,17 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
 
   const culturalNotes = useMemo(() => matchCulturalDressNotes(destinations.map((d) => d.destination_name)), [destinations]);
   const visibleCulturalNotes = culturalNotes.filter((n) => !dismissedNotes.includes(n.countryKeywords[0]));
+  // Adapt (or stop adapting) this trip's outfits to local customs — the same choice TripCreate asks
+  // for, changeable here for trips created before the question existed. Takes effect on the next
+  // outfit generation; existing outfits are not touched.
+  const toggleCulturalMode = async () => {
+    if (!trip) return;
+    const next = !trip.cultural_mode;
+    const { error } = await supabase.from("trips").update({ cultural_mode: next }).eq("id", trip.id);
+    if (error) { toast.error(error.message); return; }
+    setTrip({ ...trip, cultural_mode: next });
+    toast.success(t(next ? "tripDetail.culturalNowAdapting" : "tripDetail.culturalNowNotAdapting"));
+  };
 
   // Scroll the notification's activity into view once its card is mounted.
   useEffect(() => {
@@ -1288,14 +1299,24 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
         {visibleCulturalNotes.length > 0 && (
           <div className="mb-4 rounded-2xl border border-border/60 bg-secondary/40 p-3.5 space-y-3">
             {visibleCulturalNotes.map((note) => {
-              const country = note.countryKeywords[0].replace(/\b\w/g, (c) => c.toUpperCase());
+              const country = note.country;
               return (
                 <div key={note.countryKeywords[0]} className="flex items-start gap-2.5">
                   <Info size={16} className="shrink-0 mt-0.5 text-muted-foreground" />
-                  <p className="flex-1 text-[12px] leading-relaxed text-muted-foreground">
-                    <span className="font-medium text-foreground">{t("tripDetail.tipLabel")}: {country}</span>{" "}
-                    {note.message}
-                  </p>
+                  <div className="flex-1 text-[12px] leading-relaxed text-muted-foreground">
+                    <p>
+                      <span className="font-medium text-foreground">{t("tripDetail.tipLabel")}: {country}</span>{" "}
+                      {t(note.level === "strict" ? "tripDetail.culturalStrict" : "tripDetail.culturalConservative")}
+                      {note.advisory === "head_covering" ? ` ${t("tripDetail.culturalHeadCovering")}` : ""}
+                    </p>
+                    <p className="mt-1">
+                      {trip?.cultural_mode ? t("tripDetail.culturalAdapting") : t("tripDetail.culturalNotAdapting")}{" "}
+                      <button
+                        onClick={() => void toggleCulturalMode()}
+                        className="underline text-foreground"
+                      >{trip?.cultural_mode ? t("tripDetail.culturalStopAdapting") : t("tripDetail.culturalStartAdapting")}</button>
+                    </p>
+                  </div>
                   <button
                     onClick={() => setDismissedNotes((prev) => [...prev, note.countryKeywords[0]])}
                     aria-label={t("tripDetail.hideNoteAria")}

@@ -1262,7 +1262,10 @@
     "setUpEssentialsListHint": "Configurez une liste d'essentiels (documents, chargeur…) à réutiliser à chaque voyage",
     "createTrip": "Créer le voyage",
     "culturalMode": "Sensibilité culturelle locale",
-    "culturalModeHint": "Si oui, AURA laisse les coutumes locales influencer légèrement le classement des tenues pendant ce voyage — jamais une règle figée, et toute exigence réelle d'un lieu (ex. le code vestimentaire d'une mosquée) reste toujours respectée, quel que soit ce choix."
+    "culturalModeHint": "Si vous choisissez oui, pour les jours passés dans ce pays AURA écarte des tenues les pièces qui ne respectent pas les usages locaux (épaules ou genoux découverts, shorts, mini-jupes ; là où les normes sont plus strictes, aussi les manches courtes et les coupes ajustées). Le code vestimentaire d'un lieu précis, comme une mosquée ou une église, est toujours respecté, quel que soit votre choix.",
+    "culturalQuestion": "Ce voyage comprend un pays aux normes vestimentaires plus conservatrices ({{countries}}). Voulez-vous qu'AURA adapte les tenues aux usages locaux pour ces jours-là ?",
+    "culturalAdaptYes": "Oui, adapter",
+    "culturalAdaptNo": "Non, mon style"
   },
   "outfitScan": {
     "lookingAtOutfit": "Analyse de votre tenue…",
@@ -1931,7 +1934,16 @@
     "selectNone": "Aucun",
     "selectedCount_one": "{{count}} sélectionné",
     "selectedCount_other": "{{count}} sélectionnés",
-    "uncategorized": "Autre"
+    "uncategorized": "Autre",
+    "culturalConservative": "Ici, les épaules et les genoux couverts sont appréciés en public, surtout hors des resorts et dans les lieux religieux.",
+    "culturalStrict": "Ici, les normes sont strictes : épaules, bras et jambes couverts, pas de coupes ajustées.",
+    "culturalHeadCovering": "Les femmes doivent aussi se couvrir les cheveux.",
+    "culturalAdapting": "AURA adapte les tenues de ces jours-là.",
+    "culturalNotAdapting": "AURA n'adapte pas les tenues (votre choix).",
+    "culturalStartAdapting": "Adapter",
+    "culturalStopAdapting": "Ne pas adapter",
+    "culturalNowAdapting": "C'est fait : les prochaines tenues générées pour ces jours respecteront les usages locaux.",
+    "culturalNowNotAdapting": "C'est fait : les prochaines tenues ne seront pas adaptées."
   },
   "materials": {
     "Cotton": "Coton",

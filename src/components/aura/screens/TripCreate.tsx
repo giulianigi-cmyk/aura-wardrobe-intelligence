@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Loader2, Briefcase, Palmtree, Shuffle, Plus, X } from "lucide-react";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import { listEssentialPresets, type EssentialPreset } from "@/lib/essentials.fun
 import { useWardrobeLocations } from "@/lib/wardrobe-locations-query";
 import type { WardrobeLocation } from "@/lib/wardrobe-location";
 import { searchDestinations, type DestinationSearchResult } from "@/lib/destination-search";
+import { matchCulturalDressNotes } from "@/lib/cultural-dress-notes";
 
 const TYPE_KEYS: { value: TripType; labelKey: string; icon: typeof Briefcase }[] = [
   { value: "work", labelKey: "tripCreate.typeWork", icon: Briefcase },
@@ -53,7 +54,9 @@ export function TripCreate({ go, onCreated }: { go: (s: Screen) => void; onCreat
   const [legs, setLegs] = useState<Leg[]>(() => [blankLeg(todayIso())]);
   const searchTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [laundryAvailable, setLaundryAvailable] = useState(false);
-  const [culturalMode, setCulturalMode] = useState(false);
+  // null = not answered yet. Only asked when a destination is in a country with more conservative
+  // dress norms (cultural-dress-notes.ts); the answer is then required before creating the trip.
+  const [culturalMode, setCulturalMode] = useState<boolean | null>(null);
 
   // Shared cache (see wardrobe-locations-query.ts) — same key
   // AIStylist/TripDetail read from.
@@ -122,8 +125,10 @@ export function TripCreate({ go, onCreated }: { go: (s: Screen) => void; onCreat
   const togglePreset = (id: string) =>
     setSelectedPresetIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
+  const culturalMatches = useMemo(() => matchCulturalDressNotes(legs.map((l) => l.destinationName)), [legs]);
   const canCreate = legs.every((l) => l.destinationName.trim().length > 0 && l.latitude != null && l.startDate && l.endDate && l.endDate >= l.startDate)
-    && (locations.length === 0 || selectedLocationIds.length > 0);
+    && (locations.length === 0 || selectedLocationIds.length > 0)
+    && (culturalMatches.length === 0 || culturalMode !== null);
 
   const create = async () => {
     if (!canCreate) return;
@@ -139,7 +144,7 @@ export function TripCreate({ go, onCreated }: { go: (s: Screen) => void; onCreat
           name: name.trim() || null,
           tripType,
           laundryAvailable,
-          culturalMode,
+          culturalMode: culturalMatches.length > 0 && culturalMode === true,
           sourceLocationIds,
           destinations: legs.map((l) => ({ destinationName: l.destinationName.trim(), latitude: l.latitude, longitude: l.longitude, startDate: l.startDate, endDate: l.endDate })),
         },
@@ -295,27 +300,28 @@ export function TripCreate({ go, onCreated }: { go: (s: Screen) => void; onCreat
             </p>
           </div>
 
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">{t("tripCreate.culturalMode")}</p>
-            {/* Never inferred from destination or nationality — always
-             *  this explicit choice, asked once per trip. YES lets
-             *  local customs act as a soft ranking signal later; NO
-             *  means general cultural norms are never applied as a
-             *  preference (a venue's own genuine requirement — e.g. a
-             *  mosque's dress code — is a separate, always-respected
-             *  rule regardless of this toggle). */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCulturalMode(true)}
-                className={`flex-1 h-11 rounded-full border text-xs uppercase tracking-widest ${culturalMode ? "bg-foreground text-background border-foreground" : "border-border"}`}
-              >{t("tripCreate.yes")}</button>
-              <button
-                onClick={() => setCulturalMode(false)}
-                className={`flex-1 h-11 rounded-full border text-xs uppercase tracking-widest ${!culturalMode ? "bg-foreground text-background border-foreground" : "border-border"}`}
-              >{t("tripCreate.no")}</button>
+          {culturalMatches.length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">{t("tripCreate.culturalMode")}</p>
+              {/* Asked only for destinations with more conservative dress norms, and always as an
+               *  explicit choice — never inferred from destination or nationality. YES: the pieces that
+               *  don't meet local norms are left out of the outfits for the days spent there. NO: no
+               *  country-wide rule is applied. A venue's own requirement (a mosque, a church) is a
+               *  separate, always-respected rule either way. */}
+              <p className="text-sm mb-2">{t("tripCreate.culturalQuestion", { countries: culturalMatches.map((n) => n.country).join(", ") })}</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCulturalMode(true)}
+                  className={`flex-1 h-11 rounded-full border text-xs uppercase tracking-widest ${culturalMode === true ? "bg-foreground text-background border-foreground" : "border-border"}`}
+                >{t("tripCreate.culturalAdaptYes")}</button>
+                <button
+                  onClick={() => setCulturalMode(false)}
+                  className={`flex-1 h-11 rounded-full border text-xs uppercase tracking-widest ${culturalMode === false ? "bg-foreground text-background border-foreground" : "border-border"}`}
+                >{t("tripCreate.culturalAdaptNo")}</button>
+              </div>
+              <p className="mt-1.5 text-[11px] text-muted-foreground">{t("tripCreate.culturalModeHint")}</p>
             </div>
-            <p className="mt-1.5 text-[11px] text-muted-foreground">{t("tripCreate.culturalModeHint")}</p>
-          </div>
+          )}
 
           {presets.length > 0 && (
             <div>

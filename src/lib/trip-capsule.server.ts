@@ -1,5 +1,6 @@
 import { suggestOutfitCore, type SuggestOutfitItem } from "./ai-suggest-outfit.functions";
 import { groupIntoOutfitStates, type ActivityForTransition } from "./trip-transition";
+import { culturalNoteFor, isItemAllowedByCulture, type CulturalLevel } from "./cultural-dress-notes";
 import { dressPreferencesToPrompt, type DressPreferences } from "./dress-preferences";
 import { resolvePlanSlot } from "./outfit-plan-slot";
 import { getTripWeatherMap, weatherKey } from "./trip-weather.server";
@@ -223,8 +224,14 @@ function hasEleganceSignal(req: Requirement): boolean {
  *  rules below key off those words. */
 function occasionText(req: Requirement): string {
   const parts = [req.label, req.dressCode].filter(Boolean) as string[];
-  if (!parts.length) return "Trip";
-  return parts.length === 2 && parts[0] !== parts[1] ? `${parts[0]} (${parts[1]})` : parts[0];
+  const base = !parts.length ? "Trip" : parts.length === 2 && parts[0] !== parts[1] ? `${parts[0]} (${parts[1]})` : parts[0];
+  // The activity's LOCATION goes in too: venue requirements (a mosque, a church, an embassy, a gala
+  // venue — see place-dress-code.ts) are detected from this text, and "Guided visit" held at "Sheikh
+  // Zayed Mosque" used to be missed because only the name and dress code were read. Appended after
+  // the label, so occasion checks that read the start of the text ("Work…") are unaffected.
+  const location = req.location?.trim();
+  if (location && !base.toLowerCase().includes(location.toLowerCase())) return `${base} — ${location}`;
+  return base;
 }
 
 
@@ -321,11 +328,18 @@ export type PoolItem = {
   formality: number;
   dayEvening: string;
   sleeveLength: string | null;
+  // Read by the local-customs filter (isItemAllowedByCulture); optional so older callers/tests still fit.
+  length?: string | null;
+  fit?: string | null;
+  styleTags?: string[] | null;
 };
 
 export type Requirement = {
   activityId: string;
   date: string;
+  /** Set when the person chose to adapt this trip to local customs AND this day is spent in a
+   *  country with more conservative dress norms (cultural-dress-notes.ts). */
+  culturalLevel?: CulturalLevel | null;
   daySegment: "day" | "evening";
   dressCode: string | null;
   label: string | null;
@@ -514,6 +528,15 @@ function versatility(it: PoolItem, req?: Requirement, temperature?: number | nul
 }
 
 function eligibleFor(pool: PoolItem[], req: Requirement, season: string, temperature: number | null): PoolItem[] {
+  // Local customs (the person's explicit choice for this trip): pieces that don't meet the country's
+  // level are left out for this day — both from what gets packed for it and from its outfit. Only
+  // if NOTHING in the wardrobe would remain does it fall back to the unfiltered pool, so a day is
+  // never left without an outfit.
+  if (req.culturalLevel) {
+    const level = req.culturalLevel;
+    const allowed = pool.filter((it) => isItemAllowedByCulture(it, level));
+    if (allowed.length) pool = allowed;
+  }
   const kind = activityKind(req);
   const purposeRole = kind === "swim" ? SWIM_ROLE : kind === "sport" ? ACTIVE_ROLE : null;
   return pool.filter((it) => {
@@ -996,16 +1019,25 @@ export async function generateTripCapsuleCore({ data, context }: {
     }
 
     const { data: tripRow } = await (supabase.from("trips" as never) as any)
-      .select("id, laundry_available").eq("id", data.tripId).eq("user_id", userId).maybeSingle();
+      .select("id, laundry_available, cultural_mode").eq("id", data.tripId).eq("user_id", userId).maybeSingle();
     if (!tripRow) throw new Error("Trip not found");
-    const trip = tripRow as { id: string; laundry_available: boolean };
+    const trip = tripRow as { id: string; laundry_available: boolean; cultural_mode: boolean | null };
 
     // A trip's date range is the union of its destinations' ranges — trips
     // itself carries no dates (a trip can have several destinations, each
     // with its own start/end).
     const { data: destRows } = await (supabase.from("trip_destinations" as never) as any)
-      .select("start_date, end_date, latitude, longitude").eq("trip_id", data.tripId);
-    const destinations = (destRows ?? []) as { start_date: string; end_date: string; latitude: number | null; longitude: number | null }[];
+      .select("destination_name, start_date, end_date, latitude, longitude").eq("trip_id", data.tripId);
+    const destinations = (destRows ?? []) as { destination_name: string; start_date: string; end_date: string; latitude: number | null; longitude: number | null }[];
+
+    /** Local-customs level for a trip date: only when the person chose to adapt this trip, and only
+     *  for days spent in a country listed in cultural-dress-notes.ts. */
+    function culturalLevelForDate(date: string): CulturalLevel | null {
+      if (!trip.cultural_mode) return null;
+      const dest = destinations.find((d) => date >= d.start_date && date <= d.end_date)
+        ?? (destinations.length === 1 ? destinations[0] : null);
+      return dest ? culturalNoteFor(dest.destination_name)?.level ?? null : null;
+    }
     const tripStartDate = destinations.length ? destinations.map((d) => d.start_date).sort()[0] : null;
     const tripEndDate = destinations.length ? destinations.map((d) => d.end_date).sort().slice(-1)[0] : null;
 
@@ -1110,6 +1142,7 @@ export async function generateTripCapsuleCore({ data, context }: {
         startTime: a.start_time,
         endTime: a.end_time,
         location: a.location,
+        culturalLevel: culturalLevelForDate(a.activity_date),
       }));
 
     // Targeted runs mean "regenerate this one" — the existing plan is
@@ -1259,6 +1292,7 @@ export async function generateTripCapsuleCore({ data, context }: {
         style: it.style ? (Array.isArray(it.style) ? it.style : [it.style]) : [],
         season: it.season, brand: it.brand, material: Array.isArray(it.material) ? it.material : [],
         locationId: it.location_id ?? null, formality, dayEvening, sleeveLength: it.sleeve_length ?? null,
+        length: it.length ?? null, fit: it.fit ?? null, styleTags: Array.isArray(it.style_tags) ? it.style_tags : [],
 
       });
     }

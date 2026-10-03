@@ -1086,7 +1086,16 @@
     "selectNone": "None",
     "selectedCount_one": "{{count}} selected",
     "selectedCount_other": "{{count}} selected",
-    "uncategorized": "Other"
+    "uncategorized": "Other",
+    "culturalConservative": "Covered shoulders and knees are appreciated in public here, especially outside resorts and at religious sites.",
+    "culturalStrict": "Norms are strict here: shoulders, arms and legs covered, no tight fits.",
+    "culturalHeadCovering": "Women are also required to cover their hair.",
+    "culturalAdapting": "AURA is adapting the outfits for those days.",
+    "culturalNotAdapting": "AURA is not adapting the outfits (your choice).",
+    "culturalStartAdapting": "Adapt",
+    "culturalStopAdapting": "Don't adapt",
+    "culturalNowAdapting": "Done: the next outfits generated for those days will follow local customs.",
+    "culturalNowNotAdapting": "Done: the next outfits won't be adapted."
   },
   "batchReview": {
     "couldntLoadBatch": "Couldn't load this batch.",
@@ -1772,7 +1781,10 @@
     "setUpEssentialsListHint": "Set up an essentials list (documents, charger…) to reuse on every trip",
     "createTrip": "Create trip",
     "culturalMode": "Local cultural sensitivity",
-    "culturalModeHint": "If yes, AURA lets local customs gently influence outfit ranking during this trip — never a rule you can't change your mind about, and any venue's own genuine requirement (e.g. a mosque's dress code) is always respected regardless of this setting."
+    "culturalModeHint": "If yes, for the days in that country AURA leaves out pieces that don't meet local customs (bare shoulders or knees, shorts, mini skirts; where norms are stricter also short sleeves and tight fits). A specific venue's dress code, such as a mosque or a church, is always respected whatever you choose.",
+    "culturalQuestion": "This trip includes a country with more conservative dress norms ({{countries}}). Should AURA adapt the outfits to local customs for those days?",
+    "culturalAdaptYes": "Yes, adapt",
+    "culturalAdaptNo": "No, my style"
   },
   "outfitScan": {
     "lookingAtOutfit": "Looking at your outfit…",

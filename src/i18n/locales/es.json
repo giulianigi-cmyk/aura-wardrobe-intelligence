@@ -1086,7 +1086,16 @@
     "selectNone": "Ninguno",
     "selectedCount_one": "{{count}} seleccionado",
     "selectedCount_other": "{{count}} seleccionados",
-    "uncategorized": "Otros"
+    "uncategorized": "Otros",
+    "culturalConservative": "Aquí se aprecian hombros y rodillas cubiertos en público, sobre todo fuera de los resorts y en lugares religiosos.",
+    "culturalStrict": "Aquí las normas son estrictas: hombros, brazos y piernas cubiertos, nada ajustado.",
+    "culturalHeadCovering": "A las mujeres también se les exige cubrirse el cabello.",
+    "culturalAdapting": "AURA está adaptando los outfits de esos días.",
+    "culturalNotAdapting": "AURA no está adaptando los outfits (tu elección).",
+    "culturalStartAdapting": "Adaptar",
+    "culturalStopAdapting": "No adaptar",
+    "culturalNowAdapting": "Hecho: los próximos outfits de esos días respetarán las costumbres locales.",
+    "culturalNowNotAdapting": "Hecho: los próximos outfits no se adaptarán."
   },
   "batchReview": {
     "couldntLoadBatch": "No se pudo cargar este lote.",
@@ -1772,7 +1781,10 @@
     "setUpEssentialsListHint": "Configura una lista de esenciales (documentos, cargador…) para reutilizar en cada viaje",
     "createTrip": "Crear viaje",
     "culturalMode": "Sensibilidad cultural local",
-    "culturalModeHint": "Si eliges sí, AURA deja que las costumbres locales influyan suavemente en la clasificación de looks durante este viaje — nunca una regla fija, y cualquier requisito real de un lugar (p. ej. el código de vestimenta de una mezquita) se respeta siempre, independientemente de esta opción."
+    "culturalModeHint": "Si eliges sí, los días en ese país AURA deja fuera de los outfits las prendas que no respetan las costumbres locales (hombros o rodillas descubiertos, shorts, minifaldas; donde las normas son más estrictas, también manga corta y prendas ajustadas). El código de vestimenta de un lugar concreto, como una mezquita o una iglesia, se respeta siempre, elijas lo que elijas.",
+    "culturalQuestion": "Este viaje incluye un país con normas de vestimenta más conservadoras ({{countries}}). ¿Quieres que AURA adapte los outfits a las costumbres locales esos días?",
+    "culturalAdaptYes": "Sí, adaptar",
+    "culturalAdaptNo": "No, mi estilo"
   },
   "outfitScan": {
     "lookingAtOutfit": "Observando tu look…",

@@ -1086,7 +1086,16 @@
     "selectNone": "Nessuno",
     "selectedCount_one": "{{count}} selezionato",
     "selectedCount_other": "{{count}} selezionati",
-    "uncategorized": "Altro"
+    "uncategorized": "Altro",
+    "culturalConservative": "In questo paese spalle e ginocchia coperte sono apprezzate in pubblico, soprattutto fuori dai resort e nei luoghi religiosi.",
+    "culturalStrict": "Qui le norme sono rigide: spalle, braccia e gambe coperte, capi non aderenti.",
+    "culturalHeadCovering": "Per le donne è richiesto anche il capo coperto.",
+    "culturalAdapting": "AURA sta adattando gli outfit di quei giorni.",
+    "culturalNotAdapting": "AURA non sta adattando gli outfit (scelta tua).",
+    "culturalStartAdapting": "Adatta",
+    "culturalStopAdapting": "Non adattare",
+    "culturalNowAdapting": "Fatto: i prossimi outfit generati per quei giorni rispetteranno gli usi locali.",
+    "culturalNowNotAdapting": "Fatto: i prossimi outfit non verranno adattati."
   },
   "batchReview": {
     "couldntLoadBatch": "Impossibile caricare questo batch.",
@@ -1772,7 +1781,10 @@
     "setUpEssentialsListHint": "Imposta una lista essenziali (documenti, caricabatterie…) da riusare a ogni viaggio",
     "createTrip": "Crea viaggio",
     "culturalMode": "Sensibilità culturale locale",
-    "culturalModeHint": "Se sì, AURA lascia che gli usi locali influenzino leggermente la classifica degli outfit durante questo viaggio — mai una regola fissa, e un requisito reale di un luogo specifico (es. il dress code di una moschea) resta sempre rispettato indipendentemente da questa scelta."
+    "culturalModeHint": "Se scegli sì, per i giorni in quel paese AURA lascia fuori dagli outfit i capi che non rispettano gli usi locali (spalle e ginocchia scoperte, shorts, minigonne; dove le norme sono più rigide anche maniche corte e capi aderenti). Il dress code di un luogo specifico, come una moschea o una chiesa, viene sempre rispettato, qualunque sia la tua scelta.",
+    "culturalQuestion": "Nel viaggio c'è un paese con norme di abbigliamento più conservative ({{countries}}). Vuoi che AURA adatti gli outfit agli usi locali per quei giorni?",
+    "culturalAdaptYes": "Sì, adatta",
+    "culturalAdaptNo": "No, il mio stile"
   },
   "outfitScan": {
     "lookingAtOutfit": "Analisi del tuo outfit…",
