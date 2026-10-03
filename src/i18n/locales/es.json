@@ -1950,8 +1950,9 @@
     "setUpNow": "Configurarlo",
     "biometricConsentRequired": "Confirma el consentimiento de arriba antes de continuar.",
     "generatingTimeEstimate": "Unos 30 segundos por prenda — unos {{seconds}}s en total",
-    "tooManyPieces": "En el avatar se muestran las 6 prendas principales: {{count}} accesorios pequeños no se incluyen.",
-    "genericError": "Hubo un problema al crear el look. Inténtalo de nuevo."
+    "genericError": "Hubo un problema al crear el look. Inténtalo de nuevo.",
+    "tooManyPieces_one": "En el avatar se muestran las prendas principales: 1 accesorio pequeño no se incluye.",
+    "tooManyPieces_other": "En el avatar se muestran las prendas principales: {{count}} accesorios pequeños no se incluyen."
   },
   "logWear": {
     "title": "¿Qué llevé puesto?",
@@ -2113,5 +2114,24 @@
     "cancel": "Cancelar",
     "confirm": "Confirmar",
     "saveFailed": "No se pudo guardar el encuadre en tu cuenta; se mantiene en este dispositivo."
+  },
+  "piecePicker": {
+    "searchPlaceholder": "Busca por marca, tipo, color, tejido…",
+    "all": "Todo",
+    "emptyDefault": "Primero añade prendas a tu armario.",
+    "noMatches": "Sin resultados: borra la búsqueda o los filtros para verlo todo.",
+    "categories": {
+      "Tops": "Tops",
+      "Bottoms": "Pantalones y faldas",
+      "Dresses": "Vestidos",
+      "Jumpsuits": "Monos",
+      "Outerwear": "Abrigos",
+      "Shoes": "Zapatos",
+      "Bags": "Bolsos",
+      "Accessories": "Accesorios",
+      "Underwear": "Ropa interior",
+      "Swimwear": "Baño",
+      "Activewear": "Deportiva"
+    }
   }
 }

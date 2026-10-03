@@ -1950,8 +1950,9 @@
     "setUpNow": "Set it up",
     "biometricConsentRequired": "Please confirm the consent above before continuing.",
     "generatingTimeEstimate": "About 30 seconds per piece — roughly {{seconds}}s total",
-    "tooManyPieces": "Your avatar shows the 6 main pieces: {{count}} small accessories aren't included.",
-    "genericError": "Something went wrong while creating the look. Try again."
+    "genericError": "Something went wrong while creating the look. Try again.",
+    "tooManyPieces_one": "Your avatar shows the main pieces: 1 small accessory isn't included.",
+    "tooManyPieces_other": "Your avatar shows the main pieces: {{count}} small accessories aren't included."
   },
   "logWear": {
     "title": "What did I wear?",
@@ -2113,5 +2114,24 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "saveFailed": "Couldn't save the framing to your account; it's kept on this device."
+  },
+  "piecePicker": {
+    "searchPlaceholder": "Search by brand, type, colour, fabric…",
+    "all": "All",
+    "emptyDefault": "Add pieces to your closet first.",
+    "noMatches": "No matches — clear the search or filters to see everything.",
+    "categories": {
+      "Tops": "Tops",
+      "Bottoms": "Bottoms",
+      "Dresses": "Dresses",
+      "Jumpsuits": "Jumpsuits",
+      "Outerwear": "Outerwear",
+      "Shoes": "Shoes",
+      "Bags": "Bags",
+      "Accessories": "Accessories",
+      "Underwear": "Underwear",
+      "Swimwear": "Swimwear",
+      "Activewear": "Activewear"
+    }
   }
 }

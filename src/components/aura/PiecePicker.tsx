@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import { expandSearchWord, normalizeText } from "@/lib/wardrobe-search";
 import { Search, Check, Loader2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import type { WardrobeItem } from "@/lib/aura-types";
@@ -24,6 +26,7 @@ export function PiecePicker({
   emptyHint,
   extraChips,
   className = "",
+  columns = 2,
 }: {
   items: WardrobeItem[];
   signed: Record<string, string>;
@@ -34,7 +37,10 @@ export function PiecePicker({
   /** Optional context-specific chips (e.g. "Suggested" in the planner). */
   extraChips?: ReactNode;
   className?: string;
+  /** 3 for big wardrobes where more pieces per screen helps (avatar try-on). */
+  columns?: 2 | 3;
 }) {
+  const { t } = useTranslation();
   const fetchLocations = useServerFn(listLocations);
   const [locations, setLocations] = useState<WardrobeLocation[]>([]);
   const [q, setQ] = useState("");
@@ -51,13 +57,18 @@ export function PiecePicker({
   }, []);
 
   const visible = useMemo(() => {
-    const query = q.trim().toLowerCase();
+    // Every word must match brand, model, type, colour, material…; words in any language are
+    // expanded to the stored English values ("gonna nera" → skirt + black, "lino" → linen).
+    const words = normalizeText(q).split(" ").filter(Boolean);
     return items.filter((i) => {
       const itemLoc = (i as unknown as { location_id?: string | null }).location_id ?? null;
-      return (locId === "all" || itemLoc === locId) &&
-        (cat === "All" || i.category === cat) &&
-        (query === "" || [i.category, i.brand, i.color, i.style, i.occasion, i.season, ...(i.colors ?? [])]
-          .some((v) => v?.toLowerCase().includes(query)));
+      if (!((locId === "all" || itemLoc === locId) && (cat === "All" || i.category === cat))) return false;
+      if (!words.length) return true;
+      const hay = normalizeText([
+        i.category, i.subcategory, i.brand, i.model, i.color, i.style, i.occasion, i.season,
+        ...(i.colors ?? []), ...(Array.isArray(i.material) ? i.material : []), ...(i.style_tags ?? []),
+      ].filter(Boolean).join(" "));
+      return words.every((w) => expandSearchWord(w).some((x) => hay.includes(x)));
     });
   }, [items, cat, q, locId]);
 
@@ -68,7 +79,7 @@ export function PiecePicker({
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by color, fabric, brand…"
+          placeholder={t("piecePicker.searchPlaceholder")}
           className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground outline-none"
         />
       </div>
@@ -82,7 +93,7 @@ export function PiecePicker({
             className={`shrink-0 rounded-full px-4 py-2 text-xs tracking-wide transition ${
               cat === c ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"
             }`}
-          >{c}</button>
+          >{c === "All" ? t("piecePicker.all") : t(`piecePicker.categories.${c}`, { defaultValue: c })}</button>
         ))}
       </div>
 
@@ -91,7 +102,7 @@ export function PiecePicker({
           <button
             onClick={() => setLocId("all")}
             className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] uppercase tracking-widest ${locId === "all" ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"}`}
-          >All</button>
+          >{t("piecePicker.all")}</button>
           {locations.map((loc) => (
             <button
               key={loc.id}
@@ -106,10 +117,10 @@ export function PiecePicker({
         <div className="py-10 flex justify-center"><Loader2 className="animate-spin" /></div>
       ) : visible.length === 0 ? (
         <p className="mt-4 text-xs text-muted-foreground">
-          {items.length === 0 ? (emptyHint ?? "Add pieces to your closet first.") : "No matches — clear the search or filters to see all."}
+          {items.length === 0 ? (emptyHint ?? t("piecePicker.emptyDefault")) : t("piecePicker.noMatches")}
         </p>
       ) : (
-        <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-5">
+        <div className={`mt-4 grid ${columns === 3 ? "grid-cols-3 gap-x-2 gap-y-4" : "grid-cols-2 gap-x-3 gap-y-5"}`}>
           {visible.map((it) => {
             const src = thumbSrc(it, signed) || (toStoragePath(it.image_url) ? signed[toStoragePath(it.image_url)!] ?? "" : "");
             const on = selectedIds.includes(it.id);
@@ -133,7 +144,9 @@ export function PiecePicker({
                 </div>
                 <div className="px-0.5 mt-1.5">
                   <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground truncate">{it.brand ?? it.category}</p>
-                  <p className="font-serif text-[15px] leading-tight truncate">{[label, it.category].filter(Boolean).join(" ")}</p>
+                  <p className={`font-serif leading-tight truncate ${columns === 3 ? "text-[13px]" : "text-[15px]"}`}>
+                    {[label, it.category ? t(`piecePicker.categories.${it.category}`, { defaultValue: it.category }) : null].filter(Boolean).join(" · ")}
+                  </p>
                 </div>
               </button>
             );
