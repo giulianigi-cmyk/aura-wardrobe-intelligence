@@ -761,7 +761,9 @@
     "feedbackFailed": "Impossible d'enregistrer. Réessaie.",
     "notSimilar": "Ce n'est pas similaire",
     "alreadyOwnSimilar": "J'en ai déjà un comme ça",
-    "saidOwned": "Tu as indiqué en avoir déjà un comme ça."
+    "saidOwned": "Tu as indiqué en avoir déjà un comme ça.",
+    "alternativePreferred": "Parmi les alternatives ({{names}}), c'est celle qui apporte le plus à ta garde-robe.",
+    "alternativeOther": "Alternative à {{names}} : elles se remplacent, une seule suffit."
   },
   "planner": {
     "calendar": "Calendrier",

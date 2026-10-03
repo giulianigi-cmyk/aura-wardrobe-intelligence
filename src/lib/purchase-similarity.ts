@@ -14,7 +14,7 @@ type ProductShape = {
 
 import { detailsIn, DETAIL_WORDS_FOR_KEY } from "./garment-details";
 
-function ownedText(it: WardrobeItem): string {
+export function ownedText(it: WardrobeItem): string {
   const x = it as WardrobeItem & { closure?: string | null; toe_shape?: string | null };
   // `details` holds the detail keys the photo analysis found (garment-details.ts); written as
   // words so detailsIn() reads them like any other text.
