@@ -724,7 +724,9 @@
     "viewOnSite": "Voir sur le site",
     "linkDisclaimer": "Il s'agit d'une évaluation basée sur votre garde-robe, pas d'une expertise de marché — elle ne tient pas compte des remises, de la qualité réelle ou des tendances.",
     "orWardrobeIsMissing": "Ou, ce qui manque à votre garde-robe",
-    "disclaimer": "Il s'agit d'une estimation des manques de votre garde-robe basée sur ce que vous possédez déjà — pas d'un catalogue de produits en direct. De vraies recommandations d'achat avec produits et liens réels arrivent bientôt."
+    "disclaimer": "Il s'agit d'une estimation des manques de votre garde-robe basée sur ce que vous possédez déjà — pas d'un catalogue de produits en direct. De vraies recommandations d'achat avec produits et liens réels arrivent bientôt.",
+    "similarTo": "Semblable à : {{label}}",
+    "duplicateOf": "Ressemble à un doublon de : {{label}}"
   },
   "planner": {
     "calendar": "Calendrier",

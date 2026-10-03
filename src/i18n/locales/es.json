@@ -724,7 +724,9 @@
     "viewOnSite": "Ver en el sitio",
     "linkDisclaimer": "Esta es una evaluación basada en tu armario, no una pericia de mercado: no conoce descuentos, calidad real ni tendencias.",
     "orWardrobeIsMissing": "O, qué le falta a tu armario",
-    "disclaimer": "Esta es una estimación de huecos en el armario basada en lo que ya tienes, no un catálogo de productos en vivo. Pronto llegarán recomendaciones de compra reales con productos y enlaces."
+    "disclaimer": "Esta es una estimación de huecos en el armario basada en lo que ya tienes, no un catálogo de productos en vivo. Pronto llegarán recomendaciones de compra reales con productos y enlaces.",
+    "similarTo": "Parecido a: {{label}}",
+    "duplicateOf": "Parece un duplicado de: {{label}}"
   },
   "planner": {
     "calendar": "Calendario",

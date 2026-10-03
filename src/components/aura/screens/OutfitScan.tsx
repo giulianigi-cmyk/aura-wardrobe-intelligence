@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useTranslation } from "react-i18next";
+import { parsePositivePrice } from "@/lib/price-parse";
 import i18n from "@/i18n/config";
 import { ArrowLeft, Camera, Check, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -629,10 +630,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
           style: it.styles.join(", ") || null,
           occasion: it.occasions.join(", ") || null,
           size: it.size.trim() || null,
-          price: (() => {
-            const n = parseFloat(it.price.replace(",", "."));
-            return Number.isFinite(n) && n > 0 ? n : null;
-          })(),
+          price: parsePositivePrice(it.price),
           currency: it.price.trim() ? it.currency : null,
           purchase_date: it.purchaseDate || null,
           sleeve_length: it.sleeveLength || null,

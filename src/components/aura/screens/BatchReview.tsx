@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { parsePositivePrice } from "@/lib/price-parse";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Check, Loader2, AlertTriangle, Copy, X } from "lucide-react";
 import { toast } from "sonner";
@@ -455,10 +456,7 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
           console.error("[AURA batch-review] thumbnail generation failed for item, grid will use full image", d.id, e);
         }
 
-        const priceNum = (() => {
-          const n = parseFloat(d.price.replace(",", "."));
-          return Number.isFinite(n) && n > 0 ? n : null;
-        })();
+        const priceNum = parsePositivePrice(d.price);
         payload.push({
           id: d.id,
           image_path: path,
