@@ -1205,14 +1205,17 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
               );
             })}
 
-          {/* AURA watermark — matches the wordmark style used on the Splash screen exactly.
-              Sized up from clamp(12px, 3cqmin, 28px): it was the only mark
-              left after removing the redundant "@handle · AURA" chat-share
-              stamp, and at the old size it was unreadable. */}
-          <div className="absolute bottom-3 right-4 pointer-events-none select-none">
+          {/* AURA watermark — the same mark, size and place as the AI canvases
+              (compose-outfit-canvas.ts: 100px on a 1080px-wide canvas, right edge
+              72px from the side). In container units: 100/1080 ≈ 9.25cqmin, margin
+              72/1080 ≈ 6.7cqmin (the canvas width is its short side in both
+              ratios). It used to be capped at 34px, so manual outfits came out
+              with a much smaller logo than the AI ones. Exported as part of the
+              canvas, so saved and reopened outfits carry it once. */}
+          <div className="absolute pointer-events-none select-none" style={{ right: "6.7cqmin", bottom: 0 }}>
             <span
               className="font-serif italic tracking-tight text-muted-foreground"
-              style={{ fontSize: "clamp(16px, 4.5cqmin, 34px)" }}
+              style={{ fontSize: "9.25cqmin", lineHeight: 1 }}
             >aura</span>
           </div>
 

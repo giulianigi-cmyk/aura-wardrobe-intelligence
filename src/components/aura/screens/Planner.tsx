@@ -809,7 +809,7 @@ function DayDetail({
       ) : (
         <div className="mt-2 flex gap-2">
           <button onClick={onOpen} className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em]">{t("planner.choosePieces")}</button>
-          <button onClick={onAsk} className="flex-1 h-9 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1"><Sparkles size={11} /> {t("planner.askStylist")}</button>
+          <button onClick={onAsk} className="flex-1 min-w-0 h-9 px-3 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5"><Sparkles size={11} className="shrink-0" /><span className="truncate">{t("planner.askStylist")}</span></button>
         </div>
       )}
     </div>
