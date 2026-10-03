@@ -57,3 +57,38 @@ export function alternativeGroups(items: CompareCandidate[]): AlternativeGroup[]
   }
   return groups;
 }
+
+// Order of the comparison. Within the same verdict the person expects the piece with MORE going for
+// it first: more positive features (iconic, timeless, status, on trend, versatile), a real gap or
+// nothing similar owned, something new it adds. The model used to pick this order itself and could
+// put a piece with fewer strengths first (Miss Z above the Rene Caovilla Cleo, which is iconic and
+// unlike anything owned); now it is computed here and the model only explains it.
+
+export type RankingCandidate = CompareCandidate & {
+  fashion: { iconic: boolean; timeless: boolean; onTrend: boolean; statusPiece: boolean; versatility: "low" | "medium" | "high" } | null;
+  /** Something similar (not necessarily a duplicate) is already owned. */
+  similarOwned: boolean;
+};
+
+/** Positive fashion features, an iconic design weighing double. */
+export function positiveFeatures(f: RankingCandidate["fashion"]): number {
+  if (!f) return 0;
+  return (f.iconic ? 2 : 0) + (f.timeless ? 1 : 0) + (f.statusPiece ? 1 : 0) + (f.onTrend ? 1 : 0) + (f.versatility === "high" ? 1 : f.versatility === "low" ? -1 : 0);
+}
+
+/** How strong a choice it is (higher = better). What it adds counts at most 2, so a long list of
+ *  small differences can't outweigh the piece's own qualities. */
+export function strengthScore(c: RankingCandidate): number {
+  const gap = c.wardrobeGap ? 3 : c.duplicate ? -3 : c.similarOwned ? 0 : 1;
+  const adds = Math.min(new Set([...c.novelDetails, ...c.differences]).size, 2);
+  return positiveFeatures(c.fashion) + gap + adds;
+}
+
+/** Full order, best first: by tier (fixed), then strength, then pairings; within a group of
+ *  alternatives the preferred piece always comes before the ones it replaces. */
+export function compareRanking(items: RankingCandidate[], tiers: number[], groups: AlternativeGroup[]): number[] {
+  const score = items.map(strengthScore);
+  for (const g of groups) for (const o of g.others) score[o] = Math.min(score[o], score[g.preferred] - 0.5);
+  return items.map((_, i) => i).sort((a, b) =>
+    tiers[b] - tiers[a] || score[b] - score[a] || items[b].pairsWithCount - items[a].pairsWithCount || a - b);
+}

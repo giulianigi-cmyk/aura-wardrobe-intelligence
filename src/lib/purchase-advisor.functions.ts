@@ -8,7 +8,7 @@ import { resolveProductImageUrl } from "./import-url.functions";
 import { analyzeWardrobeImageCore } from "./ai-analyze.functions";
 import { closestOwnedPiece, comparablePieces, ownedPieceLabel, ownedText, similarOwnedPiece } from "./purchase-similarity";
 import { detailsIn } from "./garment-details";
-import { alternativeGroups } from "./compare-alternatives";
+import { alternativeGroups, compareRanking, positiveFeatures } from "./compare-alternatives";
 import { alreadyOwnedPieces, loadWardrobeFeedback, notSimilarItemIds, productKey } from "./wardrobe-feedback";
 import { ownedEquivalent } from "./gap-ownership";
 
@@ -635,23 +635,12 @@ const COULD_NOT_COMPARE: Record<string, string> = {
   fr: "Impossible de comparer ces pièces.",
 };
 
-/** Higher = more desirable. A hard floor/ceiling the model's own ranking below is
- *  never allowed to cross — see the module comment above. */
+/** Higher = more desirable. The first key of the comparison order (compareRanking): the softer
+ *  signals never cross it — see the module comment above. */
 function desirabilityTier(violation: boolean, duplicate: boolean, verdict: "buy" | "maybe" | "skip"): number {
   if (violation) return 0;
   if (duplicate) return 1;
   return { skip: 2, maybe: 3, buy: 4 }[verdict];
-}
-
-/** True when `ranking` is a valid permutation of 0..n-1 that never places a lower-tier
- *  item ahead of a higher-tier one — the one hard rule the model's own ordering must respect. */
-function respectsTiers(ranking: number[], tiers: number[]): boolean {
-  if (ranking.length !== tiers.length) return false;
-  if (new Set(ranking).size !== tiers.length) return false; // must be a genuine permutation
-  for (let i = 0; i < ranking.length - 1; i++) {
-    if (tiers[ranking[i]] < tiers[ranking[i + 1]]) return false;
-  }
-  return true;
 }
 
 export const comparePurchases = createServerFn({ method: "POST" })
@@ -776,15 +765,16 @@ export const comparePurchases = createServerFn({ method: "POST" })
     }));
 
     const tiers = items.map((it) => desirabilityTier(it.wardrobe.dressPreferenceViolation, it.wardrobe.duplicate, it.verdict));
-    // Safety-net order: by tier, then by the softer pairing/gap signal — used whenever the model's
-    // own ranking is missing, malformed, or breaks the tier rule.
-    const fallbackRanking = items.map((_, i) => i).sort((a, b) => {
-      if (tiers[b] !== tiers[a]) return tiers[b] - tiers[a];
-      const scoreOf = (i: number) => items[i].wardrobe.pairsWithCount + (items[i].wardrobe.wardrobeGap ? 3 : 0);
-      return scoreOf(b) - scoreOf(a);
-    });
+    // The order is decided here, not by the model: tier first, then how much the piece has going for
+    // it (positive features, a gap or nothing similar owned, what it adds) — compare-alternatives.ts.
+    const rankingFacts = resolved.map((r) => ({
+      category: r.product.category, subcategory: r.product.subcategory, colors: r.product.colors,
+      novelDetails: r.novelDetails, wardrobeGap: r.wardrobeGap, differences: r.differsFrom?.differences ?? [],
+      duplicate: r.duplicate?.verdict === "certain", pairsWithCount: r.pairsWithCount,
+      fashion: r.fashion ?? null, similarOwned: !!r.duplicate,
+    }));
+    const ranking = compareRanking(rankingFacts, tiers, groups);
 
-    const allSameTier = tiers.every((t) => t === tiers[0]);
     const langName = LANGUAGE_NAMES[langCode] ?? "English";
     const letters = ["A", "B", "C", "D", "E", "F"];
     // The person never sees the letters — only the pieces themselves (their brand and model, in a
@@ -812,16 +802,14 @@ export const comparePurchases = createServerFn({ method: "POST" })
     const system = [
       "You are an elegant, knowledgeable personal stylist helping the person decide, among SEVERAL specific products they're considering, what order they'd be worth getting in — first choice, second choice, and so on, including honestly saying when one (or all) genuinely isn't worth buying at all. Each product's individual buy/maybe/skip verdict is already decided (given below) — you are NOT re-deciding those.",
       "Speak directly TO the person — \"il tuo guardaroba\", \"possiedi\", \"ti starebbe meglio\" (translated naturally into the target language) — never in the third person. Sound like a stylist giving a real, personal opinion, not a database printing out matched fields.",
-      "NEVER mention the letters A, B, C… in your reason, not even in brackets like \"(C)\" or \"(A e B)\" — the person cannot see them and has no idea what they refer to. Name each piece by its brand and model instead (e.g. \"i sandali Rene Caovilla Cleo\", \"le Louboutin Iriza\"), or by a short natural description when several share a brand. The letters are only for the \"ranking\" array in the JSON.",
+      "NEVER mention the letters A, B, C… in your reason, not even in brackets like \"(C)\" or \"(A e B)\" — the person cannot see them and has no idea what they refer to. Name each piece by its brand and model instead (e.g. \"i sandali Rene Caovilla Cleo\", \"le Louboutin Iriza\"), or by a short natural description when several share a brand. The letters are only internal references.",
       "Your reason must reflect the full picture honestly: if every option is a SKIP, say plainly that none is really worth it, while still noting which would be the least bad if forced to pick. If several are a BUY, you can recommend more than one while still stating which comes first. Never imply a SKIP item is a good purchase just because it ranks above another SKIP.",
       "NEVER say or imply that YOU (the app) or the person already bought, chose, or picked any of these — this is advice about a decision not yet made.",
       "Grammar matters: use the correct grammatical gender and article for every product noun in the target language — e.g. in Italian \"i sandali\" (masculine plural, never \"le sandali\"), \"le décolleté\" / \"le pumps\" (feminine), \"gli stivaletti\", \"le sneakers\", \"la borsa\", \"il blazer\". Agree adjectives and past participles accordingly.",
       `Respond in ${langName}.`,
       "Keep it under 320 characters — a bit more room than the single-item advisor, since a real ranking across several pieces needs a little more space to state honestly.",
-      "Each item already has a fixed, non-negotiable tier — see below. Produce a full ranking (best to worst) of ALL items: you may reorder freely WITHIN the same tier (using the softer signals below, your own styling judgment, or genuinely calling two items in a tier equivalent), but a lower-tier item must never be placed above a higher-tier one — that ordering is already decided and is not yours to change.",
-      allSameTier
-        ? "Every item happens to sit in the same tier here — the full ranking is entirely yours to decide from the softer signals below, including saying some or all are genuinely equivalent."
-        : "",
+      `The ranking is ALREADY DECIDED, best first: ${ranking.map((i) => `${letters[i]} ("${nameOfItem(i)}")`).join(" > ")}. It follows the verdicts, then how much each piece has going for it — its positive features (iconic, timeless, status, on trend, versatile), whether it fills a gap or is unlike anything owned, and what new it adds. Explain THIS order (say which comes first and why, naming its strengths); never propose a different one.`,
+      ...ranking.map((i) => `${letters[i]} positive features: ${positiveFeatures(rankingFacts[i].fashion)}; ${rankingFacts[i].wardrobeGap ? "fills a gap" : rankingFacts[i].similarOwned ? "something similar is owned" : "nothing similar owned"}.`),
       "",
       ...groups.map((g) => {
         const why = (i: number) => resolved[i].novelDetails.length
@@ -829,23 +817,17 @@ export const comparePurchases = createServerFn({ method: "POST" })
           : resolved[i].wardrobeGap ? "fills a gap" : resolved[i].differsFrom ? `is a ${resolved[i].differsFrom!.differences.join("/")} variant of the owned ${resolved[i].differsFrom!.label}` : "is close to what is owned";
         return `ALTERNATIVES: ${[g.preferred, ...g.others].map((i) => letters[i]).join(", ")} do the same job (same kind and colour) — one replaces the other, so say clearly to buy ONE of them, not all. Prefer ${letters[g.preferred]} ("${shortName(g.preferred)}"): it ${why(g.preferred)}; ${g.others.map((o) => `${letters[o]} ("${shortName(o)}") ${why(o)}`).join("; ")}.`;
       }),
-      "Facts (tier shown for each — higher number is more desirable and must never be ranked below a lower number):",
-      ...items.flatMap((it, i) => [...describeItem(letters[i], resolved[i], it.verdict, violations[i]), `${letters[i]}'s tier: ${tiers[i]}`]),
+      "Facts:",
+      ...items.flatMap((it, i) => describeItem(letters[i], resolved[i], it.verdict, violations[i])),
       "",
-      "Respond with ONLY a single valid JSON object, no markdown fences. \"ranking\" is ALL the letters above, ordered best to worst, e.g. for 3 items: [\"B\", \"A\", \"C\"]:",
-      '{"ranking": [], "reason": ""}',
+      "Respond with ONLY a single valid JSON object, no markdown fences:",
+      '{"reason": ""}',
     ].filter(Boolean).join("\n");
 
-    let ranking = fallbackRanking;
     let reason: string;
     try {
-      const r1 = await generateText({ model, system, messages: [{ role: "user", content: "Write the ranking and reason." }] });
-      const parsed = parseAiJson(r1.text, z.object({ ranking: z.array(z.string()), reason: z.string() }));
-      const parsedIndices = parsed.ranking.map((letter) => letters.indexOf(letter.toUpperCase()));
-      if (respectsTiers(parsedIndices, tiers)) ranking = parsedIndices;
-      // else: keep the deterministic fallbackRanking — a malformed or tier-violating response
-      // from the model is silently corrected rather than shipped, same "never let the model
-      // override a hard rule" principle as the rest of this file.
+      const r1 = await generateText({ model, system, messages: [{ role: "user", content: "Write the reason." }] });
+      const parsed = parseAiJson(r1.text, z.object({ reason: z.string() }));
       // Safety net for the rule above: a stray "(C)" / "(A e B)" reference to the internal letters
       // means nothing to the person reading this, so it is removed rather than shown.
       const withoutLetterRefs = parsed.reason.replace(/\s*\((?:[A-F](?:\s*(?:,|e|and|y|et|&|\/)\s*[A-F])*)\)/g, "");
