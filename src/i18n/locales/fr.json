@@ -1499,6 +1499,18 @@
     "biometricConsentRequired": "Veuillez confirmer le consentement ci-dessus avant de continuer.",
     "generatingTimeEstimate": "Environ 30 secondes par pièce — environ {{seconds}}s au total",
     "genericError": "Un problème est survenu lors de la création du look. Réessaie.",
+    "errorRef": "Réf. : {{kind}}",
+    "errorAtPiece": "pièce {{step}}",
+    "errorKind": {
+      "credits": "Le service d'essayage virtuel n'a plus de crédits : réessayer ne sert à rien tant qu'il n'est pas rechargé.",
+      "rate_limit": "Le service d'essayage virtuel est surchargé. Réessaie dans quelques minutes.",
+      "timeout": "La génération a pris trop de temps. Réessaie.",
+      "content_policy": "Le service a refusé cette image. Essaie une autre photo d'avatar ou d'autres pièces.",
+      "image": "Le service n'a pas pu utiliser une des images (photo d'avatar ou pièce). Essaie une autre photo.",
+      "save": "Le look a été généré mais n'a pas pu être enregistré. Réessaie.",
+      "network": "La connexion a été interrompue pendant la génération. Réessaie.",
+      "provider": "Un problème est survenu lors de la création du look. Réessaie."
+    },
     "tooManyPieces_one": "L'avatar montre les pièces principales : 1 petit accessoire n'est pas inclus.",
     "tooManyPieces_other": "L'avatar montre les pièces principales : {{count}} petits accessoires ne sont pas inclus."
   },
