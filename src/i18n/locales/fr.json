@@ -733,7 +733,33 @@
       "onTrend": "Tendance",
       "statusPiece": "Pièce statutaire"
     },
-    "differsFrom": "Par rapport à ton {{label}}, il ajoute : {{details}}",
+    "wornDifferently": "Par rapport à ton {{label}} : {{details}}",
+    "wear": {
+      "higherHeel": "talon plus haut",
+      "lowerHeel": "talon plus bas",
+      "moreEvening": "plus pour le soir",
+      "moreDaytime": "plus pour la journée",
+      "moreFormal": "plus habillé",
+      "moreCasual": "plus décontracté",
+      "alsoFor": "aussi pour {{occasions}}"
+    },
+    "occasion": {
+      "Everyday": "tous les jours",
+      "Work": "travail",
+      "BusinessCasual": "business casual",
+      "BusinessFormal": "business formel",
+      "SmartCasual": "smart casual",
+      "Evening": "soirée",
+      "Cocktail": "cocktail",
+      "BlackTie": "black tie",
+      "WeddingGuest": "invitée à un mariage",
+      "GardenParty": "garden party",
+      "Weekend": "week-end",
+      "Travel": "voyage",
+      "Resort": "vacances",
+      "Formal": "occasions formelles",
+      "Sport": "sport"
+    },
     "detail": {
       "slingback": "slingback",
       "maryJane": "Mary Jane",

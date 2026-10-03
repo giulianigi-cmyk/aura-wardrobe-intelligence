@@ -733,7 +733,33 @@
       "onTrend": "On trend",
       "statusPiece": "Status piece"
     },
-    "differsFrom": "Compared with your {{label}}, it adds: {{details}}",
+    "wornDifferently": "Compared with your {{label}}: {{details}}",
+    "wear": {
+      "higherHeel": "higher heel",
+      "lowerHeel": "lower heel",
+      "moreEvening": "more for evening",
+      "moreDaytime": "more for daytime",
+      "moreFormal": "dressier",
+      "moreCasual": "more casual",
+      "alsoFor": "also for {{occasions}}"
+    },
+    "occasion": {
+      "Everyday": "everyday",
+      "Work": "work",
+      "BusinessCasual": "business casual",
+      "BusinessFormal": "business formal",
+      "SmartCasual": "smart casual",
+      "Evening": "evening",
+      "Cocktail": "cocktail",
+      "BlackTie": "black tie",
+      "WeddingGuest": "wedding guest",
+      "GardenParty": "garden party",
+      "Weekend": "weekend",
+      "Travel": "travel",
+      "Resort": "resort",
+      "Formal": "formal occasions",
+      "Sport": "sport"
+    },
     "detail": {
       "slingback": "slingback",
       "maryJane": "Mary Jane",

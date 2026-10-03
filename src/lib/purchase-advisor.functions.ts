@@ -8,6 +8,7 @@ import { resolveProductImageUrl } from "./import-url.functions";
 import { analyzeWardrobeImageCore } from "./ai-analyze.functions";
 import { closestOwnedPiece, comparablePieces, ownedPieceLabel, ownedText, similarOwnedPiece } from "./purchase-similarity";
 import { detailsIn } from "./garment-details";
+import { occasionList, wearDifference, type WearDifference } from "./wear-difference";
 import { alternativeGroups, compareRanking, positiveFeatures } from "./compare-alternatives";
 import { alreadyOwnedPieces, loadWardrobeFeedback, notSimilarItemIds, productKey } from "./wardrobe-feedback";
 import { ownedEquivalent } from "./gap-ownership";
@@ -61,7 +62,16 @@ type PurchaseProduct = {
   sleeveLength: string | null;
   fit: string | null;
   styleTags: string[];
+  /** How it's worn (from the photo analysis) — compared with the closest owned piece (wear-difference.ts). */
+  heelHeight?: string | null;
+  dayEvening?: string | null;
+  formality?: number | null;
+  occasions?: string[];
 };
+
+/** The closest owned piece of the same kind and how this one differs from it: construction details
+ *  (for the stylist's reason and the alternatives) and how it is worn (shown to the person). */
+type DiffersFrom = { label: string; differences: string[]; wear?: WearDifference | null };
 
 export type PurchaseAdvisorResult =
   | {
@@ -91,7 +101,7 @@ export type PurchaseAdvisorResult =
         similarItemsCount: number;
         pairsWithCount: number;
         wardrobeGap: boolean;
-        differsFrom: { label: string; differences: string[] } | null;
+        differsFrom: DiffersFrom | null;
       };
       fashion: FashionSignals | null;
       rules: {
@@ -240,6 +250,18 @@ async function fetchAsDataUrl(imageUrl: string): Promise<string> {
 }
 
 
+/** "; worn differently: higher heel, more evening; also for Cocktail" for the stylist prompt. */
+function wearFacts(w: WearDifference | null | undefined): string {
+  if (!w) return "";
+  const words: Record<string, string> = { higherHeel: "higher heel", lowerHeel: "lower heel", moreEvening: "more evening", moreDaytime: "more daytime", moreFormal: "more formal", moreCasual: "more casual" };
+  const bits = [w.changes.map((c) => words[c] ?? c).join(", "), w.newOccasions.length ? `also for ${w.newOccasions.join(", ")}` : ""].filter(Boolean);
+  return bits.length ? `; worn differently: ${bits.join("; ")}` : "";
+}
+
+function wearOf(g: { heelHeight?: string; dayEvening?: string; formality?: number | null; occasions?: string[] }) {
+  return { heelHeight: g.heelHeight || null, dayEvening: g.dayEvening || null, formality: g.formality ?? null, occasions: g.occasions ?? [] };
+}
+
 /**
  * Steps 1+2 of the pipeline, factored out so both the single-product
  * analyzePurchase below and the two-product comparePurchases can share the exact
@@ -254,7 +276,7 @@ async function resolveProductAndWardrobeFacts(
   supabase: SupabaseClient<any, any, any>,
   userId: string,
 ): Promise<
-  | { ok: true; product: PurchaseProduct; wardrobe: WardrobeItem[]; duplicate: { verdict: "certain" | "maybe"; itemId: string; label: string } | null; similarItemsCount: number; comparableLabels: string[]; pairsWithCount: number; wardrobeGap: boolean; fashion: FashionSignals | null; differsFrom: { label: string; differences: string[] } | null; novelDetails: string[] }
+  | { ok: true; product: PurchaseProduct; wardrobe: WardrobeItem[]; duplicate: { verdict: "certain" | "maybe"; itemId: string; label: string } | null; similarItemsCount: number; comparableLabels: string[]; pairsWithCount: number; wardrobeGap: boolean; fashion: FashionSignals | null; differsFrom: DiffersFrom | null; novelDetails: string[] }
   | { ok: false; error: string }
 > {
   const product: PurchaseProduct = {
@@ -294,6 +316,7 @@ async function resolveProductAndWardrobeFacts(
         product.fit = garment.fit || null;
         product.styleTags = garment.styleTags ?? [];
         if (!product.brand && garment.brand) product.brand = garment.brand;
+        Object.assign(product, wearOf(garment));
       } catch (e) {
         // Text-only facts from the page are still usable even if the
         // photo itself couldn't be downloaded or analyzed.
@@ -312,6 +335,7 @@ async function resolveProductAndWardrobeFacts(
     product.fit = garment.fit || null;
     product.styleTags = garment.styleTags ?? [];
     product.brand = garment.brand || null;
+    Object.assign(product, wearOf(garment));
   } else if (data.source === "label") {
     const label = await analyzeLabelImage(data.imageDataUrl, model);
     product.brand = label.brand;
@@ -334,6 +358,7 @@ async function resolveProductAndWardrobeFacts(
     product.sleeveLength = garment.sleeveLength || null;
     product.fit = garment.fit || null;
     product.styleTags = garment.styleTags ?? [];
+    Object.assign(product, wearOf(garment));
     // The label wins for printed-text fields when it has an answer —
     // more reliable there than reading small print off a garment photo.
     product.brand = label.brand || garment.brand || null;
@@ -366,7 +391,14 @@ async function resolveProductAndWardrobeFacts(
     ? { verdict: dup.verdict, itemId: dup.itemId, label: dup.label }
     : saidOwned ? { verdict: "maybe" as const, itemId: SAID_OWNED_ID, label: "a piece of this kind and colour the person told AURA they already own" } : null;
   const closest = closestOwnedPiece(shape, comparableWardrobe);
-  const differsFrom = closest && closest.differences.length ? { label: closest.label, differences: closest.differences } : null;
+  const closestItem = closest ? comparableWardrobe.find((it) => it.id === closest.itemId) : undefined;
+  const wear = closestItem
+    ? wearDifference(
+        { heelHeight: product.heelHeight ?? null, dayEvening: product.dayEvening ?? null, formality: product.formality ?? null, occasions: product.occasions ?? [] },
+        { heelHeight: closestItem.heel_height ?? null, dayEvening: closestItem.day_evening ?? null, formality: closestItem.formality ?? null, occasions: occasionList(closestItem.occasion) },
+      )
+    : null;
+  const differsFrom: DiffersFrom | null = closest && (closest.differences.length || wear) ? { label: closest.label, differences: closest.differences, wear } : null;
   // Details of this product that NO owned piece of the same category has (e.g. a slingback when
   // no slingback is owned) — what it would genuinely add (compare-alternatives.ts).
   const ownedDetails = new Set(wardrobe.filter((it) => it.category === product.category).flatMap((it) => [...detailsIn(ownedText(it))]));
@@ -524,7 +556,7 @@ export const analyzePurchase = createServerFn({ method: "POST" })
       wardrobeGap
         ? "- Fills a real gap: nothing of this kind owned yet."
         : `- Not a gap: pieces of the same kind already owned, e.g. ${comparableLabels.join("; ")}. They are the same kind of piece, not necessarily similar — only call it similar if the line above says so.`,
-      differsFrom ? `- Compared with the owned ${differsFrom.label}, this one is different: ${differsFrom.differences.join(", ")} (it is not the same shoe/bag/piece — say how it differs and what it adds, e.g. more evening, a different look).` : "",
+      differsFrom ? `- Compared with the owned ${differsFrom.label}, this one is different${differsFrom.differences.length ? `: ${differsFrom.differences.join(", ")}` : ""}${wearFacts(differsFrom.wear)} (it is not the same shoe/bag/piece — say how it is worn differently and for which occasions).` : "",
       ...fashionFacts(fashion),
       dressViolation ? "- Conflicts with a stated dress preference — this is why it's a skip." : "",
       profile?.season ? `- Estimated color season: ${profile.season}${profile.undertone ? ` (${profile.undertone})` : ""} — soft note only, never a reason on its own.` : "",
@@ -585,7 +617,10 @@ const CachedFactsSchema = z.object({
   duplicateVerdict: z.enum(["certain", "maybe", "new"]),
   similarToLabel: z.string().nullable().optional(),
   comparableLabels: z.array(z.string()).optional(),
-  differsFrom: z.object({ label: z.string(), differences: z.array(z.string()) }).nullable().optional(),
+  differsFrom: z.object({
+    label: z.string(), differences: z.array(z.string()),
+    wear: z.object({ changes: z.array(z.string()), newOccasions: z.array(z.string()) }).nullable().optional(),
+  }).nullable().optional(),
   fashion: FashionSignalsSchema.nullable().optional(),
   novelDetails: z.array(z.string()).optional(),
   pairsWithCount: z.number(),
@@ -609,7 +644,7 @@ type ComparedItem = {
   product: ComparedProductOut;
   verdict: "buy" | "maybe" | "skip";
   confidence: "high" | "medium" | "low";
-  wardrobe: { duplicate: boolean; similarTo: string | null; differsFrom: { label: string; differences: string[] } | null; pairsWithCount: number; wardrobeGap: boolean; dressPreferenceViolation: boolean };
+  wardrobe: { duplicate: boolean; similarTo: string | null; differsFrom: DiffersFrom | null; pairsWithCount: number; wardrobeGap: boolean; dressPreferenceViolation: boolean };
   fashion: FashionSignals | null;
   /** Pieces of this comparison that do the same job: buy one or the other (compare-alternatives.ts). */
   alternative: { preferred: boolean; withNames: string[] } | null;
@@ -794,7 +829,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
       r.wardrobeGap
         ? `${label} fills a real gap — nothing of this kind owned yet.`
         : `${label} is not a gap — pieces of the same kind already owned${r.comparableLabels.length ? ` (e.g. ${r.comparableLabels.join("; ")})` : ""}; same kind does not mean similar.`,
-      r.differsFrom ? `${label} differs from the owned ${r.differsFrom.label}: ${r.differsFrom.differences.join(", ")} — a different piece, say what it adds.` : "",
+      r.differsFrom ? `${label} differs from the owned ${r.differsFrom.label}${r.differsFrom.differences.length ? `: ${r.differsFrom.differences.join(", ")}` : ""}${wearFacts(r.differsFrom.wear)} — a different piece, say how it is worn differently.` : "",
       ...fashionFacts(r.fashion).map((line) => `${label}: ${line.replace(/^- /, "")}`),
       violation ? `${label} conflicts with a stated dress preference.` : "",
     ].filter(Boolean);
