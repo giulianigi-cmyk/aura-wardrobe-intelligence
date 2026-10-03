@@ -185,7 +185,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
     setSavingWornEdit(true);
     const { error } = await updateWornEvent(editingWorn.eventId, editingWorn.itemIds, editWornItemIds, editWornDate, user.id);
     setSavingWornEdit(false);
-    if (error) { toast.error(error); return; }
+    if (error) { console.error("[AURA worn entry] update failed", error); toast.error(t("aiStylist.toastWornEntryUpdateFailed")); return; }
     setWornEntries((prev) => prev.map((w) => (w.eventId === editingWorn.eventId ? { ...w, itemIds: editWornItemIds, date: editWornDate } : w)));
     wardrobeCache.invalidate();
     setEditingWorn(null);
@@ -198,7 +198,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
     const { error } = await deleteWornEvent(entry.eventId, entry.itemIds, user.id);
     setDeletingWornId(null);
     setConfirmDeleteWorn(null);
-    if (error) { toast.error(error); return; }
+    if (error) { console.error("[AURA worn entry] delete failed", error); toast.error(t("aiStylist.toastWornEntryDeleteFailed")); return; }
     setWornEntries((prev) => prev.filter((w) => w.eventId !== entry.eventId));
     // worn_count/last_worn changed on the affected items — the shared
     // wardrobe cache (see wardrobe-query.ts) needs to know, same

@@ -891,7 +891,9 @@
     "toastWornEntryUpdated": "Actualizado",
     "addAPiece": "Añadir una prenda",
     "couldntUpdateOutfit": "No he podido actualizar el outfit",
-    "sizeLabel": "Talla {{size}}"
+    "sizeLabel": "Talla {{size}}",
+    "toastWornEntryUpdateFailed": "No se pudieron guardar los cambios. Inténtalo de nuevo.",
+    "toastWornEntryDeleteFailed": "No se pudo eliminar. Inténtalo de nuevo."
   },
   "outfitBuilder": {
     "itemNoImage": "Esta prenda aún no tiene imagen",

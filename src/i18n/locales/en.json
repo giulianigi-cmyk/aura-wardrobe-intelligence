@@ -891,7 +891,9 @@
     "toastWornEntryUpdated": "Updated",
     "addAPiece": "Add a piece",
     "couldntUpdateOutfit": "Couldn’t update the outfit",
-    "sizeLabel": "Size {{size}}"
+    "sizeLabel": "Size {{size}}",
+    "toastWornEntryUpdateFailed": "Couldn't save the changes. Try again.",
+    "toastWornEntryDeleteFailed": "Couldn't remove it. Try again."
   },
   "outfitBuilder": {
     "itemNoImage": "This item has no image yet",
