@@ -179,6 +179,8 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
             id: it.id, category: it.category, subcategory: it.subcategory,
             colors: it.colors ?? (it.color ? [it.color] : []),
             style: it.style ? (Array.isArray(it.style) ? it.style : [it.style]) : [],
+            brand: it.brand ?? null,
+            model: (it as { model?: string | null }).model ?? null,
           })),
         },
       });
