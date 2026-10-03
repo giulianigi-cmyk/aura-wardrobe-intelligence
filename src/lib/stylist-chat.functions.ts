@@ -10,6 +10,7 @@ import { isItemAtLocation } from "./wardrobe-location";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 import { detectActivityKind } from "./activity-kind";
 import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
+import { loadWearHistory, rotationOrder, wearFields, ROTATION_PROMPT_RULE } from "./outfit-rotation";
 const ItemSchema = z.object({
   id: z.string(),
   category: z.string().nullable().optional(),
@@ -192,7 +193,11 @@ export const stylistChat = createServerFn({ method: "POST" })
         return `${brand}: usually ${topSize}`;
       });
 
-    const catalog = allowedItems.slice(0, 200).map((it) => ({
+    // Rotation (outfit-rotation.ts), soft here: no exclusion — a chat is often about a future event
+    // or a piece the person names themselves — only the order and each piece's wear history.
+    const todayIsoForRotation = new Date().toISOString().slice(0, 10);
+    const wearHistory = await loadWearHistory(context.supabase as never, context.userId, allowedItems.map((it) => it.id));
+    const catalog = rotationOrder(allowedItems, wearHistory, todayIsoForRotation).slice(0, 200).map((it) => ({
       id: it.id,
       category: it.category ?? "",
       subcategory: it.subcategory ?? "",
@@ -213,6 +218,7 @@ export const stylistChat = createServerFn({ method: "POST" })
       formality: it.formality ?? null,
       dayEvening: it.dayEvening ?? "",
       occasion: it.occasion ?? "",
+      ...wearFields(wearHistory.get(it.id), todayIsoForRotation),
     }));
 
     // Deterministic, verified-in-code eligibility check — computed here
@@ -337,6 +343,7 @@ export const stylistChat = createServerFn({ method: "POST" })
       "If you explicitly ask the user to pick between two or more specific options (e.g. two color variants of the same piece), ALSO return those exact option labels as short strings in a 'choices' array (max 4, e.g. [\"Powder Pink\", \"Jet Black\"]). Only populate 'choices' when you are asking a direct pick-one question; otherwise omit it or return an empty array.",
       ...(data.feedbackContext ? [feedbackInstruction[data.feedbackContext]] : []),
               ...(data.todayDate ? [`EVENT DATE: today's date is ${data.todayDate}. If the person's message clearly implies a specific date for the outfit they're asking about — an explicit date, a weekday name ('Monday', 'lunedì'), a relative expression ('in 3 days', 'tra tre giorni', 'next week') — work out the actual ISO date (YYYY-MM-DD) relative to today's date and return it as 'eventDate' in your JSON response. If no specific date is implied, or the person is just asking generally (not about a specific future occasion), leave eventDate null. Only set this when you're genuinely confident about the date; a wrong guess here is worse than leaving it empty.`] : []),
+      ROTATION_PROMPT_RULE,
       wx,
       ...(eventTimeLine ? [eventTimeLine] : []),
       ...styleMemorySection,

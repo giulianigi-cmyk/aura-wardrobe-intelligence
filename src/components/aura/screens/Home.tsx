@@ -287,6 +287,8 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
                   styleTags: it.style_tags ?? [],
                   sleeveLength: it.sleeve_length ?? "",
                   length: it.length ?? "",
+                  fit: it.fit ?? "",
+                  heelHeight: it.heel_height ?? "",
                   material: Array.isArray(it.material) ? it.material : [],
                   toeShape: it.toe_shape ?? "",
                   occasion: it.occasion ?? "",
