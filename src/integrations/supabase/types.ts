@@ -2300,6 +2300,42 @@ export type Database = {
           },
         ]
       }
+      wardrobe_feedback: {
+        Row: {
+          category: string | null
+          colors: string[]
+          created_at: string
+          id: string
+          kind: string
+          owned_item_id: string | null
+          product_key: string | null
+          subcategory: string | null
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          colors?: string[]
+          created_at?: string
+          id?: string
+          kind: string
+          owned_item_id?: string | null
+          product_key?: string | null
+          subcategory?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          colors?: string[]
+          created_at?: string
+          id?: string
+          kind?: string
+          owned_item_id?: string | null
+          product_key?: string | null
+          subcategory?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       wardrobe_items: {
         Row: {
           active_loan_id: string | null
@@ -2317,6 +2353,7 @@ export type Database = {
           current_retail_source: string | null
           current_retail_updated_at: string | null
           day_evening: string | null
+          details: string[] | null
           fit: string | null
           formality: number | null
           gender: string | null
@@ -2364,6 +2401,7 @@ export type Database = {
           current_retail_source?: string | null
           current_retail_updated_at?: string | null
           day_evening?: string | null
+          details?: string[] | null
           fit?: string | null
           formality?: number | null
           gender?: string | null
@@ -2411,6 +2449,7 @@ export type Database = {
           current_retail_source?: string | null
           current_retail_updated_at?: string | null
           day_evening?: string | null
+          details?: string[] | null
           fit?: string | null
           formality?: number | null
           gender?: string | null

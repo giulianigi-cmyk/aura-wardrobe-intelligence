@@ -1,4 +1,5 @@
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { BAG_CARRY_KEYS, DETAIL_KEYS } from "./garment-details";
 import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
 import { z } from "zod";
@@ -47,6 +48,7 @@ const OutputSchema = z.object({
   dayEvening: z.string(),
   detectedProductCode: z.string(),
   detectedManufacturer: z.string(),
+  details: z.array(z.string()).optional(),
 });
 
 export type WardrobeAnalysis = ReturnType<typeof buildFallback>;
@@ -63,6 +65,7 @@ function buildFallback() {
     fit: "", heelHeight: "", toeShape: "", closure: "", gender: "", styleTags: [] as string[],
     formality: null as number | null, dayEvening: "",
     detectedProductCode: "", detectedManufacturer: "",
+    details: [] as string[],
   };
 }
 
@@ -108,13 +111,14 @@ export async function analyzeWardrobeImageCore(imageDataUrl: string): Promise<Wa
     `- closure (applies to: ${ATTRIBUTE_APPLICABILITY.closure.join(", ")}): EXACTLY one of ${CLOSURE_OPTIONS.join(", ")}.`,
     `- gender: EXACTLY one of ${GENDER_OPTIONS.join(", ")}. Most garments DO read as predominantly Woman's or Man's from cut, styling, and typical sizing/fit conventions, even when the general shape could theoretically be worn by anyone — lean toward that predominant read rather than defaulting to Unisex. Examples: a fitted blazer with narrow shoulders and a nipped waist reads as Woman's even with no explicit gender marker; a boxy men's-cut oxford shirt reads as Man's; a floral midi dress, a tie, heels, and a tailored men's suit are all confidently one or the other despite none being as unambiguous as a bra or boxers. Reserve Unisex for pieces genuinely designed and marketed without a gender lean — a plain crewneck sweatshirt, a basic baseball cap, a tote bag with no gendered styling cues, a plain white t-shirt cut straight rather than fitted either way. The bar for Unisex is \"this could just as easily be styled as either\", not merely \"I'm not 100% certain\" — when there IS a real cut/styling lean, however slight, report that lean rather than defaulting to Unisex out of caution.`,
     `- styleTags (array, 1-4 items): pick from ${STYLE_TAG_OPTIONS.join(", ")}. These are free-form aesthetic labels for future style matching — be generous but accurate.`,
+    `- details (array, 0-4 items): construction/finish details clearly visible on THIS piece, from: ${DETAIL_KEYS.filter((k) => !(BAG_CARRY_KEYS as readonly string[]).includes(k)).join(", ")} (slingback = open back with a strap behind the heel; patent = glossy varnished finish; embellished = crystals/beads/jewels). For Bags ALSO add how it can be carried, from: ${BAG_CARRY_KEYS.join(", ")} — shoulder (worn on the shoulder), crossbody (a long strap long enough to wear across the body, including a removable/adjustable strap), handheld (top handle or clutch). Add only what you can see.`,
     "If a field cannot be determined confidently, or does not apply to this category, return an empty array or empty string for it.",
     "",
     "- formality: an integer 1-5, purely about how dressed-up this specific piece reads, independent of season/color: 1 = very casual/sport (activewear, flip-flops, gym leggings, and ALWAYS running/training/performance shoes — subcategory \"Running Shoes\" is formality 1, full stop, regardless of colorway or brand); 2 = casual (jeans, everyday t-shirts, lifestyle sneakers — subcategory \"Sneakers\" only, never \"Running Shoes\" — casual sweaters); 3 = smart casual (casual blazers, loafers, non-formal tailored trousers, structured casual bags); 4 = elegant (tailored blazers, slingbacks, refined sandals, elegant bags); 5 = formal/very elegant (evening dresses, cocktail dresses, clutches, evening shoes, tuxedo-type formalwear). Always give your best estimate — never leave this out.",
     "- dayEvening: EXACTLY one of day, evening, both — whether this piece reads as appropriate for daytime, nighttime, or either. Most everyday pieces are \"both\"; reserve \"evening\" for pieces that read as distinctly after-dark (sequins, crystals/Swarovski/rhinestones/diamonds, evening satin, tuxedo-type pieces) and \"day\" only for pieces that would look out of place at night (e.g. very sporty daywear).",
     "",
     "Respond with ONLY a single valid JSON object, no markdown fences, no extra text, in exactly this shape:",
-    '{"category": "", "subcategory": "", "colors": [], "styles": [], "occasions": [], "seasons": [], "brand": "", "materials": [], "length": "", "sleeveLength": "", "fit": "", "heelHeight": "", "toeShape": "", "closure": "", "gender": "", "styleTags": [], "formality": 3, "dayEvening": "both", "detectedProductCode": "", "detectedManufacturer": ""}',
+    '{"category": "", "subcategory": "", "colors": [], "styles": [], "occasions": [], "seasons": [], "brand": "", "materials": [], "length": "", "sleeveLength": "", "fit": "", "heelHeight": "", "toeShape": "", "closure": "", "gender": "", "styleTags": [], "formality": 3, "dayEvening": "both", "detectedProductCode": "", "detectedManufacturer": "", "details": []}',
   ].join(" ");
 
   try {
@@ -222,6 +226,8 @@ export async function analyzeWardrobeImageCore(imageDataUrl: string): Promise<Wa
       dayEvening: (["day", "evening", "both"] as const).includes(output.dayEvening as never) ? output.dayEvening : "",
       detectedProductCode: output.detectedProductCode?.trim() ?? "",
       detectedManufacturer: output.detectedManufacturer?.trim() ?? "",
+      details: [...new Set((output.details ?? []).filter((d) => DETAIL_KEYS.includes(d)
+        && (category === "Bags" || !(BAG_CARRY_KEYS as readonly string[]).includes(d))))].slice(0, 6),
     };
   } catch (err) {
     if (err instanceof AiCallFailedError) {

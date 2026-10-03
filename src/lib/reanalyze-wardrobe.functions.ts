@@ -23,6 +23,11 @@ type CandidateRow = {
   id: string;
   image_url: string | null;
   category: string | null;
+  subcategory: string | null;
+  style_tags: string[] | null;
+  details: string[] | null;
+  attrs_backfilled_at: string | null;
+  user_edited_fields: string[] | null;
   formality: number | null;
   occasion: string | null;
   season: string | null;
@@ -69,7 +74,42 @@ function isIncomplete(item: CandidateRow): boolean {
 }
 
 const CANDIDATE_COLUMNS =
-  "id, image_url, category, formality, occasion, season, day_evening, sleeve_length, fit, heel_height, toe_shape, closure, gender, material";
+  "id, image_url, category, subcategory, style_tags, details, attrs_backfilled_at, user_edited_fields, formality, occasion, season, day_evening, sleeve_length, fit, heel_height, toe_shape, closure, gender, material";
+
+/** Still to process: never analysed for details (details NULL, which includes every piece added
+ *  before the details existed and pieces added by batch/scan), or missing an attribute and never
+ *  passed through this job. A processed piece is marked (details set, attrs_backfilled_at), so a
+ *  photo the AI can't read is not analysed again and again. */
+export function needsCompletion(item: Pick<CandidateRow, "details" | "attrs_backfilled_at"> & Parameters<typeof isIncomplete>[0]): boolean {
+  if (item.details == null) return true;
+  return item.attrs_backfilled_at == null && isIncomplete(item);
+}
+
+/** The fields to write: only empty ones, never one the person set or corrected by hand
+ *  (user_edited_fields), and the type only when the analysis sees the same category. */
+export function completionPatch(item: CandidateRow, result: Awaited<ReturnType<typeof analyzeWardrobeImageCore>>): Record<string, unknown> {
+  const edited = new Set(item.user_edited_fields ?? []);
+  const free = (field: string, current: unknown) =>
+    !edited.has(field) && (current == null || current === "" || (Array.isArray(current) && current.length === 0));
+  const patch: Record<string, unknown> = {};
+  if (free("subcategory", item.subcategory) && result.subcategory && result.category === item.category) patch.subcategory = result.subcategory;
+  if (free("sleeve_length", item.sleeve_length) && result.sleeveLength) patch.sleeve_length = result.sleeveLength;
+  if (free("fit", item.fit) && result.fit) patch.fit = result.fit;
+  if (free("heel_height", item.heel_height) && result.heelHeight) patch.heel_height = result.heelHeight;
+  if (free("toe_shape", item.toe_shape) && result.toeShape) patch.toe_shape = result.toeShape;
+  if (free("closure", item.closure) && result.closure) patch.closure = result.closure;
+  if (free("gender", item.gender) && result.gender) patch.gender = result.gender;
+  if (free("style_tags", item.style_tags) && result.styleTags?.length) patch.style_tags = result.styleTags;
+  if (free("formality", item.formality) && result.formality != null) patch.formality = result.formality;
+  if (free("day_evening", item.day_evening) && result.dayEvening) patch.day_evening = result.dayEvening;
+  if (free("occasion", item.occasion) && result.occasions?.length) patch.occasion = result.occasions.join(", ");
+  if (free("season", item.season) && result.seasons?.length) patch.season = result.seasons.join(", ");
+  if (free("material", item.material) && result.materials?.length) patch.material = result.materials;
+  // details: always recorded (an empty array = analysed, nothing notable) unless set by hand
+  if (!edited.has("details") && item.details == null) patch.details = result.details ?? [];
+  patch.attrs_backfilled_at = new Date().toISOString();
+  return patch;
+}
 
 /**
  * Ri-analizza in batch i capi già in guardaroba a cui manca almeno un
@@ -104,9 +144,11 @@ export const reanalyzeWardrobeBatch = createServerFn({ method: "POST" })
     if (qErr) throw new Error(qErr.message);
 
     const rows = (allItems ?? []) as unknown as CandidateRow[];
-    const items = rows.filter(isIncomplete).slice(0, BATCH_SIZE);
+    const todo = rows.filter(needsCompletion);
+    const items = todo.slice(0, BATCH_SIZE);
 
     let updated = 0;
+    let done = 0;
 
     for (const item of items) {
       try {
@@ -114,50 +156,31 @@ export const reanalyzeWardrobeBatch = createServerFn({ method: "POST" })
         const { data: blob, error: dlErr } = await supabaseAdmin.storage.from(BUCKET).download(item.image_url);
         if (dlErr || !blob) {
           console.error("[AURA reanalyze] download failed", item.id, dlErr);
+          // the photo can't be read: mark it so it isn't retried forever
+          await context.supabase.from("wardrobe_items").update({ details: [], attrs_backfilled_at: new Date().toISOString() } as never).eq("id", item.id);
+          done++;
           continue;
         }
 
         const dataUrl = toDataUrl(await blob.arrayBuffer(), blob.type || "image/jpeg");
+        // An AI outage throws (AiCallFailedError): the piece is left unmarked and retried later.
         const result = await analyzeWardrobeImageCore(dataUrl);
-
-        const patch: Record<string, unknown> = {};
-        if (!item.sleeve_length && result.sleeveLength) patch.sleeve_length = result.sleeveLength;
-        if (!item.fit && result.fit) patch.fit = result.fit;
-        if (!item.heel_height && result.heelHeight) patch.heel_height = result.heelHeight;
-        if (!item.toe_shape && result.toeShape) patch.toe_shape = result.toeShape;
-        if (!item.closure && result.closure) patch.closure = result.closure;
-        if (!item.gender && result.gender) patch.gender = result.gender;
-        if (result.styleTags?.length) patch.style_tags = result.styleTags;
-        // formality/dayEvening should apply to virtually every garment —
-        // written directly, not gated behind a truthiness check like the
-        // optional attributes above (a formality of e.g. 0 would be
-        // falsy and silently dropped otherwise).
-        if (item.formality == null) patch.formality = result.formality;
-        if (!item.day_evening && result.dayEvening) patch.day_evening = result.dayEvening;
-        // occasion/season: comma-joined string, same format as the
-        // upload-time flow in AddItem.tsx. Only written when the AI
-        // actually returned at least one, and only when this item didn't
-        // already have a value — never overwrite a manual correction.
-        if (!item.occasion && result.occasions?.length) patch.occasion = result.occasions.join(", ");
-        if (!item.season && result.seasons?.length) patch.season = result.seasons.join(", ");
-        if ((!item.material || item.material.length === 0) && result.materials?.length) {
-          patch.material = result.materials;
-        }
-
-        if (Object.keys(patch).length === 0) continue;
+        const patch = completionPatch(item, result);
 
         const { error: updErr } = await context.supabase
           .from("wardrobe_items")
           .update(patch as never)
           .eq("id", item.id);
         if (updErr) { console.error("[AURA reanalyze] update failed", item.id, updErr); continue; }
-        updated++;
+        done++;
+        if (Object.keys(patch).some((k) => k !== "attrs_backfilled_at" && k !== "details")) updated++;
       } catch (e) {
-        console.error("[AURA reanalyze] item failed", item.id, e);
+        console.error("[AURA reanalyze] item failed, will retry later", item.id, e instanceof Error ? e.message : String(e));
+        break; // most likely the AI service: stop this batch
       }
     }
 
-    const remaining = rows.filter(isIncomplete).length - updated;
+    const remaining = todo.length - done;
 
-    return { processed: items.length, updated, remaining: Math.max(remaining, 0) };
+    return { processed: done, updated, remaining: Math.max(remaining, 0) };
   });

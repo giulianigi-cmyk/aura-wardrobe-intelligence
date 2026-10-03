@@ -752,7 +752,16 @@
       "chain": "cadena",
       "logo": "logo",
       "animalPrint": "animal print"
-    }
+    },
+    "alreadyOwnIt": "Ya lo tengo",
+    "whichOneIsIt": "¿Cuál es?",
+    "whichOneHint": "Elígelo para que AURA aprenda de qué tipo es. Si aún no está en la app, dilo abajo.",
+    "notUploadedYet": "Lo tengo, pero no lo he subido",
+    "feedbackSaved": "Gracias, AURA lo tendrá en cuenta.",
+    "feedbackFailed": "No se pudo guardar. Inténtalo de nuevo.",
+    "notSimilar": "No es parecido",
+    "alreadyOwnSimilar": "Ya tengo uno así",
+    "saidOwned": "Indicaste que ya tienes uno así."
   },
   "planner": {
     "calendar": "Calendario",

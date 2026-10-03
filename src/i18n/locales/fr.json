@@ -752,7 +752,16 @@
       "chain": "chaîne",
       "logo": "logo",
       "animalPrint": "imprimé animal"
-    }
+    },
+    "alreadyOwnIt": "Je l'ai déjà",
+    "whichOneIsIt": "Lequel est-ce ?",
+    "whichOneHint": "Choisis-le pour qu'AURA apprenne son type. S'il n'est pas encore dans l'app, dis-le ci-dessous.",
+    "notUploadedYet": "Je l'ai, mais pas dans l'app",
+    "feedbackSaved": "Merci, AURA en tiendra compte.",
+    "feedbackFailed": "Impossible d'enregistrer. Réessaie.",
+    "notSimilar": "Ce n'est pas similaire",
+    "alreadyOwnSimilar": "J'en ai déjà un comme ça",
+    "saidOwned": "Tu as indiqué en avoir déjà un comme ça."
   },
   "planner": {
     "calendar": "Calendrier",
