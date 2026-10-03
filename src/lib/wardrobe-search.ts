@@ -207,3 +207,14 @@ export function expandSearchWord(word: string): string[] {
   for (const [k, words] of Object.entries(TYPE_WORDS)) if (words.some((x) => normalizeText(x) === w)) k.split("/").forEach((s) => out.add(normalizeText(s)));
   return [...out];
 }
+
+/** Wardrobe categories a message names ("borsa" → Bags, "décolleté" → Shoes, "gonna" → Bottoms). */
+export function mentionedCategories(message: string): string[] {
+  const text = normalizeText(message);
+  if (!text) return [];
+  const out = new Set<string>();
+  for (const [k, words] of Object.entries(TYPE_WORDS)) {
+    if (words.some((w) => hasPhrase(text, w))) out.add(k.split("/")[0]);
+  }
+  return [...out];
+}

@@ -146,6 +146,7 @@ export const prepareAvatarTryOn = createServerFn({ method: "POST" })
       return {
         ok: false as const,
         error: "unsupported_category",
+        category: blocked.category,
         message: `${blocked.category} isn't supported for virtual try-on yet.`,
       };
     }

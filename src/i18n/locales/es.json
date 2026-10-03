@@ -1949,7 +1949,9 @@
     "noAvatarYetBody": "Crea tu avatar una vez y luego prueba cualquier outfit en ti misma.",
     "setUpNow": "Configurarlo",
     "biometricConsentRequired": "Confirma el consentimiento de arriba antes de continuar.",
-    "generatingTimeEstimate": "Unos 30 segundos por prenda — unos {{seconds}}s en total"
+    "generatingTimeEstimate": "Unos 30 segundos por prenda — unos {{seconds}}s en total",
+    "tooManyPieces": "En el avatar se muestran las 6 prendas principales: {{count}} accesorios pequeños no se incluyen.",
+    "genericError": "Hubo un problema al crear el look. Inténtalo de nuevo."
   },
   "logWear": {
     "title": "¿Qué llevé puesto?",
