@@ -570,7 +570,11 @@
     "stopRecordingAria": "Arrêter l'enregistrement",
     "recordVoiceAria": "Enregistrer un message vocal",
     "sendAria": "Envoyer",
-    "auraIsSpeaking": "AURA parle…"
+    "auraIsSpeaking": "AURA parle…",
+    "replyFailed": "Je n'ai pas pu répondre pour le moment. Ton message est toujours là : réessaie.",
+    "retry": "Réessayer",
+    "whichPiece": "Laquelle veux-tu dire ?",
+    "thisOne": "Celle-ci : {{label}}"
   },
   "splash": {
     "tagline": "Intelligence de garde-robe",

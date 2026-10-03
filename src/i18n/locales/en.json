@@ -570,7 +570,11 @@
     "stopRecordingAria": "Stop recording",
     "recordVoiceAria": "Record voice message",
     "sendAria": "Send",
-    "auraIsSpeaking": "AURA is speaking…"
+    "auraIsSpeaking": "AURA is speaking…",
+    "replyFailed": "I couldn't answer just now. Your message is still here — try again.",
+    "retry": "Try again",
+    "whichPiece": "Which one do you mean?",
+    "thisOne": "This one: {{label}}"
   },
   "splash": {
     "tagline": "Wardrobe Intelligence",
