@@ -5,6 +5,7 @@ import { z } from "zod";
 import { ITEM_CATEGORIES, SUBCATEGORY_OPTIONS } from "./wardrobe-options";
 import { COLOR_NAMES, COLOR_PALETTE } from "./color-palette";
 import { parseAiJson } from "./ai-json";
+import { ownedEquivalent } from "./gap-ownership";
 
 const ItemSchema = z.object({
   id: z.string(),
@@ -12,6 +13,8 @@ const ItemSchema = z.object({
   subcategory: z.string().nullable().optional(),
   colors: z.array(z.string()).nullable().optional(),
   style: z.array(z.string()).nullable().optional(),
+  brand: z.string().nullable().optional(),
+  model: z.string().nullable().optional(),
 });
 
 // This engine had no language handling at all — every suggestion came out in English regardless
@@ -150,19 +153,14 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
       subcategory: it.subcategory ?? "",
       colors: it.colors ?? [],
       style: it.style ?? [],
+      ...(it.brand ? { brand: it.brand } : {}),
+      ...(it.model ? { model: it.model } : {}),
     }));
 
-    // Deterministic ownership index: "category|subcategory" -> colors
-    // already owned in that combo. Used as a hard post-check, not trusted
-    // to the model's self-report.
-    const ownedCombos = new Map<string, Set<string>>();
-    for (const it of data.items) {
-      if (!it.category || !it.subcategory) continue;
-      const k = `${it.category}|${it.subcategory}`;
-      const set = ownedCombos.get(k) ?? new Set<string>();
-      for (const c of it.colors ?? []) set.add(c);
-      ownedCombos.set(k, set);
-    }
+    // Ownership is checked in code after every suggestion (gap-ownership.ts): same category, a type
+    // that does the same job (a shoulder bag is worn crossbody too) or no type on file, and a
+    // colour that reads the same (Jet Black = Black). The old exact subcategory + colour-name
+    // index missed a black YSL bag with no type on file and suggested a "black crossbody bag".
 
     const system = [
       "You are an elegant, knowledgeable personal stylist looking at this person's real wardrobe catalog to spot ONE genuinely missing piece — a category + subcategory + color combination that is absent or clearly under-represented, and that would meaningfully increase how many outfits they could put together.",
@@ -182,6 +180,7 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
       "Do not invent a brand, product name, or price - you have no way of knowing what's for sale.",
       "Base the suggestion strictly on real gaps in the provided catalog (e.g. many tops and bottoms but no outerwear at all, or no neutral shoes to anchor bright pieces).",
       "CRITICAL: never suggest a category+subcategory+color the person already owns - check the catalog color by color, not just by category.",
+      "A piece with an empty subcategory may be ANY type of that category (read its brand and model): never suggest a type and colour such a piece could already be. Many bags are worn in more than one way — a shoulder bag usually also has a crossbody strap, a top-handle 'Bandoulière' has a shoulder strap — so a crossbody bag is not missing when a shoulder bag of that colour is owned.",
       "",
       "Respond with ONLY a single valid JSON object, no markdown fences, no extra text, in exactly this shape:",
       '{"category": "", "subcategory": "", "colors": [], "title": "", "reason": ""}',
@@ -225,8 +224,8 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
         const validSubcats = SUBCATEGORY_OPTIONS[candCategory] ?? [];
         const candSubcategory = validSubcats.includes(candidate.subcategory) ? candidate.subcategory : (validSubcats[0] ?? candidate.subcategory);
         const candColors = candidate.colors.filter((c) => COLOR_NAMES.includes(c));
-        const owned = ownedCombos.get(`${candCategory}|${candSubcategory}`);
-        const alreadyOwned = !!owned && candColors.length > 0 && candColors.some((c) => owned.has(c));
+        const owner = ownedEquivalent({ category: candCategory, subcategory: candSubcategory, colors: candColors }, data.items);
+        const alreadyOwned = !!owner;
 
         if (!alreadyOwned) {
           accepted = candidate;
@@ -239,7 +238,7 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
         messages.push({ role: "assistant", content: text });
         messages.push({
           role: "user",
-          content: `That's already owned: the wardrobe already has ${candCategory} / ${candidate.subcategory} in ${[...owned].join(", ")}. Pick a genuinely different, currently missing category+subcategory+color combination. Reply with ONLY the JSON object.`,
+          content: `That's already owned: the wardrobe already has ${[owner?.brand, owner?.model, owner?.subcategory || owner?.category, (owner?.colors ?? []).join("/")].filter(Boolean).join(" ")}, which covers ${candCategory} / ${candidate.subcategory} in ${candColors.join(", ")}. Pick a genuinely different, currently missing category+subcategory+color combination. Reply again with ONLY the JSON object.`,
         });
       }
 
