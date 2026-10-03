@@ -1431,8 +1431,9 @@
     "setUpNow": "Le configurer",
     "biometricConsentRequired": "Veuillez confirmer le consentement ci-dessus avant de continuer.",
     "generatingTimeEstimate": "Environ 30 secondes par pièce — environ {{seconds}}s au total",
-    "tooManyPieces": "L'avatar montre les 6 pièces principales : {{count}} petits accessoires ne sont pas inclus.",
-    "genericError": "Un problème est survenu lors de la création du look. Réessaie."
+    "genericError": "Un problème est survenu lors de la création du look. Réessaie.",
+    "tooManyPieces_one": "L'avatar montre les pièces principales : 1 petit accessoire n'est pas inclus.",
+    "tooManyPieces_other": "L'avatar montre les pièces principales : {{count}} petits accessoires ne sont pas inclus."
   },
   "logWear": {
     "title": "Qu'ai-je porté ?",
@@ -2113,5 +2114,24 @@
     "cancel": "Annuler",
     "confirm": "Confirmer",
     "saveFailed": "Impossible d'enregistrer le cadrage sur ton compte ; il reste enregistré sur cet appareil."
+  },
+  "piecePicker": {
+    "searchPlaceholder": "Rechercher par marque, type, couleur, matière…",
+    "all": "Tout",
+    "emptyDefault": "Ajoute d'abord des pièces à ton dressing.",
+    "noMatches": "Aucun résultat : efface la recherche ou les filtres pour tout voir.",
+    "categories": {
+      "Tops": "Hauts",
+      "Bottoms": "Bas",
+      "Dresses": "Robes",
+      "Jumpsuits": "Combinaisons",
+      "Outerwear": "Manteaux",
+      "Shoes": "Chaussures",
+      "Bags": "Sacs",
+      "Accessories": "Accessoires",
+      "Underwear": "Lingerie",
+      "Swimwear": "Maillots",
+      "Activewear": "Sport"
+    }
   }
 }

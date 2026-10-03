@@ -10,9 +10,13 @@ import { prepareAvatarTryOn, startTryOnStep, checkTryOnStep, finalizeAvatarTryOn
 import { restoreOriginalFaceAligned } from "@/lib/face-restore";
 import { saveOutfitPlan } from "@/lib/outfit-plan.functions";
 import { selectTryOnItems } from "@/lib/tryon-select";
+import { PiecePicker } from "../PiecePicker";
+import type { WardrobeItem as FullWardrobeItem } from "@/lib/aura-types";
 import type { Screen } from "../AuraApp";
 
-type WardrobeItem = { id: string; category: string | null; subcategory: string | null; image_url: string | null };
+type WardrobeItem = FullWardrobeItem;
+// The try-on server refuses these categories: not offered in the picker instead of failing later.
+const NOT_TRYABLE = new Set(["Underwear", "Swimwear"]);
 
 type Stage = "pick" | "generating" | "result" | "error";
 type View = "person" | "items";
@@ -67,11 +71,13 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
     (async () => {
       setLoadingWardrobe(true);
       const { data } = await (supabase.from("wardrobe_items" as never) as any)
-        .select("id, category, subcategory, image_url")
+        .select("*")
         .eq("user_id", user.id)
-        .eq("archived", false);
+        .eq("archived", false)
+        .order("created_at", { ascending: false });
       // Loaned out = not physically available to try on right now.
-      const items = ((data ?? []) as WardrobeItem[]).filter((it) => !(it as unknown as { active_loan_id?: string | null }).active_loan_id);
+      const items = ((data ?? []) as WardrobeItem[])
+        .filter((it) => !(it as unknown as { active_loan_id?: string | null }).active_loan_id && !NOT_TRYABLE.has(it.category ?? ""));
       setWardrobe(items);
       setWardrobeUrls(await resolveWardrobeUrls(items as never));
       setLoadingWardrobe(false);
@@ -105,11 +111,14 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
       // At most 6 pieces go on the avatar (one try-on step each): the main garments, shoes and bag
       // first, small jewellery last (tryon-select.ts). Whole outfits from the stylist or a scan
       // often have more, and used to fail with a raw validation error.
+      // Small jewellery (thin bracelets, rings, watches…) is skipped too: it doesn't read on a
+      // full-body image and each piece costs a try-on step.
       let itemIds = allItemIds;
-      if (allItemIds.length > 6) {
-        const { data: rows } = await supabase.from("wardrobe_items").select("id, category, subcategory").in("id", allItemIds);
-        const byId = new Map(((rows ?? []) as { id: string; category: string | null; subcategory: string | null }[]).map((r) => [r.id, r]));
-        const { kept, dropped } = selectTryOnItems(allItemIds.map((id) => byId.get(id) ?? { id, category: null, subcategory: null }));
+      {
+        const { data: rows } = await supabase.from("wardrobe_items").select("id, category, subcategory, style_tags, material").in("id", allItemIds);
+        type Row = { id: string; category: string | null; subcategory: string | null; style_tags: string[] | null; material: string[] | null };
+        const byId = new Map(((rows ?? []) as Row[]).map((r) => [r.id, r]));
+        const { kept, dropped } = selectTryOnItems(allItemIds.map((id) => byId.get(id) ?? { id, category: null, subcategory: null, style_tags: null, material: null }));
         itemIds = kept.map((x) => x.id);
         if (dropped.length) toast.message(t("avatar.tooManyPieces", { count: dropped.length }));
       }
@@ -242,30 +251,16 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
           <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("avatar.pickItemsEyebrow")}</p>
           <p className="mt-1 text-xs text-muted-foreground">{t("avatar.pickItemsHint")}</p>
 
-          {loadingWardrobe ? (
-            <div className="flex justify-center py-16"><Loader2 className="animate-spin" /></div>
-          ) : (
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              {wardrobe.map((it) => {
-                const on = selected.includes(it.id);
-                const url = it.image_url ? wardrobeUrls[it.image_url] : undefined;
-                return (
-                  <button
-                    key={it.id}
-                    onClick={() => toggleSelect(it.id)}
-                    className={`relative aspect-square rounded-xl overflow-hidden border-2 transition ${on ? "border-foreground" : "border-transparent"}`}
-                  >
-                    {url && <img src={url} alt="" className="h-full w-full object-cover bg-secondary/40" />}
-                    {on && (
-                      <span className="absolute top-1.5 right-1.5 h-5 w-5 rounded-full bg-foreground text-background flex items-center justify-center">
-                        <Check size={11} />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          {/* Same picker as the rest of the app: search, categories, whole pieces visible. */}
+          <PiecePicker
+            className="mt-4 pb-44"
+            items={wardrobe}
+            signed={wardrobeUrls}
+            loading={loadingWardrobe}
+            selectedIds={selected}
+            onToggle={toggleSelect}
+            columns={3}
+          />
 
           {selected.length > 0 && (
             <p className="fixed bottom-[10rem] left-6 right-6 text-center text-[11px] text-muted-foreground">
@@ -336,7 +331,7 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
 
           <div className="mt-4 rounded-3xl overflow-hidden bg-secondary/40 aspect-[4/5]">
             {view === "person" ? (
-              resultUrl && <img src={resultUrl} alt="" className="h-full w-full object-cover" />
+              resultUrl && <img src={resultUrl} alt="" className="h-full w-full object-contain" />
             ) : (
               <div className="grid grid-cols-3 gap-1 h-full p-1">
                 {(selected.length ? selected : (initialItemIds ?? [])).map((id) => {

@@ -1950,8 +1950,9 @@
     "setUpNow": "Configuralo",
     "biometricConsentRequired": "Conferma il consenso qui sopra prima di continuare.",
     "generatingTimeEstimate": "Circa 30 secondi a capo — circa {{seconds}}s in totale",
-    "tooManyPieces": "Sull'avatar mostro i 6 capi principali: {{count}} accessori piccoli non sono inclusi.",
-    "genericError": "Si è verificato un problema nella creazione del look. Riprova."
+    "genericError": "Si è verificato un problema nella creazione del look. Riprova.",
+    "tooManyPieces_one": "Sull'avatar mostro i capi principali: 1 accessorio piccolo non è incluso.",
+    "tooManyPieces_other": "Sull'avatar mostro i capi principali: {{count}} accessori piccoli non sono inclusi."
   },
   "logWear": {
     "title": "Cosa ho indossato?",
@@ -2113,5 +2114,24 @@
     "cancel": "Annulla",
     "confirm": "Conferma",
     "saveFailed": "Non è stato possibile salvare l'inquadratura sull'account; resta salvata su questo dispositivo."
+  },
+  "piecePicker": {
+    "searchPlaceholder": "Cerca per brand, tipo, colore, tessuto…",
+    "all": "Tutti",
+    "emptyDefault": "Aggiungi prima qualche capo al guardaroba.",
+    "noMatches": "Nessun risultato: cancella la ricerca o i filtri per vedere tutto.",
+    "categories": {
+      "Tops": "Top",
+      "Bottoms": "Pantaloni e gonne",
+      "Dresses": "Abiti",
+      "Jumpsuits": "Tute",
+      "Outerwear": "Capispalla",
+      "Shoes": "Scarpe",
+      "Bags": "Borse",
+      "Accessories": "Accessori",
+      "Underwear": "Intimo",
+      "Swimwear": "Costumi",
+      "Activewear": "Sportswear"
+    }
   }
 }
