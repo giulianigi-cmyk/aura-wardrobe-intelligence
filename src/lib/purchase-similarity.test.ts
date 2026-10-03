@@ -33,3 +33,14 @@ test("a similar piece is named", () => {
 test("accessory with unknown type: nothing is called similar", () => {
   assert.equal(similarOwnedPiece({ category: "Accessories", subcategory: null, colors: ["Gold"], brand: "Cartier" }, wardrobe), null);
 });
+
+test("patent slingback vs owned closed leather pumps, same house and colour: not a duplicate (reported)", () => {
+  const pumps = own({ id: "loub", category: "Shoes", subcategory: "Pumps", brand: "Christian Louboutin", colors: ["Jet Black", "Cherry Red"], material: ["Leather"], style_tags: ["Elegant"] } as never);
+  (pumps as unknown as { closure: string }).closure = "Slip-On";
+  const slingback = { category: "Shoes", subcategory: "Pumps", colors: ["Jet Black"], brand: "Christian Louboutin", text: "So Kate Sling 85 slingback in vernice nera" };
+  const s = similarOwnedPiece(slingback, [pumps]);
+  assert.equal(s?.verdict, "maybe"); // was "certain" → skip
+  assert.deepEqual(s?.differences.sort(), ["patent", "slingback"]);
+  // the very same closed leather pump stays a certain duplicate
+  assert.equal(similarOwnedPiece({ ...slingback, text: "So Kate 120 in pelle" }, [pumps])?.verdict, "certain");
+});

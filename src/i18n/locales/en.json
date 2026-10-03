@@ -722,11 +722,37 @@
     "fillsAGap": "Fills a gap in your wardrobe",
     "lowConfidenceNote": "Low-confidence estimate: not enough data for a confident call",
     "viewOnSite": "View on site",
-    "linkDisclaimer": "This is an assessment based on your wardrobe, not market expertise — it doesn't know about discounts, real quality, or trends.",
+    "linkDisclaimer": "An assessment based on your wardrobe, not a market appraisal: it doesn't know discounts or real quality. Iconic status and trends come from the AI's general knowledge and may not be up to date.",
     "orWardrobeIsMissing": "Or, what your wardrobe is missing",
     "disclaimer": "This is a wardrobe gap estimate based on what you already own — not a live product catalog. Real shopping recommendations with actual products and links are coming soon.",
     "similarTo": "Similar to: {{label}}",
-    "duplicateOf": "Looks like a duplicate of: {{label}}"
+    "duplicateOf": "Looks like a duplicate of: {{label}}",
+    "fashion": {
+      "iconic": "Iconic",
+      "timeless": "Timeless",
+      "onTrend": "On trend",
+      "statusPiece": "Status piece"
+    },
+    "differsFrom": "Different from your {{label}}: {{details}}",
+    "detail": {
+      "slingback": "slingback",
+      "maryJane": "Mary Jane",
+      "patent": "patent",
+      "suede": "suede",
+      "satin": "satin",
+      "velvet": "velvet",
+      "mesh": "mesh",
+      "embellished": "embellished",
+      "metallic": "metallic",
+      "platform": "platform",
+      "ankleStrap": "ankle strap",
+      "openToe": "open toe",
+      "kittenHeel": "kitten heel",
+      "quilted": "quilted",
+      "chain": "chain",
+      "logo": "logo",
+      "animalPrint": "animal print"
+    }
   },
   "planner": {
     "calendar": "Calendar",

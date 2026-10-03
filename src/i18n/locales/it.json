@@ -722,11 +722,37 @@
     "fillsAGap": "Colma un vuoto nel tuo guardaroba",
     "lowConfidenceNote": "Stima poco affidabile: dati insufficienti per un giudizio sicuro",
     "viewOnSite": "Vedi sul sito",
-    "linkDisclaimer": "Questa è una valutazione basata sul tuo guardaroba, non un'expertise di mercato: non conosce sconti, qualità reale o tendenze.",
+    "linkDisclaimer": "Una valutazione basata sul tuo guardaroba, non un'expertise di mercato: non conosce sconti o qualità reale. Iconicità e tendenze vengono dalle conoscenze generali dell'AI e possono non essere aggiornate.",
     "orWardrobeIsMissing": "Oppure, cosa manca al tuo guardaroba",
     "disclaimer": "Questa è una stima dei vuoti nel guardaroba basata su ciò che possiedi già, non un catalogo prodotti in tempo reale. Consigli di shopping reali con prodotti e link veri arriveranno presto.",
     "similarTo": "Simile a: {{label}}",
-    "duplicateOf": "Sembra un duplicato di: {{label}}"
+    "duplicateOf": "Sembra un duplicato di: {{label}}",
+    "fashion": {
+      "iconic": "Iconico",
+      "timeless": "Senza tempo",
+      "onTrend": "Di tendenza",
+      "statusPiece": "Pezzo status"
+    },
+    "differsFrom": "Diverso dal tuo {{label}}: {{details}}",
+    "detail": {
+      "slingback": "slingback",
+      "maryJane": "Mary Jane",
+      "patent": "vernice",
+      "suede": "camoscio",
+      "satin": "raso",
+      "velvet": "velluto",
+      "mesh": "rete",
+      "embellished": "gioiello / cristalli",
+      "metallic": "metallizzato",
+      "platform": "plateau",
+      "ankleStrap": "cinturino alla caviglia",
+      "openToe": "punta aperta",
+      "kittenHeel": "tacco kitten",
+      "quilted": "trapuntato",
+      "chain": "catena",
+      "logo": "logo",
+      "animalPrint": "animalier"
+    }
   },
   "planner": {
     "calendar": "Calendario",
