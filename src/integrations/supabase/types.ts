@@ -743,6 +743,7 @@ export type Database = {
           detections: Json
           id: string
           photo_hash: string
+          photo_framing: Json | null
           photo_path: string | null
           status: string
           target_person: string
@@ -757,6 +758,7 @@ export type Database = {
           detections?: Json
           id?: string
           photo_hash: string
+          photo_framing?: Json | null
           photo_path?: string | null
           status?: string
           target_person?: string
@@ -771,6 +773,7 @@ export type Database = {
           detections?: Json
           id?: string
           photo_hash?: string
+          photo_framing?: Json | null
           photo_path?: string | null
           status?: string
           target_person?: string

@@ -2,8 +2,8 @@
 // which crops whatever doesn't fit — typically the shoes of a full-length shot. Now the photo is
 // FITTED (whole photo visible, never distorted) and the person can zoom/pan it themselves.
 //
-// The framing is stored apart from the photo (the original file is never changed). Persisting it
-// on the account would need a new column (see the report); until then it is kept on this device.
+// The framing is stored apart from the photo (the original file is never changed): on the account
+// in outfit_photo_detections.photo_framing, and on this device as a cache / for older choices.
 
 export type PhotoFraming = {
   /** 1 = whole photo fitted in the frame; >1 = zoomed in. */
@@ -34,6 +34,14 @@ export function clampFraming(f: PhotoFraming, photoAspect: number, frameAspect =
 }
 
 const KEY = (id: string) => `aura.photoFraming.${id}`;
+
+/** A framing read from the database (jsonb): null unless it has the expected shape. */
+export function parseFraming(v: unknown): PhotoFraming | null {
+  if (!v || typeof v !== "object") return null;
+  const f = v as Partial<PhotoFraming>;
+  if (typeof f.scale !== "number" || typeof f.x !== "number" || typeof f.y !== "number") return null;
+  return { scale: f.scale, x: f.x, y: f.y };
+}
 
 export function loadFraming(id: string): PhotoFraming | null {
   try {

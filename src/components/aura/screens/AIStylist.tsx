@@ -13,7 +13,7 @@ import { ShareOutfitSheet } from "../ShareOutfitSheet";
 import { ItemImageViewer } from "../ItemImageViewer";
 import { OutfitViewerSheet } from "../OutfitViewerSheet";
 import { FramedPhoto, PhotoFramingEditor } from "../FramedPhoto";
-import { loadFraming, saveFraming, type PhotoFraming } from "@/lib/photo-framing";
+import { loadFraming, parseFraming, saveFraming, type PhotoFraming } from "@/lib/photo-framing";
 import { useLocation } from "@/hooks/use-location";
 import { useWeather } from "@/hooks/use-weather";
 import { describeWeather } from "@/lib/weather";
@@ -50,6 +50,9 @@ type WornEntry = {
    *  actual selfie/outfit shot, not just the item thumbnails below it.
    *  Signed URL, resolved once when this tab loads. */
   photoUrl: string | null;
+  /** The outfit photo's detection row (where its framing is stored) and that framing. */
+  detectionId: string | null;
+  framing: PhotoFraming | null;
 };
 type CalEvent = { id: string; title: string | null; start_time: string; all_day: boolean };
 
@@ -216,8 +219,10 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
   // My Outfit photo framing (photo-framing.ts), per wear event; the photo file itself is untouched.
   const [framings, setFramings] = useState<Record<string, PhotoFraming | null>>({});
   const [framingEntry, setFramingEntry] = useState<WornEntry | null>(null);
+  // Saved on the account (outfit_photo_detections.photo_framing); a framing chosen before that
+  // existed was kept on this device only, and is still read as a fallback.
   const framingOf = (eventId: string): PhotoFraming | null =>
-    eventId in framings ? framings[eventId] : loadFraming(eventId);
+    eventId in framings ? framings[eventId] : wornEntries.find((w) => w.eventId === eventId)?.framing ?? loadFraming(eventId);
   const [assignFor, setAssignFor] = useState<Outfit | null>(null);
   const assignForCanClose = useSheetCanClose(!!assignFor);
   const [assignDate, setAssignDate] = useState<string>(() => todayIso());
@@ -283,12 +288,14 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
       // empty for those, which is correct, not a bug.
       const photoDetectionIds = wornEvents.map((e) => e.source_photo_detection_id).filter((id): id is string => Boolean(id));
       const photoByDetectionId = new Map<string, string>();
+      const framingByDetectionId = new Map<string, PhotoFraming | null>();
       if (photoDetectionIds.length) {
         const { data: detections } = await (supabase.from("outfit_photo_detections" as never) as any)
-          .select("id, photo_path").in("id", photoDetectionIds);
+          .select("id, photo_path, photo_framing").in("id", photoDetectionIds);
         // photo_path is null when photo retention is disabled or the photo was already cleared.
-        const withPhoto = ((detections ?? []) as { id: string; photo_path: string | null }[])
-          .filter((d): d is { id: string; photo_path: string } => Boolean(d.photo_path));
+        const withPhoto = ((detections ?? []) as { id: string; photo_path: string | null; photo_framing: unknown }[])
+          .filter((d): d is { id: string; photo_path: string; photo_framing: unknown } => Boolean(d.photo_path));
+        for (const d of withPhoto) framingByDetectionId.set(d.id, parseFraming(d.photo_framing));
         // One batch request (and cached URLs on later visits) instead of one request per photo.
         const { urls: photoUrls } = await signStoragePaths("outfit-photos", withPhoto.map((d) => d.photo_path), 3600);
         for (const d of withPhoto) {
@@ -304,6 +311,8 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
         outfitName: e.outfit_id ? outfitNameById.get(e.outfit_id) ?? null : null,
         occasion: e.occasion,
         photoUrl: e.source_photo_detection_id ? photoByDetectionId.get(e.source_photo_detection_id) ?? null : null,
+        detectionId: e.source_photo_detection_id,
+        framing: e.source_photo_detection_id ? framingByDetectionId.get(e.source_photo_detection_id) ?? null : null,
       })).filter((w) => w.itemIds.length > 0));
     } else {
       setWornEntries([]);
@@ -1109,8 +1118,20 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
           initial={framingOf(framingEntry.eventId)}
           onCancel={() => setFramingEntry(null)}
           onConfirm={(f) => {
-            saveFraming(framingEntry.eventId, f);
-            setFramings((m) => ({ ...m, [framingEntry.eventId]: f }));
+            const entry = framingEntry;
+            saveFraming(entry.eventId, f);
+            setFramings((m) => ({ ...m, [entry.eventId]: f }));
+            if (entry.detectionId) {
+              void (supabase.from("outfit_photo_detections") as unknown as { update: (v: unknown) => { eq: (c: string, v: string) => PromiseLike<{ error: unknown }> } })
+                .update({ photo_framing: f.scale === 1 && f.x === 0 && f.y === 0 ? null : f })
+                .eq("id", entry.detectionId)
+                .then(({ error }) => {
+                  if (error) {
+                    console.error("[AURA photo framing] save failed", error);
+                    toast.error(t("photoFraming.saveFailed"));
+                  }
+                });
+            }
             setFramingEntry(null);
           }}
         />

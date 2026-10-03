@@ -2107,6 +2107,7 @@
     "fit": "Adatta alla foto",
     "center": "Centra",
     "cancel": "Annulla",
-    "confirm": "Conferma"
+    "confirm": "Conferma",
+    "saveFailed": "Non è stato possibile salvare l'inquadratura sull'account; resta salvata su questo dispositivo."
   }
 }

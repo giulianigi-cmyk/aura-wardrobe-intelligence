@@ -2107,6 +2107,7 @@
     "fit": "Ajuster à la photo",
     "center": "Centrer",
     "cancel": "Annuler",
-    "confirm": "Confirmer"
+    "confirm": "Confirmer",
+    "saveFailed": "Impossible d'enregistrer le cadrage sur ton compte ; il reste enregistré sur cet appareil."
   }
 }
