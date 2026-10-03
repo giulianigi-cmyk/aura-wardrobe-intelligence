@@ -622,7 +622,10 @@
     "colorLab": "Color Lab",
     "colorHarmony": "Armonía de color",
     "description": "Elige una prenda de tu armario para tomar muestra de su color y ver combinaciones en la rueda de color de Johannes Itten. Se trata de colores que combinan bien entre sí, no de tu temporada de color personal.",
-    "emptyState": "Añade algunas prendas a tu armario para empezar."
+    "emptyState": "Añade algunas prendas a tu armario para empezar.",
+    "searchPlaceholder": "Busca por marca, tipo, color…",
+    "clearSearch": "Borrar búsqueda",
+    "noResults": "Ninguna prenda coincide con tu búsqueda."
   },
   "trips": {
     "tripPlanner": "Planificador de viajes",
@@ -2022,5 +2025,79 @@
     "pieces": "Prendas",
     "saveCanvas": "Guardar canvas",
     "seeCanvas": "Ver canvas"
+  },
+  "colorHarmony": {
+    "title": "Armonía de colores",
+    "close": "Cerrar",
+    "loadError": "No se pudo cargar la imagen para el análisis de color.",
+    "tapToSample": "Toca la prenda para muestrear un color",
+    "description": "Basada en el círculo cromático de Johannes Itten: muestra qué colores combinan bien entre sí, no tu estación de color personal.",
+    "suggestedPairings": "Combinaciones sugeridas",
+    "wheel": {
+      "red": "Rojo",
+      "orange": "Naranja",
+      "yellow": "Amarillo",
+      "yellowGreen": "Amarillo verdoso",
+      "green": "Verde",
+      "emeraldGreen": "Verde esmeralda",
+      "cyan": "Cian",
+      "skyBlue": "Celeste",
+      "blue": "Azul",
+      "purple": "Morado",
+      "magenta": "Magenta",
+      "fuchsia": "Fucsia"
+    },
+    "harmony": {
+      "complementary": "Complementario",
+      "analogous": "Análogo",
+      "splitComplementary": "Complementario dividido",
+      "triadic": "Triádico"
+    }
+  },
+  "weatherAdvice": {
+    "headline": {
+      "cold": "Abrígate: tiempo de capas y sastrería",
+      "cool": "Aire fresco: capas suaves",
+      "mild": "Día templado: elegancia sencilla",
+      "warm": "Calor: prendas transpirables",
+      "hot": "Mucho calor: prendas ligeras y frescas"
+    },
+    "rainReady": "listo para la lluvia",
+    "umbrella": "{{pct}}% de probabilidad de lluvia: no olvides el paraguas",
+    "tips": {
+      "woolCoat": "Abrigo de lana",
+      "cashmereKnit": "Jersey de cachemir",
+      "boots": "Botas",
+      "scarf": "Bufanda",
+      "woolTrousers": "Pantalón de lana",
+      "leatherGloves": "Guantes de piel",
+      "trenchOrBlazer": "Gabardina o blazer",
+      "fineKnit": "Punto fino",
+      "trousers": "Pantalón",
+      "ankleBoots": "Botines",
+      "denimJacket": "Chaqueta vaquera",
+      "lightJacket": "Chaqueta ligera",
+      "jeansOrTrousers": "Vaqueros o pantalón",
+      "sneakersOrLoafers": "Zapatillas o mocasines",
+      "cottonShirt": "Camisa de algodón",
+      "lightKnit": "Punto ligero",
+      "linenShirt": "Camisa de lino",
+      "midiSkirtOrChinos": "Falda midi o chinos",
+      "loafers": "Mocasines",
+      "cottonDress": "Vestido de algodón",
+      "lightTrousers": "Pantalón ligero",
+      "slipDress": "Vestido lencero",
+      "shorts": "Shorts",
+      "sandals": "Sandalias",
+      "sunHat": "Sombrero de sol",
+      "tankTop": "Camiseta de tirantes",
+      "camisole": "Camisola",
+      "midiSkirt": "Falda midi",
+      "miniSkirt": "Minifalda",
+      "silkShirt": "Camisa de seda",
+      "wideLegTrousers": "Pantalón ancho",
+      "trenchOrWaterproofLayer": "Gabardina o capa impermeable",
+      "weatherproofBoots": "Botas impermeables"
+    }
   }
 }

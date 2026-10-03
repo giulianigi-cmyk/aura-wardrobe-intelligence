@@ -622,7 +622,10 @@
     "colorLab": "Laboratoire couleurs",
     "colorHarmony": "Harmonie des couleurs",
     "description": "Choisissez une pièce de votre garde-robe pour échantillonner sa couleur et voir des associations correspondantes sur la roue chromatique de Johannes Itten. Il s'agit de couleurs qui fonctionnent bien ensemble — pas de votre saison de couleur personnelle.",
-    "emptyState": "Ajoutez quelques pièces à votre garde-robe pour commencer."
+    "emptyState": "Ajoutez quelques pièces à votre garde-robe pour commencer.",
+    "searchPlaceholder": "Rechercher par marque, type, couleur…",
+    "clearSearch": "Effacer la recherche",
+    "noResults": "Aucune pièce ne correspond à votre recherche."
   },
   "trips": {
     "tripPlanner": "Planificateur de voyage",
@@ -2022,5 +2025,79 @@
     "pieces": "Pièces",
     "saveCanvas": "Enregistrer le canvas",
     "seeCanvas": "Voir le canvas"
+  },
+  "colorHarmony": {
+    "title": "Harmonie des couleurs",
+    "close": "Fermer",
+    "loadError": "Impossible de charger l'image pour l'analyse des couleurs.",
+    "tapToSample": "Touchez le vêtement pour prélever une couleur",
+    "description": "Basée sur le cercle chromatique de Johannes Itten : elle montre quelles couleurs vont bien ensemble, pas votre saison colorimétrique personnelle.",
+    "suggestedPairings": "Associations suggérées",
+    "wheel": {
+      "red": "Rouge",
+      "orange": "Orange",
+      "yellow": "Jaune",
+      "yellowGreen": "Jaune-vert",
+      "green": "Vert",
+      "emeraldGreen": "Vert émeraude",
+      "cyan": "Cyan",
+      "skyBlue": "Bleu ciel",
+      "blue": "Bleu",
+      "purple": "Violet",
+      "magenta": "Magenta",
+      "fuchsia": "Fuchsia"
+    },
+    "harmony": {
+      "complementary": "Complémentaire",
+      "analogous": "Analogue",
+      "splitComplementary": "Complémentaire adjacent",
+      "triadic": "Triadique"
+    }
+  },
+  "weatherAdvice": {
+    "headline": {
+      "cold": "Couvre-toi : temps à superposer les pièces tailleur",
+      "cool": "Air vif : superpositions légères",
+      "mild": "Journée douce : élégance facile",
+      "warm": "Chaud : pièces respirantes",
+      "hot": "Très chaud : mise sur la légèreté"
+    },
+    "rainReady": "prêt pour la pluie",
+    "umbrella": "{{pct}}% de risque de pluie : n'oublie pas ton parapluie",
+    "tips": {
+      "woolCoat": "Manteau en laine",
+      "cashmereKnit": "Pull en cachemire",
+      "boots": "Bottes",
+      "scarf": "Écharpe",
+      "woolTrousers": "Pantalon en laine",
+      "leatherGloves": "Gants en cuir",
+      "trenchOrBlazer": "Trench ou blazer",
+      "fineKnit": "Maille fine",
+      "trousers": "Pantalon",
+      "ankleBoots": "Bottines",
+      "denimJacket": "Veste en jean",
+      "lightJacket": "Veste légère",
+      "jeansOrTrousers": "Jean ou pantalon",
+      "sneakersOrLoafers": "Baskets ou mocassins",
+      "cottonShirt": "Chemise en coton",
+      "lightKnit": "Maille légère",
+      "linenShirt": "Chemise en lin",
+      "midiSkirtOrChinos": "Jupe midi ou chino",
+      "loafers": "Mocassins",
+      "cottonDress": "Robe en coton",
+      "lightTrousers": "Pantalon léger",
+      "slipDress": "Robe nuisette",
+      "shorts": "Short",
+      "sandals": "Sandales",
+      "sunHat": "Chapeau de soleil",
+      "tankTop": "Débardeur",
+      "camisole": "Caraco",
+      "midiSkirt": "Jupe midi",
+      "miniSkirt": "Minijupe",
+      "silkShirt": "Chemise en soie",
+      "wideLegTrousers": "Pantalon large",
+      "trenchOrWaterproofLayer": "Trench ou couche imperméable",
+      "weatherproofBoots": "Bottes imperméables"
+    }
   }
 }

@@ -622,7 +622,10 @@
     "colorLab": "Color Lab",
     "colorHarmony": "Armonia dei colori",
     "description": "Scegli un capo dal tuo guardaroba per campionare il suo colore e vedere gli abbinamenti sulla ruota dei colori di Johannes Itten. Si tratta di colori che stanno bene insieme, non della tua stagione cromatica personale.",
-    "emptyState": "Aggiungi qualche capo al guardaroba per iniziare."
+    "emptyState": "Aggiungi qualche capo al guardaroba per iniziare.",
+    "searchPlaceholder": "Cerca per brand, tipo, colore…",
+    "clearSearch": "Cancella ricerca",
+    "noResults": "Nessun capo corrisponde alla ricerca."
   },
   "trips": {
     "tripPlanner": "Pianificatore viaggi",
@@ -2022,5 +2025,79 @@
     "pieces": "Capi",
     "saveCanvas": "Salva canvas",
     "seeCanvas": "Vedi canvas"
+  },
+  "colorHarmony": {
+    "title": "Armonia dei colori",
+    "close": "Chiudi",
+    "loadError": "Impossibile caricare l'immagine per l'analisi colore.",
+    "tapToSample": "Tocca il capo per campionare un colore",
+    "description": "Basata sulla ruota dei colori di Johannes Itten: mostra quali colori stanno bene insieme, non la tua stagione cromatica personale.",
+    "suggestedPairings": "Abbinamenti suggeriti",
+    "wheel": {
+      "red": "Rosso",
+      "orange": "Arancione",
+      "yellow": "Giallo",
+      "yellowGreen": "Giallo-verde",
+      "green": "Verde",
+      "emeraldGreen": "Verde smeraldo",
+      "cyan": "Ciano",
+      "skyBlue": "Azzurro",
+      "blue": "Blu",
+      "purple": "Viola",
+      "magenta": "Magenta",
+      "fuchsia": "Fucsia"
+    },
+    "harmony": {
+      "complementary": "Complementare",
+      "analogous": "Analogo",
+      "splitComplementary": "Complementare diviso",
+      "triadic": "Triadico"
+    }
+  },
+  "weatherAdvice": {
+    "headline": {
+      "cold": "Copriti bene: tempo da capi sartoriali a strati",
+      "cool": "Aria frizzante: strati leggeri",
+      "mild": "Giornata mite: eleganza facile",
+      "warm": "Caldo: capi traspiranti",
+      "hot": "Molto caldo: punta su capi leggeri e ariosi"
+    },
+    "rainReady": "pronti per la pioggia",
+    "umbrella": "{{pct}}% di probabilità di pioggia: non dimenticare l'ombrello",
+    "tips": {
+      "woolCoat": "Cappotto di lana",
+      "cashmereKnit": "Maglia in cashmere",
+      "boots": "Stivali",
+      "scarf": "Sciarpa",
+      "woolTrousers": "Pantaloni di lana",
+      "leatherGloves": "Guanti in pelle",
+      "trenchOrBlazer": "Trench o blazer",
+      "fineKnit": "Maglia sottile",
+      "trousers": "Pantaloni",
+      "ankleBoots": "Stivaletti",
+      "denimJacket": "Giacca di jeans",
+      "lightJacket": "Giacca leggera",
+      "jeansOrTrousers": "Jeans o pantaloni",
+      "sneakersOrLoafers": "Sneakers o mocassini",
+      "cottonShirt": "Camicia di cotone",
+      "lightKnit": "Maglia leggera",
+      "linenShirt": "Camicia di lino",
+      "midiSkirtOrChinos": "Gonna midi o chino",
+      "loafers": "Mocassini",
+      "cottonDress": "Abito di cotone",
+      "lightTrousers": "Pantaloni leggeri",
+      "slipDress": "Slip dress",
+      "shorts": "Shorts",
+      "sandals": "Sandali",
+      "sunHat": "Cappello da sole",
+      "tankTop": "Canotta",
+      "camisole": "Top con spalline",
+      "midiSkirt": "Gonna midi",
+      "miniSkirt": "Minigonna",
+      "silkShirt": "Camicia di seta",
+      "wideLegTrousers": "Pantaloni a gamba larga",
+      "trenchOrWaterproofLayer": "Trench o strato impermeabile",
+      "weatherproofBoots": "Stivali impermeabili"
+    }
   }
 }

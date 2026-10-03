@@ -26,7 +26,7 @@ import { COLOR_PALETTE } from "./color-palette";
 
 type Lab = { L: number; a: number; b: number };
 
-function hexToLab(hex: string): Lab {
+export function hexToLab(hex: string): Lab {
   const n = parseInt(hex.replace("#", ""), 16);
   const srgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
     const c = v / 255;

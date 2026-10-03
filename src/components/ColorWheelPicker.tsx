@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Pipette } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { rgbToHsl, hslToHex, nearestWheelName, getHarmonies, type Harmony } from "@/lib/itten-wheel";
-import { nearestPaletteColor } from "@/lib/color-palette";
+import { nearestPaletteColorPerceptual as nearestPaletteColor } from "@/lib/color-naming";
+
+/** "Yellow-Green" → "yellowGreen": key under colorHarmony.wheel / colorHarmony.harmony. */
+const keyOf = (name: string) => name.replace(/[^A-Za-z]+(.)/g, (_, c: string) => c.toUpperCase()).replace(/^./, (c) => c.toLowerCase());
 
 /**
  * Standalone color-analysis tool: samples a pixel from a garment image
@@ -18,6 +22,7 @@ export function ColorWheelPicker({
   imageUrl: string;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loadError, setLoadError] = useState(false);
   const [pickedHex, setPickedHex] = useState<string | null>(null);
@@ -92,24 +97,23 @@ export function ColorWheelPicker({
         className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-card rounded-t-3xl sm:rounded-3xl border border-border p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] relative"
       >
         <div className="flex items-center justify-between">
-          <p className="font-serif italic text-lg">Color Harmony</p>
-          <button onClick={onClose} aria-label="Chiudi" className="h-9 w-9 rounded-full bg-secondary/60 flex items-center justify-center active:scale-90">
+          <p className="font-serif italic text-lg">{t("colorHarmony.title")}</p>
+          <button onClick={onClose} aria-label={t("colorHarmony.close")} className="h-9 w-9 rounded-full bg-secondary/60 flex items-center justify-center active:scale-90">
             <X size={16} />
           </button>
         </div>
 
         {loadError ? (
           <p className="text-sm text-muted-foreground mt-6 text-center">
-            Impossibile caricare l'immagine per l'analisi colore.
+            {t("colorHarmony.loadError")}
           </p>
         ) : (
           <>
           <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
-              <Pipette size={13} /> Tap the garment to sample a color
+              <Pipette size={13} /> {t("colorHarmony.tapToSample")}
             </p>
             <p className="text-[11px] text-muted-foreground/80 mt-1">
-              Based on the Johannes Itten color wheel — this shows which colors pair well
-              with each other, not your personal color season.
+              {t("colorHarmony.description")}
             </p>
             <canvas
               ref={canvasRef}
@@ -124,7 +128,7 @@ export function ColorWheelPicker({
                   <span className="h-10 w-10 rounded-full border border-border shrink-0" style={{ background: pickedHex }} />
                   <div>
                     <p className="text-sm font-medium">{nearestPaletteColor(pickedHex).name}</p>
-                    <p className="text-[11px] text-muted-foreground">{pickedHex} · {nearestWheelName(pickedHue)}</p>
+                    <p className="text-[11px] text-muted-foreground">{pickedHex} · {t(`colorHarmony.wheel.${keyOf(nearestWheelName(pickedHue))}`, { defaultValue: nearestWheelName(pickedHue) })}</p>
                   </div>
                 </div>
 
@@ -157,7 +161,7 @@ export function ColorWheelPicker({
                 </div>
 
 <div className="mt-5 space-y-2">
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Suggested pairings</p>
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("colorHarmony.suggestedPairings")}</p>
                   {harmonies.map((h, i) => {
                     const named = nearestPaletteColor(h.hex);
                     return (
@@ -165,7 +169,7 @@ export function ColorWheelPicker({
                         <span className="h-8 w-8 rounded-full border border-border shrink-0" style={{ background: h.hex }} />
                         <div className="min-w-0">
                           <p className="text-xs font-medium truncate">{named.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{h.label}</p>
+                          <p className="text-[10px] text-muted-foreground">{t(`colorHarmony.harmony.${keyOf(h.label)}`, { defaultValue: h.label })}</p>
                         </div>
                       </div>
                     );

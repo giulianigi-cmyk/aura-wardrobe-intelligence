@@ -177,6 +177,26 @@ const baseByBand: Record<WeatherBand, Omit<OutfitSuggestion, "band" | "rainy" | 
  * forecast); the umbrella line and the rain classification are decided
  * here, from the shared constants — no screen knows the thresholds.
  */
+/** i18n key of a tip ("Midi skirt or chinos" → "midiSkirtOrChinos"), under weatherAdvice.tips. */
+export function weatherTipKey(tip: string): string {
+  return tip.replace(/[^A-Za-z]+(.)/g, (_, c: string) => c.toUpperCase()).replace(/[^A-Za-z]/g, "").replace(/^./, (c) => c.toLowerCase());
+}
+
+/** The suggestion in the person's language: headline, tips and umbrella line. The English values
+ *  above stay as they are (they are also matched against wardrobe categories and materials). */
+export function localizeSuggestion(
+  s: OutfitSuggestion,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  rainChance?: number | null,
+): { headline: string; tips: string[]; umbrellaTip: string | null } {
+  const head = t(`weatherAdvice.headline.${s.band}`);
+  return {
+    headline: s.rainy ? `${head} · ${t("weatherAdvice.rainReady")}` : head,
+    tips: s.tips.map((tip) => t(`weatherAdvice.tips.${weatherTipKey(tip)}`, { defaultValue: tip })),
+    umbrellaTip: s.umbrellaTip ? t("weatherAdvice.umbrella", { pct: Math.round(Number(rainChance ?? 0)) }) : null,
+  };
+}
+
 export function suggestOutfit(
   current: CurrentWeather | { temperature: number; weatherCode: number; precipitationProbability?: number },
 ): OutfitSuggestion {

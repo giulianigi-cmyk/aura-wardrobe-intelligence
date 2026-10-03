@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Palette } from "lucide-react";
+import { ArrowLeft, Palette, Search, X } from "lucide-react";
 import type { Screen } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { useAuth } from "@/hooks/use-auth";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 import { ColorWheelPicker } from "@/components/ColorWheelPicker";
+import { normalizeText, searchWardrobe } from "@/lib/wardrobe-search";
 
 /**
  * Dedicated, discoverable entry point for color analysis — separate from
@@ -20,6 +21,21 @@ export function ColorLab({ go }: { go: (s: Screen) => void }) {
   const [signed, setSigned] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<WardrobeItem | null>(null);
+  const [query, setQuery] = useState("");
+
+  // Search by brand, model, type, colour or material — plain text ("zara", "lino") or the same
+  // multilingual words the stylist understands ("gonna nera", "black skirt").
+  const visible = useMemo(() => {
+    const q = normalizeText(query);
+    if (!q) return items;
+    const tokens = q.split(" ");
+    const bySynonyms = new Set(searchWardrobe(query, items).matches.map((it) => it.id));
+    return items.filter((it) => {
+      if (bySynonyms.has(it.id)) return true;
+      const hay = normalizeText([it.brand, it.model, it.category, it.subcategory, it.color, ...(it.colors ?? []), ...(Array.isArray(it.material) ? it.material : [])].filter(Boolean).join(" "));
+      return tokens.every((tk) => hay.includes(tk));
+    });
+  }, [items, query]);
 
   useEffect(() => {
     if (!user) { setItems([]); setLoading(false); return; }
@@ -65,6 +81,29 @@ export function ColorLab({ go }: { go: (s: Screen) => void }) {
         {t("colorLab.description")}
       </p>
 
+      {!loading && items.length > 0 && (
+        <div className="px-6 mt-4">
+          <div className="relative">
+            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("colorLab.searchPlaceholder")}
+              aria-label={t("colorLab.searchPlaceholder")}
+              className="w-full h-10 rounded-full bg-secondary/60 pl-9 pr-9 text-sm outline-none [&::-webkit-search-cancel-button]:hidden"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                aria-label={t("colorLab.clearSearch")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground"
+              ><X size={14} /></button>
+            )}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="px-6 mt-6 grid grid-cols-3 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -78,9 +117,11 @@ export function ColorLab({ go }: { go: (s: Screen) => void }) {
             {t("colorLab.emptyState")}
           </p>
         </div>
+      ) : visible.length === 0 ? (
+        <p className="px-6 mt-10 text-center text-sm text-muted-foreground">{t("colorLab.noResults")}</p>
       ) : (
-        <div className="px-6 mt-6 grid grid-cols-3 gap-3">
-          {items.map((it) => {
+        <div className="px-6 mt-4 grid grid-cols-3 gap-3">
+          {visible.map((it) => {
             const path = toStoragePath(it.image_url);
             const src = path ? signed[path] : "";
             return (
