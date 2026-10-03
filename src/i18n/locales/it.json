@@ -2018,6 +2018,18 @@
     "biometricConsentRequired": "Conferma il consenso qui sopra prima di continuare.",
     "generatingTimeEstimate": "Circa 30 secondi a capo — circa {{seconds}}s in totale",
     "genericError": "Si è verificato un problema nella creazione del look. Riprova.",
+    "errorRef": "Rif.: {{kind}}",
+    "errorAtPiece": "capo {{step}}",
+    "errorKind": {
+      "credits": "Il servizio di prova virtuale non ha crediti disponibili: riprovare non serve finché non viene ricaricato.",
+      "rate_limit": "Il servizio di prova virtuale è sovraccarico in questo momento. Riprova tra qualche minuto.",
+      "timeout": "La generazione ha impiegato troppo tempo. Riprova.",
+      "content_policy": "Il servizio ha rifiutato questa immagine. Prova con un'altra foto avatar o altri capi.",
+      "image": "Il servizio non è riuscito a usare una delle immagini (foto avatar o capo). Prova con un'altra foto.",
+      "save": "Il look è stato generato ma non è stato possibile salvarlo. Riprova.",
+      "network": "Connessione interrotta durante la generazione. Riprova.",
+      "provider": "Si è verificato un problema nella creazione del look. Riprova."
+    },
     "tooManyPieces_one": "Sull'avatar mostro i capi principali: 1 accessorio piccolo non è incluso.",
     "tooManyPieces_other": "Sull'avatar mostro i capi principali: {{count}} accessori piccoli non sono inclusi."
   },

@@ -10,6 +10,7 @@ import { prepareAvatarTryOn, startTryOnStep, checkTryOnStep, finalizeAvatarTryOn
 import { restoreOriginalFaceAligned } from "@/lib/face-restore";
 import { saveOutfitPlan } from "@/lib/outfit-plan.functions";
 import { orderForTryOn, selectTryOnItems, underLayerFor } from "@/lib/tryon-select";
+import { classifyTryOnError, type TryOnErrorKind } from "@/lib/tryon-error";
 import { PiecePicker } from "../PiecePicker";
 import type { WardrobeItem as FullWardrobeItem } from "@/lib/aura-types";
 import type { Screen } from "../AuraApp";
@@ -73,6 +74,10 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
+  // Why it failed (tryon-error.ts) and at which piece — shown so a failure that can't succeed on retry
+  // (e.g. the try-on service out of credits) isn't presented as "just try again".
+  const [errorKind, setErrorKind] = useState<TryOnErrorKind | null>(null);
+  const [errorStep, setErrorStep] = useState<string | null>(null);
 
   const [saved, setSaved] = useState(false);
   const [showCalendarPicker, setShowCalendarPicker] = useState(false);
@@ -126,7 +131,7 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
       if (status.done) return { ok: true, imageDataUrl: status.imageDataUrl };
       // not done yet — keep polling
     }
-    return { ok: false, error: t("avatar.errorTitle") };
+    return { ok: false, error: "timeout: no result after polling" };
   };
 
   const generate = async (allItemIds: string[], forceRegenerate = false) => {
@@ -134,6 +139,8 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
     setStage("generating");
     setErrorMessage(null);
     setErrorCode(null);
+    setErrorKind(null);
+    setErrorStep(null);
     setProgress(null);
     try {
       // At most 6 pieces go on the avatar (one try-on step each): the main garments, shoes and bag
@@ -195,7 +202,10 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
         if (myRun !== runToken.current) return; // superseded
         if (!stepResult.ok) {
           console.error("[AURA avatar-tryon] step failed", stepResult.error);
-          setErrorMessage(t("avatar.genericError"));
+          const kind = classifyTryOnError(stepResult.error, "step");
+          setErrorKind(kind);
+          setErrorStep(`${i + 1}/${total}`);
+          setErrorMessage(t(`avatar.errorKind.${kind}`));
           setStage("error");
           return;
         }
@@ -211,7 +221,9 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
       if (myRun !== runToken.current) return; // superseded
       if (!final.ok) {
         console.error("[AURA avatar-tryon] finalize failed", final.error);
-        setErrorMessage(t("avatar.genericError"));
+        const kind = classifyTryOnError(final.error, "save");
+        setErrorKind(kind);
+        setErrorMessage(t(`avatar.errorKind.${kind}`));
         setStage("error");
         return;
       }
@@ -221,8 +233,10 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
     } catch (e) {
       if (myRun !== runToken.current) return;
       console.error("[AURA avatar-tryon] generate failed", e);
-      // Never a raw technical message (it used to show a JSON validation error).
-      setErrorMessage(t("avatar.genericError"));
+      // Never a raw technical message (it used to show a JSON validation error) — only its kind.
+      const kind = classifyTryOnError(e instanceof Error ? e.message : String(e));
+      setErrorKind(kind);
+      setErrorMessage(t(`avatar.errorKind.${kind}`));
       setStage("error");
     } finally {
       if (myRun === runToken.current) setProgress(null);
@@ -342,6 +356,11 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
         <div className="px-6 mt-16 flex flex-col items-center text-center animate-fade-up">
           <p className="font-serif text-xl italic">{t("avatar.errorTitle")}</p>
           <p className="mt-2 text-xs text-muted-foreground leading-relaxed max-w-[260px]">{errorMessage}</p>
+          {errorKind && (
+            <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70">
+              {t("avatar.errorRef", { kind: errorKind })}{errorStep ? ` · ${t("avatar.errorAtPiece", { step: errorStep })}` : ""}
+            </p>
+          )}
           <button
             onClick={() => void generate(selected.length ? selected : (initialItemIds ?? []), true)}
             className="mt-6 h-12 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98]"

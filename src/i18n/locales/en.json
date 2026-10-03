@@ -2018,6 +2018,18 @@
     "biometricConsentRequired": "Please confirm the consent above before continuing.",
     "generatingTimeEstimate": "About 30 seconds per piece — roughly {{seconds}}s total",
     "genericError": "Something went wrong while creating the look. Try again.",
+    "errorRef": "Ref: {{kind}}",
+    "errorAtPiece": "piece {{step}}",
+    "errorKind": {
+      "credits": "The virtual try-on service has no credits left: retrying won't help until it is topped up.",
+      "rate_limit": "The virtual try-on service is busy right now. Try again in a few minutes.",
+      "timeout": "Generation took too long. Try again.",
+      "content_policy": "The service rejected this image. Try another avatar photo or other pieces.",
+      "image": "The service couldn't use one of the images (avatar photo or piece). Try another photo.",
+      "save": "The look was generated but couldn't be saved. Try again.",
+      "network": "The connection dropped during generation. Try again.",
+      "provider": "Something went wrong creating the look. Try again."
+    },
     "tooManyPieces_one": "Your avatar shows the main pieces: 1 small accessory isn't included.",
     "tooManyPieces_other": "Your avatar shows the main pieces: {{count}} small accessories aren't included."
   },
