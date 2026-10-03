@@ -2,6 +2,7 @@ import { X, Image as ImageIcon, Sparkles, Check, Loader2, Upload, Link as LinkIc
 import type { DragEvent } from "react";
 import { useRef, useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { parsePositivePrice } from "@/lib/price-parse";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -831,10 +832,7 @@ export function AddItem({ onClose, initialGarment }: {
         style: styles.filter((s) => styleOptions.includes(s)).join(", ") || null,
         occasion: occasions.filter((o) => occasionOptions.includes(o)).join(", ") || null,
         material: materials.filter((m) => materialOptions.includes(m)),
-        price: (() => {
-          const n = parseFloat(price.replace(",", "."));
-          return Number.isFinite(n) && n > 0 ? n : null;
-        })(),
+        price: parsePositivePrice(price),
         currency: price.trim() ? currency : null,
         size: size.trim() || null,
       };

@@ -1,4 +1,5 @@
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { parsePrice } from "./price-parse";
 import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
 import { z } from "zod";
@@ -883,21 +884,8 @@ function extractProductMeta(html: string | null, target: URL, extracted: Extract
     ""
   ).trim();
 
-  const parsePriceNum = (v: unknown): number | null => {
-    if (typeof v === "number" && Number.isFinite(v)) return v;
-    if (typeof v !== "string") return null;
-    const cleaned = v.replace(/[^\d.,]/g, "");
-    if (!cleaned) return null;
-    const lastComma = cleaned.lastIndexOf(",");
-    const lastDot = cleaned.lastIndexOf(".");
-    const norm = lastComma >= 0 && lastDot >= 0
-      ? (lastComma > lastDot
-          ? cleaned.replace(/\./g, "").replace(",", ".")
-          : cleaned.replace(/,/g, ""))
-      : cleaned.replace(",", ".");
-    const n = parseFloat(norm);
-    return Number.isFinite(n) ? n : null;
-  };
+  // Shared parser (price-parse.ts): "6.850 €" and "$6,850" are 6850, not 6.85.
+  const parsePriceNum = (v: unknown): number | null => parsePrice(v);
 
   let price: string | null = null;
   let priceValue: number | null = null;
@@ -980,9 +968,12 @@ function extractProductMeta(html: string | null, target: URL, extracted: Extract
     // delivery/returns, in the languages this app already supports.
     const SHIPPING_NEARBY_RE = /(spedizion|consegna|gratuit|reso|delivery|shipping|free\b|envío|envio|entrega|gratis|livraison|versand|lieferung|kostenlos)/i;
     const text = decodeHtml(stripExcludedSections(html).replace(/<[^>]+>/g, " "));
+    // Numbers with thousands groups too ("6.850 €", "€ 12.500,00"): the old pattern stopped at
+    // "6.85" and a 6,850 € bracelet was imported at 6.85 €.
+    const NUM = String.raw`\d{1,3}(?:[.,\s\u00a0\u202f]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?`;
     const patterns = [
-      /(?:€|\bEUR\b)\s{0,2}(\d{1,4}(?:[.,]\d{2})?)/g,
-      /(\d{1,4}(?:[.,]\d{2}))\s{0,2}(?:€|\bEUR\b)/g,
+      new RegExp(String.raw`(?:€|\bEUR\b)\s{0,2}(${NUM})(?![\d])`, "g"),
+      new RegExp(String.raw`(${NUM})\s{0,2}(?:€|\bEUR\b)`, "g"),
     ];
     let accepted: string | null = null;
     for (const re of patterns) {
@@ -996,7 +987,7 @@ function extractProductMeta(html: string | null, target: URL, extracted: Extract
       if (accepted) break;
     }
     const n = parsePriceNum(accepted ?? "");
-    if (n != null && n >= 1 && n <= 20000) {
+    if (n != null && n >= 1 && n <= 500000) {
       priceValue = n;
       priceCurrency = "EUR";
     }

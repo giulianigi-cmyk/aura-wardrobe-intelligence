@@ -6,7 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseAiJson } from "./ai-json";
 import { resolveProductImageUrl } from "./import-url.functions";
 import { analyzeWardrobeImageCore } from "./ai-analyze.functions";
-import { findBestMatch } from "./outfit-dedupe";
+import { comparablePieces, ownedPieceLabel, similarOwnedPiece } from "./purchase-similarity";
 import { isItemAllowedByDressPreferences, hasAnyPreference, type DressPreferences } from "./dress-preferences";
 import { COLOR_PALETTE } from "./color-palette";
 import type { WardrobeItem } from "./aura-types";
@@ -79,7 +79,7 @@ export type PurchaseAdvisorResult =
         material: string | null;
       };
       wardrobe: {
-        duplicate: { verdict: "certain" | "maybe"; itemId: string } | null;
+        duplicate: { verdict: "certain" | "maybe"; itemId: string; label: string } | null;
         similarItemsCount: number;
         pairsWithCount: number;
         wardrobeGap: boolean;
@@ -244,7 +244,7 @@ async function resolveProductAndWardrobeFacts(
   supabase: SupabaseClient<any, any, any>,
   userId: string,
 ): Promise<
-  | { ok: true; product: PurchaseProduct; wardrobe: WardrobeItem[]; duplicate: { verdict: "certain" | "maybe"; itemId: string } | null; similarItemsCount: number; pairsWithCount: number; wardrobeGap: boolean }
+  | { ok: true; product: PurchaseProduct; wardrobe: WardrobeItem[]; duplicate: { verdict: "certain" | "maybe"; itemId: string; label: string } | null; similarItemsCount: number; comparableLabels: string[]; pairsWithCount: number; wardrobeGap: boolean }
   | { ok: false; error: string }
 > {
   const product: PurchaseProduct = {
@@ -337,19 +337,12 @@ async function resolveProductAndWardrobeFacts(
   const { data: wardrobeRaw } = await supabase.from("wardrobe_items").select("*").eq("user_id", userId);
   const wardrobe = (wardrobeRaw ?? []) as WardrobeItem[];
 
-  const duplicate = product.category
-    ? (() => {
-        const d = findBestMatch(
-          { category: product.category!, subcategory: product.subcategory ?? undefined, colors: product.colors, brand: product.brand },
-          wardrobe,
-        );
-        return d.verdict === "new" ? null : { verdict: d.verdict as "certain" | "maybe", itemId: d.match!.id };
-      })()
-    : null;
-
-  const similarItemsCount = product.category
-    ? wardrobe.filter((it) => it.category === product.category && (!product.subcategory || it.subcategory === product.subcategory)).length
-    : 0;
+  // Only pieces of the same kind count (purchase-similarity.ts): a Cartier ring used to be "too
+  // similar" to the Cartier watches owned — same category, brand and a colour in common.
+  const duplicate = similarOwnedPiece(product, wardrobe);
+  const comparable = comparablePieces(product, wardrobe);
+  const similarItemsCount = comparable.length;
+  const comparableLabels = comparable.slice(0, 2).map(ownedPieceLabel);
 
   // "Does this fill a real gap?" — same spirit as the wardrobe-gap
   // suggestion: zero comparable pieces owned reads as a genuine gap;
@@ -359,7 +352,7 @@ async function resolveProductAndWardrobeFacts(
 
   const pairsWithCount = product.category ? countPairings(product.category, product.colors, wardrobe) : 0;
 
-  return { ok: true, product, wardrobe, duplicate, similarItemsCount, pairsWithCount, wardrobeGap };
+  return { ok: true, product, wardrobe, duplicate, similarItemsCount, comparableLabels, pairsWithCount, wardrobeGap };
 }
 
 /** The deterministic verdict logic, extracted so both the single-item flow and the
@@ -428,7 +421,7 @@ export const analyzePurchase = createServerFn({ method: "POST" })
 
     const resolved = await resolveProductAndWardrobeFacts(data, model, langCode, supabase, userId);
     if (!resolved.ok) return resolved;
-    const { product, wardrobe, duplicate, similarItemsCount, pairsWithCount, wardrobeGap } = resolved;
+    const { product, wardrobe, duplicate, similarItemsCount, comparableLabels, pairsWithCount, wardrobeGap } = resolved;
 
     // ---- 3. Dress preferences — hard rule, same as the outfit engine ----
     const dressPrefs = profile?.dress_preferences ?? null;
@@ -475,12 +468,14 @@ export const analyzePurchase = createServerFn({ method: "POST" })
       `- Product: ${product.category ?? "unknown category"}${product.subcategory ? " / " + product.subcategory : ""}, colors: ${product.colors.join(", ") || "unclear"}, brand: ${product.brand || "unknown"}, price: ${product.price ?? "unknown"}.`,
       ...(product.description ? [`- Product's own description (from the retailer's page, use for fabric/fit/styling detail in your reason, but never to override the facts above): "${product.description}"`] : []),
       duplicate?.verdict === "certain"
-        ? "- Near-duplicate of something already owned."
+        ? `- Near-duplicate of an owned piece: ${duplicate.label}. Name it when you mention it.`
         : duplicate?.verdict === "maybe"
-        ? "- Similar to something already owned, not a certain duplicate."
-        : "- Nothing similar already owned.",
+        ? `- Similar to an owned piece (not a certain duplicate): ${duplicate.label}. Name it when you mention it.`
+        : "- Nothing similar already owned. Do NOT say or imply it resembles something owned.",
       `- Would pair with about ${pairsWithCount} piece(s) already owned.`,
-      wardrobeGap ? "- Fills a real gap: nothing comparable owned yet." : "- Not a gap: comparable pieces already owned.",
+      wardrobeGap
+        ? "- Fills a real gap: nothing of this kind owned yet."
+        : `- Not a gap: pieces of the same kind already owned, e.g. ${comparableLabels.join("; ")}. They are the same kind of piece, not necessarily similar — only call it similar if the line above says so.`,
       dressViolation ? "- Conflicts with a stated dress preference — this is why it's a skip." : "",
       profile?.season ? `- Estimated color season: ${profile.season}${profile.undertone ? ` (${profile.undertone})` : ""} — soft note only, never a reason on its own.` : "",
       "Respond with ONLY a single valid JSON object, no markdown fences:",
@@ -538,6 +533,8 @@ const CachedFactsSchema = z.object({
     length: z.string().nullable(), sleeveLength: z.string().nullable(), fit: z.string().nullable(), styleTags: z.array(z.string()),
   }),
   duplicateVerdict: z.enum(["certain", "maybe", "new"]),
+  similarToLabel: z.string().nullable().optional(),
+  comparableLabels: z.array(z.string()).optional(),
   pairsWithCount: z.number(),
   wardrobeGap: z.boolean(),
   isLabelOnly: z.boolean(),
@@ -559,7 +556,7 @@ type ComparedItem = {
   product: ComparedProductOut;
   verdict: "buy" | "maybe" | "skip";
   confidence: "high" | "medium" | "low";
-  wardrobe: { duplicate: boolean; pairsWithCount: number; wardrobeGap: boolean; dressPreferenceViolation: boolean };
+  wardrobe: { duplicate: boolean; similarTo: string | null; pairsWithCount: number; wardrobeGap: boolean; dressPreferenceViolation: boolean };
   // Everything the "is this the same item as I already own?" judgment for THIS one product
   // depends on, opaque to the client — pass it back unchanged as this same item's `source` on a
   // later comparePurchases call (e.g. after adding one more piece to the comparison) and this
@@ -637,8 +634,9 @@ export const comparePurchases = createServerFn({ method: "POST" })
             wardrobe: [] as WardrobeItem[], // size only affects a confidence tweak below; an empty
             // array is never wrong in the direction that matters (it can only make confidence
             // read as slightly more cautious ("low" instead of "medium"), never overstate it.
-            duplicate: item.duplicateVerdict === "new" ? null : { score: item.duplicateVerdict === "certain" ? 1 : 0.7, match: null as unknown as WardrobeItem, verdict: item.duplicateVerdict },
+            duplicate: item.duplicateVerdict === "new" ? null : { verdict: item.duplicateVerdict, itemId: "", label: item.similarToLabel ?? "" },
             similarItemsCount: 0,
+            comparableLabels: item.comparableLabels ?? [],
             pairsWithCount: item.pairsWithCount,
             wardrobeGap: item.wardrobeGap,
           };
@@ -673,7 +671,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
       product: { title: r.product.title, brand: r.product.brand, price: r.product.price, currency: r.product.currency, imageUrl: r.product.imageUrl, sourceUrl: r.product.sourceUrl },
       verdict: verdicts[i].verdict,
       confidence: verdicts[i].confidence,
-      wardrobe: { duplicate: r.duplicate?.verdict === "certain", pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, dressPreferenceViolation: violations[i] },
+      wardrobe: { duplicate: r.duplicate?.verdict === "certain", similarTo: r.duplicate?.label || null, pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, dressPreferenceViolation: violations[i] },
       cacheKey: {
         source: "cached" as const,
         product: {
@@ -682,6 +680,8 @@ export const comparePurchases = createServerFn({ method: "POST" })
           length: r.product.length, sleeveLength: r.product.sleeveLength, fit: r.product.fit, styleTags: r.product.styleTags,
         },
         duplicateVerdict: r.duplicate?.verdict ?? "new",
+        similarToLabel: r.duplicate?.label || null,
+        comparableLabels: r.comparableLabels,
         pairsWithCount: r.pairsWithCount,
         wardrobeGap: r.wardrobeGap,
         isLabelOnly: isLabelOnly[i],
@@ -708,9 +708,15 @@ export const comparePurchases = createServerFn({ method: "POST" })
       [resolved[i].product.subcategory, resolved[i].product.category].filter(Boolean).join(" ") || "this piece";
     const describeItem = (label: string, r: Extract<(typeof resolvedAll)[number], { ok: true }>, verdict: ComparedItem["verdict"], violation: boolean) => [
       `${label} ("${nameOfItem(letters.indexOf(label))}"): ${r.product.category ?? "unknown category"}${r.product.subcategory ? " / " + r.product.subcategory : ""}, colors: ${r.product.colors.join(", ") || "unclear"}, brand: ${r.product.brand || "unknown"}, price: ${r.product.price ?? "unknown"}. Individual verdict already decided: ${verdict.toUpperCase()}.`,
-      r.duplicate?.verdict === "certain" ? `${label} is a near-duplicate of something already owned.` : r.duplicate?.verdict === "maybe" ? `${label} is similar to something already owned, not a certain duplicate.` : `${label}: nothing similar already owned.`,
+      r.duplicate?.verdict === "certain"
+        ? `${label} is a near-duplicate of an owned piece${r.duplicate.label ? `: ${r.duplicate.label}` : ""} — name that piece if you mention it.`
+        : r.duplicate?.verdict === "maybe"
+        ? `${label} is similar to an owned piece${r.duplicate.label ? `: ${r.duplicate.label}` : ""} (not a certain duplicate) — name that piece if you mention it.`
+        : `${label}: nothing similar already owned — do NOT say or imply it resembles something owned.`,
       `${label} would pair with about ${r.pairsWithCount} piece(s) already owned.`,
-      r.wardrobeGap ? `${label} fills a real gap — nothing comparable owned yet.` : `${label} is not a gap — comparable pieces already owned.`,
+      r.wardrobeGap
+        ? `${label} fills a real gap — nothing of this kind owned yet.`
+        : `${label} is not a gap — pieces of the same kind already owned${r.comparableLabels.length ? ` (e.g. ${r.comparableLabels.join("; ")})` : ""}; same kind does not mean similar.`,
       violation ? `${label} conflicts with a stated dress preference.` : "",
     ].filter(Boolean);
 

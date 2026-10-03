@@ -724,7 +724,9 @@
     "viewOnSite": "Vedi sul sito",
     "linkDisclaimer": "Questa è una valutazione basata sul tuo guardaroba, non un'expertise di mercato: non conosce sconti, qualità reale o tendenze.",
     "orWardrobeIsMissing": "Oppure, cosa manca al tuo guardaroba",
-    "disclaimer": "Questa è una stima dei vuoti nel guardaroba basata su ciò che possiedi già, non un catalogo prodotti in tempo reale. Consigli di shopping reali con prodotti e link veri arriveranno presto."
+    "disclaimer": "Questa è una stima dei vuoti nel guardaroba basata su ciò che possiedi già, non un catalogo prodotti in tempo reale. Consigli di shopping reali con prodotti e link veri arriveranno presto.",
+    "similarTo": "Simile a: {{label}}",
+    "duplicateOf": "Sembra un duplicato di: {{label}}"
   },
   "planner": {
     "calendar": "Calendario",

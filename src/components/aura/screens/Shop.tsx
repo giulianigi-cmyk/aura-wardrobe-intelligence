@@ -314,6 +314,9 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                             {it.verdict === "buy" ? <Check size={9} /> : it.verdict === "maybe" ? <HelpCircle size={9} /> : <XIcon size={9} />}
                             {it.verdict === "buy" ? t("shop.verdictBuy") : it.verdict === "maybe" ? t("shop.verdictMaybe") : t("shop.verdictSkip")}
                           </div>
+                          {it.wardrobe.similarTo && (
+                            <p className="mt-1 text-[11px] text-muted-foreground leading-snug">{t("shop.similarTo", { label: it.wardrobe.similarTo })}</p>
+                          )}
                         </div>
                       </div>
                     );
@@ -469,10 +472,10 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
 
               <div className="mt-3 space-y-1 text-[11px] text-muted-foreground">
                 {result.wardrobe.duplicate?.verdict === "certain" && (
-                  <p className="font-medium text-foreground/80">{t("shop.looksLikeDuplicate")}</p>
+                  <p className="font-medium text-foreground/80">{result.wardrobe.duplicate.label ? t("shop.duplicateOf", { label: result.wardrobe.duplicate.label }) : t("shop.looksLikeDuplicate")}</p>
                 )}
                 {result.wardrobe.duplicate?.verdict === "maybe" && (
-                  <p>{t("shop.looksSimilarToOwned")}</p>
+                  <p>{result.wardrobe.duplicate.label ? t("shop.similarTo", { label: result.wardrobe.duplicate.label }) : t("shop.looksSimilarToOwned")}</p>
                 )}
                 {result.wardrobe.pairsWithCount > 0 && (
                   <p>{t("shop.wouldPairWithLink", { count: result.wardrobe.pairsWithCount })}</p>
