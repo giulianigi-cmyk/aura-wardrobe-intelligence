@@ -10,6 +10,7 @@ import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NE
 import { detectActivityKind } from "./activity-kind";
 import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
 import { loadWearHistory, recentlyWornIds, rotationOrder, wearFields, withoutRecentPerCategory, ROTATION_PROMPT_RULE } from "./outfit-rotation";
+import { ensureAnchor, ANCHOR_UNAVAILABLE } from "./outfit-anchor";
 import { explanationLanguageInstruction } from "./language_prompt";
 
 const ItemSchema = z.object({
@@ -279,6 +280,16 @@ export async function suggestOutfitCore(params: {
   // Rotation: wear history from wardrobe_items, then the catalog order (long-unworn first, with a
   // random factor). The mandatory piece and the pieces of an outfit being adapted are never
   // dropped, and stay at the front so the 200-piece catalog cap can't cut them.
+  // "Crea outfit partendo da questo": the chosen piece is the person's explicit request — it is
+  // never filtered out by location, dress-preference or dress-code narrowing above. If it can't be
+  // used at all (deleted, archived, out on loan) the caller gets a clear error instead of a
+  // different outfit generated silently.
+  if (params.mustIncludeItemId) {
+    const anchor = params.items.find((it) => it.id === params.mustIncludeItemId);
+    if (!anchor || anchor.activeLoanId) return { ok: false, error: ANCHOR_UNAVAILABLE };
+    if (!eligibleItems.some((it) => it.id === anchor.id)) eligibleItems = [anchor, ...eligibleItems];
+  }
+
   const todayIso = new Date().toISOString().slice(0, 10);
   const wearHistory = await loadWearHistory(params.supabase, params.userId, eligibleItems.map((it) => it.id));
   const protectedIds = new Set([params.mustIncludeItemId, ...(params.baseItemIds ?? [])].filter((x): x is string => Boolean(x)));
@@ -750,6 +761,10 @@ export async function suggestOutfitCore(params: {
 
     const validIds = new Set(catalog.map((c) => c.id));
     let item_ids = parsed.item_ids.filter((id) => validIds.has(id)).slice(0, 5);
+    // The explanation must describe the pieces actually shown: it follows the attempt that is used,
+    // and is dropped (rather than shown wrong) if code later removes a piece it talks about.
+    let explanation = parsed.explanation ?? "";
+    let explainedIds = new Set(item_ids);
 
     // If the first attempt breaks a hard rule (two tops, a bare-shoulder
     // piece for Work, etc.), ask once more instead of returning it —
@@ -765,12 +780,15 @@ export async function suggestOutfitCore(params: {
         const retryIds = retryParsed.item_ids.filter((id) => validIds.has(id)).slice(0, 5);
         if (isValidResult(retryIds)) {
           item_ids = retryIds;
+          explanation = retryParsed.explanation ?? "";
+          explainedIds = new Set(retryIds);
         } else if (hasSlotViolation(item_ids)) {
           // Neither attempt was clean and the original has a structural
           // slot conflict (e.g. two tops) — drop the lowest-priority
           // duplicate items rather than ship a visibly broken outfit.
           const seen = new Set<string>();
-          item_ids = item_ids.filter((id) => {
+          // The mandatory piece is processed first so it is the one kept in its slot.
+          item_ids = ensureAnchor(item_ids, params.mustIncludeItemId, (id) => catalog.find((c) => c.id === id)?.category).filter((id) => {
             const cat = catalog.find((c) => c.id === id)?.category ?? "";
             const key = SLOT_LIMITS[cat] ? cat : id;
             if (seen.has(key)) return false;
@@ -786,6 +804,7 @@ export async function suggestOutfitCore(params: {
           // suggest-daily-looks.functions.ts. Missing a shoe/top after
           // this is preferable to a materially wrong suggestion.
           item_ids = item_ids.filter((id) => {
+            if (id === params.mustIncludeItemId) return true; // the person's own starting piece
             if (violatesWeather([id])) return false;
             if (violatesEmbellished([id])) return false;
             if (violatesBeachBag([id])) return false;
@@ -877,10 +896,13 @@ export async function suggestOutfitCore(params: {
       if (bag) item_ids = [...item_ids, bag.id];
     }
 
+    // Guarantee, not just a prompt instruction: the starting piece is in the outfit.
+    item_ids = ensureAnchor(item_ids, params.mustIncludeItemId, (id) => catalog.find((c) => c.id === id)?.category);
+    const explanationStillTrue = [...explainedIds].every((id) => item_ids.includes(id));
     return {
       ok: true as const,
       item_ids,
-      explanation: (parsed.explanation ?? "").slice(0, 240),
+      explanation: explanationStillTrue ? explanation.slice(0, 240) : "",
     };
   } catch (err) {
     console.error("[AURA suggest-outfit] failed", err);

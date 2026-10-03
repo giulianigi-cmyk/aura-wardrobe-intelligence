@@ -29,6 +29,7 @@ import {
   nativeShareFile, shareLinks,
 } from "@/lib/aura-share";
 import { suggestOutfitAI } from "@/lib/ai-suggest-outfit.functions";
+import { ANCHOR_UNAVAILABLE } from "@/lib/outfit-anchor";
 import { computeBuilderLayout, type ComposeItem } from "@/lib/compose-outfit-canvas";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { logWardrobeEvent } from "@/lib/wardrobe-events";
@@ -37,7 +38,25 @@ import { normalizeOccasionForFeedback } from "@/lib/activity-kind";
 import { resolvePlanSlot } from "@/lib/outfit-plan-slot";
 import i18n from "@/i18n/config";
 
-const OCCASIONS = ["Work", "Evening", "Weekend", "Formal", "Travel", "Sport", "Everyday", "Concert", "Business Dinner"];
+// Stored value (English: the outfit engine, dress preferences and feedback all read it) → label key.
+// The first eight are the ones offered when an outfit starts from a chosen piece ("Per quale
+// occasione?"); the rest are still selectable here, and saved outfits may carry them.
+const OCCASIONS: { value: string; key: string }[] = [
+  { value: "Work", key: "work" },
+  { value: "Weekend", key: "leisure" },
+  { value: "Day Out", key: "dayOut" },
+  { value: "Aperitif", key: "aperitif" },
+  { value: "Dinner", key: "dinner" },
+  { value: "Evening", key: "evening" },
+  { value: "Ceremony", key: "ceremony" },
+  { value: "Travel", key: "travel" },
+  { value: "Formal", key: "formal" },
+  { value: "Sport", key: "sport" },
+  { value: "Everyday", key: "everyday" },
+  { value: "Concert", key: "concert" },
+  { value: "Business Dinner", key: "businessDinner" },
+];
+const ANCHOR_OCCASIONS = OCCASIONS.slice(0, 8);
 
 type Ratio = "1:1" | "9:16";
 type Placed = {
@@ -332,7 +351,14 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
   const [addingToCalendar, setAddingToCalendar] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiExplanation, setAiExplanation] = useState<string>("");
+  // "Crea outfit partendo da questo": the piece the outfit is built around. It stays the anchor
+  // across regenerations and edits until the person removes it from the canvas (or releases it).
   const [anchorItemId, setAnchorItemId] = useState<string | null>(null);
+  // Before generating from a piece, the person is asked for the occasion (unless it is already
+  // known). "clarify" is the one optional follow-up question (ceremony: day or evening).
+  const [occasionAsk, setOccasionAsk] = useState<null | "pick" | "other" | "clarify">(null);
+  const [otherOccasion, setOtherOccasion] = useState("");
+  const occasionSheetCanClose = useSheetCanClose(occasionAsk !== null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const zSeqRef = useRef(1);
@@ -466,11 +492,22 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
     setSelectedKey(key);
   }, [signed, allItems, ratio]);
 
+  // Removing the starting piece from the canvas is the person's explicit choice to drop it:
+  // from then on it is no longer forced into regenerated outfits.
+  const removePlaced = useCallback((key: string) => {
+    setPlaced((p) => {
+      const gone = p.find((x) => x.key === key);
+      const rest = p.filter((x) => x.key !== key);
+      if (gone && gone.itemId === anchorItemId && !rest.some((x) => x.itemId === gone.itemId)) setAnchorItemId(null);
+      return rest;
+    });
+    setSelectedKey(null);
+  }, [anchorItemId]);
+
   const removeSelected = useCallback(() => {
     if (!selectedKey) return;
-    setPlaced((p) => p.filter((x) => x.key !== selectedKey));
-    setSelectedKey(null);
-  }, [selectedKey]);
+    removePlaced(selectedKey);
+  }, [selectedKey, removePlaced]);
 
   // Desktop: Delete / Backspace clears the currently selected canvas item.
   // Skips when focus is in an input/textarea/select so typing isn't hijacked.
@@ -567,20 +604,31 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
   const onPointerUp = () => { dragRef.current = null; };
 
   // AI Suggest: call Lovable AI Gateway (google/gemini-2.5-flash) for a coherent outfit.
-  const aiSuggest = useCallback(async (anchorId?: string | null) => {
+  const aiSuggest = useCallback(async (opts?: { anchorId?: string | null; occasion?: string }) => {
     if (!items.length) { toast.error(t("outfitBuilder.addWardrobeItemsFirst")); return; }
+    const anchorId = opts?.anchorId ?? anchorItemId ?? null;
+    const occ = opts?.occasion ?? occasion;
+    // The starting piece must be in the outfit. If it is no longer in the active wardrobe
+    // (deleted, archived, on loan), say so instead of generating a different outfit.
+    if (anchorId) {
+      const anchor = items.find((it) => it.id === anchorId);
+      if (!anchor || anchor.active_loan_id) {
+        toast.error(t("outfitBuilder.anchorUnavailable"));
+        return;
+      }
+    }
     setAiBusy(true);
     setAiExplanation("");
     try {
       const desc = weather ? describeWeather(weather.current.weatherCode, weather.current.isDay).label : null;
-                        const dressRules = await loadDressRules(user?.id, occasion);
+      const dressRules = await loadDressRules(user?.id, occ);
       const res = await suggestOutfitAI({
         data: {
           dressRules,
           temperature: weather?.current.temperature ?? null,
           condition: desc,
-          occasion: occasion || null,
-          mustIncludeItemId: anchorId ?? anchorItemId ?? null,
+          occasion: occ || null,
+          mustIncludeItemId: anchorId,
           items: items.map((it) => ({
             id: it.id,
             category: it.category,
@@ -593,12 +641,24 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
             formality: it.formality ?? null,
             dayEvening: it.day_evening ?? "",
             sleeveLength: it.sleeve_length ?? "",
+            length: it.length ?? null,
+            fit: it.fit ?? null,
+            heelHeight: it.heel_height ?? null,
             styleTags: it.style_tags ?? [],
+            occasion: it.occasion ?? null,
+            activeLoanId: it.active_loan_id ?? null,
           })),
         },
       });
+      if (!res.ok && res.error === ANCHOR_UNAVAILABLE) {
+        toast.error(t("outfitBuilder.anchorUnavailable"));
+        return;
+      }
       if (!res.ok || !res.item_ids.length) {
-        toast.error(t("outfitBuilder.aiCouldntCompose"));
+        // Piece and occasion are kept: "Riprova" regenerates from the same starting point.
+        toast.error(t("outfitBuilder.aiCouldntCompose"), {
+          action: { label: t("outfitBuilder.retry"), onClick: () => void aiSuggest({ anchorId, occasion: occ }) },
+        });
         return;
       }
       const byId = new Map(items.map((it) => [it.id, it]));
@@ -624,10 +684,13 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
       toast.success(t("outfitBuilder.aiOutfitReady"));
     } catch (e) {
       console.error(e);
-      toast.error(t("outfitBuilder.aiSuggestFailed"));
+      toast.error(t("outfitBuilder.aiSuggestFailed"), {
+        action: { label: t("outfitBuilder.retry"), onClick: () => void aiSuggest({ anchorId, occasion: occ }) },
+      });
     } finally {
       setAiBusy(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, weather, occasion, signed, anchorItemId]);
 
   const anchorAppliedRef = useRef(false);
@@ -641,11 +704,22 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
     // what produced the reported "selected items are missing images"
     // error — the AI's picks were fine, there was just nothing yet to
     // draw them with.
+    // The occasion is asked first ("Per quale occasione vuoi creare l'outfit?") unless it is
+    // already known, so the outfit is built for the right context from the first attempt.
     if (anchorItemId && items.length && Object.keys(signed).length > 0 && !anchorAppliedRef.current) {
       anchorAppliedRef.current = true;
-      void aiSuggest(anchorItemId);
+      if (occasion) void aiSuggest({ anchorId: anchorItemId });
+      else setOccasionAsk("pick");
     }
-  }, [anchorItemId, items, signed, aiSuggest]);
+  }, [anchorItemId, items, signed, aiSuggest, occasion]);
+
+  const startFromAnchor = useCallback((occ: string) => {
+    setOccasion(occ);
+    setOccasionAsk(null);
+    void aiSuggest({ anchorId: anchorItemId, occasion: occ });
+  }, [aiSuggest, anchorItemId]);
+
+  const anchorItem = anchorItemId ? allItems.find((it) => it.id === anchorItemId) ?? null : null;
 
   // Export & save ---------------------------------------------------------
 
@@ -981,6 +1055,33 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
           </button>
         </div>
       )}
+      {anchorItem && (
+        <div className="mx-6 mt-2 rounded-2xl border border-border/60 bg-card px-3 py-2 flex items-center gap-3">
+          {(() => {
+            const path = toStoragePath(anchorItem.image_url);
+            const url = path ? signed[path] : "";
+            return url ? <img src={url} alt="" className="h-10 w-10 rounded-lg object-contain bg-secondary/40 shrink-0" /> : null;
+          })()}
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("outfitBuilder.anchorLabel")}</p>
+            <p className="text-sm truncate">{[anchorItem.brand, anchorItem.subcategory ?? anchorItem.category, anchorItem.color].filter(Boolean).join(" · ")}</p>
+          </div>
+          <button
+            onClick={() => { if (occasion) void aiSuggest(); else setOccasionAsk("pick"); }}
+            disabled={aiBusy || loading}
+            className="h-8 px-3 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] inline-flex items-center gap-1.5 disabled:opacity-50 shrink-0"
+          >
+            {aiBusy ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+            {t("outfitBuilder.anchorGenerate")}
+          </button>
+          <button
+            onClick={() => setAnchorItemId(null)}
+            aria-label={t("outfitBuilder.anchorRelease")}
+            title={t("outfitBuilder.anchorRelease")}
+            className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground shrink-0"
+          ><X size={13} /></button>
+        </div>
+      )}
       {aiExplanation && (
         <p className="mx-6 mt-2 text-xs text-muted-foreground italic leading-relaxed">
           {aiExplanation}
@@ -1006,7 +1107,8 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
           className="h-9 px-3 rounded-full bg-secondary/60 text-[10px] uppercase tracking-[0.25em] border-none outline-none"
         >
           <option value="">{t("outfitBuilder.occasion")}</option>
-          {OCCASIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+          {occasion && !OCCASIONS.some((o) => o.value === occasion) && <option value={occasion}>{occasion}</option>}
+          {OCCASIONS.map((o) => <option key={o.value} value={o.value}>{t(`outfitBuilder.occasions.${o.key}`)}</option>)}
         </select>
       </div>
 
@@ -1067,7 +1169,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
                         onClick={(e) => e.stopPropagation()}
                       >
                         <button
-                          onClick={() => { setPlaced((arr) => arr.filter((x) => x.key !== p.key)); setSelectedKey(null); }}
+                          onClick={() => removePlaced(p.key)}
                           aria-label={t("outfitBuilder.removeFromCanvasAria")}
                           title={t("outfitBuilder.removeFromCanvasAria")}
                           className="h-7 w-7 rounded-full flex items-center justify-center active:scale-90"
@@ -1195,6 +1297,58 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
           </button>
         )}
       </div>
+
+      {/* "Per quale occasione vuoi creare l'outfit?" — asked before generating from a chosen
+          piece. Closing it keeps the piece; the occasion can still be picked later. */}
+      {occasionAsk && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => { if (occasionSheetCanClose) setOccasionAsk(null); }}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full bg-card rounded-t-3xl border-t border-border p-5 space-y-3 max-h-[85vh] overflow-y-auto">
+            {occasionAsk === "clarify" ? (
+              <>
+                <p className="font-serif italic text-lg">{t("outfitBuilder.ceremonyWhen")}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => startFromAnchor("Ceremony (daytime)")} className="h-11 rounded-full bg-secondary/60 text-sm active:scale-[0.98]">{t("outfitBuilder.ceremonyDay")}</button>
+                  <button onClick={() => startFromAnchor("Ceremony (evening)")} className="h-11 rounded-full bg-secondary/60 text-sm active:scale-[0.98]">{t("outfitBuilder.ceremonyEvening")}</button>
+                </div>
+                <button onClick={() => startFromAnchor("Ceremony")} className="w-full h-10 rounded-full text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("outfitBuilder.skipQuestion")}</button>
+              </>
+            ) : occasionAsk === "other" ? (
+              <>
+                <p className="font-serif italic text-lg">{t("outfitBuilder.occasionQuestion")}</p>
+                <input
+                  autoFocus
+                  value={otherOccasion}
+                  onChange={(e) => setOtherOccasion(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && otherOccasion.trim()) startFromAnchor(otherOccasion.trim()); }}
+                  placeholder={t("outfitBuilder.otherOccasionPlaceholder")}
+                  maxLength={120}
+                  className="w-full bg-secondary/60 rounded-full px-4 py-2.5 text-sm outline-none"
+                />
+                <button
+                  onClick={() => startFromAnchor(otherOccasion.trim())}
+                  disabled={!otherOccasion.trim()}
+                  className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-50"
+                >{t("outfitBuilder.anchorGenerate")}</button>
+                <button onClick={() => setOccasionAsk("pick")} className="w-full h-10 rounded-full text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("outfitBuilder.back")}</button>
+              </>
+            ) : (
+              <>
+                <p className="font-serif italic text-lg">{t("outfitBuilder.occasionQuestion")}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {ANCHOR_OCCASIONS.map((o) => (
+                    <button
+                      key={o.value}
+                      onClick={() => { if (o.value === "Ceremony") { setOccasion(o.value); setOccasionAsk("clarify"); } else startFromAnchor(o.value); }}
+                      className="min-h-11 px-3 py-2 rounded-full bg-secondary/60 text-sm active:scale-[0.98]"
+                    >{t(`outfitBuilder.occasions.${o.key}`)}</button>
+                  ))}
+                  <button onClick={() => setOccasionAsk("other")} className="min-h-11 px-3 py-2 rounded-full border border-border text-sm active:scale-[0.98]">{t("outfitBuilder.otherOccasion")}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {calendarOpen && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => { if (calendarSheetCanClose) setCalendarOpen(false); }}>
