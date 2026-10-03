@@ -722,11 +722,37 @@
     "fillsAGap": "Comble un manque dans votre garde-robe",
     "lowConfidenceNote": "Estimation peu fiable : données insuffisantes pour une conclusion fiable",
     "viewOnSite": "Voir sur le site",
-    "linkDisclaimer": "Il s'agit d'une évaluation basée sur votre garde-robe, pas d'une expertise de marché — elle ne tient pas compte des remises, de la qualité réelle ou des tendances.",
+    "linkDisclaimer": "Une évaluation basée sur ta garde-robe, pas une expertise de marché : elle ne connaît ni les remises ni la qualité réelle. L'iconicité et les tendances viennent des connaissances générales de l'IA et peuvent ne pas être à jour.",
     "orWardrobeIsMissing": "Ou, ce qui manque à votre garde-robe",
     "disclaimer": "Il s'agit d'une estimation des manques de votre garde-robe basée sur ce que vous possédez déjà — pas d'un catalogue de produits en direct. De vraies recommandations d'achat avec produits et liens réels arrivent bientôt.",
     "similarTo": "Semblable à : {{label}}",
-    "duplicateOf": "Ressemble à un doublon de : {{label}}"
+    "duplicateOf": "Ressemble à un doublon de : {{label}}",
+    "fashion": {
+      "iconic": "Iconique",
+      "timeless": "Intemporel",
+      "onTrend": "Tendance",
+      "statusPiece": "Pièce statutaire"
+    },
+    "differsFrom": "Différent de ton {{label}} : {{details}}",
+    "detail": {
+      "slingback": "slingback",
+      "maryJane": "Mary Jane",
+      "patent": "vernis",
+      "suede": "daim",
+      "satin": "satin",
+      "velvet": "velours",
+      "mesh": "résille",
+      "embellished": "bijou / cristaux",
+      "metallic": "métallisé",
+      "platform": "plateforme",
+      "ankleStrap": "bride cheville",
+      "openToe": "bout ouvert",
+      "kittenHeel": "talon kitten",
+      "quilted": "matelassé",
+      "chain": "chaîne",
+      "logo": "logo",
+      "animalPrint": "imprimé animal"
+    }
   },
   "planner": {
     "calendar": "Calendrier",

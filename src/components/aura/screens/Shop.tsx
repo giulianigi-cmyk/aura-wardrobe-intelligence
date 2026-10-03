@@ -314,9 +314,10 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                             {it.verdict === "buy" ? <Check size={9} /> : it.verdict === "maybe" ? <HelpCircle size={9} /> : <XIcon size={9} />}
                             {it.verdict === "buy" ? t("shop.verdictBuy") : it.verdict === "maybe" ? t("shop.verdictMaybe") : t("shop.verdictSkip")}
                           </div>
-                          {it.wardrobe.similarTo && (
+                          {it.wardrobe.similarTo && !it.wardrobe.differsFrom && (
                             <p className="mt-1 text-[11px] text-muted-foreground leading-snug">{t("shop.similarTo", { label: it.wardrobe.similarTo })}</p>
                           )}
+                          <FashionAndDifferences fashion={it.fashion} differsFrom={it.wardrobe.differsFrom} />
                         </div>
                       </div>
                     );
@@ -458,6 +459,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                 {result.verdict === "buy" ? <Check size={11} /> : result.verdict === "maybe" ? <HelpCircle size={11} /> : <XIcon size={11} />}
                 {result.verdict === "buy" ? t("shop.verdictBuy") : result.verdict === "maybe" ? t("shop.verdictMaybe") : t("shop.verdictSkip")}
               </div>
+              <FashionAndDifferences fashion={result.fashion} differsFrom={result.wardrobe.differsFrom} />
               <p className="mt-2 text-sm text-foreground/80 leading-relaxed">{result.reason}</p>
 
               {/* A dress-preference violation is a hard, explicit personal
@@ -474,7 +476,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                 {result.wardrobe.duplicate?.verdict === "certain" && (
                   <p className="font-medium text-foreground/80">{result.wardrobe.duplicate.label ? t("shop.duplicateOf", { label: result.wardrobe.duplicate.label }) : t("shop.looksLikeDuplicate")}</p>
                 )}
-                {result.wardrobe.duplicate?.verdict === "maybe" && (
+                {result.wardrobe.duplicate?.verdict === "maybe" && !result.wardrobe.differsFrom && (
                   <p>{result.wardrobe.duplicate.label ? t("shop.similarTo", { label: result.wardrobe.duplicate.label }) : t("shop.looksSimilarToOwned")}</p>
                 )}
                 {result.wardrobe.pairsWithCount > 0 && (
@@ -570,6 +572,36 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
       <p className="px-6 mt-6 text-[11px] text-muted-foreground leading-relaxed">
         {t("shop.disclaimer")}
       </p>
+    </div>
+  );
+}
+
+/** Fashion value (iconic, timeless, trend, status) and how the piece differs from the closest owned
+ *  one of the same kind — shown under a verdict so it's clear what the advice is based on. */
+function FashionAndDifferences({ fashion, differsFrom }: {
+  fashion: { iconic: boolean; timeless: boolean; onTrend: boolean; statusPiece: boolean } | null | undefined;
+  differsFrom: { label: string; differences: string[] } | null | undefined;
+}) {
+  const { t } = useTranslation();
+  const chips = fashion ? (["iconic", "timeless", "onTrend", "statusPiece"] as const).filter((k) => fashion[k]) : [];
+  if (!chips.length && !differsFrom) return null;
+  return (
+    <div className="mt-1.5 space-y-1">
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {chips.map((k) => (
+            <span key={k} className="rounded-full border border-border px-2 py-0.5 text-[9px] uppercase tracking-widest text-foreground/70">{t(`shop.fashion.${k}`)}</span>
+          ))}
+        </div>
+      )}
+      {differsFrom && (
+        <p className="text-[11px] text-muted-foreground leading-snug">
+          {t("shop.differsFrom", {
+            label: differsFrom.label,
+            details: differsFrom.differences.map((d) => t(`shop.detail.${d}`, { defaultValue: d })).join(", "),
+          })}
+        </p>
+      )}
     </div>
   );
 }

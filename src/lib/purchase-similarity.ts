@@ -6,7 +6,45 @@
 import { findBestMatch, type DedupeVerdict } from "./outfit-dedupe";
 import type { WardrobeItem } from "./aura-types";
 
-type ProductShape = { category: string | null; subcategory: string | null; colors: string[]; brand: string | null };
+type ProductShape = {
+  category: string | null; subcategory: string | null; colors: string[]; brand: string | null;
+  /** Free text that can reveal details: title, description, style tags, material. */
+  text?: string | null;
+};
+
+// Details that make two pieces of the same kind genuinely different to wear: a patent slingback is
+// not the same shoe as a leather closed pump, even from the same house and in the same colour.
+// Words in it/en/es/fr; matched on the product's own text and the owned piece's data.
+const DETAILS: Record<string, string[]> = {
+  slingback: ["slingback", "sling back", "sling-back", "chanel back"],
+  maryJane: ["mary jane", "mary-jane", "maryjane"],
+  patent: ["patent", "vernice", "verniciat", "lucida", "lucide", "lucido", "glossy", "laccat", "vernis", "charol"],
+  suede: ["suede", "camoscio", "daim", "ante "],
+  satin: ["satin", "raso", "satén"],
+  velvet: ["velvet", "velluto", "terciopelo", "velours"],
+  mesh: ["mesh", "rete", "resille", "rejilla"],
+  embellished: ["crystal", "cristall", "strass", "swarovski", "rhinestone", "embellish", "gioiello", "jewel", "bijou", "pearl", "perle"],
+  metallic: ["metallic", "metallizzat", "laminat", "specchio", "mirror", "metalizad", "métallisé"],
+  platform: ["platform", "plateau", "plataforma"],
+  ankleStrap: ["ankle strap", "cinturino", "correa al tobillo", "bride cheville"],
+  openToe: ["peep toe", "open toe", "spuntat", "punta aperta"],
+  kittenHeel: ["kitten heel", "kitten"],
+  quilted: ["quilted", "trapuntat", "matelass", "acolchad"],
+  chain: ["chain strap", "tracolla a catena", "catena", "cadena", "chaîne"],
+  logo: ["logo", "monogram"],
+  animalPrint: ["leopard", "leopardat", "animalier", "zebra", "python", "pitone", "croco", "cocco"],
+};
+
+export function detailsIn(text: string): Set<string> {
+  const t = ` ${text.toLowerCase()} `;
+  return new Set(Object.entries(DETAILS).filter(([, words]) => words.some((w) => t.includes(w))).map(([k]) => k));
+}
+
+function ownedText(it: WardrobeItem): string {
+  const x = it as WardrobeItem & { closure?: string | null; toe_shape?: string | null };
+  return [it.subcategory, it.model, ...(it.style_tags ?? []), ...(Array.isArray(it.material) ? it.material : []), x.closure, x.toe_shape, (it as { name?: string | null }).name]
+    .filter(Boolean).join(" ");
+}
 
 /** Categories whose pieces are so different from one another (a ring vs a watch, a tote vs a
  *  clutch) that without a known type nothing can be called similar. */
@@ -28,9 +66,10 @@ export function ownedPieceLabel(it: WardrobeItem): string {
 }
 
 export type SimilarOwned = { verdict: Exclude<DedupeVerdict, "new">; itemId: string; label: string };
+/** The closest owned piece of the same kind and what the product has that it doesn't. */
+export type ClosestOwned = { itemId: string; label: string; differences: string[]; rawVerdict: Exclude<DedupeVerdict, "new"> };
 
-/** The owned piece the product is a (near-)duplicate of, compared only with pieces of the same kind. */
-export function similarOwnedPiece(product: ProductShape, wardrobe: WardrobeItem[]): SimilarOwned | null {
+export function closestOwnedPiece(product: ProductShape, wardrobe: WardrobeItem[]): ClosestOwned | null {
   if (!product.category) return null;
   const candidates = comparablePieces(product, wardrobe);
   if (!candidates.length) return null;
@@ -39,5 +78,18 @@ export function similarOwnedPiece(product: ProductShape, wardrobe: WardrobeItem[
     candidates,
   );
   if (d.verdict === "new" || !d.match) return null;
-  return { verdict: d.verdict, itemId: d.match.id, label: ownedPieceLabel(d.match) };
+  const mine = detailsIn([product.subcategory, product.text].filter(Boolean).join(" "));
+  const theirs = detailsIn(ownedText(d.match));
+  const differences = [...mine].filter((k) => !theirs.has(k));
+  return { itemId: d.match.id, label: ownedPieceLabel(d.match), differences, rawVerdict: d.verdict };
+}
+
+/** The owned piece the product is a (near-)duplicate of, compared only with pieces of the same kind.
+ *  A real difference in detail (slingback vs closed, patent vs plain leather) lowers the call by one
+ *  step: a "certain" duplicate becomes "similar", a "similar" one is not called similar at all. */
+export function similarOwnedPiece(product: ProductShape, wardrobe: WardrobeItem[]): (SimilarOwned & { differences: string[] }) | null {
+  const c = closestOwnedPiece(product, wardrobe);
+  if (!c) return null;
+  const verdict = c.differences.length ? (c.rawVerdict === "certain" ? "maybe" : null) : c.rawVerdict;
+  return verdict ? { verdict, itemId: c.itemId, label: c.label, differences: c.differences } : null;
 }

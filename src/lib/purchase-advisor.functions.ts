@@ -6,7 +6,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseAiJson } from "./ai-json";
 import { resolveProductImageUrl } from "./import-url.functions";
 import { analyzeWardrobeImageCore } from "./ai-analyze.functions";
-import { comparablePieces, ownedPieceLabel, similarOwnedPiece } from "./purchase-similarity";
+import { closestOwnedPiece, comparablePieces, ownedPieceLabel, similarOwnedPiece } from "./purchase-similarity";
+import { applyFashionSignals, fashionFacts, fashionPrompt, FashionSignalsSchema, type FashionSignals } from "./purchase-fashion";
 import { isItemAllowedByDressPreferences, hasAnyPreference, type DressPreferences } from "./dress-preferences";
 import { COLOR_PALETTE } from "./color-palette";
 import type { WardrobeItem } from "./aura-types";
@@ -83,7 +84,9 @@ export type PurchaseAdvisorResult =
         similarItemsCount: number;
         pairsWithCount: number;
         wardrobeGap: boolean;
+        differsFrom: { label: string; differences: string[] } | null;
       };
+      fashion: FashionSignals | null;
       rules: {
         dressPreferenceViolation: boolean;
       };
@@ -244,7 +247,7 @@ async function resolveProductAndWardrobeFacts(
   supabase: SupabaseClient<any, any, any>,
   userId: string,
 ): Promise<
-  | { ok: true; product: PurchaseProduct; wardrobe: WardrobeItem[]; duplicate: { verdict: "certain" | "maybe"; itemId: string; label: string } | null; similarItemsCount: number; comparableLabels: string[]; pairsWithCount: number; wardrobeGap: boolean }
+  | { ok: true; product: PurchaseProduct; wardrobe: WardrobeItem[]; duplicate: { verdict: "certain" | "maybe"; itemId: string; label: string } | null; similarItemsCount: number; comparableLabels: string[]; pairsWithCount: number; wardrobeGap: boolean; fashion: FashionSignals | null; differsFrom: { label: string; differences: string[] } | null }
   | { ok: false; error: string }
 > {
   const product: PurchaseProduct = {
@@ -339,7 +342,14 @@ async function resolveProductAndWardrobeFacts(
 
   // Only pieces of the same kind count (purchase-similarity.ts): a Cartier ring used to be "too
   // similar" to the Cartier watches owned — same category, brand and a colour in common.
-  const duplicate = similarOwnedPiece(product, wardrobe);
+  // The product's own words (name, retailer description, tags) reveal details like "slingback" or
+  // "vernice" that make it a different piece from an owned one of the same kind.
+  const productText = [product.title, product.description, ...(product.styleTags ?? []), product.material].filter(Boolean).join(" ");
+  const shape = { ...product, text: productText };
+  const dup = similarOwnedPiece(shape, wardrobe);
+  const duplicate = dup ? { verdict: dup.verdict, itemId: dup.itemId, label: dup.label } : null;
+  const closest = closestOwnedPiece(shape, wardrobe);
+  const differsFrom = closest && closest.differences.length ? { label: closest.label, differences: closest.differences } : null;
   const comparable = comparablePieces(product, wardrobe);
   const similarItemsCount = comparable.length;
   const comparableLabels = comparable.slice(0, 2).map(ownedPieceLabel);
@@ -352,7 +362,19 @@ async function resolveProductAndWardrobeFacts(
 
   const pairsWithCount = product.category ? countPairings(product.category, product.colors, wardrobe) : 0;
 
-  return { ok: true, product, wardrobe, duplicate, similarItemsCount, comparableLabels, pairsWithCount, wardrobeGap };
+  // Fashion value (iconic, timeless, on trend, status, versatility) from the model's general
+  // knowledge — only when there is something to judge it by; never blocks the advice if it fails.
+  let fashion: FashionSignals | null = null;
+  if (product.category && (product.brand || product.title)) {
+    try {
+      const r = await generateText({ model, prompt: fashionPrompt(product), abortSignal: AbortSignal.timeout(15_000) });
+      fashion = parseAiJson(r.text, FashionSignalsSchema);
+    } catch (e) {
+      console.error("[AURA purchase-advisor] fashion signals failed, continuing without", e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  return { ok: true, product, wardrobe, duplicate, similarItemsCount, comparableLabels, pairsWithCount, wardrobeGap, fashion, differsFrom };
 }
 
 /** The deterministic verdict logic, extracted so both the single-item flow and the
@@ -421,7 +443,7 @@ export const analyzePurchase = createServerFn({ method: "POST" })
 
     const resolved = await resolveProductAndWardrobeFacts(data, model, langCode, supabase, userId);
     if (!resolved.ok) return resolved;
-    const { product, wardrobe, duplicate, similarItemsCount, comparableLabels, pairsWithCount, wardrobeGap } = resolved;
+    const { product, wardrobe, duplicate, similarItemsCount, comparableLabels, pairsWithCount, wardrobeGap, fashion, differsFrom } = resolved;
 
     // ---- 3. Dress preferences — hard rule, same as the outfit engine ----
     const dressPrefs = profile?.dress_preferences ?? null;
@@ -433,17 +455,22 @@ export const analyzePurchase = createServerFn({ method: "POST" })
       : false;
 
     // ---- 4. Deterministic verdict — the AI never decides this part ----
-    const { verdict, confidence } = computeVerdict({
-      dressViolation, hasCategory: !!product.category, duplicate, pairsWithCount, wardrobeGap,
-      wardrobeSize: wardrobe.length, isLabelOnly: data.source === "label",
-    });
+    const { verdict, confidence } = applyFashionSignals(
+      computeVerdict({
+        dressViolation, hasCategory: !!product.category, duplicate, pairsWithCount, wardrobeGap,
+        wardrobeSize: wardrobe.length, isLabelOnly: data.source === "label",
+      }),
+      fashion,
+      { dressViolation, duplicate, pairsWithCount, wardrobeGap },
+    );
 
     const base = {
       product: { title: product.title, brand: product.brand, price: product.price, currency: product.currency, imageUrl: product.imageUrl, sourceUrl: product.sourceUrl },
       // description isn't part of the returned shape — reasoning-only
       // input, not something the UI needs to render separately.
       analysis: { category: product.category, subcategory: product.subcategory, colors: product.colors, material: product.material },
-      wardrobe: { duplicate, similarItemsCount, pairsWithCount, wardrobeGap },
+      wardrobe: { duplicate, similarItemsCount, pairsWithCount, wardrobeGap, differsFrom },
+      fashion,
       rules: { dressPreferenceViolation: dressViolation },
     };
 
@@ -476,6 +503,8 @@ export const analyzePurchase = createServerFn({ method: "POST" })
       wardrobeGap
         ? "- Fills a real gap: nothing of this kind owned yet."
         : `- Not a gap: pieces of the same kind already owned, e.g. ${comparableLabels.join("; ")}. They are the same kind of piece, not necessarily similar — only call it similar if the line above says so.`,
+      differsFrom ? `- Compared with the owned ${differsFrom.label}, this one is different: ${differsFrom.differences.join(", ")} (it is not the same shoe/bag/piece — say how it differs and what it adds, e.g. more evening, a different look).` : "",
+      ...fashionFacts(fashion),
       dressViolation ? "- Conflicts with a stated dress preference — this is why it's a skip." : "",
       profile?.season ? `- Estimated color season: ${profile.season}${profile.undertone ? ` (${profile.undertone})` : ""} — soft note only, never a reason on its own.` : "",
       "Respond with ONLY a single valid JSON object, no markdown fences:",
@@ -535,6 +564,8 @@ const CachedFactsSchema = z.object({
   duplicateVerdict: z.enum(["certain", "maybe", "new"]),
   similarToLabel: z.string().nullable().optional(),
   comparableLabels: z.array(z.string()).optional(),
+  differsFrom: z.object({ label: z.string(), differences: z.array(z.string()) }).nullable().optional(),
+  fashion: FashionSignalsSchema.nullable().optional(),
   pairsWithCount: z.number(),
   wardrobeGap: z.boolean(),
   isLabelOnly: z.boolean(),
@@ -556,7 +587,8 @@ type ComparedItem = {
   product: ComparedProductOut;
   verdict: "buy" | "maybe" | "skip";
   confidence: "high" | "medium" | "low";
-  wardrobe: { duplicate: boolean; similarTo: string | null; pairsWithCount: number; wardrobeGap: boolean; dressPreferenceViolation: boolean };
+  wardrobe: { duplicate: boolean; similarTo: string | null; differsFrom: { label: string; differences: string[] } | null; pairsWithCount: number; wardrobeGap: boolean; dressPreferenceViolation: boolean };
+  fashion: FashionSignals | null;
   // Everything the "is this the same item as I already own?" judgment for THIS one product
   // depends on, opaque to the client — pass it back unchanged as this same item's `source` on a
   // later comparePurchases call (e.g. after adding one more piece to the comparison) and this
@@ -637,6 +669,8 @@ export const comparePurchases = createServerFn({ method: "POST" })
             duplicate: item.duplicateVerdict === "new" ? null : { verdict: item.duplicateVerdict, itemId: "", label: item.similarToLabel ?? "" },
             similarItemsCount: 0,
             comparableLabels: item.comparableLabels ?? [],
+            fashion: item.fashion ?? null,
+            differsFrom: item.differsFrom ?? null,
             pairsWithCount: item.pairsWithCount,
             wardrobeGap: item.wardrobeGap,
           };
@@ -660,18 +694,23 @@ export const comparePurchases = createServerFn({ method: "POST" })
     const isLabelOnly = data.items.map((it) => (it.source === "cached" ? it.isLabelOnly : it.source === "label"));
 
     const verdicts = resolved.map((r, i) =>
-      computeVerdict({
-        dressViolation: violations[i], hasCategory: !!r.product.category, duplicate: r.duplicate,
-        pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, wardrobeSize: r.wardrobe.length,
-        isLabelOnly: isLabelOnly[i],
-      }),
+      applyFashionSignals(
+        computeVerdict({
+          dressViolation: violations[i], hasCategory: !!r.product.category, duplicate: r.duplicate,
+          pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, wardrobeSize: r.wardrobe.length,
+          isLabelOnly: isLabelOnly[i],
+        }),
+        r.fashion,
+        { dressViolation: violations[i], duplicate: r.duplicate, pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap },
+      ),
     );
 
     const items: ComparedItem[] = resolved.map((r, i) => ({
       product: { title: r.product.title, brand: r.product.brand, price: r.product.price, currency: r.product.currency, imageUrl: r.product.imageUrl, sourceUrl: r.product.sourceUrl },
       verdict: verdicts[i].verdict,
       confidence: verdicts[i].confidence,
-      wardrobe: { duplicate: r.duplicate?.verdict === "certain", similarTo: r.duplicate?.label || null, pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, dressPreferenceViolation: violations[i] },
+      wardrobe: { duplicate: r.duplicate?.verdict === "certain", similarTo: r.duplicate?.label || null, differsFrom: r.differsFrom, pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, dressPreferenceViolation: violations[i] },
+      fashion: r.fashion,
       cacheKey: {
         source: "cached" as const,
         product: {
@@ -682,6 +721,8 @@ export const comparePurchases = createServerFn({ method: "POST" })
         duplicateVerdict: r.duplicate?.verdict ?? "new",
         similarToLabel: r.duplicate?.label || null,
         comparableLabels: r.comparableLabels,
+        differsFrom: r.differsFrom,
+        fashion: r.fashion,
         pairsWithCount: r.pairsWithCount,
         wardrobeGap: r.wardrobeGap,
         isLabelOnly: isLabelOnly[i],
@@ -717,6 +758,8 @@ export const comparePurchases = createServerFn({ method: "POST" })
       r.wardrobeGap
         ? `${label} fills a real gap — nothing of this kind owned yet.`
         : `${label} is not a gap — pieces of the same kind already owned${r.comparableLabels.length ? ` (e.g. ${r.comparableLabels.join("; ")})` : ""}; same kind does not mean similar.`,
+      r.differsFrom ? `${label} differs from the owned ${r.differsFrom.label}: ${r.differsFrom.differences.join(", ")} — a different piece, say what it adds.` : "",
+      ...fashionFacts(r.fashion).map((line) => `${label}: ${line.replace(/^- /, "")}`),
       violation ? `${label} conflicts with a stated dress preference.` : "",
     ].filter(Boolean);
 
