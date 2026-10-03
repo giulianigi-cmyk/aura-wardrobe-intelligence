@@ -639,8 +639,8 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
             const source = drafts.find((d) => d.id === copyFromId);
             const sourceLabel = source ? [source.colors[0], source.subcategory || source.category].filter(Boolean).join(" ") || t("batchReview.thisPiece") : t("batchReview.thisPiece");
             return (
-              <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => setCopyFromId(null)}>
-                <div onClick={(e) => e.stopPropagation()} className="w-full max-h-[85dvh] bg-card rounded-t-3xl border-t border-border p-5 flex flex-col">
+              <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end justify-center" onClick={() => setCopyFromId(null)}>
+                <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-2xl max-h-[85dvh] bg-card rounded-t-3xl border-t border-border p-5 flex flex-col">
                   <div className="flex items-center justify-between shrink-0">
                     <p className="font-serif italic text-lg">{t("batchReview.copyDetailsToWhich")}</p>
                     <button onClick={() => setCopyFromId(null)} aria-label={t("batchReview.closeAria")} className="h-8 w-8 rounded-full bg-secondary/60 flex items-center justify-center active:scale-90"><X size={14} /></button>
@@ -667,7 +667,8 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
                     })}
                   </div>
 
-                  <div className="mt-3 flex-1 min-h-0 overflow-y-auto grid grid-cols-2 gap-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+                  {/* Same grid as the wardrobe: 3 columns from tablet/desktop width, 2 on a phone. */}
+                  <div className="mt-3 flex-1 min-h-0 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-3 content-start pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                     {others.map((d) => {
                       const on = copyTargets.has(d.id);
                       const label = [d.colors[0], d.subcategory || d.category].filter(Boolean).join(" ") || t("batchReview.untitledPiece");
@@ -685,7 +686,10 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
                               </span>
                             )}
                           </div>
-                          <p className={`px-2 py-1.5 text-[10px] truncate ${on ? "bg-foreground text-background" : "bg-secondary/60"}`}>{label}</p>
+                          <div className={`px-2 py-1.5 ${on ? "bg-foreground text-background" : "bg-secondary/60"}`}>
+                            {d.brand ? <p className="text-[10px] font-medium truncate">{d.brand}</p> : null}
+                            <p className="text-[10px] truncate">{label}</p>
+                          </div>
                         </button>
                       );
                     })}
