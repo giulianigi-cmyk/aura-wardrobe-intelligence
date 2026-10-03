@@ -24,6 +24,8 @@ export type ComposeItem = { id: string; imgUrl: string; category: string | null;
 const BACKGROUND = "#FFFFFF";
 const SIGNATURE_FONT = 'italic 400 100px "Cormorant Garamond", "Times New Roman", serif';
 const SIGNATURE_COLOR = "#6b6159"; // app text grey (muted-foreground)
+/** Right margin of the signature, canvas px (≈ 6.7% of the width). */
+export const SIGNATURE_RIGHT_MARGIN = 72;
 
 
 function loadImageEl(url: string): Promise<HTMLImageElement> {
@@ -217,10 +219,14 @@ export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | n
     ctx.drawImage(img, crop.sx, crop.sy, crop.sw, crop.sh, r.x, r.y, r.w, r.h);
   }
 
-    // Signature: the same "aura" wordmark as the Splash screen — Cormorant Garamond
-  // italic, in the app's text grey. Bottom-CENTER, not bottom-right:
-  // the Home cards clip the image with rounded corners (up to ~108 canvas px of
-  // radius on the small "Curated" cards), which cut a corner-anchored label.
+  // Signature: the same "aura" wordmark as the Splash screen — Cormorant Garamond
+  // italic, in the app's text grey, at its reference size (100px on a 1080px canvas).
+  // Bottom-RIGHT with a safety margin: the Home cards clip the image with rounded
+  // corners (up to ~108 canvas px of radius on the small "Curated" cards); at the
+  // baseline (18px from the bottom) that corner only cuts beyond x ≈ W − 48, so a
+  // right edge at W − SIGNATURE_RIGHT_MARGIN stays fully visible. The OutfitBuilder
+  // canvas uses the same size and position (see its watermark), so every outfit
+  // canvas — AI or manual, new or reopened — carries the same mark.
   // It sits inside the strip outfit-layout.ts keeps empty (BOTTOM_RESERVED).
   try {
     await document.fonts.load(SIGNATURE_FONT);
@@ -230,11 +236,11 @@ export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | n
   ctx.save();
   ctx.font = SIGNATURE_FONT;
   ctx.fillStyle = SIGNATURE_COLOR;
-  ctx.textAlign = "center";
+  ctx.textAlign = "right";
   ctx.textBaseline = "alphabetic";
   // tight tracking like the wordmark (tracking-tight); ignored where unsupported
   (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = "-2px";
-  ctx.fillText("aura", CANVAS_W / 2, CANVAS_H - 18);
+  ctx.fillText("aura", CANVAS_W - SIGNATURE_RIGHT_MARGIN, CANVAS_H - 18);
   ctx.restore();
 
 

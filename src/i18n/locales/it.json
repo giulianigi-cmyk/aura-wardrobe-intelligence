@@ -570,7 +570,11 @@
     "stopRecordingAria": "Ferma registrazione",
     "recordVoiceAria": "Registra messaggio vocale",
     "sendAria": "Invia",
-    "auraIsSpeaking": "AURA sta parlando…"
+    "auraIsSpeaking": "AURA sta parlando…",
+    "replyFailed": "Non è stato possibile rispondere in questo momento. Il tuo messaggio è ancora qui: riprova.",
+    "retry": "Riprova",
+    "whichPiece": "Quale intendi?",
+    "thisOne": "Questo: {{label}}"
   },
   "splash": {
     "tagline": "Wardrobe Intelligence",
@@ -618,7 +622,10 @@
     "colorLab": "Color Lab",
     "colorHarmony": "Armonia dei colori",
     "description": "Scegli un capo dal tuo guardaroba per campionare il suo colore e vedere gli abbinamenti sulla ruota dei colori di Johannes Itten. Si tratta di colori che stanno bene insieme, non della tua stagione cromatica personale.",
-    "emptyState": "Aggiungi qualche capo al guardaroba per iniziare."
+    "emptyState": "Aggiungi qualche capo al guardaroba per iniziare.",
+    "searchPlaceholder": "Cerca per brand, tipo, colore…",
+    "clearSearch": "Cancella ricerca",
+    "noResults": "Nessun capo corrisponde alla ricerca."
   },
   "trips": {
     "tripPlanner": "Pianificatore viaggi",
@@ -744,9 +751,9 @@
     "toastOutfitPlanned": "Outfit pianificato",
     "toastMarkedAsWorn": "Segnato come indossato",
     "toastRemoved": "Rimosso",
-    "chatPromptEvent": "Ho \"{{title}}\" il {{date}}. Cosa mi consigli di indossare?",
-    "chatPromptEventWithLocation": "Ho \"{{title}}\" il {{date}} a {{location}}. Cosa mi consigli di indossare?",
-    "chatPromptGeneral": "Cosa mi consigli di indossare il {{date}}?",
+    "chatPromptEvent": "Ho \"{{title}}\" {{date}}. Cosa mi consigli di indossare?",
+    "chatPromptEventWithLocation": "Ho \"{{title}}\" {{date}} a {{location}}. Cosa mi consigli di indossare?",
+    "chatPromptGeneral": "Cosa mi consigli di indossare {{date}}?",
     "anEvent": "un evento",
     "forecast": "Previsioni",
     "rainPct": "pioggia {{pct}}%",
@@ -785,8 +792,8 @@
     "dismissedEventsCount": "{{count}} eventi scartati",
     "removedFromCalendar": "· rimosso dal calendario",
     "openOnCanvasAria": "Apri sulla tela",
-    "chatPromptEventWithTime": "Ho \"{{title}}\" il {{date}} alle {{time}}. Cosa mi consigli di indossare?",
-    "chatPromptEventWithLocationAndTime": "Ho \"{{title}}\" il {{date}} alle {{time}}, a {{location}}. Cosa mi consigli di indossare?",
+    "chatPromptEventWithTime": "Ho \"{{title}}\" {{date}} alle {{time}}. Cosa mi consigli di indossare?",
+    "chatPromptEventWithLocationAndTime": "Ho \"{{title}}\" {{date}} alle {{time}}, a {{location}}. Cosa mi consigli di indossare?",
     "couldntDeleteEvent": "Non sono riuscita a eliminare l’evento",
     "deleteEventAria": "Elimina evento"
   },
@@ -947,7 +954,34 @@
     "email": "Email",
     "instagramTiktokNote": "Instagram e TikTok richiedono di incollare dal rullino fotografico",
     "enableLocationHint": "Attiva la posizione nel Calendario per vedere il meteo di oggi e i capi adatti.",
-    "craftingYourFirstLook": "Sto preparando il tuo primo look…"
+    "craftingYourFirstLook": "Sto preparando il tuo primo look…",
+    "anchorUnavailable": "Il capo di partenza non è più disponibile (eliminato, archiviato o in prestito). Scegli un altro capo dal guardaroba.",
+    "retry": "Riprova",
+    "anchorLabel": "Capo di partenza",
+    "anchorGenerate": "Crea outfit",
+    "anchorRelease": "Non costruire più attorno a questo capo",
+    "occasionQuestion": "Per quale occasione vuoi creare l'outfit?",
+    "otherOccasion": "Altra occasione",
+    "otherOccasionPlaceholder": "es. la laurea di un'amica",
+    "ceremonyWhen": "La cerimonia è di giorno o di sera?",
+    "ceremonyDay": "Di giorno",
+    "ceremonyEvening": "Di sera",
+    "skipQuestion": "Salta",
+    "occasions": {
+      "work": "Lavoro",
+      "leisure": "Tempo libero",
+      "dayOut": "Uscita diurna",
+      "aperitif": "Aperitivo",
+      "dinner": "Cena",
+      "evening": "Serata o evento",
+      "ceremony": "Cerimonia",
+      "travel": "Viaggio",
+      "formal": "Formale",
+      "sport": "Sport",
+      "everyday": "Tutti i giorni",
+      "concert": "Concerto",
+      "businessDinner": "Cena di lavoro"
+    }
   },
   "tripDetail": {
     "couldntLoadTrip": "Impossibile caricare questo viaggio",
@@ -1086,7 +1120,16 @@
     "selectNone": "Nessuno",
     "selectedCount_one": "{{count}} selezionato",
     "selectedCount_other": "{{count}} selezionati",
-    "uncategorized": "Altro"
+    "uncategorized": "Altro",
+    "culturalConservative": "In questo paese spalle e ginocchia coperte sono apprezzate in pubblico, soprattutto fuori dai resort e nei luoghi religiosi.",
+    "culturalStrict": "Qui le norme sono rigide: spalle, braccia e gambe coperte, capi non aderenti.",
+    "culturalHeadCovering": "Per le donne è richiesto anche il capo coperto.",
+    "culturalAdapting": "AURA sta adattando gli outfit di quei giorni.",
+    "culturalNotAdapting": "AURA non sta adattando gli outfit (scelta tua).",
+    "culturalStartAdapting": "Adatta",
+    "culturalStopAdapting": "Non adattare",
+    "culturalNowAdapting": "Fatto: i prossimi outfit generati per quei giorni rispetteranno gli usi locali.",
+    "culturalNowNotAdapting": "Fatto: i prossimi outfit non verranno adattati."
   },
   "batchReview": {
     "couldntLoadBatch": "Impossibile caricare questo batch.",
@@ -1772,7 +1815,10 @@
     "setUpEssentialsListHint": "Imposta una lista essenziali (documenti, caricabatterie…) da riusare a ogni viaggio",
     "createTrip": "Crea viaggio",
     "culturalMode": "Sensibilità culturale locale",
-    "culturalModeHint": "Se sì, AURA lascia che gli usi locali influenzino leggermente la classifica degli outfit durante questo viaggio — mai una regola fissa, e un requisito reale di un luogo specifico (es. il dress code di una moschea) resta sempre rispettato indipendentemente da questa scelta."
+    "culturalModeHint": "Se scegli sì, per i giorni in quel paese AURA lascia fuori dagli outfit i capi che non rispettano gli usi locali (spalle e ginocchia scoperte, shorts, minigonne; dove le norme sono più rigide anche maniche corte e capi aderenti). Il dress code di un luogo specifico, come una moschea o una chiesa, viene sempre rispettato, qualunque sia la tua scelta.",
+    "culturalQuestion": "Nel viaggio c'è un paese con norme di abbigliamento più conservative ({{countries}}). Vuoi che AURA adatti gli outfit agli usi locali per quei giorni?",
+    "culturalAdaptYes": "Sì, adatta",
+    "culturalAdaptNo": "No, il mio stile"
   },
   "outfitScan": {
     "lookingAtOutfit": "Analisi del tuo outfit…",
@@ -1979,5 +2025,88 @@
     "pieces": "Capi",
     "saveCanvas": "Salva canvas",
     "seeCanvas": "Vedi canvas"
+  },
+  "colorHarmony": {
+    "title": "Armonia dei colori",
+    "close": "Chiudi",
+    "loadError": "Impossibile caricare l'immagine per l'analisi colore.",
+    "tapToSample": "Tocca il capo per campionare un colore",
+    "description": "Basata sulla ruota dei colori di Johannes Itten: mostra quali colori stanno bene insieme, non la tua stagione cromatica personale.",
+    "suggestedPairings": "Abbinamenti suggeriti",
+    "wheel": {
+      "red": "Rosso",
+      "orange": "Arancione",
+      "yellow": "Giallo",
+      "yellowGreen": "Giallo-verde",
+      "green": "Verde",
+      "emeraldGreen": "Verde smeraldo",
+      "cyan": "Ciano",
+      "skyBlue": "Azzurro",
+      "blue": "Blu",
+      "purple": "Viola",
+      "magenta": "Magenta",
+      "fuchsia": "Fucsia"
+    },
+    "harmony": {
+      "complementary": "Complementare",
+      "analogous": "Analogo",
+      "splitComplementary": "Complementare diviso",
+      "triadic": "Triadico"
+    }
+  },
+  "weatherAdvice": {
+    "headline": {
+      "cold": "Copriti bene: tempo da capi sartoriali a strati",
+      "cool": "Aria frizzante: strati leggeri",
+      "mild": "Giornata mite: eleganza facile",
+      "warm": "Caldo: capi traspiranti",
+      "hot": "Molto caldo: punta su capi leggeri e ariosi"
+    },
+    "rainReady": "pronti per la pioggia",
+    "umbrella": "{{pct}}% di probabilità di pioggia: non dimenticare l'ombrello",
+    "tips": {
+      "woolCoat": "Cappotto di lana",
+      "cashmereKnit": "Maglia in cashmere",
+      "boots": "Stivali",
+      "scarf": "Sciarpa",
+      "woolTrousers": "Pantaloni di lana",
+      "leatherGloves": "Guanti in pelle",
+      "trenchOrBlazer": "Trench o blazer",
+      "fineKnit": "Maglia sottile",
+      "trousers": "Pantaloni",
+      "ankleBoots": "Stivaletti",
+      "denimJacket": "Giacca di jeans",
+      "lightJacket": "Giacca leggera",
+      "jeansOrTrousers": "Jeans o pantaloni",
+      "sneakersOrLoafers": "Sneakers o mocassini",
+      "cottonShirt": "Camicia di cotone",
+      "lightKnit": "Maglia leggera",
+      "linenShirt": "Camicia di lino",
+      "midiSkirtOrChinos": "Gonna midi o chino",
+      "loafers": "Mocassini",
+      "cottonDress": "Abito di cotone",
+      "lightTrousers": "Pantaloni leggeri",
+      "slipDress": "Slip dress",
+      "shorts": "Shorts",
+      "sandals": "Sandali",
+      "sunHat": "Cappello da sole",
+      "tankTop": "Canotta",
+      "camisole": "Top con spalline",
+      "midiSkirt": "Gonna midi",
+      "miniSkirt": "Minigonna",
+      "silkShirt": "Camicia di seta",
+      "wideLegTrousers": "Pantaloni a gamba larga",
+      "trenchOrWaterproofLayer": "Trench o strato impermeabile",
+      "weatherproofBoots": "Stivali impermeabili"
+    }
+  },
+  "photoFraming": {
+    "title": "Inquadra la foto",
+    "hint": "Trascina per spostarla, avvicina due dita o usa il cursore per lo zoom. La foto originale non viene modificata.",
+    "zoom": "Zoom",
+    "fit": "Adatta alla foto",
+    "center": "Centra",
+    "cancel": "Annulla",
+    "confirm": "Conferma"
   }
 }

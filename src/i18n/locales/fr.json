@@ -570,7 +570,11 @@
     "stopRecordingAria": "Arrêter l'enregistrement",
     "recordVoiceAria": "Enregistrer un message vocal",
     "sendAria": "Envoyer",
-    "auraIsSpeaking": "AURA parle…"
+    "auraIsSpeaking": "AURA parle…",
+    "replyFailed": "Je n'ai pas pu répondre pour le moment. Ton message est toujours là : réessaie.",
+    "retry": "Réessayer",
+    "whichPiece": "Laquelle veux-tu dire ?",
+    "thisOne": "Celle-ci : {{label}}"
   },
   "splash": {
     "tagline": "Intelligence de garde-robe",
@@ -618,7 +622,10 @@
     "colorLab": "Laboratoire couleurs",
     "colorHarmony": "Harmonie des couleurs",
     "description": "Choisissez une pièce de votre garde-robe pour échantillonner sa couleur et voir des associations correspondantes sur la roue chromatique de Johannes Itten. Il s'agit de couleurs qui fonctionnent bien ensemble — pas de votre saison de couleur personnelle.",
-    "emptyState": "Ajoutez quelques pièces à votre garde-robe pour commencer."
+    "emptyState": "Ajoutez quelques pièces à votre garde-robe pour commencer.",
+    "searchPlaceholder": "Rechercher par marque, type, couleur…",
+    "clearSearch": "Effacer la recherche",
+    "noResults": "Aucune pièce ne correspond à votre recherche."
   },
   "trips": {
     "tripPlanner": "Planificateur de voyage",
@@ -921,7 +928,7 @@
     "addItemsToStart": "Ajoutez des articles de votre garde-robe pour commencer à composer.",
     "add": "Ajouter",
     "front": "Devant",
-    "back": "Derrière",
+    "back": "Retour",
     "del": "Suppr",
     "outfitNamePlaceholder": "Nom de la tenue",
     "notesOptionalPlaceholder": "Notes (facultatif)",
@@ -947,7 +954,34 @@
     "email": "E-mail",
     "instagramTiktokNote": "Instagram et TikTok nécessitent de coller depuis votre pellicule",
     "enableLocationHint": "Activez la localisation dans Calendrier pour voir la météo du jour et les articles adaptés.",
-    "craftingYourFirstLook": "Préparation de votre première tenue…"
+    "craftingYourFirstLook": "Préparation de votre première tenue…",
+    "anchorUnavailable": "La pièce de départ n'est plus disponible (supprimée, archivée ou prêtée). Choisissez une autre pièce de votre garde-robe.",
+    "retry": "Réessayer",
+    "anchorLabel": "Pièce de départ",
+    "anchorGenerate": "Créer la tenue",
+    "anchorRelease": "Ne plus construire autour de cette pièce",
+    "occasionQuestion": "Pour quelle occasion veux-tu créer la tenue ?",
+    "otherOccasion": "Autre occasion",
+    "otherOccasionPlaceholder": "ex. la remise de diplôme d'une amie",
+    "ceremonyWhen": "La cérémonie a-t-elle lieu en journée ou le soir ?",
+    "ceremonyDay": "En journée",
+    "ceremonyEvening": "Le soir",
+    "skipQuestion": "Passer",
+    "occasions": {
+      "work": "Travail",
+      "leisure": "Loisirs",
+      "dayOut": "Sortie en journée",
+      "aperitif": "Apéritif",
+      "dinner": "Dîner",
+      "evening": "Soirée ou événement",
+      "ceremony": "Cérémonie",
+      "travel": "Voyage",
+      "formal": "Formel",
+      "sport": "Sport",
+      "everyday": "Quotidien",
+      "concert": "Concert",
+      "businessDinner": "Dîner d'affaires"
+    }
   },
   "tabBar": {
     "home": "Accueil",
@@ -1262,7 +1296,10 @@
     "setUpEssentialsListHint": "Configurez une liste d'essentiels (documents, chargeur…) à réutiliser à chaque voyage",
     "createTrip": "Créer le voyage",
     "culturalMode": "Sensibilité culturelle locale",
-    "culturalModeHint": "Si oui, AURA laisse les coutumes locales influencer légèrement le classement des tenues pendant ce voyage — jamais une règle figée, et toute exigence réelle d'un lieu (ex. le code vestimentaire d'une mosquée) reste toujours respectée, quel que soit ce choix."
+    "culturalModeHint": "Si vous choisissez oui, pour les jours passés dans ce pays AURA écarte des tenues les pièces qui ne respectent pas les usages locaux (épaules ou genoux découverts, shorts, mini-jupes ; là où les normes sont plus strictes, aussi les manches courtes et les coupes ajustées). Le code vestimentaire d'un lieu précis, comme une mosquée ou une église, est toujours respecté, quel que soit votre choix.",
+    "culturalQuestion": "Ce voyage comprend un pays aux normes vestimentaires plus conservatrices ({{countries}}). Voulez-vous qu'AURA adapte les tenues aux usages locaux pour ces jours-là ?",
+    "culturalAdaptYes": "Oui, adapter",
+    "culturalAdaptNo": "Non, mon style"
   },
   "outfitScan": {
     "lookingAtOutfit": "Analyse de votre tenue…",
@@ -1931,7 +1968,16 @@
     "selectNone": "Aucun",
     "selectedCount_one": "{{count}} sélectionné",
     "selectedCount_other": "{{count}} sélectionnés",
-    "uncategorized": "Autre"
+    "uncategorized": "Autre",
+    "culturalConservative": "Ici, les épaules et les genoux couverts sont appréciés en public, surtout hors des resorts et dans les lieux religieux.",
+    "culturalStrict": "Ici, les normes sont strictes : épaules, bras et jambes couverts, pas de coupes ajustées.",
+    "culturalHeadCovering": "Les femmes doivent aussi se couvrir les cheveux.",
+    "culturalAdapting": "AURA adapte les tenues de ces jours-là.",
+    "culturalNotAdapting": "AURA n'adapte pas les tenues (votre choix).",
+    "culturalStartAdapting": "Adapter",
+    "culturalStopAdapting": "Ne pas adapter",
+    "culturalNowAdapting": "C'est fait : les prochaines tenues générées pour ces jours respecteront les usages locaux.",
+    "culturalNowNotAdapting": "C'est fait : les prochaines tenues ne seront pas adaptées."
   },
   "materials": {
     "Cotton": "Coton",
@@ -1979,5 +2025,88 @@
     "pieces": "Pièces",
     "saveCanvas": "Enregistrer le canvas",
     "seeCanvas": "Voir le canvas"
+  },
+  "colorHarmony": {
+    "title": "Harmonie des couleurs",
+    "close": "Fermer",
+    "loadError": "Impossible de charger l'image pour l'analyse des couleurs.",
+    "tapToSample": "Touchez le vêtement pour prélever une couleur",
+    "description": "Basée sur le cercle chromatique de Johannes Itten : elle montre quelles couleurs vont bien ensemble, pas votre saison colorimétrique personnelle.",
+    "suggestedPairings": "Associations suggérées",
+    "wheel": {
+      "red": "Rouge",
+      "orange": "Orange",
+      "yellow": "Jaune",
+      "yellowGreen": "Jaune-vert",
+      "green": "Vert",
+      "emeraldGreen": "Vert émeraude",
+      "cyan": "Cyan",
+      "skyBlue": "Bleu ciel",
+      "blue": "Bleu",
+      "purple": "Violet",
+      "magenta": "Magenta",
+      "fuchsia": "Fuchsia"
+    },
+    "harmony": {
+      "complementary": "Complémentaire",
+      "analogous": "Analogue",
+      "splitComplementary": "Complémentaire adjacent",
+      "triadic": "Triadique"
+    }
+  },
+  "weatherAdvice": {
+    "headline": {
+      "cold": "Couvre-toi : temps à superposer les pièces tailleur",
+      "cool": "Air vif : superpositions légères",
+      "mild": "Journée douce : élégance facile",
+      "warm": "Chaud : pièces respirantes",
+      "hot": "Très chaud : mise sur la légèreté"
+    },
+    "rainReady": "prêt pour la pluie",
+    "umbrella": "{{pct}}% de risque de pluie : n'oublie pas ton parapluie",
+    "tips": {
+      "woolCoat": "Manteau en laine",
+      "cashmereKnit": "Pull en cachemire",
+      "boots": "Bottes",
+      "scarf": "Écharpe",
+      "woolTrousers": "Pantalon en laine",
+      "leatherGloves": "Gants en cuir",
+      "trenchOrBlazer": "Trench ou blazer",
+      "fineKnit": "Maille fine",
+      "trousers": "Pantalon",
+      "ankleBoots": "Bottines",
+      "denimJacket": "Veste en jean",
+      "lightJacket": "Veste légère",
+      "jeansOrTrousers": "Jean ou pantalon",
+      "sneakersOrLoafers": "Baskets ou mocassins",
+      "cottonShirt": "Chemise en coton",
+      "lightKnit": "Maille légère",
+      "linenShirt": "Chemise en lin",
+      "midiSkirtOrChinos": "Jupe midi ou chino",
+      "loafers": "Mocassins",
+      "cottonDress": "Robe en coton",
+      "lightTrousers": "Pantalon léger",
+      "slipDress": "Robe nuisette",
+      "shorts": "Short",
+      "sandals": "Sandales",
+      "sunHat": "Chapeau de soleil",
+      "tankTop": "Débardeur",
+      "camisole": "Caraco",
+      "midiSkirt": "Jupe midi",
+      "miniSkirt": "Minijupe",
+      "silkShirt": "Chemise en soie",
+      "wideLegTrousers": "Pantalon large",
+      "trenchOrWaterproofLayer": "Trench ou couche imperméable",
+      "weatherproofBoots": "Bottes imperméables"
+    }
+  },
+  "photoFraming": {
+    "title": "Cadrer la photo",
+    "hint": "Fais glisser pour la déplacer, pince ou utilise le curseur pour zoomer. La photo originale n'est pas modifiée.",
+    "zoom": "Zoom",
+    "fit": "Ajuster à la photo",
+    "center": "Centrer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer"
   }
 }

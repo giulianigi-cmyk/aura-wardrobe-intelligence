@@ -570,7 +570,11 @@
     "stopRecordingAria": "Detener grabación",
     "recordVoiceAria": "Grabar mensaje de voz",
     "sendAria": "Enviar",
-    "auraIsSpeaking": "AURA está hablando…"
+    "auraIsSpeaking": "AURA está hablando…",
+    "replyFailed": "No he podido responder en este momento. Tu mensaje sigue aquí: inténtalo de nuevo.",
+    "retry": "Reintentar",
+    "whichPiece": "¿Cuál quieres decir?",
+    "thisOne": "Este: {{label}}"
   },
   "splash": {
     "tagline": "Wardrobe Intelligence",
@@ -618,7 +622,10 @@
     "colorLab": "Color Lab",
     "colorHarmony": "Armonía de color",
     "description": "Elige una prenda de tu armario para tomar muestra de su color y ver combinaciones en la rueda de color de Johannes Itten. Se trata de colores que combinan bien entre sí, no de tu temporada de color personal.",
-    "emptyState": "Añade algunas prendas a tu armario para empezar."
+    "emptyState": "Añade algunas prendas a tu armario para empezar.",
+    "searchPlaceholder": "Busca por marca, tipo, color…",
+    "clearSearch": "Borrar búsqueda",
+    "noResults": "Ninguna prenda coincide con tu búsqueda."
   },
   "trips": {
     "tripPlanner": "Planificador de viajes",
@@ -947,7 +954,34 @@
     "email": "Correo",
     "instagramTiktokNote": "Instagram y TikTok requieren pegar desde tu galería",
     "enableLocationHint": "Activa la ubicación en el Calendario para ver el clima de hoy y las prendas adecuadas.",
-    "craftingYourFirstLook": "Preparando tu primer look…"
+    "craftingYourFirstLook": "Preparando tu primer look…",
+    "anchorUnavailable": "La prenda de partida ya no está disponible (eliminada, archivada o prestada). Elige otra prenda de tu armario.",
+    "retry": "Reintentar",
+    "anchorLabel": "Prenda de partida",
+    "anchorGenerate": "Crear outfit",
+    "anchorRelease": "Dejar de construir alrededor de esta prenda",
+    "occasionQuestion": "¿Para qué ocasión quieres crear el outfit?",
+    "otherOccasion": "Otra ocasión",
+    "otherOccasionPlaceholder": "p. ej. la graduación de una amiga",
+    "ceremonyWhen": "¿La ceremonia es de día o de noche?",
+    "ceremonyDay": "De día",
+    "ceremonyEvening": "De noche",
+    "skipQuestion": "Omitir",
+    "occasions": {
+      "work": "Trabajo",
+      "leisure": "Tiempo libre",
+      "dayOut": "Salida de día",
+      "aperitif": "Aperitivo",
+      "dinner": "Cena",
+      "evening": "Noche o evento",
+      "ceremony": "Ceremonia",
+      "travel": "Viaje",
+      "formal": "Formal",
+      "sport": "Deporte",
+      "everyday": "Diario",
+      "concert": "Concierto",
+      "businessDinner": "Cena de trabajo"
+    }
   },
   "tripDetail": {
     "couldntLoadTrip": "No se pudo cargar este viaje",
@@ -1086,7 +1120,16 @@
     "selectNone": "Ninguno",
     "selectedCount_one": "{{count}} seleccionado",
     "selectedCount_other": "{{count}} seleccionados",
-    "uncategorized": "Otros"
+    "uncategorized": "Otros",
+    "culturalConservative": "Aquí se aprecian hombros y rodillas cubiertos en público, sobre todo fuera de los resorts y en lugares religiosos.",
+    "culturalStrict": "Aquí las normas son estrictas: hombros, brazos y piernas cubiertos, nada ajustado.",
+    "culturalHeadCovering": "A las mujeres también se les exige cubrirse el cabello.",
+    "culturalAdapting": "AURA está adaptando los outfits de esos días.",
+    "culturalNotAdapting": "AURA no está adaptando los outfits (tu elección).",
+    "culturalStartAdapting": "Adaptar",
+    "culturalStopAdapting": "No adaptar",
+    "culturalNowAdapting": "Hecho: los próximos outfits de esos días respetarán las costumbres locales.",
+    "culturalNowNotAdapting": "Hecho: los próximos outfits no se adaptarán."
   },
   "batchReview": {
     "couldntLoadBatch": "No se pudo cargar este lote.",
@@ -1772,7 +1815,10 @@
     "setUpEssentialsListHint": "Configura una lista de esenciales (documentos, cargador…) para reutilizar en cada viaje",
     "createTrip": "Crear viaje",
     "culturalMode": "Sensibilidad cultural local",
-    "culturalModeHint": "Si eliges sí, AURA deja que las costumbres locales influyan suavemente en la clasificación de looks durante este viaje — nunca una regla fija, y cualquier requisito real de un lugar (p. ej. el código de vestimenta de una mezquita) se respeta siempre, independientemente de esta opción."
+    "culturalModeHint": "Si eliges sí, los días en ese país AURA deja fuera de los outfits las prendas que no respetan las costumbres locales (hombros o rodillas descubiertos, shorts, minifaldas; donde las normas son más estrictas, también manga corta y prendas ajustadas). El código de vestimenta de un lugar concreto, como una mezquita o una iglesia, se respeta siempre, elijas lo que elijas.",
+    "culturalQuestion": "Este viaje incluye un país con normas de vestimenta más conservadoras ({{countries}}). ¿Quieres que AURA adapte los outfits a las costumbres locales esos días?",
+    "culturalAdaptYes": "Sí, adaptar",
+    "culturalAdaptNo": "No, mi estilo"
   },
   "outfitScan": {
     "lookingAtOutfit": "Observando tu look…",
@@ -1979,5 +2025,88 @@
     "pieces": "Prendas",
     "saveCanvas": "Guardar canvas",
     "seeCanvas": "Ver canvas"
+  },
+  "colorHarmony": {
+    "title": "Armonía de colores",
+    "close": "Cerrar",
+    "loadError": "No se pudo cargar la imagen para el análisis de color.",
+    "tapToSample": "Toca la prenda para muestrear un color",
+    "description": "Basada en el círculo cromático de Johannes Itten: muestra qué colores combinan bien entre sí, no tu estación de color personal.",
+    "suggestedPairings": "Combinaciones sugeridas",
+    "wheel": {
+      "red": "Rojo",
+      "orange": "Naranja",
+      "yellow": "Amarillo",
+      "yellowGreen": "Amarillo verdoso",
+      "green": "Verde",
+      "emeraldGreen": "Verde esmeralda",
+      "cyan": "Cian",
+      "skyBlue": "Celeste",
+      "blue": "Azul",
+      "purple": "Morado",
+      "magenta": "Magenta",
+      "fuchsia": "Fucsia"
+    },
+    "harmony": {
+      "complementary": "Complementario",
+      "analogous": "Análogo",
+      "splitComplementary": "Complementario dividido",
+      "triadic": "Triádico"
+    }
+  },
+  "weatherAdvice": {
+    "headline": {
+      "cold": "Abrígate: tiempo de capas y sastrería",
+      "cool": "Aire fresco: capas suaves",
+      "mild": "Día templado: elegancia sencilla",
+      "warm": "Calor: prendas transpirables",
+      "hot": "Mucho calor: prendas ligeras y frescas"
+    },
+    "rainReady": "listo para la lluvia",
+    "umbrella": "{{pct}}% de probabilidad de lluvia: no olvides el paraguas",
+    "tips": {
+      "woolCoat": "Abrigo de lana",
+      "cashmereKnit": "Jersey de cachemir",
+      "boots": "Botas",
+      "scarf": "Bufanda",
+      "woolTrousers": "Pantalón de lana",
+      "leatherGloves": "Guantes de piel",
+      "trenchOrBlazer": "Gabardina o blazer",
+      "fineKnit": "Punto fino",
+      "trousers": "Pantalón",
+      "ankleBoots": "Botines",
+      "denimJacket": "Chaqueta vaquera",
+      "lightJacket": "Chaqueta ligera",
+      "jeansOrTrousers": "Vaqueros o pantalón",
+      "sneakersOrLoafers": "Zapatillas o mocasines",
+      "cottonShirt": "Camisa de algodón",
+      "lightKnit": "Punto ligero",
+      "linenShirt": "Camisa de lino",
+      "midiSkirtOrChinos": "Falda midi o chinos",
+      "loafers": "Mocasines",
+      "cottonDress": "Vestido de algodón",
+      "lightTrousers": "Pantalón ligero",
+      "slipDress": "Vestido lencero",
+      "shorts": "Shorts",
+      "sandals": "Sandalias",
+      "sunHat": "Sombrero de sol",
+      "tankTop": "Camiseta de tirantes",
+      "camisole": "Camisola",
+      "midiSkirt": "Falda midi",
+      "miniSkirt": "Minifalda",
+      "silkShirt": "Camisa de seda",
+      "wideLegTrousers": "Pantalón ancho",
+      "trenchOrWaterproofLayer": "Gabardina o capa impermeable",
+      "weatherproofBoots": "Botas impermeables"
+    }
+  },
+  "photoFraming": {
+    "title": "Encuadrar la foto",
+    "hint": "Arrastra para moverla, pellizca o usa el control para hacer zoom. La foto original no se modifica.",
+    "zoom": "Zoom",
+    "fit": "Ajustar a la foto",
+    "center": "Centrar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar"
   }
 }

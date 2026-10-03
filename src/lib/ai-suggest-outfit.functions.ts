@@ -9,6 +9,8 @@ import { anyItemViolatesWeather, violatesSleeveClimate, BLAZER_WARMTH_PROMPT_RUL
 import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
 import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
+import { loadWearHistory, recentlyWornIds, rotationOrder, wearFields, withoutRecentPerCategory, ROTATION_PROMPT_RULE } from "./outfit-rotation";
+import { ensureAnchor, ANCHOR_UNAVAILABLE } from "./outfit-anchor";
 import { explanationLanguageInstruction } from "./language_prompt";
 
 const ItemSchema = z.object({
@@ -151,6 +153,14 @@ export async function suggestOutfitCore(params: {
    * building for instead, since that can be well into the future.
    */
   forDateIso?: string | null;
+
+  /**
+   * Wardrobe rotation (outfit-rotation.ts). "exclude-recent" — an outfit for today: pieces worn in
+   * the last couple of days are left out where their category still has alternatives. "soft"
+   * (default) — weekly plans, trips, weather re-checks: no exclusion, only the rotation order and
+   * each piece's wear history for the model. The catalog is ordered for rotation in both cases.
+   */
+  rotation?: "exclude-recent" | "soft";
 }): Promise<{ ok: true; item_ids: string[]; explanation: string } | { ok: false; error: string }> {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) throw new Error("Missing LOVABLE_API_KEY");
@@ -267,6 +277,32 @@ export async function suggestOutfitCore(params: {
     eligibleItems = filtered;
   }
 
+  // Rotation: wear history from wardrobe_items, then the catalog order (long-unworn first, with a
+  // random factor). The mandatory piece and the pieces of an outfit being adapted are never
+  // dropped, and stay at the front so the 200-piece catalog cap can't cut them.
+  // "Crea outfit partendo da questo": the chosen piece is the person's explicit request — it is
+  // never filtered out by location, dress-preference or dress-code narrowing above. If it can't be
+  // used at all (deleted, archived, out on loan) the caller gets a clear error instead of a
+  // different outfit generated silently.
+  if (params.mustIncludeItemId) {
+    const anchor = params.items.find((it) => it.id === params.mustIncludeItemId);
+    if (!anchor || anchor.activeLoanId) return { ok: false, error: ANCHOR_UNAVAILABLE };
+    if (!eligibleItems.some((it) => it.id === anchor.id)) eligibleItems = [anchor, ...eligibleItems];
+  }
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const wearHistory = await loadWearHistory(params.supabase, params.userId, eligibleItems.map((it) => it.id));
+  const protectedIds = new Set([params.mustIncludeItemId, ...(params.baseItemIds ?? [])].filter((x): x is string => Boolean(x)));
+  if (params.rotation === "exclude-recent") {
+    const recent = recentlyWornIds(wearHistory, todayIso);
+    for (const id of protectedIds) recent.delete(id);
+    eligibleItems = withoutRecentPerCategory(eligibleItems, recent);
+  }
+  eligibleItems = rotationOrder(eligibleItems, wearHistory, todayIso);
+  if (protectedIds.size) {
+    eligibleItems = [...eligibleItems.filter((it) => protectedIds.has(it.id)), ...eligibleItems.filter((it) => !protectedIds.has(it.id))];
+  }
+
   const wx = params.temperature != null
     ? `Weather: ${Math.round(params.temperature)}°C, ${params.condition ?? "unknown"}.`
     : "Weather: unknown.";
@@ -300,6 +336,7 @@ export async function suggestOutfitCore(params: {
     gender: it.gender ?? "",
     styleTags: it.styleTags ?? [],
     occasion: it.occasion ?? "",
+    ...wearFields(wearHistory.get(it.id), todayIso),
   }));
 
   const genderLine = params.gender === "Man"
@@ -342,6 +379,7 @@ export async function suggestOutfitCore(params: {
   const system = [
     ...(params.dressRules ? [params.dressRules, ""] : []),
     ...(languageLine ? [languageLine] : []),
+    ROTATION_PROMPT_RULE,
     "You are a personal stylist. Compose ONE coherent outfit from the user's wardrobe.",
     "Pick 3-5 items that work together (typically 1 top + 1 bottom OR 1 dress, + 1 shoes, optionally 1 outerwear and 1 accessory/bag).",
     ...(genderLine ? [genderLine] : []),
@@ -723,6 +761,10 @@ export async function suggestOutfitCore(params: {
 
     const validIds = new Set(catalog.map((c) => c.id));
     let item_ids = parsed.item_ids.filter((id) => validIds.has(id)).slice(0, 5);
+    // The explanation must describe the pieces actually shown: it follows the attempt that is used,
+    // and is dropped (rather than shown wrong) if code later removes a piece it talks about.
+    let explanation = parsed.explanation ?? "";
+    let explainedIds = new Set(item_ids);
 
     // If the first attempt breaks a hard rule (two tops, a bare-shoulder
     // piece for Work, etc.), ask once more instead of returning it —
@@ -738,12 +780,15 @@ export async function suggestOutfitCore(params: {
         const retryIds = retryParsed.item_ids.filter((id) => validIds.has(id)).slice(0, 5);
         if (isValidResult(retryIds)) {
           item_ids = retryIds;
+          explanation = retryParsed.explanation ?? "";
+          explainedIds = new Set(retryIds);
         } else if (hasSlotViolation(item_ids)) {
           // Neither attempt was clean and the original has a structural
           // slot conflict (e.g. two tops) — drop the lowest-priority
           // duplicate items rather than ship a visibly broken outfit.
           const seen = new Set<string>();
-          item_ids = item_ids.filter((id) => {
+          // The mandatory piece is processed first so it is the one kept in its slot.
+          item_ids = ensureAnchor(item_ids, params.mustIncludeItemId, (id) => catalog.find((c) => c.id === id)?.category).filter((id) => {
             const cat = catalog.find((c) => c.id === id)?.category ?? "";
             const key = SLOT_LIMITS[cat] ? cat : id;
             if (seen.has(key)) return false;
@@ -759,6 +804,7 @@ export async function suggestOutfitCore(params: {
           // suggest-daily-looks.functions.ts. Missing a shoe/top after
           // this is preferable to a materially wrong suggestion.
           item_ids = item_ids.filter((id) => {
+            if (id === params.mustIncludeItemId) return true; // the person's own starting piece
             if (violatesWeather([id])) return false;
             if (violatesEmbellished([id])) return false;
             if (violatesBeachBag([id])) return false;
@@ -850,10 +896,13 @@ export async function suggestOutfitCore(params: {
       if (bag) item_ids = [...item_ids, bag.id];
     }
 
+    // Guarantee, not just a prompt instruction: the starting piece is in the outfit.
+    item_ids = ensureAnchor(item_ids, params.mustIncludeItemId, (id) => catalog.find((c) => c.id === id)?.category);
+    const explanationStillTrue = [...explainedIds].every((id) => item_ids.includes(id));
     return {
       ok: true as const,
       item_ids,
-      explanation: (parsed.explanation ?? "").slice(0, 240),
+      explanation: explanationStillTrue ? explanation.slice(0, 240) : "",
     };
   } catch (err) {
     console.error("[AURA suggest-outfit] failed", err);
@@ -882,5 +931,7 @@ export const suggestOutfitAI = createServerFn({ method: "POST" })
       mustIncludeItemId: data.mustIncludeItemId ?? null,
       items: data.items,
       avoidItemIds: data.avoidItemIds,
+      // On-demand outfit for right now: keep out what was worn in the last couple of days.
+      rotation: "exclude-recent",
     });
   });

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FramedPhoto } from "./FramedPhoto";
+import type { PhotoFraming } from "@/lib/photo-framing";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -31,7 +33,7 @@ type View = "canvas" | "pieces" | "photo";
  *  Self-contained: give it the piece ids and it resolves the photos and
  *  composes the canvas itself (unless a stored canvas image is passed). */
 export function OutfitViewerSheet({
-  itemIds, title, occasion, explanation, notes, photoUrl, canvasPath, canvasUrl: canvasUrlProp,
+  itemIds, title, occasion, explanation, notes, photoUrl, photoFraming, canvasPath, canvasUrl: canvasUrlProp,
   outfitId, savedLayout, onClose, onTryOn, onEditOnCanvas, onSaved,
 }: {
   itemIds: string[];
@@ -42,6 +44,8 @@ export function OutfitViewerSheet({
   notes?: string | null;
   /** a photo of the outfit (e.g. the one taken when it was worn): shown FIRST, pieces underneath */
   photoUrl?: string | null;
+  /** My Outfit photo framing chosen by the person (fitted by default). */
+  photoFraming?: PhotoFraming | null;
   /** an already-stored canvas image (path in the "outfits" bucket) to show instead of composing */
   canvasPath?: string | null;
   /** a ready-to-use signed URL of that image, if the caller already has one */
@@ -292,7 +296,7 @@ export function OutfitViewerSheet({
         {view === "pieces" && piecesGrid("grid-cols-3", "p-2")}
         {view === "photo" && photoUrl && (
           <>
-            <img src={photoUrl} alt="" className="w-full rounded-2xl aspect-[4/5] object-cover" />
+            <FramedPhoto src={photoUrl} framing={photoFraming} className="rounded-2xl" />
             <div className="mt-3">{piecesGrid("grid-cols-4", "p-1.5")}</div>
             <button
               onClick={() => setView("canvas")}

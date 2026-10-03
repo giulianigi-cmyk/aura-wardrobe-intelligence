@@ -42,6 +42,9 @@ const MARGIN = 0.04; // min distance from canvas edge (fraction)
  *  accessory may enter it: everything is clamped to y ≤ 1 − BOTTOM_RESERVED. */
 export const BOTTOM_RESERVED = 0.055;
 const GROUP_SHRINK = 0.75; // when several items share one slot
+/** Full-length trousers: minimum height (fraction of H) and the widest they may become for it. */
+const LONG_BOTTOM_MIN_H = 0.58;
+const LONG_BOTTOM_MAX_W = 0.56;
 
 /** Max box per bucket: [max width, max height], fractions of canvas W / H. */
 const BOX: Record<Bucket, { w: number; h: number }> = {
@@ -211,10 +214,20 @@ export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): 
     // starts below 25% of the canvas, so a top up to ~38% tall does not push it down.
     const visualK = it.bucket === "bag" ? 0.85 : it.bucket === "top" ? 1.10 : 1;
 
-const w = Math.min(
+let w = Math.min(
   box.w * W * shrink * (byLength ? 1 : f),
   (box.h * H * shrink * f) / aspect
 ) * visualK;
+
+// Long trousers photographed wide (relaxed/cargo/wide-leg, legs apart: height ≈ width) were
+// capped by the width box and came out far shorter than a pair of jeans (40% of the canvas
+// height vs 69%). Full-length bottoms keep at least LONG_BOTTOM_MIN_H of the height, widening
+// up to LONG_BOTTOM_MAX_W of the canvas to get there.
+const cm = realCm(it.bucket, it.subcategory, it.length);
+if (it.bucket === "bottom" && cm != null && cm >= 90) {
+  const minH = LONG_BOTTOM_MIN_H * H * shrink;
+  if (w * aspect < minH) w = Math.max(w, Math.min(minH / aspect, LONG_BOTTOM_MAX_W * W * shrink));
+}
 
 return { w, h: w * aspect };
   };
@@ -271,7 +284,12 @@ return { w, h: w * aspect };
 
   const outer = has("outer");
   const anchorList = by.get(anchorBucket)!;
-  const anchorCx = (anchorBucket === "dress" ? (outer ? 0.52 : 0.46) : anchorBucket === "bottom" ? (outer ? 0.52 : 0.44) : 0.5) * W;
+  // Trousers widened to keep their height (LONG_BOTTOM_MIN_H) move right by half the extra width,
+  // so the bag tucked on their left keeps the same overlap as beside a normal pair.
+  const bottomExtraW = anchorBucket === "bottom" && !outer
+    ? Math.max(0, Math.max(...anchorList.map((it) => sizeOf(it, BOX.bottom, anchorList.length > 1 ? GROUP_SHRINK : 1).w)) - BOX.bottom.w * W)
+    : 0;
+  const anchorCx = (anchorBucket === "dress" ? (outer ? 0.52 : 0.46) : anchorBucket === "bottom" ? (outer ? 0.52 : 0.44) : 0.5) * W + bottomExtraW / 2;
   const tops = anchorBucket === "top" ? [] : by.get("top") ?? [];
 
   // Top height decides how far down the anchor starts (top must stay inside the margin).

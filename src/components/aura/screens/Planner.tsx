@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "@/hooks/use-location";
 import { useWeather } from "@/hooks/use-weather";
-import { describeWeather, classifyTemp, suggestOutfit, weatherLabelKey, type DailyForecast } from "@/lib/weather";
+import { describeWeather, classifyTemp, suggestOutfit, localizeSuggestion, weatherLabelKey, type DailyForecast } from "@/lib/weather";
 import type { WardrobeItem } from "@/lib/aura-types";
 import type { Tables } from "@/integrations/supabase/types";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
@@ -531,6 +531,7 @@ function DayDetail({
     isDay: true,
   }) : null;
 
+  const suggestionText = suggestion ? localizeSuggestion(suggestion, t, weather?.precipitationProbability ?? 0) : null;
   const suggestedKeywords = suggestion?.categories ?? [];
   const suggestedMaterials = suggestion?.materials ?? [];
   // Suggestion pool only — never offer to plan an outfit around a piece
@@ -710,15 +711,15 @@ function DayDetail({
         </div>
         <span className="text-4xl">{describeWeather(weather.weatherCode).icon}</span>
       </div>
-      {suggestion?.umbrellaTip && (
-        <p className="mt-3 text-xs">☔ {suggestion.umbrellaTip}</p>
+      {suggestionText?.umbrellaTip && (
+        <p className="mt-3 text-xs">☔ {suggestionText.umbrellaTip}</p>
       )}
       {suggestion && (
         <div className="mt-3 pt-3 border-t border-border/40">
           <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("planner.suggested")}</p>
-          <p className="font-serif italic text-base mt-1">{suggestion.headline}</p>
+          <p className="font-serif italic text-base mt-1">{suggestionText?.headline}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {suggestion.tips.map((t2) => (
+            {(suggestionText?.tips ?? []).map((t2) => (
               <span key={t2} className="rounded-full px-2.5 py-0.5 text-[10px] uppercase tracking-widest bg-secondary/60">{t2}</span>
             ))}
           </div>
@@ -809,7 +810,7 @@ function DayDetail({
       ) : (
         <div className="mt-2 flex gap-2">
           <button onClick={onOpen} className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em]">{t("planner.choosePieces")}</button>
-          <button onClick={onAsk} className="flex-1 h-9 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1"><Sparkles size={11} /> {t("planner.askStylist")}</button>
+          <button onClick={onAsk} className="flex-1 min-w-0 h-9 px-3 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5"><Sparkles size={11} className="shrink-0" /><span className="truncate">{t("planner.askStylist")}</span></button>
         </div>
       )}
     </div>

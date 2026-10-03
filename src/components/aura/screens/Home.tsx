@@ -6,7 +6,7 @@ import type { Screen, BuilderInit } from "../AuraApp";
 import { useProfile } from "@/hooks/use-profile";
 import { useLocation } from "@/hooks/use-location";
 import { useWeather } from "@/hooks/use-weather";
-import { describeWeather, suggestOutfit, weatherLabelKey } from "@/lib/weather";
+import { describeWeather, suggestOutfit, localizeSuggestion, weatherLabelKey } from "@/lib/weather";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import type { WardrobeItem } from "@/lib/aura-types";
@@ -287,6 +287,8 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
                   styleTags: it.style_tags ?? [],
                   sleeveLength: it.sleeve_length ?? "",
                   length: it.length ?? "",
+                  fit: it.fit ?? "",
+                  heelHeight: it.heel_height ?? "",
                   material: Array.isArray(it.material) ? it.material : [],
                   toeShape: it.toe_shape ?? "",
                   occasion: it.occasion ?? "",
@@ -440,7 +442,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
               </p>
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground truncate">
                 {weather
-                  ? `${t(weatherLabelKey(weather.current.weatherCode))} · ${suggestOutfit(weather.current).headline}`
+                  ? `${t(weatherLabelKey(weather.current.weatherCode))} · ${localizeSuggestion(suggestOutfit(weather.current), t).headline}`
                   : city ? t("home.forTailoredEdits") : t("home.forWeatherStyling")}
               </p>
             </div>

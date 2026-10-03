@@ -570,7 +570,11 @@
     "stopRecordingAria": "Stop recording",
     "recordVoiceAria": "Record voice message",
     "sendAria": "Send",
-    "auraIsSpeaking": "AURA is speaking…"
+    "auraIsSpeaking": "AURA is speaking…",
+    "replyFailed": "I couldn't answer just now. Your message is still here — try again.",
+    "retry": "Try again",
+    "whichPiece": "Which one do you mean?",
+    "thisOne": "This one: {{label}}"
   },
   "splash": {
     "tagline": "Wardrobe Intelligence",
@@ -618,7 +622,10 @@
     "colorLab": "Color Lab",
     "colorHarmony": "Color Harmony",
     "description": "Choose a piece from your wardrobe to sample its color and see matching pairings on the Johannes Itten color wheel. This is about colors that work well together — not your personal color season.",
-    "emptyState": "Add a few pieces to your wardrobe to get started."
+    "emptyState": "Add a few pieces to your wardrobe to get started.",
+    "searchPlaceholder": "Search by brand, type, colour…",
+    "clearSearch": "Clear search",
+    "noResults": "No pieces match your search."
   },
   "trips": {
     "tripPlanner": "Trip planner",
@@ -947,7 +954,34 @@
     "email": "Email",
     "instagramTiktokNote": "Instagram & TikTok require pasting from your camera roll",
     "enableLocationHint": "Enable location in Calendar to see today's weather and matching items.",
-    "craftingYourFirstLook": "Putting your first look together…"
+    "craftingYourFirstLook": "Putting your first look together…",
+    "anchorUnavailable": "The piece you started from is no longer available (deleted, archived or on loan). Choose another piece from your wardrobe.",
+    "retry": "Retry",
+    "anchorLabel": "Starting piece",
+    "anchorGenerate": "Create outfit",
+    "anchorRelease": "Stop building around this piece",
+    "occasionQuestion": "What occasion is the outfit for?",
+    "otherOccasion": "Other occasion",
+    "otherOccasionPlaceholder": "e.g. a friend's graduation",
+    "ceremonyWhen": "Is the ceremony during the day or in the evening?",
+    "ceremonyDay": "Daytime",
+    "ceremonyEvening": "Evening",
+    "skipQuestion": "Skip",
+    "occasions": {
+      "work": "Work",
+      "leisure": "Leisure",
+      "dayOut": "Day out",
+      "aperitif": "Aperitivo",
+      "dinner": "Dinner",
+      "evening": "Night out or event",
+      "ceremony": "Ceremony",
+      "travel": "Travel",
+      "formal": "Formal",
+      "sport": "Sport",
+      "everyday": "Everyday",
+      "concert": "Concert",
+      "businessDinner": "Business dinner"
+    }
   },
   "tripDetail": {
     "couldntLoadTrip": "Couldn't load this trip",
@@ -1086,7 +1120,16 @@
     "selectNone": "None",
     "selectedCount_one": "{{count}} selected",
     "selectedCount_other": "{{count}} selected",
-    "uncategorized": "Other"
+    "uncategorized": "Other",
+    "culturalConservative": "Covered shoulders and knees are appreciated in public here, especially outside resorts and at religious sites.",
+    "culturalStrict": "Norms are strict here: shoulders, arms and legs covered, no tight fits.",
+    "culturalHeadCovering": "Women are also required to cover their hair.",
+    "culturalAdapting": "AURA is adapting the outfits for those days.",
+    "culturalNotAdapting": "AURA is not adapting the outfits (your choice).",
+    "culturalStartAdapting": "Adapt",
+    "culturalStopAdapting": "Don't adapt",
+    "culturalNowAdapting": "Done: the next outfits generated for those days will follow local customs.",
+    "culturalNowNotAdapting": "Done: the next outfits won't be adapted."
   },
   "batchReview": {
     "couldntLoadBatch": "Couldn't load this batch.",
@@ -1772,7 +1815,10 @@
     "setUpEssentialsListHint": "Set up an essentials list (documents, charger…) to reuse on every trip",
     "createTrip": "Create trip",
     "culturalMode": "Local cultural sensitivity",
-    "culturalModeHint": "If yes, AURA lets local customs gently influence outfit ranking during this trip — never a rule you can't change your mind about, and any venue's own genuine requirement (e.g. a mosque's dress code) is always respected regardless of this setting."
+    "culturalModeHint": "If yes, for the days in that country AURA leaves out pieces that don't meet local customs (bare shoulders or knees, shorts, mini skirts; where norms are stricter also short sleeves and tight fits). A specific venue's dress code, such as a mosque or a church, is always respected whatever you choose.",
+    "culturalQuestion": "This trip includes a country with more conservative dress norms ({{countries}}). Should AURA adapt the outfits to local customs for those days?",
+    "culturalAdaptYes": "Yes, adapt",
+    "culturalAdaptNo": "No, my style"
   },
   "outfitScan": {
     "lookingAtOutfit": "Looking at your outfit…",
@@ -1979,5 +2025,88 @@
     "pieces": "Pieces",
     "saveCanvas": "Save canvas",
     "seeCanvas": "See canvas"
+  },
+  "colorHarmony": {
+    "title": "Color Harmony",
+    "close": "Close",
+    "loadError": "Couldn't load the image for the color analysis.",
+    "tapToSample": "Tap the garment to sample a color",
+    "description": "Based on Johannes Itten's color wheel: it shows which colors go well together, not your personal color season.",
+    "suggestedPairings": "Suggested pairings",
+    "wheel": {
+      "red": "Red",
+      "orange": "Orange",
+      "yellow": "Yellow",
+      "yellowGreen": "Yellow-green",
+      "green": "Green",
+      "emeraldGreen": "Emerald green",
+      "cyan": "Cyan",
+      "skyBlue": "Sky blue",
+      "blue": "Blue",
+      "purple": "Purple",
+      "magenta": "Magenta",
+      "fuchsia": "Fuchsia"
+    },
+    "harmony": {
+      "complementary": "Complementary",
+      "analogous": "Analogous",
+      "splitComplementary": "Split-complementary",
+      "triadic": "Triadic"
+    }
+  },
+  "weatherAdvice": {
+    "headline": {
+      "cold": "Wrap up — layered tailoring weather",
+      "cool": "Crisp air — soft layering",
+      "mild": "Mild day — easy elegance",
+      "warm": "Warm — breathable pieces",
+      "hot": "Hot — keep it airy"
+    },
+    "rainReady": "rain-ready",
+    "umbrella": "{{pct}}% chance of rain — don't forget your umbrella",
+    "tips": {
+      "woolCoat": "Wool coat",
+      "cashmereKnit": "Cashmere knit",
+      "boots": "Boots",
+      "scarf": "Scarf",
+      "woolTrousers": "Wool trousers",
+      "leatherGloves": "Leather gloves",
+      "trenchOrBlazer": "Trench or blazer",
+      "fineKnit": "Fine knit",
+      "trousers": "Trousers",
+      "ankleBoots": "Ankle boots",
+      "denimJacket": "Denim jacket",
+      "lightJacket": "Light jacket",
+      "jeansOrTrousers": "Jeans or trousers",
+      "sneakersOrLoafers": "Sneakers or loafers",
+      "cottonShirt": "Cotton shirt",
+      "lightKnit": "Light knit",
+      "linenShirt": "Linen shirt",
+      "midiSkirtOrChinos": "Midi skirt or chinos",
+      "loafers": "Loafers",
+      "cottonDress": "Cotton dress",
+      "lightTrousers": "Light trousers",
+      "slipDress": "Slip dress",
+      "shorts": "Shorts",
+      "sandals": "Sandals",
+      "sunHat": "Sun hat",
+      "tankTop": "Tank top",
+      "camisole": "Camisole",
+      "midiSkirt": "Midi skirt",
+      "miniSkirt": "Mini skirt",
+      "silkShirt": "Silk shirt",
+      "wideLegTrousers": "Wide-leg trousers",
+      "trenchOrWaterproofLayer": "Trench or waterproof layer",
+      "weatherproofBoots": "Weatherproof boots"
+    }
+  },
+  "photoFraming": {
+    "title": "Frame photo",
+    "hint": "Drag to move, pinch or use the slider to zoom. The original photo is not changed.",
+    "zoom": "Zoom",
+    "fit": "Fit to photo",
+    "center": "Center",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
   }
 }

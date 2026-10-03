@@ -38,6 +38,10 @@ type ChatMsg = {
    *  the deterministic keyword check on the triggering message when the
    *  model left this null. */
   activityKind?: string | null;
+  /** Several pieces could be the one the person named: their photos, to pick from. */
+  candidateIds?: string[];
+  /** This bubble is a failed reply: the person's message is kept and "Riprova" sends it again. */
+  retry?: { text: string; feedbackContext?: FeedbackType };
 };
 
 
@@ -199,9 +203,16 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
   }, [initialMessage, itemsLoaded]);
 
 
-  const sendMessage = async (text: string, feedbackContext?: FeedbackType, overrideItemIds?: string[]) => {
+  const sendMessage = async (
+    text: string,
+    feedbackContext?: FeedbackType,
+    overrideItemIds?: string[],
+    opts?: { base?: ChatMsg[]; pinnedItemId?: string },
+  ) => {
     if (!text || busy) return;
-    const history: ChatMsg[] = [...messages, { role: "user", content: text }];
+    const history: ChatMsg[] = [...(opts?.base ?? messages), { role: "user", content: text }];
+    const failed = () =>
+      setMessages((m) => [...m, { role: "assistant", content: t("stylistChat.replyFailed"), uiOnly: true, retry: { text, feedbackContext } }]);
     setMessages(history);
     setBusy(true);
     try {
@@ -224,6 +235,7 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
           eventTime: eventTimeRef.current,
                     feedbackContext: feedbackContext ?? null,
           todayDate: todayIso(),
+          pinnedItemId: opts?.pinnedItemId ?? null,
           items: items.map((it) => ({
             id: it.id,
             category: it.category,
@@ -245,12 +257,16 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
             formality: (it as unknown as { formality?: number | null }).formality ?? null,
             dayEvening: (it as unknown as { day_evening?: string | null }).day_evening ?? null,
             locationId: (it as unknown as { location_id?: string | null }).location_id ?? null,
+            // The piece's own occasion tags and model name: without them the server's occasion-tag
+            // rules never fired and a piece named by its model couldn't be found.
+            occasion: it.occasion ?? null,
+            model: it.model ?? null,
           })),
         },
       });
 
       if (!res.ok) {
-        setMessages((m) => [...m, { role: "assistant", content: `⚠️ ${res.error || t("stylistChat.unknownError")}` }]);
+        failed();
         return;
       }
       setMessages((m) => [
@@ -263,6 +279,7 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
           actions: res.actions,
           eventDate: (res as { eventDate?: string | null }).eventDate ?? eventDateRef.current,
           activityKind: (res as { activityKind?: string | null }).activityKind ?? null,
+          candidateIds: (res as { candidateIds?: string[] }).candidateIds ?? [],
         },
       ]);
 
@@ -272,7 +289,7 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
       }
     } catch (e) {
       console.error("[AURA stylist-chat]", e);
-      setMessages((m) => [...m, { role: "assistant", content: `⚠️ ${e instanceof Error ? e.message : t("stylistChat.requestFailed")}` }]);
+      failed();
     } finally {
       setBusy(false);
     }
@@ -355,21 +372,48 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
     }
   };
 
-  const thumb = (id: string) => {
+  /** Photo + brand + colour/type, so similar pieces can be told apart. With onPick, the thumbnail
+   *  is a real button (choose this piece). */
+  const thumb = (id: string, onPick?: () => void) => {
     const it = items.find((x) => x.id === id);
     if (!it) return null;
     const path = toStoragePath(it.image_url);
     const src = path ? signed[path] : null;
-    return (
-      <div key={id} className="w-16 shrink-0">
+    const detail = [it.colors?.[0] ?? it.color, it.subcategory ?? it.category].filter(Boolean).join(" · ");
+    const body = (
+      <>
         <div className="aspect-square rounded-xl overflow-hidden border border-border/60" style={{ background: "#FFFFFF" }}>
           {src ? <img src={src} alt="" className="h-full w-full object-contain p-1" /> : null}
         </div>
-        <p className="mt-1 text-[8px] uppercase tracking-wide text-muted-foreground truncate text-center">
+        <p className="mt-1 text-[8px] uppercase tracking-wide text-foreground/80 truncate text-center">
           {it.brand ?? it.category}
         </p>
-      </div>
+        <p className="text-[8px] text-muted-foreground truncate text-center" title={[detail, it.model].filter(Boolean).join(" · ")}>
+          {it.model || detail}
+        </p>
+      </>
     );
+    return onPick ? (
+      <button key={id} onClick={onPick} disabled={busy} className="w-20 shrink-0 text-left active:scale-95 disabled:opacity-60">{body}</button>
+    ) : (
+      <div key={id} className="w-16 shrink-0">{body}</div>
+    );
+  };
+
+  const pickCandidate = (id: string) => {
+    const it = items.find((x) => x.id === id);
+    if (!it) return;
+    const label = [it.brand, it.colors?.[0] ?? it.color, it.subcategory ?? it.category, it.model].filter(Boolean).join(" ");
+    void sendMessage(t("stylistChat.thisOne", { label }), undefined, undefined, { pinnedItemId: id });
+  };
+
+  const retryMessage = (index: number) => {
+    const m = messages[index];
+    if (!m?.retry) return;
+    // Drops the failed bubble and the message it answered; sendMessage puts the message back.
+    const base = messages.slice(0, index);
+    const lastUser = base.map((x) => x.role).lastIndexOf("user");
+    void sendMessage(m.retry.text, m.retry.feedbackContext, undefined, { base: lastUser >= 0 ? base.slice(0, lastUser) : base });
   };
 
   /** Occasion context for the learned-preference feedback below — prefers
@@ -499,8 +543,25 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
 
                 {!isActionMessage && m.itemIds && m.itemIds.length > 0 && (
                   <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar">
-                    {m.itemIds.map(thumb)}
+                    {m.itemIds.map((id) => thumb(id))}
                   </div>
+                )}
+
+                {m.candidateIds && m.candidateIds.length > 0 && i === messages.length - 1 && (
+                  <div className="mt-2">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{t("stylistChat.whichPiece")}</p>
+                    <div className="mt-1 flex gap-2 overflow-x-auto no-scrollbar">
+                      {m.candidateIds.map((id) => thumb(id, () => pickCandidate(id)))}
+                    </div>
+                  </div>
+                )}
+
+                {m.retry && i === messages.length - 1 && (
+                  <button
+                    onClick={() => retryMessage(i)}
+                    disabled={busy}
+                    className="mt-2 text-xs px-3 py-1.5 rounded-full bg-foreground text-background active:scale-95 disabled:opacity-60"
+                  >{t("stylistChat.retry")}</button>
                 )}
 
                 {m.choices && m.choices.length > 0 && !ui.choice && (

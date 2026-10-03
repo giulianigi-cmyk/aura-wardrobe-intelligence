@@ -10,6 +10,17 @@ import { isItemAtLocation } from "./wardrobe-location";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 import { detectActivityKind } from "./activity-kind";
 import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
+import { loadWearHistory, rotationOrder, wearFields, ROTATION_PROMPT_RULE } from "./outfit-rotation";
+import { searchWardrobe, pieceLabel } from "./wardrobe-search";
+import { ensureAnchor } from "./outfit-anchor";
+
+/** Pieces sent to the model besides the ones the message names (which are always sent). */
+const CATALOG_CAP = 320;
+/** Per-call limit, so a hung AI call ends in a clear "try again" instead of the request dying. */
+const AI_CALL_TIMEOUT_MS = 40_000;
+const REPAIR_CALL_TIMEOUT_MS = 25_000;
+/** Error codes the client turns into a localized message with a retry (never shown raw). */
+export const STYLIST_ERROR = { unavailable: "STYLIST_UNAVAILABLE", failed: "STYLIST_FAILED" } as const;
 const ItemSchema = z.object({
   id: z.string(),
   category: z.string().nullable().optional(),
@@ -36,6 +47,7 @@ const ItemSchema = z.object({
   // freely get recommended for a work outfit here even after the same
   // gap was closed in the on-demand/weekly outfit engine.
   occasion: z.string().nullable().optional(),
+  model: z.string().nullable().optional(),
 });
 
 const MessageSchema = z.object({
@@ -62,13 +74,19 @@ const InputSchema = z.object({
   eventTime: z.string().nullable().optional(),
     feedbackContext: z.enum(["liked", "disliked", "saved"]).nullable().optional(),
   todayDate: z.string().nullable().optional(),
+  // A piece the person picked from the photos AURA showed ("which one do you mean?"): it MUST be in
+  // the outfit of this turn.
+  pinnedItemId: z.string().nullable().optional(),
 });
 
+// Lenient on purpose: a reply with five choices, or an activityKind outside the list, used to fail
+// validation twice and end as "Sorry, something went wrong" although the answer itself was fine.
+const ACTIVITY_KINDS = ["swim", "sport", "concert", "elegant_dinner", "business_dinner"] as const;
 const OutputSchema = z.object({
   reply: z.string(),
-  item_ids: z.array(z.string()),
-  choices: z.array(z.string()).max(4).optional(),
-  eventDate: z.string().nullable().optional(),
+  item_ids: z.preprocess((v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string") : []), z.array(z.string())),
+  choices: z.preprocess((v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(0, 4) : undefined), z.array(z.string()).optional()),
+  eventDate: z.preprocess((v) => (typeof v === "string" ? v : null), z.string().nullable().optional()),
   // Classified using the model's own world knowledge, not keyword
   // matching — this is what recognizes "David Guetta" as a concert, or a
   // venue address as a stadium, when the activity name alone gives no
@@ -80,23 +98,36 @@ const OutputSchema = z.object({
   // activity-kind.ts when the model leaves this null (e.g. it forgot,
   // or genuinely can't tell) — never a hard dependency on the AI getting
   // this right.
-  activityKind: z.enum(["swim", "sport", "concert", "elegant_dinner", "business_dinner"]).nullable().optional(),
+  activityKind: z.preprocess((v) => ((ACTIVITY_KINDS as readonly unknown[]).includes(v) ? v : null), z.enum(ACTIVITY_KINDS).nullable().optional()),
 });
 
+
+const EVENING_SIGNAL = /\b(sera|serata|stasera|cena|aperitivo|apericena|evening|tonight|dinner|cocktail|party|festa|gala|night|notte|noche|soir|soiree|diner|fiesta)\b/i;
+const DAY_ONLY_TAGS = new Set(["Everyday", "Work", "Business Casual", "Travel", "Sport"]);
+const EVENING_ONLY_TAGS = new Set(["Evening", "Cocktail", "Black Tie"]);
+/** Tagged only for day/work use and not marked as an evening piece. */
+export function isDayOnlyUsage(tags: string[], dayEvening: string | null | undefined): boolean {
+  return tags.length > 0 && tags.every((t) => DAY_ONLY_TAGS.has(t)) && !/evening|both/i.test(dayEvening ?? "");
+}
+/** Tagged only for evening/ceremony use and not marked as a day piece. */
+export function isEveningOnlyUsage(tags: string[], dayEvening: string | null | undefined): boolean {
+  return tags.length > 0 && tags.every((t) => EVENING_ONLY_TAGS.has(t)) && !/day|both/i.test(dayEvening ?? "");
+}
 
 const SAVE_ACTIONS = [
   { type: "save_canvas" as const, label: "Save to canvas" },
   { type: "add_calendar" as const, label: "Add to calendar" },
 ];
 
-function unwrapIfDoubleEncoded(parsed: z.infer<typeof OutputSchema>): z.infer<typeof OutputSchema> {
+/** Returns null when the reply is raw JSON that can't be unwrapped (never shown to the person). */
+function unwrapIfDoubleEncoded(parsed: z.infer<typeof OutputSchema>): z.infer<typeof OutputSchema> | null {
   const trimmed = parsed.reply?.trim() ?? "";
   if (!trimmed.startsWith("{") || !trimmed.includes('"reply"')) return parsed;
   try {
     return parseAiJson(trimmed, OutputSchema);
   } catch (err) {
-    console.error("[AURA stylist-chat] double-encoding detected but inner unwrap failed — showing fallback instead of leaking raw JSON. Raw reply field:", parsed.reply, err);
-    return { ...parsed, reply: "Sorry, something went wrong on my end — could you try asking that again?" };
+    console.error("[AURA stylist-chat] double-encoding detected but inner unwrap failed", err instanceof Error ? err.message : String(err));
+    return null;
   }
 }
 
@@ -192,7 +223,25 @@ export const stylistChat = createServerFn({ method: "POST" })
         return `${brand}: usually ${topSize}`;
       });
 
-    const catalog = allowedItems.slice(0, 200).map((it) => ({
+    // Rotation (outfit-rotation.ts), soft here: no exclusion — a chat is often about a future event
+    // or a piece the person names themselves — only the order and each piece's wear history.
+    const todayIsoForRotation = new Date().toISOString().slice(0, 10);
+    const wearHistory = await loadWearHistory(context.supabase as never, context.userId, allowedItems.map((it) => it.id));
+    // Wardrobe search over the WHOLE wardrobe (wardrobe-search.ts): the pieces the latest message
+    // names are always in the catalog, first — the catalog used to be the first 200 pieces only,
+    // which is how an existing Balenciaga dress was declared non-existent.
+    const latestUserText = [...data.messages].reverse().find((m) => m.role === "user")?.content ?? "";
+    const search = data.feedbackContext ? null : searchWardrobe(latestUserText, data.items);
+    const allowedIds = new Set(allowedItems.map((it) => it.id));
+    const searchAllowed = (search?.matches ?? []).filter((it) => allowedIds.has(it.id));
+    const searchExcluded = (search?.matches ?? []).filter((it) => !allowedIds.has(it.id));
+    const pinned = data.pinnedItemId ? allowedItems.find((it) => it.id === data.pinnedItemId) ?? null : null;
+    const forcedIds = new Set([...(pinned ? [pinned.id] : []), ...searchAllowed.slice(0, 40).map((it) => it.id)]);
+    const ordered = [
+      ...allowedItems.filter((it) => forcedIds.has(it.id)),
+      ...rotationOrder(allowedItems.filter((it) => !forcedIds.has(it.id)), wearHistory, todayIsoForRotation).slice(0, CATALOG_CAP),
+    ];
+    const catalog = ordered.map((it) => ({
       id: it.id,
       category: it.category ?? "",
       subcategory: it.subcategory ?? "",
@@ -213,7 +262,36 @@ export const stylistChat = createServerFn({ method: "POST" })
       formality: it.formality ?? null,
       dayEvening: it.dayEvening ?? "",
       occasion: it.occasion ?? "",
+      model: it.model ?? "",
+      ...wearFields(wearHistory.get(it.id), todayIsoForRotation),
     }));
+    // Empty fields only cost tokens; dropping them lets far more of the wardrobe fit.
+    const compactCatalog = catalog.map((c) =>
+      Object.fromEntries(Object.entries(c).filter(([k, v]) => k === "lastWornDaysAgo" || (v !== "" && v !== null && !(Array.isArray(v) && v.length === 0)))));
+
+    // What the search found, as verified facts for the model (identified / choose between / not found).
+    const searchLines: string[] = (() => {
+      if (pinned) {
+        return [`MANDATORY PIECE: the person just picked "${pieceLabel(pinned)}" (id ${pinned.id}) from the photos you showed. It MUST be in item_ids — build the outfit around it.`];
+      }
+      if (!search?.isPieceQuery) return [];
+      const label = (it: { id: string } & Parameters<typeof pieceLabel>[0]) => `${it.id} = ${pieceLabel(it)}`;
+      if (search.negated) {
+        return searchAllowed.length ? [`WARDROBE SEARCH (done in code): the person asked NOT to use: ${searchAllowed.map(label).join("; ")}. Leave these out.`] : [];
+      }
+      const out: string[] = [];
+      if (searchAllowed.length === 1) {
+        out.push(`WARDROBE SEARCH (done in code over the whole wardrobe): the piece the person's latest message refers to is ${label(searchAllowed[0])}. It exists — never say otherwise. If they want to wear or style it, it MUST be in item_ids (their explicit request beats every preference, tag and aesthetic choice; only a hard rule like the weather or a venue requirement can stop it, and then say so plainly).`);
+      } else if (searchAllowed.length > 1) {
+        out.push(`WARDROBE SEARCH (done in code over the whole wardrobe): ${searchAllowed.length} pieces could be the one the person means: ${searchAllowed.slice(0, 6).map(label).join("; ")}. If it is clear which one they mean, use it (it MUST then be in item_ids). If not, ask which one in ONE short question, naming them by brand, colour and type, and return an empty item_ids — the app shows their photos to choose from.`);
+      } else if (!searchExcluded.length) {
+        out.push(`WARDROBE SEARCH (done in code over ALL ${data.items.length} pieces): nothing in the wardrobe matches what the person's latest message names${search.brand ? ` (brand: ${search.brand})` : ""}. Say so plainly — it was searched, not guessed — and offer the closest alternatives from the catalog.`);
+      }
+      if (searchExcluded.length) {
+        out.push(`WARDROBE SEARCH: these matching pieces exist but are left out by the person's own dress preferences or are stored at another wardrobe location: ${searchExcluded.slice(0, 4).map(label).join("; ")}. If the person asks for one of them, say it exists and why it isn't proposed now — never say it doesn't exist.`);
+      }
+      return out;
+    })();
 
     // Deterministic, verified-in-code eligibility check — computed here
     // instead of asking the model to work it out by scanning the catalog
@@ -334,14 +412,22 @@ export const stylistChat = createServerFn({ method: "POST" })
       ...(data.styleBoldness ? [`BOLDNESS: the person has already told you, in their profile, that they generally like a '${data.styleBoldness}' level of boldness (Classic = safe, harmonious pairings; Balanced = some experimentation without overdoing it; Creative = enjoys unexpected combinations; Bold = wants to be pushed outside their comfort zone). Apply this directly for occasions that aren't strictly formal (weekend, casual work, casual dinners) — do NOT ask the boldness question below, it's already answered. Still let the occasion itself win when it calls for something classic (e.g. a black-tie event stays classic regardless of this preference) — this shapes color/styling choices within what's already appropriate, never overrides YOU/CONTEXT/WEATHER/COHERENCE above it in the hierarchy.`] : []),
       "BOLDNESS CHECK (only if no boldness preference is known — see above): for occasions that aren't strictly formal (weekend, casual work depending on the person's job, festive/expressive events like a wedding guest, cocktail, gala, party, creative/artsy event — NOT black-tie or strictly formal work), if this hasn't been asked yet in the conversation, ask ONE short question — write it (and the 'choices') in the user's own language, following the same idea as: 'Do you want to keep it classic, or lean bolder?' with 'choices' [\"Classic\", \"Balanced\", \"Creative\", \"Bold\"]. Never use technical color-theory language (e.g. never say 'Itten' or 'color wheel' to the user) — keep it conversational. When the person has instead stated boldness directly in their own words in this message (e.g. 'something bolder', 'più audace', 'surprise me') you already have the answer — do not ask the question, just apply it. Once answered (or stated directly, or skipped because it doesn't apply), calibrate internally: the 'classic'/'balanced' pick → favor analogous, harmonious color pairings from the wardrobe; the 'creative'/'bold' pick → this means REAL cross-item color contrast, not just picking a fancier-looking piece in a similar tone. Concretely: if the anchor piece (e.g. the dress) is a strong or warm color (rust, burgundy, emerald, cobalt), do NOT default to another strong color for the bag/shoes — instead put ONE of bag/shoes in a true neutral (black, nude, camel, or a dark brown) so it reads as a deliberate grounding contrast, and use the OTHER accessory (or jewelry) as the actual pop of boldness (an unexpected color, a statement shape, a mixed metal). Never propose an outfit where every piece sits in the same warm-neutral family — that reads as coordinated, not bold. This is optional flair, never at the expense of the STRUCTURE RULE or any binding dress rule above.",
       "Keep replies short and practical: 2-4 sentences, no lists unless asked.",
+      "PRIORITY ORDER when signals conflict: 1) what the person explicitly asks for in this conversation (a named piece, an explicit 'yes/no'), 2) absolute constraints (their dress rules, a venue requirement, the weather), 3) the occasion and context, 4) their personal preferences and style memory, 5) aesthetics and variety. A piece's own occasion tags (Work, Everyday, Evening...) are indicative of its usual use, not a rule — but they still count: for an evening occasion (aperitivo, dinner, party, event) do not pick a bag, shoe or piece tagged only for day/work use (e.g. Everyday, Work) when a same-category piece suited to the evening exists, and for work do not pick one tagged only for evening/cocktail use.",
+      "ONE QUESTION AT A TIME: when something important is missing, ask at most one short question per reply (never a list of questions), and never ask again what the person already told you or what their profile already says.",
+      "NAMING PIECES: whenever you mention a wardrobe piece, identify it by brand, colour and type (e.g. 'the black Balenciaga slip dress', 'il vestito nero Balenciaga') — and the model name when it has one — so it can't be confused with a similar piece.",
+      "CHANGING ONE PIECE: when the person asks to change only one piece (e.g. 'cambia solo le scarpe'), keep every other piece of your last outfit and swap just that one.",
+      "DATES IN ITALIAN: write a date with its weekday without an article — 'sabato 3 ottobre', never 'il sabato 3 ottobre'.",
+      "NO FAKE BUTTONS: never write things like '[Salva]' or 'tap here' as if there were buttons in your text; the app shows its own buttons.",
       "If you explicitly ask the user to pick between two or more specific options (e.g. two color variants of the same piece), ALSO return those exact option labels as short strings in a 'choices' array (max 4, e.g. [\"Powder Pink\", \"Jet Black\"]). Only populate 'choices' when you are asking a direct pick-one question; otherwise omit it or return an empty array.",
       ...(data.feedbackContext ? [feedbackInstruction[data.feedbackContext]] : []),
               ...(data.todayDate ? [`EVENT DATE: today's date is ${data.todayDate}. If the person's message clearly implies a specific date for the outfit they're asking about — an explicit date, a weekday name ('Monday', 'lunedì'), a relative expression ('in 3 days', 'tra tre giorni', 'next week') — work out the actual ISO date (YYYY-MM-DD) relative to today's date and return it as 'eventDate' in your JSON response. If no specific date is implied, or the person is just asking generally (not about a specific future occasion), leave eventDate null. Only set this when you're genuinely confident about the date; a wrong guess here is worse than leaving it empty.`] : []),
+      ROTATION_PROMPT_RULE,
       wx,
       ...(eventTimeLine ? [eventTimeLine] : []),
       ...styleMemorySection,
 
-      `Wardrobe catalog (JSON): ${JSON.stringify(catalog)}`,
+      ...searchLines,
+      `Wardrobe catalog (JSON, ${catalog.length} of the ${allowedItems.length} pieces available — the pieces named in the conversation are always included): ${JSON.stringify(compactCatalog)}`,
       "",
       "Respond with ONLY a single valid JSON object, no markdown fences, no extra text, in exactly this shape:",
             '{"reply": "your conversational reply, in the user\'s language", "item_ids": ["id1", "id2"], "choices": ["Option A", "Option B"], "eventDate": "2026-08-15"}',
@@ -353,7 +439,7 @@ export const stylistChat = createServerFn({ method: "POST" })
       let text: string;
       let firstCallError: string | null = null;
       try {
-        const r1 = await generateText({ model, system, messages: history });
+        const r1 = await generateText({ model, system, messages: history, abortSignal: AbortSignal.timeout(AI_CALL_TIMEOUT_MS) });
         text = r1.text;
       } catch (err) {
         console.error("[AURA stylist-chat] first call failed", err);
@@ -367,7 +453,7 @@ export const stylistChat = createServerFn({ method: "POST" })
         text = "";
       }
 
-      let parsed: z.infer<typeof OutputSchema>;
+      let parsed: z.infer<typeof OutputSchema> | null;
       try {
         parsed = parseAiJson(text, OutputSchema);
       } catch {
@@ -375,6 +461,7 @@ export const stylistChat = createServerFn({ method: "POST" })
           const r2 = await generateText({
             model,
             system,
+            abortSignal: AbortSignal.timeout(AI_CALL_TIMEOUT_MS),
             messages: [
               ...history,
               { role: "assistant", content: text || "(no response)" },
@@ -398,13 +485,18 @@ export const stylistChat = createServerFn({ method: "POST" })
             "[AURA stylist-chat] both parse attempts failed",
             { firstCallError, finalErr: finalErr instanceof Error ? finalErr.message : String(finalErr), rawText: text },
           );
-          parsed = { reply: "Sorry, something went wrong on my end — could you try asking that again?", item_ids: [] };
+          parsed = null;
         }
 
       }
 
       const validIds = new Set(catalog.map((c) => c.id));
-      parsed = unwrapIfDoubleEncoded(parsed);
+      parsed = parsed ? unwrapIfDoubleEncoded(parsed) : null;
+      if (!parsed || !parsed.reply.trim()) {
+        // The client shows a localized "AURA couldn't answer, try again" with a retry button and
+        // keeps the person's message — never an English sentence or a technical error.
+        return { ok: false as const, error: STYLIST_ERROR.unavailable };
+      }
       let finalItemIds = parsed.item_ids.filter((id) => validIds.has(id)).slice(0, 6);
       let finalReply = parsed.reply;
 
@@ -450,11 +542,21 @@ export const stylistChat = createServerFn({ method: "POST" })
         Work: /\bwork\b|\blavoro\b|\bufficio\b|\boffice\b|\breunion\b|\briunione\b|\bclient\b|\bcliente\b/i,
       };
       const mentionedOccasions = Object.keys(OCCASION_SIGNAL).filter((occ) => OCCASION_SIGNAL[occ].test(conversationText));
+      // Evening vs day/work usage of a piece's own tags: what the RECENT messages are about (not the
+      // whole conversation, which may have moved on), or the event's real start time.
+      const recentUserText = data.messages.filter((m) => m.role === "user").slice(-3).map((m) => m.content).join(" ");
+      const eventHour = data.eventTime ? Number(data.eventTime.slice(0, 2)) : NaN;
+      const isEveningContext = (Number.isFinite(eventHour) && eventHour >= 18) || EVENING_SIGNAL.test(recentUserText);
+      const isWorkContext = !isEveningContext && OCCASION_SIGNAL.Work.test(recentUserText);
+      // Pieces the person named themselves are never swapped out for their tags (their request wins).
+      const requestedIds = new Set([...(pinned ? [pinned.id] : []), ...(search && !search.negated ? searchAllowed.map((it) => it.id) : [])]);
       const violatesOccasionTag = (id: string): boolean => {
-        if (!mentionedOccasions.length) return false;
         const item = catalog.find((c) => c.id === id);
-        if (!item?.occasion) return false;
+        if (!item?.occasion || requestedIds.has(id)) return false;
         const tags = item.occasion.split(",").map((s) => s.trim()).filter(Boolean);
+        if (isEveningContext && isDayOnlyUsage(tags, item.dayEvening)) return true;
+        if (isWorkContext && isEveningOnlyUsage(tags, item.dayEvening)) return true;
+        if (!mentionedOccasions.length) return false;
         const hasSpecialized = tags.some((tg) => ["Travel", "Sport"].includes(tg));
         if (!hasSpecialized) return false;
         // Violates if none of the occasions mentioned in the conversation
@@ -544,7 +646,7 @@ export const stylistChat = createServerFn({ method: "POST" })
           if (slidesPicked) missing.push("a different pair of shoes — flat slides/flip-flops were picked, but this occasion involves dancing or standing for hours, so swap them for something more practical for that from the wardrobe");
         }
         if (occasionTagViolation) {
-          missing.push("a different piece for whichever item is tagged only 'Travel' or 'Sport' — that piece doesn't fit this occasion, so swap it for something from the wardrobe that isn't restricted to that situational tag");
+          missing.push("a different piece for whichever item's own occasion tags don't fit this occasion (tagged only 'Travel' or 'Sport'; only day/work use like 'Everyday'/'Work' for an evening; only evening/cocktail use for work) — swap it for a same-category piece suited to this occasion");
         }
         const placeViolation = placeViolationIn(finalItemIds);
         if (placeViolation) {
@@ -556,6 +658,7 @@ export const stylistChat = createServerFn({ method: "POST" })
             const r3 = await generateText({
               model,
               system,
+              abortSignal: AbortSignal.timeout(REPAIR_CALL_TIMEOUT_MS),
               messages: [
                 ...history,
                 { role: "assistant", content: text || "(no response)" },
@@ -651,6 +754,7 @@ export const stylistChat = createServerFn({ method: "POST" })
             const r4 = await generateText({
               model,
               system,
+              abortSignal: AbortSignal.timeout(REPAIR_CALL_TIMEOUT_MS),
               messages: [
                 ...history,
                 { role: "assistant", content: text || "(no response)" },
@@ -675,6 +779,18 @@ export const stylistChat = createServerFn({ method: "POST" })
         }
       }
 
+      // A piece the person asked for by name (or picked from the photos) is part of the outfit: if the
+      // model proposed an outfit without it, it is put back in place of the piece in the same slot.
+      const mandatoryId = pinned?.id ?? (search && !search.negated && searchAllowed.length === 1 ? searchAllowed[0].id : null);
+      if (mandatoryId && finalItemIds.length > 0) {
+        const catOf = (id: string) => catalog.find((c) => c.id === id)?.category ?? null;
+        finalItemIds = ensureAnchor(finalItemIds, mandatoryId, catOf).slice(0, 6);
+      }
+      // Several possible pieces and no outfit yet: the app shows their photos to choose from.
+      const candidateIds = !pinned && search && !search.negated && searchAllowed.length > 1 && finalItemIds.length === 0
+        ? searchAllowed.slice(0, 6).map((it) => it.id)
+        : [];
+
       // The advisory note (if this place has one) is now written by the model itself, as part of
       // finalReply, in whatever language the conversation is already in — see the VENUE
       // REQUIREMENT / "may also require" system-prompt lines above. Nothing to append here.
@@ -686,10 +802,11 @@ export const stylistChat = createServerFn({ method: "POST" })
         actions: data.feedbackContext === "liked" ? SAVE_ACTIONS : [],
         eventDate: parsed.eventDate && /^\d{4}-\d{2}-\d{2}$/.test(parsed.eventDate) ? parsed.eventDate : null,
         activityKind: parsed.activityKind ?? null,
+        candidateIds,
       };
 
     } catch (err) {
-      console.error("[AURA stylist-chat] failed", err);
-      return { ok: false as const, error: err instanceof Error ? err.message : "AI failed" };
+      console.error("[AURA stylist-chat] failed", err instanceof Error ? err.message : String(err));
+      return { ok: false as const, error: STYLIST_ERROR.failed };
     }
   });
