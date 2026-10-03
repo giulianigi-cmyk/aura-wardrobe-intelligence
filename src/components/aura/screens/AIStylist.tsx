@@ -1122,7 +1122,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
             saveFraming(entry.eventId, f);
             setFramings((m) => ({ ...m, [entry.eventId]: f }));
             if (entry.detectionId) {
-              void (supabase.from("outfit_photo_detections") as unknown as { update: (v: unknown) => { eq: (c: string, v: string) => PromiseLike<{ error: unknown }> } })
+              void supabase.from("outfit_photo_detections")
                 .update({ photo_framing: f.scale === 1 && f.x === 0 && f.y === 0 ? null : f })
                 .eq("id", entry.detectionId)
                 .then(({ error }) => {
