@@ -191,6 +191,8 @@ export type WearProfile = {
   seasons?: string[];
   dayEvening?: string | null;
   formality?: number | null;
+  /** Flat / Low / Mid / High (shoes). */
+  heelHeight?: string | null;
   /** Detail keys (garment-details.ts) of the product, e.g. embellished, cutOut. */
   details?: string[];
   fashion?: { timeless: boolean; onTrend: boolean; versatility: "low" | "medium" | "high" } | null;
@@ -220,9 +222,14 @@ export function estimateWears(p: WearProfile, rotatingWith: number): { wearsPerY
   // Black-tie and gala pieces are worn at those events only, a handful a year.
   if ((p.formality ?? 0) >= 5) { demand = Math.min(demand, FORMAL_EVENTS_PER_YEAR); reasons.push("veryDressy"); }
   let w = demand * seasonShare;
-  // Elegant evening shoes, bags and dresses also come out of season for a gala or a very elegant
-  // evening (a summer sandal with tights in winter): the formal events of the other seasons.
-  const dressyEvening = (when === "evening" || (p.formality ?? 0) >= 4) && (role === "shoes" || role === "bags" || role === "onepiece");
+  // Elegant pieces also come out of season for a gala or a very elegant evening — a fine-heeled
+  // sandal with tights in winter — but not every summer piece: a flat or beach sandal, a straw bag
+  // or a linen dress stay in their season. Shoes: on a real heel and for the evening or formal
+  // (formal alone when the heel is unknown); bags and dresses: formal.
+  const formal = (p.formality ?? 0) >= 4;
+  const heeled = p.heelHeight === "Mid" || p.heelHeight === "High";
+  const dressyEvening = role === "shoes" ? (p.heelHeight ? heeled && (formal || when === "evening") : formal)
+    : (role === "bags" || role === "onepiece") && formal;
   if (dressyEvening && seasons.size < 4) {
     w += FORMAL_EVENTS_PER_YEAR * (1 - seasonShare);
     reasons.push("formalAllYear");

@@ -213,12 +213,18 @@ test("cost per wear: every kind of piece is estimated from how often its role is
   assert.ok(swim.wearsPerYear >= 5 && swim.wearsPerYear <= 15, String(swim.wearsPerYear));
 });
 
-test("cost per wear: an elegant summer sandal also counts the galas of the other seasons", () => {
+test("cost per wear: only elegant summer pieces (fine heels, formal) also count the galas of the other seasons", () => {
   const price = { priceEur: 900, usualEur: 600, topEur: 1000, basedOn: 20, tier: "upper_range" as const, sameModelPaidEur: null };
   const jewel = costPerWear({ category: "Shoes", subcategory: "Sandals", seasons: ["Summer"], dayEvening: "evening", formality: 4 }, [], price)!;
   assert.ok(jewel.reasons.includes("formalAllYear"));
   const beach = costPerWear({ category: "Shoes", subcategory: "Sandals", seasons: ["Summer"], dayEvening: "day", formality: 1 }, [], price)!;
   assert.ok(!beach.reasons.includes("formalAllYear"));
+  // An evening sandal on a fine heel goes out with tights; a flat evening sandal stays in summer.
+  assert.ok(costPerWear({ category: "Shoes", subcategory: "Sandals", seasons: ["Summer"], dayEvening: "evening", formality: 3, heelHeight: "High" }, [], price)!.reasons.includes("formalAllYear"));
+  assert.ok(!costPerWear({ category: "Shoes", subcategory: "Sandals", seasons: ["Summer"], dayEvening: "evening", formality: 3, heelHeight: "Flat" }, [], price)!.reasons.includes("formalAllYear"));
+  assert.ok(!costPerWear({ category: "Shoes", subcategory: "Sandals", seasons: ["Summer"], dayEvening: "evening", formality: 4, heelHeight: "Flat" }, [], price)!.reasons.includes("formalAllYear"));
+  // A linen summer dress or a straw bag stay in their season.
+  assert.ok(!costPerWear({ category: "Dresses", subcategory: "Slip Dress", seasons: ["Summer"], dayEvening: "evening", formality: 3 }, [], price)!.reasons.includes("formalAllYear"));
   // ~32 summer nights plus ~4–5 galas in the other seasons.
   assert.ok(jewel.wearsPerYear >= 30, String(jewel.wearsPerYear));
 });
