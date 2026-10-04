@@ -32,7 +32,7 @@ import { useOutfits, useOutfitsCacheActions } from "@/lib/outfits-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { ITEM_CATEGORIES } from "@/lib/wardrobe-options";
 import i18n from "@/i18n/config";
-import { garmentWithColor, optionLabel } from "@/lib/garment-names";
+import { garmentWithColor, matchesSearch, searchableText } from "@/lib/garment-names";
 const OCCASIONS = ["Everyday", "Work", "Evening", "Weekend", "Travel", "Formal", "Sport"];
 // Stable, shared reference for the "no outfits yet" case — see its use
 // alongside useOutfits() below for why a fresh [] on every render was a
@@ -1107,8 +1107,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
               </div>
               <div className="mt-4 text-center">
                 <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{it.brand ?? it.category}</p>
-                <p className="font-serif text-2xl mt-1">{garmentWithColor(it.category, it.colors?.[0] ?? it.color, i18n.language) || label}</p>
-                {it.subcategory && <p className="text-xs text-muted-foreground mt-1">{optionLabel(it.subcategory, i18n.language)}</p>}
+                <p className="font-serif text-2xl mt-1">{garmentWithColor(it.subcategory || it.category, it.colors?.[0] ?? it.color, i18n.language) || label}</p>
               </div>
               <div className="mt-4 flex flex-wrap justify-center gap-1.5">
                 {(Array.isArray(it.material) ? it.material : []).map((m) => (
@@ -1343,8 +1342,8 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
           if (currentIds.has(it.id)) return false;
           if (pickerCat !== "All" && it.category !== pickerCat) return false;
           if (!q) return true;
-          return [it.brand, it.category, it.subcategory, it.color, ...(it.colors ?? [])]
-            .some((v) => v?.toLowerCase().includes(q));
+          // In English and in the person's language ("camicia", "nero"), accents ignored.
+          return matchesSearch(searchableText([it.brand, it.category, it.subcategory, it.color, ...(it.colors ?? [])], i18n.language), q);
         });
         return (
           <div className="fixed inset-0 z-[80] bg-background/80 backdrop-blur flex items-end" onClick={closePicker}>
@@ -1393,7 +1392,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
                       </div>
                       <div className="px-0.5 mt-1.5">
                         <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground truncate">{it.brand ?? it.category}</p>
-                        <p className="font-serif text-[15px] leading-tight truncate">{garmentWithColor(it.category, it.colors?.[0] ?? it.color, i18n.language) || label}</p>
+                        <p className="font-serif text-[15px] leading-tight truncate">{garmentWithColor(it.subcategory || it.category, it.colors?.[0] ?? it.color, i18n.language) || label}</p>
                       </div>
                     </button>
                   );
