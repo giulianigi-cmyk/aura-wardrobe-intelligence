@@ -828,6 +828,8 @@
     "planOutfit": "Plan outfit",
     "eventFallback": "Event",
     "generalLabel": "General",
+    "extraOutfitLabel": "Outfit {{n}}",
+    "extraOutfitSub": "Change of clothes",
     "noSpecificEvent": "No specific event",
     "untitledEvent": "Untitled event",
     "worn": "Worn",
@@ -2213,5 +2215,11 @@
       "Swimwear": "Swimwear",
       "Activewear": "Activewear"
     }
+  },
+  "sameDay": {
+    "title": "You already have an outfit on this day",
+    "body": "Changed clothes? Add this one too, or replace the one that's there.",
+    "add": "Add",
+    "replace": "Replace"
   }
 }

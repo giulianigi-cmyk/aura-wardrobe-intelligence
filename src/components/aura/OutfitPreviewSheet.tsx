@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { savePlanAskingSameDay } from "@/lib/same-day-choice";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
@@ -127,7 +128,8 @@ export function OutfitPreviewSheet({
   const saveToCalendar = async () => {
     setSavingCalendar(true);
     try {
-      await savePlan({ data: { itemIds: look.item_ids, date: calendarDate } });
+      // A day that already has another outfit: add this one too (a change of clothes) or replace it.
+      if (!(await savePlanAskingSameDay(savePlan, look.item_ids, calendarDate, t))) return;
       plansCache.invalidate();
       toast.success(t("avatar.addedToCalendar"));
       setShowCalendar(false);

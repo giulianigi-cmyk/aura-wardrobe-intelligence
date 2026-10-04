@@ -1,4 +1,5 @@
 import { Copy, Loader2, Share2, Sparkles, Search, Calendar as CalendarIcon, Trash2, Check, X, Archive, ArchiveRestore, Plus, Pencil, LayoutGrid, User, Crop } from "lucide-react";
+import { saveGeneralPlanAskingSameDay } from "@/lib/same-day-choice";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useServerFn } from "@tanstack/react-start";
@@ -30,7 +31,6 @@ import { useOutfitPlans, outfitPlansQueryKey, useOutfitPlansCacheActions } from 
 import { useOutfits, useOutfitsCacheActions } from "@/lib/outfits-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { ITEM_CATEGORIES } from "@/lib/wardrobe-options";
-import { resolvePlanSlot } from "@/lib/outfit-plan-slot";
 import i18n from "@/i18n/config";
 const OCCASIONS = ["Everyday", "Work", "Evening", "Weekend", "Travel", "Formal", "Sport"];
 // Stable, shared reference for the "no outfits yet" case — see its use
@@ -513,16 +513,18 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
     if (!assignFor || !user) return;
     // General slot only — assigning a saved outfit to a day isn't tied to a
     // calendar event, so it conflicts on (user_id, general_date).
-    const { data, error } = await supabase.from("outfit_plans").upsert({
-      user_id: user.id,
-      date: assignDate,
-      item_ids: assignFor.item_ids,
-      occasion: assignFor.occasion?.[0] ?? null,
-      notes: assignFor.notes ?? assignFor.name ?? null,
-      status: "planned",
-      calendar_event_id: null,
-    } as never, { onConflict: resolvePlanSlot({}).onConflict }).select("id").single();
-    if (error) { toast.error(error.message); return; }
+    // A day that already has another outfit: add this one too or replace it (same-day-choice.ts).
+    let planId: string | null;
+    try {
+      planId = await saveGeneralPlanAskingSameDay(supabase, user.id, assignDate, {
+        item_ids: assignFor.item_ids,
+        occasion: assignFor.occasion?.[0] ?? null,
+        notes: assignFor.notes ?? assignFor.name ?? null,
+        status: "planned",
+      }, t);
+    } catch (e) { toast.error(e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e)); return; }
+    if (!planId) return;
+    const data = { id: planId };
     const { error: eventErr } = await logWardrobeEvent({
             userId: user.id,
       eventType: "planned",

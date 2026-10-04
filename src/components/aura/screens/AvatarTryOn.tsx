@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { savePlanAskingSameDay } from "@/lib/same-day-choice";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -274,7 +275,8 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
     const ids = selected.length ? selected : (initialItemIds ?? []);
     setSavingCalendar(true);
     try {
-      await savePlan({ data: { itemIds: ids, date: calendarDate } });
+      // A day that already has another outfit: add this one too (a change of clothes) or replace it.
+      if (!(await savePlanAskingSameDay(savePlan, ids, calendarDate, t))) return;
       toast.success(t("avatar.addedToCalendar"));
       setShowCalendarPicker(false);
     } catch (e) {
