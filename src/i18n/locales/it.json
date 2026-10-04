@@ -742,6 +742,8 @@
       "usual": "Circa {{price}} €: in linea con quanto spendi di solito per questo tipo di capo.",
       "below_usual": "Circa {{price}} €: meno di quanto spendi di solito per questo tipo di capo (circa {{usual}} €)."
     },
+    "visualClosest": "Il più simile che hai: {{label}} — {{note}}.",
+    "visualClosestNoNote": "Il più simile che hai: {{label}}.",
     "wornDifferently": "Rispetto al tuo {{label}}: {{details}}",
     "wear": {
       "darker": "più scuro",

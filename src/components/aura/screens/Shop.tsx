@@ -724,7 +724,7 @@ function FashionAndDifferences({ fashion, differsFrom, sameModel, price }: {
   sameModel?: { count: number; name: string; colors: string[] } | null;
   price?: { priceEur: number; usualEur: number; topEur?: number; tier: "above_usual" | "upper_range" | "usual" | "below_usual"; sameModelPaidEur?: number | null } | null;
   fashion: { iconic: boolean; timeless: boolean; onTrend: boolean; statusPiece: boolean } | null | undefined;
-  differsFrom: { label: string; differences: string[]; wear?: { changes: string[]; newOccasions: string[] } | null } | null | undefined;
+  differsFrom: { label: string; differences: string[]; wear?: { changes: string[]; newOccasions: string[] } | null; visual?: { similarity: number; note: string } | null } | null | undefined;
 }) {
   const { t } = useTranslation();
   const chips = fashion ? (["iconic", "timeless", "onTrend", "statusPiece"] as const).filter((k) => fashion[k]) : [];
@@ -737,7 +737,8 @@ function FashionAndDifferences({ fashion, differsFrom, sameModel, price }: {
         ...(wear.newOccasions.length ? [t("shop.wear.alsoFor", { occasions: wear.newOccasions.map((o) => t(`shop.occasion.${o.replace(/\s+/g, "")}`, { defaultValue: o })).join(", ") })] : []),
       ]
     : [];
-  if (!chips.length && !wearBits.length && !sameModel && !price) return null;
+  const visual = differsFrom?.visual ?? null;
+  if (!chips.length && !wearBits.length && !sameModel && !price && !visual) return null;
   return (
     <div className="mt-1.5 space-y-1">
       {chips.length > 0 && (
@@ -757,6 +758,14 @@ function FashionAndDifferences({ fashion, differsFrom, sameModel, price }: {
         <p className="text-[11px] text-muted-foreground leading-snug">
           {t(`shop.priceVsUsual.${price.tier}`, { price: price.priceEur, usual: price.usualEur, top: price.topEur ?? price.usualEur })}
           {price.sameModelPaidEur != null && sameModel ? ` ${t("shop.priceVsUsual.sameModelPaid", { name: sameModel.name, paid: price.sameModelPaidEur })}` : ""}
+        </p>
+      )}
+      {/* The owned piece that LOOKS most like it, judged from the photos, and what differs. */}
+      {differsFrom && visual && (
+        <p className="text-[11px] text-foreground/80 leading-snug">
+          {visual.note
+            ? t("shop.visualClosest", { label: differsFrom.label, note: visual.note })
+            : t("shop.visualClosestNoNote", { label: differsFrom.label })}
         </p>
       )}
       {differsFrom && wearBits.length > 0 && (

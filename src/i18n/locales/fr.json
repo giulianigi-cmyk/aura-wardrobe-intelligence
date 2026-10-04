@@ -742,6 +742,8 @@
       "usual": "Environ {{price}} € : dans la ligne de ce que tu dépenses d'habitude pour ce type de pièce.",
       "below_usual": "Environ {{price}} € : moins que ce que tu dépenses d'habitude pour ce type de pièce (environ {{usual}} €)."
     },
+    "visualClosest": "Ce que tu as de plus proche : {{label}} — {{note}}.",
+    "visualClosestNoNote": "Ce que tu as de plus proche : {{label}}.",
     "wornDifferently": "Par rapport à ton {{label}} : {{details}}",
     "wear": {
       "darker": "plus foncé",

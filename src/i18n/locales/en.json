@@ -742,6 +742,8 @@
       "usual": "About €{{price}}: in line with what you usually spend on this kind of piece.",
       "below_usual": "About €{{price}}: less than you usually spend on this kind of piece (about €{{usual}})."
     },
+    "visualClosest": "Closest thing you own: {{label}} — {{note}}.",
+    "visualClosestNoNote": "Closest thing you own: {{label}}.",
     "wornDifferently": "Compared with your {{label}}: {{details}}",
     "wear": {
       "darker": "darker",

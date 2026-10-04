@@ -742,6 +742,8 @@
       "usual": "Unos {{price}} €: en línea con lo que sueles gastar en este tipo de prenda.",
       "below_usual": "Unos {{price}} €: menos de lo que sueles gastar en este tipo de prenda (unos {{usual}} €)."
     },
+    "visualClosest": "Lo más parecido que tienes: {{label}} — {{note}}.",
+    "visualClosestNoNote": "Lo más parecido que tienes: {{label}}.",
     "wornDifferently": "Frente a tu {{label}}: {{details}}",
     "wear": {
       "darker": "más oscuro",

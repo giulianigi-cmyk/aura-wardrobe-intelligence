@@ -56,19 +56,14 @@ export function differencesFrom(product: ProductShape, owned: WardrobeItem): str
   return [...mine].filter((k) => !theirs.has(k));
 }
 
-export function closestOwnedPiece(product: ProductShape, wardrobe: WardrobeItem[]): ClosestOwned | null {
-  if (!product.category) return null;
+/** Owned pieces of the same kind, best first: brand / colour / type first (scoreMatch), then — among
+ *  those that tie (ten denim-wash jeans) — closest colours, same fit and length, and no details the
+ *  product doesn't have (crystals, a logo, a silver accent). The first in the list used to win: an
+ *  embellished pair next to a plain one. Also the shortlist the visual comparison looks at. */
+export function rankComparable(product: ProductShape, wardrobe: WardrobeItem[]): { item: WardrobeItem; score: number }[] {
+  if (!product.category) return [];
   const candidates = comparablePieces(product, wardrobe);
-  if (!candidates.length) return null;
   const detected = { category: product.category, subcategory: product.subcategory ?? undefined, colors: product.colors, brand: product.brand };
-  const scored = candidates.map((it) => ({ it, score: scoreMatch(detected, it) }));
-  const best = Math.max(...scored.map((x) => x.score));
-  const verdict: DedupeVerdict = best >= 0.9 ? "certain" : best >= 0.6 ? "maybe" : "new";
-  if (verdict === "new") return null;
-  // Among the pieces that score the same on brand / colour / type (ten denim-wash jeans tie), pick the
-  // one that really looks most like the product: closest colours, same fit and length, and no
-  // details the product doesn't have (crystals, a logo, a silver accent). The first one in the list
-  // used to win — an embellished pair next to a plain one.
   const mine = detailsIn([product.subcategory, product.text].filter(Boolean).join(" "));
   const refine = (it: WardrobeItem) => {
     const theirs = detailsIn(ownedText(it));
@@ -81,11 +76,20 @@ export function closestOwnedPiece(product: ProductShape, wardrobe: WardrobeItem[
     const length = product.length && it.length && product.length === it.length ? 0.05 : 0;
     return colorFit * 0.3 + fit + length - extraDetails * 0.15;
   };
-  const tied = scored.filter((x) => x.score >= best - 0.05).sort((a, b) => refine(b.it) - refine(a.it) || b.score - a.score);
-  const match = tied[0].it;
-  const theirs = detailsIn(ownedText(match));
-  const differences = [...mine].filter((k) => !theirs.has(k));
-  return { itemId: match.id, label: ownedPieceLabel(match), differences, rawVerdict: verdict };
+  return candidates
+    .map((item) => ({ item, score: scoreMatch(detected, item), refined: refine(item) }))
+    .sort((a, b) => (Math.abs(b.score - a.score) > 0.05 ? b.score - a.score : b.refined - a.refined || b.score - a.score))
+    .map(({ item, score }) => ({ item, score }));
+}
+
+export function closestOwnedPiece(product: ProductShape, wardrobe: WardrobeItem[]): ClosestOwned | null {
+  const ranked = rankComparable(product, wardrobe);
+  if (!ranked.length) return null;
+  const best = Math.max(...ranked.map((x) => x.score));
+  const verdict: DedupeVerdict = best >= 0.9 ? "certain" : best >= 0.6 ? "maybe" : "new";
+  if (verdict === "new") return null;
+  const match = ranked[0].item;
+  return { itemId: match.id, label: ownedPieceLabel(match), differences: differencesFrom(product, match), rawVerdict: verdict };
 }
 
 /** The owned piece the product is a (near-)duplicate of, compared only with pieces of the same kind.
