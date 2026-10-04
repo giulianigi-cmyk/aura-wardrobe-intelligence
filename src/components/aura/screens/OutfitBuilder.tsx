@@ -37,6 +37,7 @@ import { submitOutfitFeedback } from "@/lib/outfit-feedback.functions";
 import { normalizeOccasionForFeedback } from "@/lib/activity-kind";
 import { resolvePlanSlot } from "@/lib/outfit-plan-slot";
 import i18n from "@/i18n/config";
+import { garmentWithColor } from "@/lib/garment-names";
 
 // Stored value (English: the outfit engine, dress preferences and feedback all read it) → label key.
 // The first eight are the ones offered when an outfit starts from a chosen piece ("Per quale
@@ -1064,7 +1065,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
           })()}
           <div className="min-w-0 flex-1">
             <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground whitespace-nowrap">{t("outfitBuilder.anchorLabel")}</p>
-            <p className="text-sm truncate">{[anchorItem.brand, anchorItem.subcategory ?? anchorItem.category, anchorItem.color].filter(Boolean).join(" · ")}</p>
+            <p className="text-sm truncate">{[anchorItem.brand, garmentWithColor(anchorItem.subcategory ?? anchorItem.category, anchorItem.color, i18n.language)].filter(Boolean).join(" · ")}</p>
           </div>
           <button
             onClick={() => setAnchorItemId(null)}

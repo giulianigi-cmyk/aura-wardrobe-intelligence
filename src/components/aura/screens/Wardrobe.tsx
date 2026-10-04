@@ -60,6 +60,7 @@ import {
   type Iconicity,
 } from "@/lib/wardrobe-value-engine";
 import { useValuationConfig } from "@/lib/valuation-query";
+import { garmentName, garmentWithColor, matchesSearch, optionLabel, optionList, searchableText } from "@/lib/garment-names";
 
 const categories = ["All", ...ITEM_CATEGORIES];
 const currencySymbol: Record<string, string> = { EUR: "€", USD: "$", GBP: "£" };
@@ -761,8 +762,8 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
       return !isArchived && !isLoaned && matchesLocation &&
         (cat === "All" || i.category === cat) &&
         (!seasonOnly || seasonMatches.has(i.id)) &&
-        (q === "" || [i.category, i.brand, i.color, i.style, i.occasion, i.season, ...(i.colors ?? [])]
-          .some(v => v?.toLowerCase().includes(q.toLowerCase())));
+        // In English and in the person's language: "sandali" finds Sandals, "nero" Jet Black.
+        (q === "" || matchesSearch(searchableText([i.category, i.subcategory, i.brand, i.model, i.color, i.style, i.occasion, i.season, ...(i.colors ?? []), ...(Array.isArray(i.material) ? i.material : [])], i18n.language), q));
     });
     if (sortBy === "default") return base;
     // A missing value (no purchase date, no price) always sorts to the end regardless of
@@ -787,7 +788,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
       price_asc: withMissingLast((i) => i.price, -1),
     };
     return [...base].sort(sorters[sortBy]);
-  }, [items, cat, q, seasonOnly, seasonMatches, showArchived, showLoaned, viewLocationId, gapFilter, sortBy]);
+  }, [items, cat, q, seasonOnly, seasonMatches, showArchived, showLoaned, viewLocationId, gapFilter, sortBy, i18n.language]);
 
   const w = weather?.current;
   const wLabel = w ? describeWeather(w.weatherCode, w.isDay) : null;
@@ -1021,7 +1022,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
               </div>
               <div className="px-0.5 mt-1.5">
                 <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground truncate">{it.brand ?? it.category}</p>
-                <p className="font-serif text-[15px] leading-tight truncate">{[label, it.category].filter(Boolean).join(" ")}</p>
+                <p className="font-serif text-[15px] leading-tight truncate">{it.colors?.[0] ?? it.color ? garmentWithColor(it.category, it.colors?.[0] ?? it.color, i18n.language) : [label, it.category && garmentName(it.category, i18n.language)].filter(Boolean).join(" ")}</p>
                 {showLoaned && loan && (
                   <p className="text-[10px] text-muted-foreground truncate mt-0.5">
                     {t("wardrobe.loanedToLabel", { name: loan.borrower_name })} · {new Date(`${loan.loaned_at}T00:00:00`).toLocaleDateString(i18n.language, { month: "short", day: "numeric" })}
@@ -1122,8 +1123,8 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
               <>
                 <div className="mt-4 text-center">
                   <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{detail.brand ?? detail.category}</p>
-                  <p className="font-serif text-2xl mt-1">{[detail.colors?.[0] ?? detail.color, detail.category].filter(Boolean).join(" ")}</p>
-                  {detail.season && <p className="text-xs text-muted-foreground mt-1">{detail.season}</p>}
+                  <p className="font-serif text-2xl mt-1">{garmentWithColor(detail.category, detail.colors?.[0] ?? detail.color, i18n.language)}</p>
+                  {detail.season && <p className="text-xs text-muted-foreground mt-1">{optionList(detail.season, i18n.language)}</p>}
                   {detail.size && (
                     <p className="text-xs text-muted-foreground mt-1">
                       {t("wardrobe.sizeLabel", { size: detail.size })}
@@ -1165,7 +1166,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
                       <div className="mt-3 flex items-center justify-center gap-2">
                         <span className="h-8 w-8 rounded-full border border-border" style={{ background: pal.hex }} />
                         <div className="text-left">
-                          <p className="text-sm font-medium">{pal.name}</p>
+                          <p className="text-sm font-medium">{optionLabel(pal.name, i18n.language)}</p>
                           <p className="text-[11px] text-muted-foreground">
                             {neutral ? t("wardrobe.neutral") : nearestWheelName(h)}
                           </p>
@@ -1466,7 +1467,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
                         className={`rounded-full px-3 py-1.5 text-xs ${
                           edit.category === c ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"
                         }`}
-                      >{c}</button>
+                      >{optionLabel(c, i18n.language)}</button>
                     ))}
                   </div>
                 </div>
@@ -1483,7 +1484,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
                             className={`rounded-full px-3 py-1.5 text-xs ${
                               value === o ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"
                             }`}
-                          >{o}</button>
+                          >{optionLabel(o, i18n.language)}</button>
                         ))}
                       </div>
                     </div>
@@ -1554,7 +1555,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
                             className={`rounded-full px-3 py-1.5 text-xs ${
                               on ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"
                             }`}
-                          >{o}</button>
+                          >{optionLabel(o, i18n.language)}</button>
                         );
                       })}
                     </div>
@@ -1621,7 +1622,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
                         className={`rounded-full px-3 py-1.5 text-xs ${
                           edit.currency === c ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"
                         }`}
-                      >{c}</button>
+                      >{optionLabel(c, i18n.language)}</button>
                     ))}
                   </div>
                 </div>

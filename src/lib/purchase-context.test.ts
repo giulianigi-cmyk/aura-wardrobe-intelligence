@@ -245,4 +245,8 @@ test("a different colour is not a lighter or darker shade", () => {
   assert.equal(shadeDifference(["Denim Wash"], ["Sky Blue"]), "darker"); // same blue, deeper wash
   assert.equal(shadeDifference(["Cherry Red"], ["Burgundy"]), "lighter");
   assert.equal(shadeDifference(["Charcoal"], ["Jet Black"]), "lighter");
+  assert.equal(shadeDifference(["Baby Blue"], ["Jet Black"]), "otherColor");
+  assert.equal(shadeDifference(["Ice Blue"], ["Jet Black"]), "otherColor");
+  assert.equal(shadeDifference(["Beige"], ["Pure White"]), "darker");
+  assert.equal(shadeDifference(["Ivory"], ["Jet Black"]), "lighter");
 });

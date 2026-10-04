@@ -107,6 +107,13 @@ export function shadeDifference(productColors: string[], ownedColors: string[]):
     const cp = chroma(pl), co = chroma(ol);
     // A colour next to a neutral (black, white, grey), or two colours of clearly different hue.
     if ((cp >= 15 && co < 10) || (co >= 15 && cp < 10)) return "otherColor";
+    // A pastel (baby blue, ice blue, powder pink) next to a true neutral is a colour, not a lighter
+    // black; warm off-whites and beiges (hue around yellow) stay shades of the neutral.
+    const pastel = (l: { L: number; a: number; b: number }) => {
+      const h = ((hue(l) % 360) + 360) % 360;
+      return chroma(l) >= 8 && l.L > 40 && (h < 50 || h > 110);
+    };
+    if ((pastel(pl) && co < 4) || (pastel(ol) && cp < 4)) return "otherColor";
     if (cp >= 15 && co >= 15) {
       const dh = Math.abs(hue(pl) - hue(ol)) % 360;
       if (Math.min(dh, 360 - dh) > 60) return "otherColor";

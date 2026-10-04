@@ -2,6 +2,8 @@ import { X, Image as ImageIcon, Sparkles, Check, Loader2, Upload, Link as LinkIc
 import type { DragEvent } from "react";
 import { useRef, useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n/config";
+import { optionLabel, optionList } from "@/lib/garment-names";
 import { parsePositivePrice } from "@/lib/price-parse";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -1135,7 +1137,7 @@ export function AddItem({ onClose, initialGarment }: {
                         key={opt}
                         onClick={() => { setter(opt); setOpenFilterKey(null); }}
                         className={`w-full text-left rounded-xl px-4 py-3 text-sm ${currentValueByKey[openFilterKey] === opt ? "bg-secondary/60" : "hover:bg-secondary/40"}`}
-                      >{opt}</button>
+                      >{optionLabel(opt, i18n.language)}</button>
                     ))}
                   </div>
                 </div>
@@ -1594,7 +1596,7 @@ function ChipGroup({ label, options, value, onChange }: { label: string; options
           <button key={o}
             onClick={() => onChange(o)}
             className={`rounded-full px-3 py-1.5 text-xs transition ${value === o ? "bg-foreground text-background" : "bg-secondary/60"}`}
-          >{o}</button>
+          >{optionLabel(o, i18n.language)}</button>
         ))}
       </div>
     </div>
@@ -1612,7 +1614,7 @@ function MultiChipGroup({ label, options, values, onToggle }: { label: string; o
             <button key={o}
               onClick={() => onToggle(o)}
               className={`rounded-full px-3 py-1.5 text-xs transition ${on ? "bg-foreground text-background" : "bg-secondary/60"}`}
-            >{o}</button>
+            >{optionLabel(o, i18n.language)}</button>
           );
         })}
       </div>

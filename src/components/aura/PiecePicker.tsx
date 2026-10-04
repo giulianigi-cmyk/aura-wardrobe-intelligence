@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n/config";
+import { garmentWithColor } from "@/lib/garment-names";
 import { expandSearchWord, normalizeText } from "@/lib/wardrobe-search";
 import { Search, Check, Loader2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
@@ -145,7 +147,7 @@ export function PiecePicker({
                 <div className="px-0.5 mt-1.5">
                   <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground truncate">{it.brand ?? it.category}</p>
                   <p className={`font-serif leading-tight truncate ${columns === 3 ? "text-[13px]" : "text-[15px]"}`}>
-                    {[label, it.category ? t(`piecePicker.categories.${it.category}`, { defaultValue: it.category }) : null].filter(Boolean).join(" · ")}
+                    {garmentWithColor(it.category, it.colors?.[0] ?? it.color, i18n.language) || label}
                   </p>
                 </div>
               </button>

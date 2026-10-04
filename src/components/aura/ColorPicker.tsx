@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { X, ChevronDown, ChevronUp, ChevronRight, Search } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { COLOR_FAMILIES, COLOR_PALETTE, findColorByName, type PaletteColor } from "@/lib/color-palette";
+import { optionLabel } from "@/lib/garment-names";
 
 export function ColorPicker({
   value,
@@ -9,6 +11,9 @@ export function ColorPicker({
   value: string[];
   onChange: (next: string[]) => void;
 }) {
+  const { t, i18n } = useTranslation();
+  // Palette names are stored in English; shown (and searchable) in the person's language.
+  const name = (n: string) => optionLabel(n, i18n.language);
   const [expanded, setExpanded] = useState(false);
   const [openFamily, setOpenFamily] = useState<string | null>("Neutrals");
   const [q, setQ] = useState("");
@@ -16,11 +21,11 @@ export function ColorPicker({
   const byFamily = useMemo(() => {
     const map: Record<string, PaletteColor[]> = {};
     for (const c of COLOR_PALETTE) {
-      if (q && !c.name.toLowerCase().includes(q.toLowerCase())) continue;
+      if (q && !c.name.toLowerCase().includes(q.toLowerCase()) && !name(c.name).toLowerCase().includes(q.toLowerCase())) continue;
       (map[c.family] ??= []).push(c);
     }
     return map;
-  }, [q]);
+  }, [q, i18n.language]);
 
   const toggle = (name: string) => {
     onChange(value.includes(name) ? value.filter(v => v !== name) : [...value, name]);
@@ -36,7 +41,7 @@ export function ColorPicker({
         className="w-full flex items-center justify-between"
       >
         <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-          Colors{selected.length > 0 ? ` · ${selected.length}` : ""}
+          {t("colorPicker.title")}{selected.length > 0 ? ` · ${selected.length}` : ""}
         </p>
         <ChevronRight
           size={14}
@@ -49,8 +54,8 @@ export function ColorPicker({
           {selected.map(c => (
             <span key={c.name} className="inline-flex items-center gap-2 rounded-full bg-foreground text-background pl-1.5 pr-2 py-1 text-xs">
               <span className="h-4 w-4 rounded-full border border-white/30" style={{ background: c.hex }} />
-              {c.name}
-              <button onClick={() => toggle(c.name)} aria-label={`Remove ${c.name}`} className="opacity-70 hover:opacity-100">
+              {name(c.name)}
+              <button onClick={() => toggle(c.name)} aria-label={t("colorPicker.remove", { name: name(c.name) })} className="opacity-70 hover:opacity-100">
                 <X size={12} />
               </button>
             </span>
@@ -62,7 +67,7 @@ export function ColorPicker({
             type="button"
             onClick={() => setExpanded(true)}
             className="mt-2 text-xs text-muted-foreground underline"
-          >Add colors</button>
+          >{t("colorPicker.add")}</button>
         )
       )}
 
@@ -73,7 +78,7 @@ export function ColorPicker({
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search a color"
+              placeholder={t("colorPicker.search")}
               className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
             />
           </div>
@@ -90,7 +95,7 @@ export function ColorPicker({
                     onClick={() => setOpenFamily(open ? null : fam)}
                     className="w-full flex items-center justify-between px-3 py-2 text-left"
                   >
-                    <span className="text-[11px] uppercase tracking-[0.25em]">{fam}</span>
+                    <span className="text-[11px] uppercase tracking-[0.25em]">{name(fam)}</span>
                     <span className="flex items-center gap-2 text-muted-foreground">
                       <span className="text-[10px]">{list.length}</span>
                       {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -113,7 +118,7 @@ export function ColorPicker({
                               className="h-4 w-4 rounded-full border border-black/10"
                               style={{ background: c.hex }}
                             />
-                            {c.name}
+                            {name(c.name)}
                           </button>
                         );
                       })}

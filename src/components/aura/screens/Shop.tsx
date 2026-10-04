@@ -12,6 +12,7 @@ import { analyzePurchase, comparePurchases, type PurchaseAdvisorResult, type Com
 import { findColorByName } from "@/lib/color-palette";
 import { productKey } from "@/lib/wardrobe-feedback";
 import { colorNameSimilarity } from "@/lib/outfit-match";
+import { colorName, garmentName, localizeLabel } from "@/lib/garment-names";
 import { toast } from "sonner";
 
 type LinkMode = "url" | "photo" | "label";
@@ -33,7 +34,9 @@ function readFileAsDataUrl(f: File): Promise<string> {
 }
 
 export function Shop({ go }: { go: (s: Screen) => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  // Colour and garment names are stored in English: shown in the person's language.
+  const L = (label: string) => localizeLabel(label, i18n.language);
   const { user } = useAuth();
   const analyzeGap = useServerFn(analyzeWardrobeGap);
   const analyzePurchaseFn = useServerFn(analyzePurchase);
@@ -398,7 +401,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                             {it.verdict === "buy" ? t("shop.verdictBuy") : it.verdict === "maybe" ? t("shop.verdictMaybe") : t("shop.verdictSkip")}
                           </div>
                           {it.wardrobe.similarTo && !it.wardrobe.differsFrom && (
-                            <p className="mt-1 text-[11px] text-muted-foreground leading-snug">{it.wardrobe.similarTo === "said-owned" ? t("shop.saidOwned") : t("shop.similarTo", { label: it.wardrobe.similarTo })}</p>
+                            <p className="mt-1 text-[11px] text-muted-foreground leading-snug">{it.wardrobe.similarTo === "said-owned" ? t("shop.saidOwned") : t("shop.similarTo", { label: L(it.wardrobe.similarTo) })}</p>
                           )}
                           {it.alternative && (
                             <p className="mt-1 text-[11px] text-foreground/80 leading-snug">
@@ -524,7 +527,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                 )}
                 <div className="min-w-0">
                   {result.product.brand && <p className="text-[10px] uppercase tracking-widest text-muted-foreground truncate">{result.product.brand}</p>}
-                  <p className="font-serif text-base leading-tight truncate">{result.product.title || [result.analysis.subcategory, result.analysis.category].filter(Boolean).join(" · ") || t("shop.unknownPiece")}</p>
+                  <p className="font-serif text-base leading-tight truncate">{result.product.title || [result.analysis.subcategory, result.analysis.category].filter((x): x is string => !!x).map((x) => garmentName(x, i18n.language)).join(" · ") || t("shop.unknownPiece")}</p>
                   {result.product.price && (
                     <p className="text-xs text-muted-foreground mt-0.5">{result.product.price}</p>
                   )}
@@ -580,10 +583,10 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                 ) : (
                   <>
                     {result.wardrobe.duplicate?.verdict === "certain" && (
-                      <p className="font-medium text-foreground/80">{result.wardrobe.duplicate.label ? t("shop.duplicateOf", { label: result.wardrobe.duplicate.label }) : t("shop.looksLikeDuplicate")}</p>
+                      <p className="font-medium text-foreground/80">{result.wardrobe.duplicate.label ? t("shop.duplicateOf", { label: L(result.wardrobe.duplicate.label) }) : t("shop.looksLikeDuplicate")}</p>
                     )}
                     {result.wardrobe.duplicate?.verdict === "maybe" && !result.wardrobe.differsFrom && (
-                      <p>{result.wardrobe.duplicate.label ? t("shop.similarTo", { label: result.wardrobe.duplicate.label }) : t("shop.looksSimilarToOwned")}</p>
+                      <p>{result.wardrobe.duplicate.label ? t("shop.similarTo", { label: L(result.wardrobe.duplicate.label) }) : t("shop.looksSimilarToOwned")}</p>
                     )}
                   </>
                 )}
@@ -727,7 +730,9 @@ function FashionAndDifferences({ fashion, differsFrom, sameModel, price, cpw }: 
   fashion: { iconic: boolean; timeless: boolean; onTrend: boolean; statusPiece: boolean } | null | undefined;
   differsFrom: { label: string; differences: string[]; wear?: { changes: string[]; newOccasions: string[] } | null; visual?: { similarity: number; note: string } | null } | null | undefined;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  // Colour and garment names are stored in English: shown in the person's language.
+  const L = (label: string) => localizeLabel(label, i18n.language);
   const chips = fashion ? (["iconic", "timeless", "onTrend", "statusPiece"] as const).filter((k) => fashion[k]) : [];
   // How it is worn differently from the closest owned piece (heel, day/evening, occasions) — not the
   // list of construction details it "adds", which read as a description of the owned piece.
@@ -752,7 +757,7 @@ function FashionAndDifferences({ fashion, differsFrom, sameModel, price, cpw }: 
       {/* The same model already owned, and the price against what the person usually spends. */}
       {sameModel && (
         <p className="text-[11px] text-foreground/80 leading-snug">
-          {t("shop.sameModelOwned", { count: sameModel.count, name: sameModel.name, colors: sameModel.colors.join(", ") })}
+          {t("shop.sameModelOwned", { count: sameModel.count, name: sameModel.name, colors: sameModel.colors.map((c) => colorName(c, i18n.language)).join(", ") })}
         </p>
       )}
       {price && (
@@ -775,13 +780,13 @@ function FashionAndDifferences({ fashion, differsFrom, sameModel, price, cpw }: 
       {differsFrom && visual && (
         <p className="text-[11px] text-foreground/80 leading-snug">
           {visual.note
-            ? t("shop.visualClosest", { label: differsFrom.label, note: visual.note })
-            : t("shop.visualClosestNoNote", { label: differsFrom.label })}
+            ? t("shop.visualClosest", { label: L(differsFrom.label), note: visual.note })
+            : t("shop.visualClosestNoNote", { label: L(differsFrom.label) })}
         </p>
       )}
       {differsFrom && wearBits.length > 0 && (
         <p className="text-[11px] text-muted-foreground leading-snug">
-          {t("shop.wornDifferently", { label: differsFrom.label, details: wearBits.join(", ") })}
+          {t("shop.wornDifferently", { label: L(differsFrom.label), details: wearBits.join(", ") })}
         </p>
       )}
     </div>
