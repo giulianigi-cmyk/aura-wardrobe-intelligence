@@ -452,6 +452,9 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
                 data: { startDate, numDays: weeklyDays, locationIds: weeklyLocationIds, dailyWeather },
       });
       setWeeklyResult({ created: res.created, skippedExisting: res.skippedExisting, failed: res.failed.length });
+      // The new plans live in the shared outfit-plans cache ("In arrivo", the calendar): without this
+      // they only appeared after the cache expired or the app was reopened.
+      outfitPlansCache.invalidate();
       if (res.created > 0) void load();
     } catch (e) {
       console.error("[AURA weekly-outfits]", e);
