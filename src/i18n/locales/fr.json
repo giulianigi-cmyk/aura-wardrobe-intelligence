@@ -749,6 +749,7 @@
     "costPerWearHistory_one": "D'après ta façon de porter des pièces similaires : environ {{count}} fois par an, environ {{cpw}} € par utilisation sur {{years}} ans",
     "costPerWearHistory_other": "D'après ta façon de porter des pièces similaires : environ {{count}} fois par an, environ {{cpw}} € par utilisation sur {{years}} ans",
     "wearReason": {
+      "yourHistory": "en partie d'après ta façon de porter des pièces similaires",
       "allSeasons": "toutes saisons",
       "oneSeason": "une seule saison",
       "fewSeasons": "quelques saisons seulement",

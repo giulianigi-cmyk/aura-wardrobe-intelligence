@@ -157,7 +157,7 @@ const BASE_WEARS: [RegExp, number][] = [
   [/clutch|minaudi/i, 8],
 ];
 
-export type WearReason = "allSeasons" | "oneSeason" | "fewSeasons" | "dayAndEvening" | "eveningOnly" | "veryDressy" | "statement" | "trendPiece" | "timeless" | "versatile" | "notVersatile" | "rotation";
+export type WearReason = "yourHistory" | "allSeasons" | "oneSeason" | "fewSeasons" | "dayAndEvening" | "eveningOnly" | "veryDressy" | "statement" | "trendPiece" | "timeless" | "versatile" | "notVersatile" | "rotation";
 
 export type CostPerWear = {
   wearsPerYear: number;
@@ -206,6 +206,12 @@ export function estimateWears(p: WearProfile, rotatingWith: number): { wearsPerY
   return { wearsPerYear: Math.max(1, Math.round(w)), reasons };
 }
 
+/** How much the person's own history weighs against the estimate: 0 with no history, 1 once the
+ *  owned pieces of this type add up to about 3 "piece-years" of wear logging (e.g. 6 jeans for 6
+ *  months) over at least half a year. It grows with every month and every piece, so the estimate
+ *  moves towards their real use instead of switching at a fixed date. */
+export const HISTORY_FULL_WEIGHT_PIECE_YEARS = 3;
+
 export function costPerWear(
   product: WearProfile,
   wardrobe: WardrobeItem[],
@@ -214,21 +220,30 @@ export function costPerWear(
 ): CostPerWear | null {
   if (!price || !product.subcategory) return null;
   const sameType = wardrobe.filter((it) => it.category === product.category && it.subcategory === product.subcategory && !(it as { archived?: boolean }).archived);
-  // Own history: wears per year of owned pieces of this type that have been around long enough.
   const yearsOwned = (it: WardrobeItem) => {
     const since = (it as { purchase_date?: string | null }).purchase_date || (it as { created_at?: string }).created_at;
-    return since ? (now.getTime() - new Date(since).getTime()) / (365 * 86400000) : 0;
+    return since ? Math.max(0, (now.getTime() - new Date(since).getTime()) / (365 * 86400000)) : 0;
   };
-  const seasoned = sameType.filter((it) => yearsOwned(it) >= 0.5);
-  let wearsPerYear: number;
-  let basis: CostPerWear["basis"];
-  let reasons: WearReason[] = [];
-  if (seasoned.length >= 3) {
-    wearsPerYear = Math.max(1, Math.round(percentile(seasoned.map((it) => ((it as { worn_count?: number }).worn_count ?? 0) / yearsOwned(it)), 0.5)));
-    basis = "history";
-  } else {
-    ({ wearsPerYear, reasons } = estimateWears(product, sameType.length));
-    basis = "estimate";
+  // The person's own wear rate for this kind of piece: logged wears per piece per year, over the
+  // pieces that have been in the app for at least a month.
+  const observed = sameType.filter((it) => yearsOwned(it) >= 1 / 12);
+  const pieceYears = observed.reduce((sum, it) => sum + yearsOwned(it), 0);
+  const wears = observed.reduce((sum, it) => sum + ((it as { worn_count?: number }).worn_count ?? 0), 0);
+  // Enough pieces AND enough time: six weeks with 24 jeans is a lot of piece-years but a single
+  // season — the history only takes over fully once it covers at least half a year.
+  const span = observed.reduce((m, it) => Math.max(m, yearsOwned(it)), 0);
+  const weight = Math.min(1, pieceYears / HISTORY_FULL_WEIGHT_PIECE_YEARS) * Math.min(1, span / 0.5);
+  const est = estimateWears(product, sameType.length);
+  let wearsPerYear = est.wearsPerYear;
+  let basis: CostPerWear["basis"] = "estimate";
+  const reasons = [...est.reasons];
+  if (weight > 0 && pieceYears > 0) {
+    // Logged wears are spread over all the similar pieces already; the new one would join them, so
+    // its share is the per-piece rate — the same rotation the estimate models.
+    const ownRate = wears / pieceYears;
+    wearsPerYear = Math.max(1, Math.round(weight * ownRate + (1 - weight) * est.wearsPerYear));
+    if (weight >= 1) basis = "history";
+    else reasons.push("yourHistory");
   }
   return {
     wearsPerYear,
@@ -236,6 +251,6 @@ export function costPerWear(
     costPerWearEur: Math.round(price.priceEur / (wearsPerYear * CPW_YEARS)),
     rotatingWith: sameType.length,
     basis,
-    reasons,
+    reasons: basis === "history" ? [] : reasons,
   };
 }

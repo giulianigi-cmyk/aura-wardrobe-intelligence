@@ -749,6 +749,7 @@
     "costPerWearHistory_one": "From how you wear similar pieces: about {{count}} time a year, about €{{cpw}} per wear over {{years}} years",
     "costPerWearHistory_other": "From how you wear similar pieces: about {{count}} times a year, about €{{cpw}} per wear over {{years}} years",
     "wearReason": {
+      "yourHistory": "partly from how you wear similar pieces",
       "allSeasons": "all seasons",
       "oneSeason": "one season only",
       "fewSeasons": "some seasons only",

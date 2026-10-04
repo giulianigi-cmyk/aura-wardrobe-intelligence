@@ -95,3 +95,20 @@ test("cost per wear: many similar pieces in rotation share the wears", () => {
   assert.ok(c.wearsPerYear < 20, String(c.wearsPerYear));
 });
 
+test("cost per wear moves from the estimate towards the person's own wear rate as history grows", () => {
+  const price = { priceEur: 400, usualEur: 175, topEur: 358, basedOn: 6, tier: "upper_range" as const, sameModelPaidEur: null };
+  const now = new Date("2027-04-01T00:00:00Z");
+  const owned = (monthsAgo: number, worn: number) => Array.from({ length: 6 }, () => item({
+    subcategory: "Jeans", worn_count: worn, created_at: new Date(now.getTime() - monthsAgo * 30.4 * 86400000).toISOString(),
+  }));
+  const profile = { category: "Bottoms", subcategory: "Jeans", seasons: ["All Seasons"], dayEvening: "both" };
+  const fresh = costPerWear(profile, owned(0, 0), price, now)!;           // just added: pure estimate
+  assert.equal(fresh.basis, "estimate");
+  const half = costPerWear(profile, owned(3, 2), price, now)!;            // 1.5 piece-years: half weight
+  assert.ok(half.reasons.includes("yourHistory"));
+  assert.ok(half.wearsPerYear < fresh.wearsPerYear);
+  const full = costPerWear(profile, owned(12, 5), price, now)!;           // 6 piece-years: own rate (5/yr)
+  assert.equal(full.basis, "history");
+  assert.equal(full.wearsPerYear, 5);
+});
+
