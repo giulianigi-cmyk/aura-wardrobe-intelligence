@@ -761,7 +761,7 @@
       "timeless": "intemporel",
       "versatile": "très polyvalent",
       "notVersatile": "peu polyvalent",
-      "rotation": "alterne avec tes {{count}} pièces similaires"
+      "rotation": "alterne avec {{count}} autres pièces que tu porterais à sa place"
     },
     "wornDifferently": "Par rapport à ton {{label}} : {{details}}",
     "wear": {

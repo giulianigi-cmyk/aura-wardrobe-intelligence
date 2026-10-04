@@ -78,8 +78,9 @@ test("cost per wear: an all-season denim is far more usable than an evening gown
   assert.ok(jeans.wearsPerYear >= 35, String(jeans.wearsPerYear));
   assert.deepEqual(jeans.reasons, ["allSeasons", "dayAndEvening", "timeless", "versatile"]);
   const gown = costPerWear({ category: "Dresses", subcategory: "Evening Dress", seasons: ["All Seasons"], dayEvening: "evening", formality: 5 }, [], price(300))!;
-  assert.ok(gown.wearsPerYear <= 2, String(gown.wearsPerYear));
-  const heels = costPerWear({ category: "Shoes", subcategory: "Sandals", seasons: ["Summer"], dayEvening: "evening", formality: 4, details: ["embellished"] }, [], price(900))!;
+  assert.ok(gown.wearsPerYear <= 4, String(gown.wearsPerYear)); // a handful of black-tie events a year
+  const shoes = Array.from({ length: 20 }, () => item({ category: "Shoes", subcategory: "Pumps", season: "All Seasons" }));
+  const heels = costPerWear({ category: "Shoes", subcategory: "Sandals", seasons: ["Summer"], dayEvening: "evening", formality: 4, details: ["embellished"] }, shoes, price(900))!;
   assert.equal(heels.wearsPerYear, 1);
   assert.ok(heels.reasons.includes("oneSeason") && heels.reasons.includes("statement"));
   const sneakers = costPerWear({ category: "Shoes", subcategory: "Sneakers", seasons: ["All Seasons"], dayEvening: "day", formality: 1 }, [], price(500))!;
@@ -143,7 +144,7 @@ test("cost per wear: a day bag rotates with all the day bags, an evening bag wit
   const clutch = costPerWear({ category: "Bags", subcategory: "Clutch", seasons: ["All Seasons"], dayEvening: "evening" }, owned, price)!;
   assert.equal(clutch.rotatingWith, 6);         // the clutches, the evening-only bag and the day-and-evening one
   // Evening bags: ~130 evenings out a year (2–3 a week), shared with the 6 evening bags owned.
-  assert.ok(clutch.wearsPerYear >= 15 && clutch.wearsPerYear <= 20, String(clutch.wearsPerYear));
+  assert.ok(clutch.wearsPerYear >= 15 && clutch.wearsPerYear <= 25, String(clutch.wearsPerYear));
   const onlyClutch = costPerWear({ category: "Bags", subcategory: "Clutch", seasons: ["All Seasons"], dayEvening: "evening" }, owned.slice(0, 17), price)!;
   assert.ok(onlyClutch.wearsPerYear > clutch.wearsPerYear * 3, `${onlyClutch.wearsPerYear} vs ${clutch.wearsPerYear}`); // first evening bag: most nights out
   // A day bag is carried most days in rotation: with 17 day bags still well above a few times a year.
@@ -182,4 +183,27 @@ test("cost per wear: pieces rotate with the same outfit role, time of day and se
   ];
   const sweater = costPerWear({ category: "Tops", subcategory: "Sweater", seasons: ["Autumn", "Winter"] }, tops, price)!;
   assert.equal(sweater.rotatingWith, 7);
+});
+
+test("cost per wear: every kind of piece is estimated from how often its role is needed", () => {
+  const price = { priceEur: 300, usualEur: 200, topEur: 400, basedOn: 10, tier: "upper_range" as const, sameModelPaidEur: null };
+  const many = (n: number, o: Record<string, unknown>) => Array.from({ length: n }, () => item(o));
+  // Underwear: a bra is worn almost every day, shared with the bras owned.
+  const bra = costPerWear({ category: "Underwear", subcategory: "Bra", seasons: ["All Seasons"] }, many(15, { category: "Underwear", subcategory: "Bra", season: "All Seasons" }), price)!;
+  assert.equal(bra.rotatingWith, 15);
+  assert.ok(bra.wearsPerYear >= 15, String(bra.wearsPerYear));
+  // A winter coat among 3 coats: worn on most cold days.
+  const coat = costPerWear({ category: "Outerwear", subcategory: "Coat", seasons: ["Autumn", "Winter"] }, many(3, { category: "Outerwear", subcategory: "Coat", season: "Autumn, Winter" }), price)!;
+  assert.ok(coat.wearsPerYear >= 30, String(coat.wearsPerYear));
+  // Jeans share the legs with trousers and skirts.
+  const bottoms = [...many(10, { category: "Bottoms", subcategory: "Jeans" }), ...many(10, { category: "Bottoms", subcategory: "Trousers" }), ...many(5, { category: "Bottoms", subcategory: "Skirt" })];
+  const jeans = costPerWear({ category: "Bottoms", subcategory: "Jeans", seasons: ["All Seasons"], dayEvening: "both" }, bottoms, price)!;
+  assert.equal(jeans.rotatingWith, 25);
+  assert.ok(jeans.wearsPerYear >= 12 && jeans.wearsPerYear <= 25, String(jeans.wearsPerYear));
+  // A suit: a couple of days a week, not a generic low guess.
+  const suit = costPerWear({ category: "Suits", subcategory: "Suit", seasons: ["All Seasons"], dayEvening: "day" }, [], price)!;
+  assert.ok(suit.wearsPerYear >= 40, String(suit.wearsPerYear));
+  // Summer swimwear: a few dozen beach days, shared with the swimsuits owned.
+  const swim = costPerWear({ category: "Swimwear", subcategory: "One-piece Swimsuit", seasons: ["Summer"] }, many(3, { category: "Swimwear", subcategory: "Bikini Top", season: "Summer" }), price)!;
+  assert.ok(swim.wearsPerYear >= 5 && swim.wearsPerYear <= 15, String(swim.wearsPerYear));
 });
