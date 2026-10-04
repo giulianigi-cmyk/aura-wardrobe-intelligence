@@ -142,7 +142,10 @@ test("cost per wear: a day bag rotates with all the day bags, an evening bag wit
   assert.equal(day.rotatingWith, 17);           // every day bag, whatever its shape — not only the 8 top-handles
   const clutch = costPerWear({ category: "Bags", subcategory: "Clutch", seasons: ["All Seasons"], dayEvening: "evening" }, owned, price)!;
   assert.equal(clutch.rotatingWith, 6);         // the clutches, the evening-only bag and the day-and-evening one
-  assert.ok(day.wearsPerYear > clutch.wearsPerYear * 3, `${day.wearsPerYear} vs ${clutch.wearsPerYear}`);
+  // Evening bags: ~130 evenings out a year (2–3 a week), shared with the 6 evening bags owned.
+  assert.ok(clutch.wearsPerYear >= 15 && clutch.wearsPerYear <= 20, String(clutch.wearsPerYear));
+  const onlyClutch = costPerWear({ category: "Bags", subcategory: "Clutch", seasons: ["All Seasons"], dayEvening: "evening" }, owned.slice(0, 17), price)!;
+  assert.ok(onlyClutch.wearsPerYear > clutch.wearsPerYear * 3, `${onlyClutch.wearsPerYear} vs ${clutch.wearsPerYear}`); // first evening bag: most nights out
   // A day bag is carried most days in rotation: with 17 day bags still well above a few times a year.
   assert.ok(day.wearsPerYear >= 12, String(day.wearsPerYear));
 });

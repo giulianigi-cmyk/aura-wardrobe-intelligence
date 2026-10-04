@@ -186,15 +186,27 @@ export type WearProfile = {
 };
 
 /** Estimated wears per year of the piece and why (no history). */
+/** Evenings out a year: weekends all year round, 2–3 evenings a week. */
+export const EVENINGS_OUT_PER_YEAR = 130;
+
 export function estimateWears(p: WearProfile, rotatingWith: number): { wearsPerYear: number; reasons: WearReason[] } {
   const kind = `${p.subcategory ?? ""} ${p.category ?? ""}`;
   let w = BASE_WEARS.find(([re]) => re.test(kind))?.[1] ?? 12;
   const reasons: WearReason[] = [];
+  // An evening bag is carried on every night out — weekends all year round, 2–3 evenings a week —
+  // shared with the evening bags already owned: the nights, not the bag's rarity, set its use.
+  const eveningBag = outfitRole(p.category, p.subcategory) === "bags" && dayRole(p.subcategory, p.dayEvening) === "evening";
+  if (eveningBag) {
+    w = EVENINGS_OUT_PER_YEAR / (rotatingWith + 1);
+    reasons.push("eveningOnly");
+    if (rotatingWith > 0) reasons.push("rotation");
+  }
   const seasons = (p.seasons ?? []).map((x) => x.toLowerCase());
   if (seasons.includes("all seasons") || seasons.length >= 4) reasons.push("allSeasons");
   else if (seasons.length === 1) { w *= 0.45; reasons.push("oneSeason"); }
   else if (seasons.length === 2 || seasons.length === 3) { w *= 0.75; reasons.push("fewSeasons"); }
-  if (p.dayEvening === "evening") { w *= 0.35; reasons.push("eveningOnly"); }
+  if (eveningBag) { /* already from the evenings out */ }
+  else if (p.dayEvening === "evening") { w *= 0.35; reasons.push("eveningOnly"); }
   else if (p.dayEvening === "both") { w *= 1.1; reasons.push("dayAndEvening"); }
   if ((p.formality ?? 0) >= 5) { w *= 0.5; reasons.push("veryDressy"); }
   if ((p.details ?? []).some((d) => d === "embellished" || d === "cutOut")) { w *= 0.55; reasons.push("statement"); }
@@ -203,7 +215,7 @@ export function estimateWears(p: WearProfile, rotatingWith: number): { wearsPerY
   if (p.fashion?.versatility === "high") { w *= 1.15; reasons.push("versatile"); }
   else if (p.fashion?.versatility === "low") { w *= 0.6; reasons.push("notVersatile"); }
   // Many similar pieces in rotation share the wears (softly: square root).
-  if (rotatingWith > 3) { w /= Math.sqrt((rotatingWith + 1) / 4); reasons.push("rotation"); }
+  if (!eveningBag && rotatingWith > 3) { w /= Math.sqrt((rotatingWith + 1) / 4); reasons.push("rotation"); }
   return { wearsPerYear: Math.max(1, Math.round(w)), reasons };
 }
 
