@@ -6,6 +6,7 @@ import { parseAiJson } from "./ai-json";
 import { isItemAtAnyLocation } from "./wardrobe-location";
 import { isItemAllowedByDressPreferences, hasAnyPreference, coversShoulders, coversArms, coversLegs, type DressPreferences } from "./dress-preferences";
 import { anyItemViolatesWeather, violatesSleeveClimate, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
+import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
 import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
 import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
@@ -297,6 +298,10 @@ export async function suggestOutfitCore(params: {
   const todayIso = new Date().toISOString().slice(0, 10);
   const wearHistory = await loadWearHistory(params.supabase, params.userId, eligibleItems.map((it) => it.id));
   const protectedIds = new Set([params.mustIncludeItemId, ...(params.baseItemIds ?? [])].filter((x): x is string => Boolean(x)));
+  // Rain (rain-rules.ts): suede, delicate fabrics, light colours, light canvas shoes, hems that touch
+  // the ground and precious bags are left out wherever the category still has something suitable.
+  eligibleItems = filterForRain(eligibleItems, params.condition);
+
   if (params.rotation === "exclude-recent") {
     const recent = recentlyWornIds(wearHistory, todayIso);
     for (const id of protectedIds) recent.delete(id);
@@ -415,7 +420,7 @@ export async function suggestOutfitCore(params: {
     "Weather overrides everything else for outerwear: above roughly 15°C, do not include a substantial coat (wool coat, trench, overcoat, puffer, quilted jacket) — it reads as overdressed for the actual weather regardless of how elegant the rest of the look is. Above roughly 26°C, also drop lighter layers — blazers, cardigans, jackets — a lightweight top alone is correct, even for a cocktail or formal occasion (there is always a lighter way to be elegant). Below roughly 10°C, prioritize real warmth over anything else. Only add outerwear when the temperature genuinely calls for it.",
     ...(params.temperature == null
       ? ["NEVER INVENT WEATHER DETAILS: the weather above is unknown — never state or imply a specific temperature or condition ('cool weather', 'possible rain') anywhere in your explanation. Speak only in general, season-appropriate terms if you mention weather at all, and never present an invented condition as the reason for a piece."]
-      : ["PERCEIVED TEMPERATURE, NOT JUST THE NUMBER: treat the given temperature as a starting point and adjust which side of a threshold you land on based on the actual condition given alongside it — clear/sunny feels a notch warmer (lean lighter at a threshold), rain/wind/overcast feels a notch colder (lean warmer/more covered, and rain specifically means covered shoes and a real outer layer even at a temperature that wouldn't otherwise call for one). Never invent a perceived-temperature number — this only shifts which real option you pick at the boundary."]),
+      : [...(isWetCondition(params.condition) ? [RAIN_PROMPT_RULE] : []), "PERCEIVED TEMPERATURE, NOT JUST THE NUMBER: treat the given temperature as a starting point and adjust which side of a threshold you land on based on the actual condition given alongside it — clear/sunny feels a notch warmer (lean lighter at a threshold), rain/wind/overcast feels a notch colder (lean warmer/more covered, and rain specifically means covered shoes and a real outer layer even at a temperature that wouldn't otherwise call for one). Never invent a perceived-temperature number — this only shifts which real option you pick at the boundary."]),
     // The occasion string carries the real activity name (e.g. "Yoga at
     // sunset (Sport)"), not just a dress-code label, so these rules can
     // key off what the day actually is.
