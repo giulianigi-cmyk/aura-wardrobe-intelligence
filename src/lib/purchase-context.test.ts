@@ -141,8 +141,42 @@ test("cost per wear: a day bag rotates with all the day bags, an evening bag wit
   const day = costPerWear({ category: "Bags", subcategory: "Top Handle Bag", seasons: ["All Seasons"], dayEvening: "day" }, owned, price)!;
   assert.equal(day.rotatingWith, 17);           // every day bag, whatever its shape — not only the 8 top-handles
   const clutch = costPerWear({ category: "Bags", subcategory: "Clutch", seasons: ["All Seasons"], dayEvening: "evening" }, owned, price)!;
-  assert.equal(clutch.rotatingWith, 5);         // the clutches and the evening-only bag
+  assert.equal(clutch.rotatingWith, 6);         // the clutches, the evening-only bag and the day-and-evening one
   assert.ok(day.wearsPerYear > clutch.wearsPerYear * 3, `${day.wearsPerYear} vs ${clutch.wearsPerYear}`);
   // A day bag is carried most days in rotation: with 17 day bags still well above a few times a year.
   assert.ok(day.wearsPerYear >= 12, String(day.wearsPerYear));
+});
+
+test("cost per wear: pieces rotate with the same outfit role, time of day and seasons", () => {
+  const price = { priceEur: 1500, usualEur: 900, topEur: 2000, basedOn: 10, tier: "upper_range" as const, sameModelPaidEur: null };
+  const shoe = (subcategory: string, season: string, day_evening = "both") => item({ category: "Shoes", subcategory, season, day_evening });
+  const shoes = [
+    ...Array.from({ length: 6 }, () => shoe("Sandals", "Summer")),
+    ...Array.from({ length: 5 }, () => shoe("Ankle Boots", "Autumn, Winter")),
+    ...Array.from({ length: 4 }, () => shoe("Sneakers", "All Seasons", "day")),
+    ...Array.from({ length: 3 }, () => shoe("Pumps", "All Seasons", "evening")),
+  ];
+  // A winter boot competes with boots and all-season day shoes, never with summer sandals.
+  const boot = costPerWear({ category: "Shoes", subcategory: "Knee Boots", seasons: ["Autumn", "Winter"], dayEvening: "day" }, shoes, price)!;
+  assert.equal(boot.rotatingWith, 9);
+  // A pump rotates with every shoe of any shape it could replace (not only pumps).
+  const pump = costPerWear({ category: "Shoes", subcategory: "Pumps", seasons: ["All Seasons"], dayEvening: "evening" }, shoes, price)!;
+  assert.equal(pump.rotatingWith, 14);
+
+  // Coats: few to rotate → worn much more than a top among many.
+  const coat = (n: number) => Array.from({ length: n }, () => item({ category: "Outerwear", subcategory: "Coat", season: "Autumn, Winter" }));
+  const profile = { category: "Outerwear", subcategory: "Coat", seasons: ["Autumn", "Winter"], dayEvening: "both" };
+  const fewCoats = costPerWear(profile, [...coat(2), item({ category: "Outerwear", subcategory: "Blazer", season: "All Seasons" })], price)!;
+  const manyCoats = costPerWear(profile, coat(15), price)!;
+  assert.equal(fewCoats.rotatingWith, 2);       // blazers are not the outer layer
+  assert.ok(fewCoats.wearsPerYear > manyCoats.wearsPerYear * 1.5, `${fewCoats.wearsPerYear} vs ${manyCoats.wearsPerYear}`);
+
+  // Knitwear: a sweater rotates with sweaters and cardigans, not with t-shirts.
+  const tops = [
+    ...Array.from({ length: 4 }, () => item({ category: "Tops", subcategory: "Sweater", season: "Autumn, Winter" })),
+    ...Array.from({ length: 3 }, () => item({ category: "Tops", subcategory: "Cardigan", season: "All Seasons" })),
+    ...Array.from({ length: 10 }, () => item({ category: "Tops", subcategory: "T-Shirt", season: "All Seasons" })),
+  ];
+  const sweater = costPerWear({ category: "Tops", subcategory: "Sweater", seasons: ["Autumn", "Winter"] }, tops, price)!;
+  assert.equal(sweater.rotatingWith, 7);
 });
