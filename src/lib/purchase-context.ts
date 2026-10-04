@@ -7,7 +7,7 @@
 import type { WardrobeItem } from "./aura-types";
 import { convertCurrency } from "./currency-rates";
 import { parsePositivePrice } from "./price-parse";
-import { colorLightness } from "./outfit-match";
+import { colorLab, colorLightness } from "./outfit-match";
 
 const norm = (s: string | null | undefined) => (s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -92,12 +92,26 @@ export function priceContext(
   return { priceEur: Math.round(priceEur), usualEur: Math.round(usualEur), topEur: Math.round(topEur), basedOn: pool.length, tier, sameModelPaidEur: sameModelPaidEur == null ? null : Math.round(sameModelPaidEur) };
 }
 
-/** "darker" / "lighter" when the product's colour is clearly darker or lighter than the owned piece's. */
-export function shadeDifference(productColors: string[], ownedColors: string[]): "darker" | "lighter" | null {
+/** "darker" / "lighter" when the product is a clearly darker or lighter shade of the owned piece's
+ *  colour (a deeper wash of the same jeans); "otherColor" when it is a different colour altogether
+ *  (teal or burgundy next to black): calling that "lighter" would be wrong. */
+export function shadeDifference(productColors: string[], ownedColors: string[]): "darker" | "lighter" | "otherColor" | null {
   const avg = (cs: string[]) => {
     const ls = cs.map(colorLightness).filter((x): x is number => x != null);
     return ls.length ? ls.reduce((a, b) => a + b, 0) / ls.length : null;
   };
+  const pl = productColors.map(colorLab).find(Boolean), ol = ownedColors.map(colorLab).find(Boolean);
+  if (pl && ol) {
+    const chroma = (l: { a: number; b: number }) => Math.hypot(l.a, l.b);
+    const hue = (l: { a: number; b: number }) => (Math.atan2(l.b, l.a) * 180) / Math.PI;
+    const cp = chroma(pl), co = chroma(ol);
+    // A colour next to a neutral (black, white, grey), or two colours of clearly different hue.
+    if ((cp >= 15 && co < 10) || (co >= 15 && cp < 10)) return "otherColor";
+    if (cp >= 15 && co >= 15) {
+      const dh = Math.abs(hue(pl) - hue(ol)) % 360;
+      if (Math.min(dh, 360 - dh) > 60) return "otherColor";
+    }
+  }
   const p = avg(productColors), o = avg(ownedColors);
   if (p == null || o == null) return null;
   if (p <= o - 6) return "darker";

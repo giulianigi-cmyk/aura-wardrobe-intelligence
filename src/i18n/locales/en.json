@@ -768,6 +768,7 @@
     "wear": {
       "darker": "darker",
       "lighter": "lighter",
+      "otherColor": "different colour",
       "higherHeel": "higher heel",
       "lowerHeel": "lower heel",
       "moreEvening": "more for evening",
