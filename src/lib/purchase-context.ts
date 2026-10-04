@@ -51,26 +51,32 @@ function percentile(xs: number[], q: number): number {
   return s[lo] + (s[hi] - s[lo]) * (pos - lo);
 }
 
-/** The product's price against what THIS person pays for the same kind of piece: the same type
- *  (jeans with jeans — at least 5 priced), else the category, else the whole wardrobe. Not the
- *  median alone: someone whose jeans usually cost 170 € but who has several at 400–600 € isn't
- *  spending "more than usual" on a 400 € pair, it's the expensive end of their own range. */
+/** The product's price against what THIS person pays for the SAME kind of piece — never the whole
+ *  category: a cashmere sweater compared with t-shirts, or jeans with leggings and shorts, gives a
+ *  meaningless "usual price". The pool is the same type and, when the material is known and enough
+ *  pieces share it, the same material too (cashmere with cashmere). Fewer than 3 priced pieces of
+ *  the same type: no price judgement at all rather than a wrong one. Not the median alone either:
+ *  someone whose jeans usually cost 170 € but who has several at 400–600 € isn't spending "more
+ *  than usual" on a 400 € pair, it's the expensive end of their own range. */
 export function priceContext(
-  product: { price: string | null; currency: string | null; category: string | null; subcategory?: string | null },
+  product: { price: string | null; currency: string | null; category: string | null; subcategory?: string | null; material?: string | null },
   wardrobe: WardrobeItem[],
   sameModel: WardrobeItem[] = [],
 ): PriceContext | null {
   const amount = parsePositivePrice(product.price);
-  if (amount == null) return null;
+  if (amount == null || !product.subcategory) return null;
   const priceEur = convertCurrency(amount, (product.currency ?? "EUR").toUpperCase(), "EUR");
   const eur = (it: WardrobeItem) => {
     const p = parsePositivePrice((it as { price?: unknown }).price);
     return p == null ? null : convertCurrency(p, String((it as { currency?: string | null }).currency ?? "EUR").toUpperCase(), "EUR");
   };
   const priced = (items: WardrobeItem[]) => items.map(eur).filter((x): x is number => x != null);
-  const ofType = product.subcategory ? priced(wardrobe.filter((it) => it.category === product.category && it.subcategory === product.subcategory)) : [];
-  const ofCategory = priced(wardrobe.filter((it) => it.category === product.category));
-  const pool = ofType.length >= 5 ? ofType : ofCategory.length >= 3 ? ofCategory : priced(wardrobe);
+  const sameType = wardrobe.filter((it) => it.category === product.category && it.subcategory === product.subcategory);
+  const material = norm(product.material);
+  const sameMaterial = material
+    ? sameType.filter((it) => (Array.isArray(it.material) ? it.material : []).some((m) => { const n = norm(m); return n && (n.includes(material) || material.includes(n)); }))
+    : [];
+  const pool = priced(sameMaterial).length >= 3 ? priced(sameMaterial) : priced(sameType);
   if (pool.length < 3) return null;
   const usualEur = percentile(pool, 0.5);
   const topEur = percentile(pool, 0.9);

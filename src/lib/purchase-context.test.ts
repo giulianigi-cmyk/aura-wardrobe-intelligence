@@ -30,10 +30,24 @@ test("price against what the person pays for the same type", () => {
   assert.equal(p.usualEur, 175);
   // someone who never paid more than ~110 € for jeans: 455 € is beyond their habits
   const p2 = priceContext({ price: "390", currency: "GBP", category: "Bottoms", subcategory: "Jeans" }, [40, 60, 80, 99, 110].map(jeans))!;
+  assert.ok(p2);
   assert.equal(p2.tier, "above_usual");
   // same model already bought at 450 €: never "beyond their habits"
   const alina = [item({ brand: "VICTORIA BECKHAM", model: "Alina", subcategory: "Jeans", price: 450, currency: "EUR" })];
   assert.equal(priceContext({ price: "500", currency: "EUR", category: "Bottoms", subcategory: "Jeans" }, [40, 60, 80, 99, 110].map(jeans), alina)!.tier, "upper_range");
+});
+
+test("a cashmere sweater is compared with cashmere sweaters, never with t-shirts", () => {
+  const tees = Array.from({ length: 10 }, () => item({ category: "Tops", subcategory: "T-Shirt", price: 20, currency: "EUR", material: ["Cotton"] }));
+  const sweaters = [
+    ...[40, 50, 60].map((price) => item({ category: "Tops", subcategory: "Sweater", price, currency: "EUR", material: ["Wool"] })),
+    ...[280, 320, 350].map((price) => item({ category: "Tops", subcategory: "Sweater", price, currency: "EUR", material: ["Cashmere"] })),
+  ];
+  const p = priceContext({ price: "330", currency: "EUR", category: "Tops", subcategory: "Sweater", material: "Cashmere" }, [...tees, ...sweaters])!;
+  assert.equal(p.usualEur, 320);
+  assert.equal(p.tier, "usual");
+  // not enough pieces of the same type: no judgement instead of comparing with the whole category
+  assert.equal(priceContext({ price: "330", currency: "EUR", category: "Tops", subcategory: "Cardigan" }, [...tees, ...sweaters]), null);
 });
 
 test("same model + expensive for this person → maybe, never an upgrade", () => {
