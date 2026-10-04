@@ -242,6 +242,38 @@ const MAYBE_SHAPE =
   "No generic filler (\"versatile\", \"in modo diverso\", \"altre occasioni\") — every clause must be specific. " +
   "Shape to follow (Italian for tone/structure only; write it naturally in the target language): \"Forse: prendilo se [uso concreto che solo questo copre, con cosa lo abbineresti]. Se invece [caso], [capo posseduto] fa già lo stesso lavoro[, e il prezzo è …].\"";
 
+/** The {"reason": "..."} the stylist prompts ask for. Models often put quotes inside the text
+ *  (i sandali "Ellabrita") and break the JSON: the reason is then read leniently from between the
+ *  first `"reason": "` and the last quote, and only if even that fails is the model asked once
+ *  more — so a stray quote never costs the person the whole explanation. */
+export function readReason(text: string): string | null {
+  try {
+    const r = parseAiJson(text, z.object({ reason: z.string().min(1) })).reason.trim();
+    if (r) return r;
+  } catch { /* lenient read below */ }
+  const m = /"reason"\s*:\s*"([\s\S]*)"\s*\}?\s*(?:```)?\s*$/.exec(text.trim());
+  if (!m) return null;
+  const r = m[1].replace(/\\n/g, " ").replace(/\\"/g, '"').replace(/\s+/g, " ").trim();
+  return r || null;
+}
+
+async function generateReason(model: Parameters<typeof generateText>[0]["model"], system: string): Promise<string> {
+  const r1 = await generateText({ model, system, abortSignal: AbortSignal.timeout(45_000), messages: [{ role: "user", content: "Write the reason." }] });
+  const first = readReason(r1.text);
+  if (first) return first;
+  const r2 = await generateText({
+    model, system, abortSignal: AbortSignal.timeout(45_000),
+    messages: [
+      { role: "user", content: "Write the reason." },
+      { role: "assistant", content: r1.text || "(no response)" },
+      { role: "user", content: 'That was not a single valid JSON object. Reply again with ONLY {"reason": "..."} — use no double quotes inside the text, nothing else.' },
+    ],
+  });
+  const second = readReason(r2.text);
+  if (second) return second;
+  throw new Error("No readable reason in the model response");
+}
+
 function truncateAtBoundary(text: string, max: number): string {
   if (text.length <= max) return text;
   const slice = text.slice(0, max);
@@ -678,24 +710,7 @@ export const analyzePurchase = createServerFn({ method: "POST" })
 
     let reason: string;
     try {
-      const ReasonOut = z.object({ reason: z.string().min(1) });
-      const r1 = await generateText({ model, system, abortSignal: AbortSignal.timeout(30_000), messages: [{ role: "user", content: "Write the reason." }] });
-      let parsed: z.infer<typeof ReasonOut>;
-      try {
-        parsed = parseAiJson(r1.text, ReasonOut);
-      } catch {
-        // One repair round: a stray quote or some prose around the JSON must not cost the person
-        // the whole comparison.
-        const r2 = await generateText({
-          model, system, abortSignal: AbortSignal.timeout(30_000),
-          messages: [
-            { role: "user", content: "Write the reason." },
-            { role: "assistant", content: r1.text || "(no response)" },
-            { role: "user", content: 'That was not a single valid JSON object. Reply again with ONLY {"reason": "..."} — escape any double quote inside the text, nothing else.' },
-          ],
-        });
-        parsed = parseAiJson(r2.text, ReasonOut);
-      }
+      const parsed = { reason: await generateReason(model, system) };
       // The prompt now asks to stay under 280 chars, so this should rarely fire — but if the model
       // overruns anyway, cut at the last full sentence/word instead of mid-phrase (this is what
       // produced "...il prezzo di" trailing into nothing before): a shorter, complete thought reads
@@ -1030,8 +1045,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
 
     let reason: string;
     try {
-      const r1 = await generateText({ model, system, messages: [{ role: "user", content: "Write the reason." }] });
-      const parsed = parseAiJson(r1.text, z.object({ reason: z.string() }));
+      const parsed = { reason: await generateReason(model, system) };
       // Safety net for the rule above: a stray "(C)" / "(A e B)" reference to the internal letters
       // means nothing to the person reading this, so it is removed rather than shown.
       const withoutLetterRefs = parsed.reason.replace(/\s*\((?:[A-F](?:\s*(?:,|e|and|y|et|&|\/)\s*[A-F])*)\)/g, "");
