@@ -676,8 +676,24 @@ export const analyzePurchase = createServerFn({ method: "POST" })
 
     let reason: string;
     try {
-      const r1 = await generateText({ model, system, messages: [{ role: "user", content: "Write the reason." }] });
-      const parsed = parseAiJson(r1.text, z.object({ reason: z.string() }));
+      const ReasonOut = z.object({ reason: z.string().min(1) });
+      const r1 = await generateText({ model, system, abortSignal: AbortSignal.timeout(30_000), messages: [{ role: "user", content: "Write the reason." }] });
+      let parsed: z.infer<typeof ReasonOut>;
+      try {
+        parsed = parseAiJson(r1.text, ReasonOut);
+      } catch {
+        // One repair round: a stray quote or some prose around the JSON must not cost the person
+        // the whole comparison.
+        const r2 = await generateText({
+          model, system, abortSignal: AbortSignal.timeout(30_000),
+          messages: [
+            { role: "user", content: "Write the reason." },
+            { role: "assistant", content: r1.text || "(no response)" },
+            { role: "user", content: 'That was not a single valid JSON object. Reply again with ONLY {"reason": "..."} — escape any double quote inside the text, nothing else.' },
+          ],
+        });
+        parsed = parseAiJson(r2.text, ReasonOut);
+      }
       // The prompt now asks to stay under 280 chars, so this should rarely fire — but if the model
       // overruns anyway, cut at the last full sentence/word instead of mid-phrase (this is what
       // produced "...il prezzo di" trailing into nothing before): a shorter, complete thought reads
@@ -818,6 +834,23 @@ export const comparePurchases = createServerFn({ method: "POST" })
     const gateway = createLovableAiGatewayProvider(key);
     const model = gateway("google/gemini-2.5-flash");
 
+    // Cached facts were computed when each product was first analysed, possibly by older rules:
+    // the colour comparison with the reference piece is recomputed here from the current wardrobe,
+    // so a teal sandal next to black ones never stays "lighter" from an earlier analysis.
+    const ownedForShade = data.items.some((it) => it.source === "cached" && it.differsFrom)
+      ? (((await supabase.from("wardrobe_items").select("brand, colors, color, subcategory, category, model").eq("user_id", userId)).data ?? []) as WardrobeItem[])
+      : [];
+    const refreshShade = (differsFrom: CachedFacts["differsFrom"], colors: string[]): DiffersFrom | null => {
+      if (!differsFrom) return null;
+      const ref = ownedForShade.find((it) => ownedPieceLabel(it) === differsFrom.label);
+      if (!ref) return differsFrom;
+      const shade = shadeDifference(colors, ref.colors ?? []);
+      const rest = (differsFrom.wear?.changes ?? []).filter((c) => c !== "darker" && c !== "lighter" && c !== "otherColor");
+      const changes = shade ? [shade, ...rest] : rest;
+      const wear = changes.length || differsFrom.wear?.newOccasions.length ? { changes, newOccasions: differsFrom.wear?.newOccasions ?? [] } : null;
+      return { ...differsFrom, wear };
+    };
+
     const resolvedAll = await Promise.all(
       data.items.map(async (item) => {
         if (item.source === "cached") {
@@ -839,7 +872,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
             similarItemsCount: 0,
             comparableLabels: item.comparableLabels ?? [],
             fashion: item.fashion ?? null,
-            differsFrom: item.differsFrom ?? null,
+            differsFrom: refreshShade(item.differsFrom ?? null, p.colors),
             novelDetails: item.novelDetails ?? [],
             sameModel: item.sameModel ?? null,
             price: item.price ?? null,
