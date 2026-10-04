@@ -71,22 +71,27 @@ test("far beyond the person's range with a similar pair owned → skip (unless i
 });
 
 
-test("cost per wear: jeans are worn far more than an evening dress", () => {
+test("cost per wear: an all-season denim is far more usable than an evening gown or a summer crystal heel", () => {
   const price = (eur: number) => ({ priceEur: eur, usualEur: eur, topEur: eur, basedOn: 5, tier: "usual" as const, sameModelPaidEur: null });
-  const jeans = costPerWear({ category: "Bottoms", subcategory: "Jeans" }, [], price(400))!;
-  assert.equal(jeans.wearsPerYear, 40);
-  assert.equal(jeans.costPerWearEur, 5);
-  const gown = costPerWear({ category: "Dresses", subcategory: "Evening Dress", dayEvening: "evening" }, [], price(300))!;
-  assert.equal(gown.wearsPerYear, 2);
-  assert.equal(gown.costPerWearEur, 75);
+  const jeans = costPerWear({ category: "Bottoms", subcategory: "Jeans", seasons: ["All Seasons"], dayEvening: "both", formality: 2, fashion: { timeless: true, onTrend: false, versatility: "high" } }, [], price(400))!;
+  assert.equal(jeans.basis, "estimate");
+  assert.ok(jeans.wearsPerYear >= 35, String(jeans.wearsPerYear));
+  assert.deepEqual(jeans.reasons, ["allSeasons", "dayAndEvening", "timeless", "versatile"]);
+  const gown = costPerWear({ category: "Dresses", subcategory: "Evening Dress", seasons: ["All Seasons"], dayEvening: "evening", formality: 5 }, [], price(300))!;
+  assert.ok(gown.wearsPerYear <= 2, String(gown.wearsPerYear));
+  const heels = costPerWear({ category: "Shoes", subcategory: "Sandals", seasons: ["Summer"], dayEvening: "evening", formality: 4, details: ["embellished"] }, [], price(900))!;
+  assert.equal(heels.wearsPerYear, 1);
+  assert.ok(heels.reasons.includes("oneSeason") && heels.reasons.includes("statement"));
+  const sneakers = costPerWear({ category: "Shoes", subcategory: "Sneakers", seasons: ["All Seasons"], dayEvening: "day", formality: 1 }, [], price(500))!;
+  assert.ok(sneakers.wearsPerYear > heels.wearsPerYear * 10);
 });
 
 test("cost per wear: many similar pieces in rotation share the wears", () => {
   const price = { priceEur: 1100, usualEur: 175, topEur: 358, basedOn: 24, tier: "above_usual" as const, sameModelPaidEur: null };
   const owned = Array.from({ length: 24 }, () => item({ subcategory: "Jeans", created_at: new Date().toISOString() }));
-  const c = costPerWear({ category: "Bottoms", subcategory: "Jeans" }, owned, price)!;
+  const c = costPerWear({ category: "Bottoms", subcategory: "Jeans", seasons: ["All Seasons"], dayEvening: "both" }, owned, price)!;
   assert.equal(c.rotatingWith, 24);
-  assert.equal(c.wearsPerYear, 16);
-  assert.equal(c.costPerWearEur, 34);
-  assert.equal(c.basis, "typical");
+  assert.ok(c.reasons.includes("rotation"));
+  assert.ok(c.wearsPerYear < 20, String(c.wearsPerYear));
 });
+

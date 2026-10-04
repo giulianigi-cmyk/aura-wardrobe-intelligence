@@ -16,7 +16,8 @@ export const DETAILS: Record<string, string[]> = {
   satin: ["satin", "raso", "satén"],
   velvet: ["velvet", "velluto", "terciopelo", "velours"],
   mesh: ["mesh", "rete", "resille", "rejilla"],
-  embellished: ["crystal", "cristall", "strass", "swarovski", "rhinestone", "embellish", "gioiello", "jewel", "bijou", "pearl", "perle"],
+  embellished: ["crystal", "cristall", "strass", "swarovski", "rhinestone", "embellish", "gioiello", "jewel", "bijou", "pearl", "perle", "sequin", "paillett", "lentejuel", "feather", "piume", "plumes"],
+  cutOut: ["cut-out", "cutout", "cut out", "intagli", "découpe", "decoupe", "aberturas"],
   metallic: ["metallic", "metallizzat", "laminat", "specchio", "mirror", "metalizad", "métallisé"],
   platform: ["platform", "plateau", "plataforma"],
   // "cinturino" alone is any strap (a slingback's back strap included), so only the ankle wording counts.

@@ -124,38 +124,40 @@ export function applyPurchaseContext<V extends { verdict: "buy" | "maybe" | "ski
 }
 
 // ---------------------------------------------------------------------------------------------
-// Cost per wear. The price alone says little: 400 € jeans worn 40 times a year cost less per wear
-// than a 300 € evening dress worn twice. Expected wears come from the person's own history for that
-// kind of piece once there is enough of it (6+ months, 3+ pieces), otherwise from typical use per
-// kind; either way spread across the similar pieces they already rotate (24 jeans → a new pair gets
-// fewer wears than a first pair would).
+// Cost per wear. The price alone says little: jeans worn all year cost less per wear than an evening
+// gown, a summer-only mini dress, a cut-out piece or crystal heels. Expected wears come from the
+// person's own history for that kind of piece once there is enough of it (6+ months, 3+ pieces);
+// otherwise an ESTIMATE of how usable the piece is: a modest base for its kind, then its seasons
+// (all year vs one season), day/evening range, how dressy it is, statement details (crystals,
+// sequins, cut-outs), whether it is timeless or a trend piece, its versatility — and the similar
+// pieces it would rotate with. The reasons are returned so the person sees why.
 // ---------------------------------------------------------------------------------------------
 
-/** Typical wears per year of ONE piece, by kind (subcategory words, checked in order). */
-const TYPICAL_WEARS: [RegExp, number][] = [
-  [/gown|evening|cocktail|abito da sera|black tie/i, 2],
-  [/clutch|minaudi/i, 5],
-  [/jeans/i, 40],
-  [/legging/i, 30],
-  [/trouser|pant|chino|cargo/i, 30],
-  [/skirt|gonna/i, 20],
-  [/short/i, 15],
-  [/t-?shirt|tank|camisole|bodysuit|top|polo/i, 25],
-  [/shirt|blouse|camicia/i, 20],
-  [/sweater|knit|cardigan|jumper|sweatshirt|hoodie/i, 20],
-  [/blazer/i, 25],
-  [/coat|trench|parka|puffer|cappotto/i, 30],
-  [/jacket|giacca|shacket|bomber/i, 20],
-  [/jumpsuit|tuta/i, 8],
-  [/dress|abito/i, 10],
-  [/sneaker|trainer/i, 50],
-  [/loafer|flat|ballerin|mocassin|boot|stival/i, 35],
-  [/pump|heel|sandal|slingback|mule|décolleté|decollete/i, 15],
-  [/bag|tote|shoulder|crossbody|backpack|borsa/i, 50],
-  [/watch|orologio|ring|anello|bracelet|bracciale|necklace|collana|earring|orecchin/i, 80],
-  [/belt|cintura|sunglass|occhiali/i, 35],
-  [/scarf|sciarpa|foulard/i, 20],
+/** A modest base: wears per year of ONE everyday, all-season piece of this kind. */
+const BASE_WEARS: [RegExp, number][] = [
+  [/sneaker|trainer/i, 40],
+  [/bag|tote|shoulder|crossbody|backpack|borsa/i, 40],
+  [/watch|orologio|ring|anello|bracelet|bracciale|necklace|collana|earring|orecchin/i, 50],
+  [/jeans/i, 30],
+  [/legging/i, 25],
+  [/trouser|pant|chino|cargo/i, 25],
+  [/loafer|flat|ballerin|mocassin|boot|stival/i, 25],
+  [/coat|trench|parka|puffer|cappotto/i, 25],
+  [/t-?shirt|tank|camisole|bodysuit|top|polo/i, 20],
+  [/blazer/i, 20],
+  [/sweater|knit|cardigan|jumper|sweatshirt|hoodie/i, 18],
+  [/shirt|blouse|camicia/i, 18],
+  [/jacket|giacca|shacket|bomber/i, 18],
+  [/belt|cintura|sunglass|occhiali/i, 25],
+  [/skirt|gonna/i, 15],
+  [/short/i, 12],
+  [/pump|heel|sandal|slingback|mule|décolleté|decollete/i, 12],
+  [/scarf|sciarpa|foulard/i, 15],
+  [/dress|abito|jumpsuit|tuta/i, 10],
+  [/clutch|minaudi/i, 8],
 ];
+
+export type WearReason = "allSeasons" | "oneSeason" | "fewSeasons" | "dayAndEvening" | "eveningOnly" | "veryDressy" | "statement" | "trendPiece" | "timeless" | "versatile" | "notVersatile" | "rotation";
 
 export type CostPerWear = {
   wearsPerYear: number;
@@ -164,13 +166,48 @@ export type CostPerWear = {
   costPerWearEur: number;
   /** Similar pieces of the same type already owned (they share the wears). */
   rotatingWith: number;
-  basis: "history" | "typical";
+  basis: "history" | "estimate";
+  /** Why the estimate is what it is (only for basis "estimate"). */
+  reasons: WearReason[];
 };
 
 export const CPW_YEARS = 2;
 
+export type WearProfile = {
+  category: string | null;
+  subcategory: string | null;
+  seasons?: string[];
+  dayEvening?: string | null;
+  formality?: number | null;
+  /** Detail keys (garment-details.ts) of the product, e.g. embellished, cutOut. */
+  details?: string[];
+  fashion?: { timeless: boolean; onTrend: boolean; versatility: "low" | "medium" | "high" } | null;
+};
+
+/** Estimated wears per year of the piece and why (no history). */
+export function estimateWears(p: WearProfile, rotatingWith: number): { wearsPerYear: number; reasons: WearReason[] } {
+  const kind = `${p.subcategory ?? ""} ${p.category ?? ""}`;
+  let w = BASE_WEARS.find(([re]) => re.test(kind))?.[1] ?? 12;
+  const reasons: WearReason[] = [];
+  const seasons = (p.seasons ?? []).map((x) => x.toLowerCase());
+  if (seasons.includes("all seasons") || seasons.length >= 4) reasons.push("allSeasons");
+  else if (seasons.length === 1) { w *= 0.45; reasons.push("oneSeason"); }
+  else if (seasons.length === 2 || seasons.length === 3) { w *= 0.75; reasons.push("fewSeasons"); }
+  if (p.dayEvening === "evening") { w *= 0.35; reasons.push("eveningOnly"); }
+  else if (p.dayEvening === "both") { w *= 1.1; reasons.push("dayAndEvening"); }
+  if ((p.formality ?? 0) >= 5) { w *= 0.5; reasons.push("veryDressy"); }
+  if ((p.details ?? []).some((d) => d === "embellished" || d === "cutOut")) { w *= 0.55; reasons.push("statement"); }
+  if (p.fashion?.onTrend && !p.fashion.timeless) { w *= 0.8; reasons.push("trendPiece"); }
+  else if (p.fashion?.timeless) { w *= 1.1; reasons.push("timeless"); }
+  if (p.fashion?.versatility === "high") { w *= 1.15; reasons.push("versatile"); }
+  else if (p.fashion?.versatility === "low") { w *= 0.6; reasons.push("notVersatile"); }
+  // Many similar pieces in rotation share the wears (softly: square root).
+  if (rotatingWith > 3) { w /= Math.sqrt((rotatingWith + 1) / 4); reasons.push("rotation"); }
+  return { wearsPerYear: Math.max(1, Math.round(w)), reasons };
+}
+
 export function costPerWear(
-  product: { category: string | null; subcategory: string | null; dayEvening?: string | null; formality?: number | null },
+  product: WearProfile,
   wardrobe: WardrobeItem[],
   price: PriceContext | null,
   now: Date = new Date(),
@@ -185,24 +222,20 @@ export function costPerWear(
   const seasoned = sameType.filter((it) => yearsOwned(it) >= 0.5);
   let wearsPerYear: number;
   let basis: CostPerWear["basis"];
+  let reasons: WearReason[] = [];
   if (seasoned.length >= 3) {
-    wearsPerYear = percentile(seasoned.map((it) => ((it as { worn_count?: number }).worn_count ?? 0) / yearsOwned(it)), 0.5);
+    wearsPerYear = Math.max(1, Math.round(percentile(seasoned.map((it) => ((it as { worn_count?: number }).worn_count ?? 0) / yearsOwned(it)), 0.5)));
     basis = "history";
   } else {
-    const kind = `${product.subcategory} ${product.category ?? ""}`;
-    let base = TYPICAL_WEARS.find(([re]) => re.test(kind))?.[1] ?? 15;
-    // An evening / very formal piece is worn on few occasions whatever its type.
-    if (product.dayEvening === "evening" || (product.formality ?? 0) >= 5) base = Math.min(base, 4);
-    // Many similar pieces in rotation share the wears (softly: square root).
-    wearsPerYear = base / Math.max(1, Math.sqrt((sameType.length + 1) / 4));
-    basis = "typical";
+    ({ wearsPerYear, reasons } = estimateWears(product, sameType.length));
+    basis = "estimate";
   }
-  wearsPerYear = Math.max(1, Math.round(wearsPerYear));
   return {
     wearsPerYear,
     years: CPW_YEARS,
     costPerWearEur: Math.round(price.priceEur / (wearsPerYear * CPW_YEARS)),
     rotatingWith: sameType.length,
     basis,
+    reasons,
   };
 }

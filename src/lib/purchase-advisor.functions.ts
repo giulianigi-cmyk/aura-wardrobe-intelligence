@@ -69,6 +69,9 @@ type PurchaseProduct = {
   dayEvening?: string | null;
   formality?: number | null;
   occasions?: string[];
+  seasons?: string[];
+  /** Detail keys the photo analysis saw (garment-details.ts). */
+  visualDetails?: string[];
 };
 
 /** The closest owned piece of the same kind and how this one differs from it: construction details
@@ -284,13 +287,13 @@ function contextFacts(sameModel: SameModel | null | undefined, price: PriceConte
   const kind = (product.subcategory || product.category || "pieces").toLowerCase();
   return [
     sameModel ? `- The person already owns ${sameModel.count} piece(s) of this SAME model (${sameModel.name}${sameModel.colors.length ? `: ${sameModel.colors.join(", ")}` : ""}). This one is a variant of a model they have — say so, and say how it differs (shade, occasion), not that it is new.` : "",
-    cpw ? `- Cost per wear: likely worn about ${cpw.wearsPerYear} times a year (${cpw.basis === "history" ? "from how often they wear this kind of piece" : "typical for this kind of piece"}${cpw.rotatingWith > 3 ? `, sharing the wears with the ${cpw.rotatingWith} similar pieces they already own` : ""}) → about ${cpw.costPerWearEur} EUR per wear over ${cpw.years} years. Use it to judge the price concretely (a piece worn often justifies more).` : "",
+    cpw ? `- Cost per wear: likely worn about ${cpw.wearsPerYear} times a year (${cpw.basis === "history" ? "from how often they wear this kind of piece" : `an estimate from how usable it is: ${cpw.reasons.join(", ") || "its kind"}`}${cpw.rotatingWith > 3 ? `, sharing the wears with the ${cpw.rotatingWith} similar pieces they already own` : ""}) → about ${cpw.costPerWearEur} EUR per wear over ${cpw.years} years. Use it to judge the price concretely (a piece worn often justifies more).` : "",
     price ? `- Price ≈ ${price.priceEur} EUR. What this person usually pays for ${kind}: about ${price.usualEur} EUR, up to about ${price.topEur} EUR at the top of their range (${price.basedOn} owned pieces)${price.sameModelPaidEur != null ? `; they paid about ${price.sameModelPaidEur} EUR for the same model` : ""} — so this is ${price.tier === "above_usual" ? "FAR ABOVE what they usually spend for this kind of piece: if something similar is owned, say plainly it adds nothing but the label, and that the only reason to buy it would be wanting this specific brand/piece itself" : price.tier === "upper_range" ? "at the expensive end of what they spend (within their habits, not beyond): worth weighing, never call it far above their budget" : price.tier === "below_usual" ? "below what they usually spend" : "in line with what they usually spend"}. Judge the price against THEIR habits, never in absolute terms.` : "",
   ].filter(Boolean);
 }
 
-function wearOf(g: { heelHeight?: string; dayEvening?: string; formality?: number | null; occasions?: string[] }) {
-  return { heelHeight: g.heelHeight || null, dayEvening: g.dayEvening || null, formality: g.formality ?? null, occasions: g.occasions ?? [] };
+function wearOf(g: { heelHeight?: string; dayEvening?: string; formality?: number | null; occasions?: string[]; seasons?: string[]; details?: string[] }) {
+  return { heelHeight: g.heelHeight || null, dayEvening: g.dayEvening || null, formality: g.formality ?? null, occasions: g.occasions ?? [], seasons: g.seasons ?? [], visualDetails: g.details ?? [] };
 }
 
 /**
@@ -498,8 +501,6 @@ async function resolveProductAndWardrobeFacts(
     ? { label: closest.label, differences: closest.differences, wear: wearWithShade, visual: closestVisual ? { similarity: closestVisual.similarity, note: closestVisual.note } : null }
     : null;
   const price = priceContext(product, wardrobe, sameModelItems);
-  // What it costs per wear (purchase-context.ts): jeans worn 40 times a year vs an evening dress worn twice.
-  const cpw = costPerWear(product, wardrobe, price);
   // Details of this product that NO owned piece of the same category has (e.g. a slingback when
   // no slingback is owned) — what it would genuinely add (compare-alternatives.ts).
   const ownedDetails = new Set(wardrobe.filter((it) => it.category === product.category).flatMap((it) => [...detailsIn(ownedText(it))]));
@@ -517,6 +518,10 @@ async function resolveProductAndWardrobeFacts(
   const pairsWithCount = product.category ? countPairings(product.category, product.colors, wardrobe) : 0;
 
   const fashion = await fashionPromise;
+  // What it costs per wear (purchase-context.ts): how usable the piece is — seasons, day/evening,
+  // dressiness, statement details, timeless vs trend, versatility, the pieces it rotates with.
+  const productDetails = [...new Set([...detailsIn([product.subcategory, productText].filter(Boolean).join(" ")), ...(product.visualDetails ?? [])])];
+  const cpw = costPerWear({ ...product, details: productDetails, fashion }, wardrobe, price);
 
   return { ok: true, product, wardrobe, duplicate, similarItemsCount, comparableLabels, pairsWithCount, wardrobeGap, fashion, differsFrom, novelDetails, sameModel, price, cpw };
 }
@@ -727,7 +732,11 @@ const CachedFactsSchema = z.object({
     priceEur: z.number(), usualEur: z.number(), topEur: z.number().optional().default(0), basedOn: z.number(),
     tier: z.enum(["above_usual", "upper_range", "usual", "below_usual"]), sameModelPaidEur: z.number().nullable().optional().default(null),
   }).nullable().optional(),
-  cpw: z.object({ wearsPerYear: z.number(), years: z.number(), costPerWearEur: z.number(), rotatingWith: z.number(), basis: z.enum(["history", "typical"]) }).nullable().optional(),
+  cpw: z.object({
+    wearsPerYear: z.number(), years: z.number(), costPerWearEur: z.number(), rotatingWith: z.number(),
+    basis: z.enum(["history", "estimate", "typical"]).transform((v) => (v === "typical" ? "estimate" as const : v)),
+    reasons: z.array(z.enum(["allSeasons", "oneSeason", "fewSeasons", "dayAndEvening", "eveningOnly", "veryDressy", "statement", "trendPiece", "timeless", "versatile", "notVersatile", "rotation"])).optional().default([]),
+  }).nullable().optional(),
   pairsWithCount: z.number(),
   wardrobeGap: z.boolean(),
   isLabelOnly: z.boolean(),

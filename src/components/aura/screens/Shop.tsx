@@ -721,7 +721,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
 /** Fashion value (iconic, timeless, trend, status) and how the piece differs from the closest owned
  *  one of the same kind — shown under a verdict so it's clear what the advice is based on. */
 function FashionAndDifferences({ fashion, differsFrom, sameModel, price, cpw }: {
-  cpw?: { wearsPerYear: number; years: number; costPerWearEur: number; rotatingWith: number } | null;
+  cpw?: { wearsPerYear: number; years: number; costPerWearEur: number; rotatingWith: number; basis?: string; reasons?: string[] } | null;
   sameModel?: { count: number; name: string; colors: string[] } | null;
   price?: { priceEur: number; usualEur: number; topEur?: number; tier: "above_usual" | "upper_range" | "usual" | "below_usual"; sameModelPaidEur?: number | null } | null;
   fashion: { iconic: boolean; timeless: boolean; onTrend: boolean; statusPiece: boolean } | null | undefined;
@@ -765,8 +765,11 @@ function FashionAndDifferences({ fashion, differsFrom, sameModel, price, cpw }: 
       {/* What it costs per wear: worn often justifies more. */}
       {cpw && (
         <p className="text-[11px] text-muted-foreground leading-snug">
-          {t("shop.costPerWear", { count: cpw.wearsPerYear, years: cpw.years, cpw: cpw.costPerWearEur })}
-          {cpw.rotatingWith > 3 ? ` ${t("shop.costPerWearRotation", { count: cpw.rotatingWith })}` : ""}
+          {t(cpw.basis === "history" ? "shop.costPerWearHistory" : "shop.costPerWear", { count: cpw.wearsPerYear, years: cpw.years, cpw: cpw.costPerWearEur })}
+          {/* Why: the estimate comes from how usable the piece is. */}
+          {cpw.reasons?.length
+            ? ` (${cpw.reasons.map((r) => t(`shop.wearReason.${r}`, { count: cpw.rotatingWith })).join(", ")})`
+            : ""}
         </p>
       )}
       {differsFrom && visual && (
