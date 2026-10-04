@@ -761,7 +761,8 @@
       "timeless": "intemporel",
       "versatile": "très polyvalent",
       "notVersatile": "peu polyvalent",
-      "rotation": "alterne avec {{count}} autres pièces que tu porterais à sa place"
+      "rotation": "alterne avec {{count}} autres pièces que tu porterais à sa place",
+      "formalAllYear": "aussi hors saison pour les galas et soirées élégantes"
     },
     "wornDifferently": "Par rapport à ton {{label}} : {{details}}",
     "wear": {

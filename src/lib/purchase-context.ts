@@ -169,7 +169,7 @@ function roleDemand(role: string, subcategory: string | null | undefined): numbe
 }
 
 
-export type WearReason = "yourHistory" | "allSeasons" | "oneSeason" | "fewSeasons" | "dayAndEvening" | "eveningOnly" | "veryDressy" | "statement" | "trendPiece" | "timeless" | "versatile" | "notVersatile" | "rotation";
+export type WearReason = "yourHistory" | "allSeasons" | "oneSeason" | "fewSeasons" | "dayAndEvening" | "eveningOnly" | "veryDressy" | "statement" | "trendPiece" | "timeless" | "versatile" | "notVersatile" | "rotation" | "formalAllYear";
 
 export type CostPerWear = {
   wearsPerYear: number;
@@ -220,6 +220,14 @@ export function estimateWears(p: WearProfile, rotatingWith: number): { wearsPerY
   // Black-tie and gala pieces are worn at those events only, a handful a year.
   if ((p.formality ?? 0) >= 5) { demand = Math.min(demand, FORMAL_EVENTS_PER_YEAR); reasons.push("veryDressy"); }
   let w = demand * seasonShare;
+  // Elegant evening shoes, bags and dresses also come out of season for a gala or a very elegant
+  // evening (a summer sandal with tights in winter): the formal events of the other seasons.
+  const dressyEvening = (when === "evening" || (p.formality ?? 0) >= 4) && (role === "shoes" || role === "bags" || role === "onepiece");
+  if (dressyEvening && seasons.size < 4) {
+    w += FORMAL_EVENTS_PER_YEAR * (1 - seasonShare);
+    reasons.push("formalAllYear");
+  }
+  const cap = w;
   // Shared with the pieces it rotates with. Not an exact split: who owns more of something tends to
   // wear that kind of piece more often, so the share shrinks a little slower than 1/n.
   if (rotatingWith > 0) { w /= Math.pow(rotatingWith + 1, 0.9); reasons.push("rotation"); }
@@ -232,7 +240,7 @@ export function estimateWears(p: WearProfile, rotatingWith: number): { wearsPerY
   else if (p.fashion?.versatility === "low") { w *= 0.6; reasons.push("notVersatile"); }
   // Nobody wears the same garment every day; a bag, shoes, underwear or jewellery can come close.
   const everyday = role === "bags" || role === "shoes" || role.startsWith("underwear") || role.startsWith("accessories");
-  w = Math.min(w, demand * seasonShare * (everyday ? 0.9 : 0.6));
+  w = Math.min(w, cap * (everyday ? 0.9 : 0.6));
   return { wearsPerYear: Math.max(1, Math.round(w)), reasons };
 }
 

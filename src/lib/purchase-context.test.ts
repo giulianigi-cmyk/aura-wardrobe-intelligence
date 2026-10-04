@@ -212,3 +212,13 @@ test("cost per wear: every kind of piece is estimated from how often its role is
   const swim = costPerWear({ category: "Swimwear", subcategory: "One-piece Swimsuit", seasons: ["Summer"] }, many(3, { category: "Swimwear", subcategory: "Bikini Top", season: "Summer" }), price)!;
   assert.ok(swim.wearsPerYear >= 5 && swim.wearsPerYear <= 15, String(swim.wearsPerYear));
 });
+
+test("cost per wear: an elegant summer sandal also counts the galas of the other seasons", () => {
+  const price = { priceEur: 900, usualEur: 600, topEur: 1000, basedOn: 20, tier: "upper_range" as const, sameModelPaidEur: null };
+  const jewel = costPerWear({ category: "Shoes", subcategory: "Sandals", seasons: ["Summer"], dayEvening: "evening", formality: 4 }, [], price)!;
+  assert.ok(jewel.reasons.includes("formalAllYear"));
+  const beach = costPerWear({ category: "Shoes", subcategory: "Sandals", seasons: ["Summer"], dayEvening: "day", formality: 1 }, [], price)!;
+  assert.ok(!beach.reasons.includes("formalAllYear"));
+  // ~32 summer nights plus ~4–5 galas in the other seasons.
+  assert.ok(jewel.wearsPerYear >= 30, String(jewel.wearsPerYear));
+});

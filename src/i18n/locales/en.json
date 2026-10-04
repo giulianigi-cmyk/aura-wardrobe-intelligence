@@ -761,7 +761,8 @@
       "timeless": "timeless",
       "versatile": "very versatile",
       "notVersatile": "not very versatile",
-      "rotation": "rotates with {{count}} other pieces you would wear instead"
+      "rotation": "rotates with {{count}} other pieces you would wear instead",
+      "formalAllYear": "also out of season for galas and elegant evenings"
     },
     "wornDifferently": "Compared with your {{label}}: {{details}}",
     "wear": {
