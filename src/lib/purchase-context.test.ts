@@ -1,7 +1,7 @@
 // Run with: bun test src/lib/purchase-context.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyPurchaseContext, priceContext, sameModelOwned, shadeDifference } from "./purchase-context";
+import { applyPurchaseContext, costPerWear, priceContext, sameModelOwned, shadeDifference } from "./purchase-context";
 import type { WardrobeItem } from "./aura-types";
 
 const item = (o: Partial<WardrobeItem> & Record<string, unknown>) => ({ id: Math.random().toString(), category: "Bottoms", colors: [], ...o }) as unknown as WardrobeItem;
@@ -70,3 +70,23 @@ test("far beyond the person's range with a similar pair owned → skip (unless i
   assert.equal(applyPurchaseContext({ verdict: "buy", confidence: "high" }, { sameModelCount: 0, price, wardrobeGap: true, similarOwned: false }).verdict, "buy");
 });
 
+
+test("cost per wear: jeans are worn far more than an evening dress", () => {
+  const price = (eur: number) => ({ priceEur: eur, usualEur: eur, topEur: eur, basedOn: 5, tier: "usual" as const, sameModelPaidEur: null });
+  const jeans = costPerWear({ category: "Bottoms", subcategory: "Jeans" }, [], price(400))!;
+  assert.equal(jeans.wearsPerYear, 40);
+  assert.equal(jeans.costPerWearEur, 5);
+  const gown = costPerWear({ category: "Dresses", subcategory: "Evening Dress", dayEvening: "evening" }, [], price(300))!;
+  assert.equal(gown.wearsPerYear, 2);
+  assert.equal(gown.costPerWearEur, 75);
+});
+
+test("cost per wear: many similar pieces in rotation share the wears", () => {
+  const price = { priceEur: 1100, usualEur: 175, topEur: 358, basedOn: 24, tier: "above_usual" as const, sameModelPaidEur: null };
+  const owned = Array.from({ length: 24 }, () => item({ subcategory: "Jeans", created_at: new Date().toISOString() }));
+  const c = costPerWear({ category: "Bottoms", subcategory: "Jeans" }, owned, price)!;
+  assert.equal(c.rotatingWith, 24);
+  assert.equal(c.wearsPerYear, 16);
+  assert.equal(c.costPerWearEur, 34);
+  assert.equal(c.basis, "typical");
+});

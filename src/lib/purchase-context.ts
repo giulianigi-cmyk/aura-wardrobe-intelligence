@@ -122,3 +122,87 @@ export function applyPurchaseContext<V extends { verdict: "buy" | "maybe" | "ski
   if (ctx.sameModelCount >= 2) return { ...base, verdict: "maybe", confidence: "medium" };
   return base;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Cost per wear. The price alone says little: 400 € jeans worn 40 times a year cost less per wear
+// than a 300 € evening dress worn twice. Expected wears come from the person's own history for that
+// kind of piece once there is enough of it (6+ months, 3+ pieces), otherwise from typical use per
+// kind; either way spread across the similar pieces they already rotate (24 jeans → a new pair gets
+// fewer wears than a first pair would).
+// ---------------------------------------------------------------------------------------------
+
+/** Typical wears per year of ONE piece, by kind (subcategory words, checked in order). */
+const TYPICAL_WEARS: [RegExp, number][] = [
+  [/gown|evening|cocktail|abito da sera|black tie/i, 2],
+  [/clutch|minaudi/i, 5],
+  [/jeans/i, 40],
+  [/legging/i, 30],
+  [/trouser|pant|chino|cargo/i, 30],
+  [/skirt|gonna/i, 20],
+  [/short/i, 15],
+  [/t-?shirt|tank|camisole|bodysuit|top|polo/i, 25],
+  [/shirt|blouse|camicia/i, 20],
+  [/sweater|knit|cardigan|jumper|sweatshirt|hoodie/i, 20],
+  [/blazer/i, 25],
+  [/coat|trench|parka|puffer|cappotto/i, 30],
+  [/jacket|giacca|shacket|bomber/i, 20],
+  [/jumpsuit|tuta/i, 8],
+  [/dress|abito/i, 10],
+  [/sneaker|trainer/i, 50],
+  [/loafer|flat|ballerin|mocassin|boot|stival/i, 35],
+  [/pump|heel|sandal|slingback|mule|décolleté|decollete/i, 15],
+  [/bag|tote|shoulder|crossbody|backpack|borsa/i, 50],
+  [/watch|orologio|ring|anello|bracelet|bracciale|necklace|collana|earring|orecchin/i, 80],
+  [/belt|cintura|sunglass|occhiali/i, 35],
+  [/scarf|sciarpa|foulard/i, 20],
+];
+
+export type CostPerWear = {
+  wearsPerYear: number;
+  /** Years the cost is spread over (shown to the person). */
+  years: number;
+  costPerWearEur: number;
+  /** Similar pieces of the same type already owned (they share the wears). */
+  rotatingWith: number;
+  basis: "history" | "typical";
+};
+
+export const CPW_YEARS = 2;
+
+export function costPerWear(
+  product: { category: string | null; subcategory: string | null; dayEvening?: string | null; formality?: number | null },
+  wardrobe: WardrobeItem[],
+  price: PriceContext | null,
+  now: Date = new Date(),
+): CostPerWear | null {
+  if (!price || !product.subcategory) return null;
+  const sameType = wardrobe.filter((it) => it.category === product.category && it.subcategory === product.subcategory && !(it as { archived?: boolean }).archived);
+  // Own history: wears per year of owned pieces of this type that have been around long enough.
+  const yearsOwned = (it: WardrobeItem) => {
+    const since = (it as { purchase_date?: string | null }).purchase_date || (it as { created_at?: string }).created_at;
+    return since ? (now.getTime() - new Date(since).getTime()) / (365 * 86400000) : 0;
+  };
+  const seasoned = sameType.filter((it) => yearsOwned(it) >= 0.5);
+  let wearsPerYear: number;
+  let basis: CostPerWear["basis"];
+  if (seasoned.length >= 3) {
+    wearsPerYear = percentile(seasoned.map((it) => ((it as { worn_count?: number }).worn_count ?? 0) / yearsOwned(it)), 0.5);
+    basis = "history";
+  } else {
+    const kind = `${product.subcategory} ${product.category ?? ""}`;
+    let base = TYPICAL_WEARS.find(([re]) => re.test(kind))?.[1] ?? 15;
+    // An evening / very formal piece is worn on few occasions whatever its type.
+    if (product.dayEvening === "evening" || (product.formality ?? 0) >= 5) base = Math.min(base, 4);
+    // Many similar pieces in rotation share the wears (softly: square root).
+    wearsPerYear = base / Math.max(1, Math.sqrt((sameType.length + 1) / 4));
+    basis = "typical";
+  }
+  wearsPerYear = Math.max(1, Math.round(wearsPerYear));
+  return {
+    wearsPerYear,
+    years: CPW_YEARS,
+    costPerWearEur: Math.round(price.priceEur / (wearsPerYear * CPW_YEARS)),
+    rotatingWith: sameType.length,
+    basis,
+  };
+}

@@ -744,6 +744,9 @@
     },
     "visualClosest": "Closest thing you own: {{label}} — {{note}}.",
     "visualClosestNoNote": "Closest thing you own: {{label}}.",
+    "costPerWear_one": "You'd wear it about {{count}} time a year: over {{years}} years that's about €{{cpw}} per wear.",
+    "costPerWear_other": "You'd wear it about {{count}} times a year: over {{years}} years that's about €{{cpw}} per wear.",
+    "costPerWearRotation": "(It rotates with your {{count}} similar pieces.)",
     "wornDifferently": "Compared with your {{label}}: {{details}}",
     "wear": {
       "darker": "darker",

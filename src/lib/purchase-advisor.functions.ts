@@ -10,7 +10,7 @@ import { closestOwnedPiece, comparablePieces, differencesFrom, ownedPieceLabel, 
 import { compareVisually, MAX_VISUAL_CANDIDATES } from "./purchase-visual.server";
 import { detailsIn } from "./garment-details";
 import { occasionList, wearDifference, type WearDifference } from "./wear-difference";
-import { applyPurchaseContext, priceContext, sameModelOwned, shadeDifference, type PriceContext } from "./purchase-context";
+import { applyPurchaseContext, costPerWear, priceContext, sameModelOwned, shadeDifference, type CostPerWear, type PriceContext } from "./purchase-context";
 import { alternativeGroups, compareRanking, positiveFeatures } from "./compare-alternatives";
 import { alreadyOwnedPieces, loadWardrobeFeedback, notSimilarItemIds, productKey } from "./wardrobe-feedback";
 import { ownedEquivalent } from "./gap-ownership";
@@ -112,6 +112,7 @@ export type PurchaseAdvisorResult =
         differsFrom: DiffersFrom | null;
         sameModel?: SameModel | null;
         price?: PriceContext | null;
+        cpw?: CostPerWear | null;
       };
       fashion: FashionSignals | null;
       rules: {
@@ -279,10 +280,11 @@ function wearFacts(w: WearDifference | null | undefined): string {
 }
 
 /** Same model owned and price vs the person's usual spend, as facts for the stylist prompt. */
-function contextFacts(sameModel: SameModel | null | undefined, price: PriceContext | null | undefined, product: { category: string | null; subcategory: string | null }): string[] {
+function contextFacts(sameModel: SameModel | null | undefined, price: PriceContext | null | undefined, product: { category: string | null; subcategory: string | null }, cpw?: CostPerWear | null): string[] {
   const kind = (product.subcategory || product.category || "pieces").toLowerCase();
   return [
     sameModel ? `- The person already owns ${sameModel.count} piece(s) of this SAME model (${sameModel.name}${sameModel.colors.length ? `: ${sameModel.colors.join(", ")}` : ""}). This one is a variant of a model they have — say so, and say how it differs (shade, occasion), not that it is new.` : "",
+    cpw ? `- Cost per wear: likely worn about ${cpw.wearsPerYear} times a year (${cpw.basis === "history" ? "from how often they wear this kind of piece" : "typical for this kind of piece"}${cpw.rotatingWith > 3 ? `, sharing the wears with the ${cpw.rotatingWith} similar pieces they already own` : ""}) → about ${cpw.costPerWearEur} EUR per wear over ${cpw.years} years. Use it to judge the price concretely (a piece worn often justifies more).` : "",
     price ? `- Price ≈ ${price.priceEur} EUR. What this person usually pays for ${kind}: about ${price.usualEur} EUR, up to about ${price.topEur} EUR at the top of their range (${price.basedOn} owned pieces)${price.sameModelPaidEur != null ? `; they paid about ${price.sameModelPaidEur} EUR for the same model` : ""} — so this is ${price.tier === "above_usual" ? "FAR ABOVE what they usually spend for this kind of piece: if something similar is owned, say plainly it adds nothing but the label, and that the only reason to buy it would be wanting this specific brand/piece itself" : price.tier === "upper_range" ? "at the expensive end of what they spend (within their habits, not beyond): worth weighing, never call it far above their budget" : price.tier === "below_usual" ? "below what they usually spend" : "in line with what they usually spend"}. Judge the price against THEIR habits, never in absolute terms.` : "",
   ].filter(Boolean);
 }
@@ -305,7 +307,7 @@ async function resolveProductAndWardrobeFacts(
   supabase: SupabaseClient<any, any, any>,
   userId: string,
 ): Promise<
-  | { ok: true; product: PurchaseProduct; wardrobe: WardrobeItem[]; duplicate: { verdict: "certain" | "maybe"; itemId: string; label: string } | null; similarItemsCount: number; comparableLabels: string[]; pairsWithCount: number; wardrobeGap: boolean; fashion: FashionSignals | null; differsFrom: DiffersFrom | null; novelDetails: string[]; sameModel: SameModel | null; price: PriceContext | null }
+  | { ok: true; product: PurchaseProduct; wardrobe: WardrobeItem[]; duplicate: { verdict: "certain" | "maybe"; itemId: string; label: string } | null; similarItemsCount: number; comparableLabels: string[]; pairsWithCount: number; wardrobeGap: boolean; fashion: FashionSignals | null; differsFrom: DiffersFrom | null; novelDetails: string[]; sameModel: SameModel | null; price: PriceContext | null; cpw: CostPerWear | null }
   | { ok: false; error: string }
 > {
   // The product's own photo, for the visual comparison with owned pieces (purchase-visual.server.ts).
@@ -496,6 +498,8 @@ async function resolveProductAndWardrobeFacts(
     ? { label: closest.label, differences: closest.differences, wear: wearWithShade, visual: closestVisual ? { similarity: closestVisual.similarity, note: closestVisual.note } : null }
     : null;
   const price = priceContext(product, wardrobe, sameModelItems);
+  // What it costs per wear (purchase-context.ts): jeans worn 40 times a year vs an evening dress worn twice.
+  const cpw = costPerWear(product, wardrobe, price);
   // Details of this product that NO owned piece of the same category has (e.g. a slingback when
   // no slingback is owned) — what it would genuinely add (compare-alternatives.ts).
   const ownedDetails = new Set(wardrobe.filter((it) => it.category === product.category).flatMap((it) => [...detailsIn(ownedText(it))]));
@@ -514,7 +518,7 @@ async function resolveProductAndWardrobeFacts(
 
   const fashion = await fashionPromise;
 
-  return { ok: true, product, wardrobe, duplicate, similarItemsCount, comparableLabels, pairsWithCount, wardrobeGap, fashion, differsFrom, novelDetails, sameModel, price };
+  return { ok: true, product, wardrobe, duplicate, similarItemsCount, comparableLabels, pairsWithCount, wardrobeGap, fashion, differsFrom, novelDetails, sameModel, price, cpw };
 }
 
 /** The deterministic verdict logic, extracted so both the single-item flow and the
@@ -583,7 +587,7 @@ export const analyzePurchase = createServerFn({ method: "POST" })
 
     const resolved = await resolveProductAndWardrobeFacts(data, model, langCode, supabase, userId);
     if (!resolved.ok) return resolved;
-    const { product, wardrobe, duplicate, similarItemsCount, comparableLabels, pairsWithCount, wardrobeGap, fashion, differsFrom, sameModel, price } = resolved;
+    const { product, wardrobe, duplicate, similarItemsCount, comparableLabels, pairsWithCount, wardrobeGap, fashion, differsFrom, sameModel, price, cpw } = resolved;
 
     // ---- 3. Dress preferences — hard rule, same as the outfit engine ----
     const dressPrefs = profile?.dress_preferences ?? null;
@@ -613,7 +617,7 @@ export const analyzePurchase = createServerFn({ method: "POST" })
       // description isn't part of the returned shape — reasoning-only
       // input, not something the UI needs to render separately.
       analysis: { category: product.category, subcategory: product.subcategory, colors: product.colors, material: product.material },
-      wardrobe: { duplicate, similarItemsCount, pairsWithCount, wardrobeGap, differsFrom, sameModel, price },
+      wardrobe: { duplicate, similarItemsCount, pairsWithCount, wardrobeGap, differsFrom, sameModel, price, cpw },
       fashion,
       rules: { dressPreferenceViolation: dressViolation },
     };
@@ -650,7 +654,7 @@ export const analyzePurchase = createServerFn({ method: "POST" })
         ? "- Fills a real gap: nothing of this kind owned yet."
         : `- Not a gap: pieces of the same kind already owned, e.g. ${comparableLabels.join("; ")}. They are the same kind of piece, not necessarily similar — only call it similar if the line above says so.`,
       differsFrom ? `- The owned piece that looks most like it is ${differsFrom.label}${differsFrom.visual ? ` (from the photos: ${differsFrom.visual.similarity}/100 similar; what differs: ${differsFrom.visual.note || "nothing notable"})` : ""}${differsFrom.differences.length ? `; details it adds: ${differsFrom.differences.join(", ")}` : ""}${wearFacts(differsFrom.wear)}. Name that piece and say concretely how this one differs and for which occasions.` : "",
-      ...contextFacts(sameModel, price, product),
+      ...contextFacts(sameModel, price, product, cpw),
       ...fashionFacts(fashion),
       dressViolation ? "- Conflicts with a stated dress preference — this is why it's a skip." : "",
       profile?.season ? `- Estimated color season: ${profile.season}${profile.undertone ? ` (${profile.undertone})` : ""} — soft note only, never a reason on its own.` : "",
@@ -723,6 +727,7 @@ const CachedFactsSchema = z.object({
     priceEur: z.number(), usualEur: z.number(), topEur: z.number().optional().default(0), basedOn: z.number(),
     tier: z.enum(["above_usual", "upper_range", "usual", "below_usual"]), sameModelPaidEur: z.number().nullable().optional().default(null),
   }).nullable().optional(),
+  cpw: z.object({ wearsPerYear: z.number(), years: z.number(), costPerWearEur: z.number(), rotatingWith: z.number(), basis: z.enum(["history", "typical"]) }).nullable().optional(),
   pairsWithCount: z.number(),
   wardrobeGap: z.boolean(),
   isLabelOnly: z.boolean(),
@@ -744,7 +749,7 @@ type ComparedItem = {
   product: ComparedProductOut;
   verdict: "buy" | "maybe" | "skip";
   confidence: "high" | "medium" | "low";
-  wardrobe: { duplicate: boolean; similarTo: string | null; differsFrom: DiffersFrom | null; sameModel: SameModel | null; price: PriceContext | null; pairsWithCount: number; wardrobeGap: boolean; dressPreferenceViolation: boolean };
+  wardrobe: { duplicate: boolean; similarTo: string | null; differsFrom: DiffersFrom | null; sameModel: SameModel | null; price: PriceContext | null; cpw: CostPerWear | null; pairsWithCount: number; wardrobeGap: boolean; dressPreferenceViolation: boolean };
   fashion: FashionSignals | null;
   /** Pieces of this comparison that do the same job: buy one or the other (compare-alternatives.ts). */
   alternative: { preferred: boolean; withNames: string[] } | null;
@@ -822,6 +827,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
             novelDetails: item.novelDetails ?? [],
             sameModel: item.sameModel ?? null,
             price: item.price ?? null,
+            cpw: item.cpw ?? null,
             pairsWithCount: item.pairsWithCount,
             wardrobeGap: item.wardrobeGap,
           };
@@ -883,7 +889,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
       alternative: alternativeOf.get(i) ?? null,
       verdict: verdicts[i].verdict,
       confidence: verdicts[i].confidence,
-      wardrobe: { duplicate: r.duplicate?.verdict === "certain", similarTo: r.duplicate?.itemId === SAID_OWNED_ID ? SAID_OWNED_ID : r.duplicate?.label || null, differsFrom: r.differsFrom, sameModel: r.sameModel, price: r.price, pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, dressPreferenceViolation: violations[i] },
+      wardrobe: { duplicate: r.duplicate?.verdict === "certain", similarTo: r.duplicate?.itemId === SAID_OWNED_ID ? SAID_OWNED_ID : r.duplicate?.label || null, differsFrom: r.differsFrom, sameModel: r.sameModel, price: r.price, cpw: r.cpw, pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, dressPreferenceViolation: violations[i] },
       fashion: r.fashion,
       cacheKey: {
         source: "cached" as const,
@@ -900,6 +906,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
         novelDetails: r.novelDetails,
         sameModel: r.sameModel,
         price: r.price,
+        cpw: r.cpw,
         pairsWithCount: r.pairsWithCount,
         wardrobeGap: r.wardrobeGap,
         isLabelOnly: isLabelOnly[i],
@@ -937,7 +944,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
         ? `${label} fills a real gap — nothing of this kind owned yet.`
         : `${label} is not a gap — pieces of the same kind already owned${r.comparableLabels.length ? ` (e.g. ${r.comparableLabels.join("; ")})` : ""}; same kind does not mean similar.`,
       r.differsFrom ? `${label}: the owned piece that looks most like it is ${r.differsFrom.label}${r.differsFrom.visual ? ` (from the photos: ${r.differsFrom.visual.similarity}/100 similar; what differs: ${r.differsFrom.visual.note || "nothing notable"})` : ""}${r.differsFrom.differences.length ? `; details it adds: ${r.differsFrom.differences.join(", ")}` : ""}${wearFacts(r.differsFrom.wear)}.` : "",
-      ...contextFacts(r.sameModel, r.price, r.product).map((line) => `${label}: ${line.replace(/^- /, "")}`),
+      ...contextFacts(r.sameModel, r.price, r.product, r.cpw).map((line) => `${label}: ${line.replace(/^- /, "")}`),
       ...fashionFacts(r.fashion).map((line) => `${label}: ${line.replace(/^- /, "")}`),
       violation ? `${label} conflicts with a stated dress preference.` : "",
     ].filter(Boolean);

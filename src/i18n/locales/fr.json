@@ -744,6 +744,9 @@
     },
     "visualClosest": "Ce que tu as de plus proche : {{label}} — {{note}}.",
     "visualClosestNoNote": "Ce que tu as de plus proche : {{label}}.",
+    "costPerWear_one": "Tu le porterais environ {{count}} fois par an : sur {{years}} ans, environ {{cpw}} € par utilisation.",
+    "costPerWear_other": "Tu le porterais environ {{count}} fois par an : sur {{years}} ans, environ {{cpw}} € par utilisation.",
+    "costPerWearRotation": "(Il alterne avec tes {{count}} pièces similaires.)",
     "wornDifferently": "Par rapport à ton {{label}} : {{details}}",
     "wear": {
       "darker": "plus foncé",

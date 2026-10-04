@@ -744,6 +744,9 @@
     },
     "visualClosest": "Il più simile che hai: {{label}} — {{note}}.",
     "visualClosestNoNote": "Il più simile che hai: {{label}}.",
+    "costPerWear_one": "Lo metteresti circa {{count}} volta l'anno: in {{years}} anni sono circa {{cpw}} € a utilizzo.",
+    "costPerWear_other": "Lo metteresti circa {{count}} volte l'anno: in {{years}} anni sono circa {{cpw}} € a utilizzo.",
+    "costPerWearRotation": "(Si alterna con i tuoi {{count}} capi simili.)",
     "wornDifferently": "Rispetto al tuo {{label}}: {{details}}",
     "wear": {
       "darker": "più scuro",
