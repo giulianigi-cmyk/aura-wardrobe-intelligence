@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { X, Check, Loader2, User, Calendar as CalendarIcon, LayoutGrid, Share2 } from "lucide-react";
+import { X, Check, Loader2, User, Calendar as CalendarIcon, LayoutGrid, Share2, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { saveOutfitPlan } from "@/lib/outfit-plan.functions";
@@ -256,9 +256,21 @@ export function OutfitViewerSheet({
   ];
 
   const canvasBlock = (
-    <div className="rounded-2xl overflow-hidden aspect-[4/5] shadow-soft flex items-center justify-center" style={{ background: "#FFFFFF" }}>
+    <div className="relative rounded-2xl overflow-hidden aspect-[4/5] shadow-soft flex items-center justify-center" style={{ background: "#FFFFFF" }}>
       {canvasState === "ready" && canvasUrl ? (
-        <img src={canvasUrl} alt="" className="h-full w-full object-contain" />
+        <>
+          {/* Tapping the canvas, or its "Modifica" button, opens it in the editor to move pieces —
+              the same as "Apri sulla tela" at the bottom, which was easy to miss. */}
+          <button type="button" onClick={() => void editOnCanvas()} className="h-full w-full" aria-label={t("outfitViewer.editCanvas")}>
+            <img src={canvasUrl} alt="" className="h-full w-full object-contain" />
+          </button>
+          <button
+            type="button"
+            onClick={() => void editOnCanvas()}
+            disabled={opening}
+            className="absolute top-3 right-3 h-8 px-3 rounded-full bg-background/90 backdrop-blur border border-border shadow-soft flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] active:scale-95 disabled:opacity-60"
+          >{opening ? <Loader2 size={12} className="animate-spin" /> : <Pencil size={12} />} {t("outfitViewer.editCanvas")}</button>
+        </>
       ) : canvasState === "loading" ? (
         <div className="flex flex-col items-center gap-2 text-muted-foreground">
           <Loader2 className="animate-spin" size={18} />

@@ -136,6 +136,10 @@ export async function suggestOutfitCore(params: {
    * easy-to-miss aside.
    */
   relativeWarmthHint?: string | null;
+  /** Work days with a cool commute and a warm afternoon (commute-weather.ts): the instruction for the
+   *  model, and the guarantee that the outfit has one removable layer even when the model forgets it. */
+  commuteLayerHint?: string | null;
+  requireRemovableLayer?: boolean;
 
   /**
    * The app's own selected language (profiles.language — "it" | "en" | "es" | "fr"), so the
@@ -405,6 +409,7 @@ export async function suggestOutfitCore(params: {
     ...(params.relativeWarmthHint ? [`Default: ${params.relativeWarmthHint}`] : []),
     ...(boldnessLine ? [boldnessLine] : []),
     "NEVER pick more than one outerwear/layering piece in the same outfit — a blazer and a cardigan (or any two of blazer/cardigan/jacket/coat) are never worn together. Pick at most one.",
+    "A cardigan or any open-front knit (even one tied or wrapped at the front) is a LAYER, like a jacket: ALWAYS pair it with a real top underneath — at least a tank top, camisole, t-shirt, bodysuit or fine knit — never as the only top (unless worn over a dress or jumpsuit).",
     "TEXT MUST MATCH THE ACTUAL ITEM, NOT YOUR INTENT: before writing the explanation, check the subcategory and colors of every item_id you're about to return, and describe each piece using its own real attributes — never call a sandal a 'décolleté'/'pumps' or describe a bag's color/pattern as something other than what it actually is. If nothing in the wardrobe matches what would be ideal, describe what you actually picked, not an idealized version of it.",
     "A Dress or Jumpsuit is a complete base on its own and REPLACES both top and bottom — NEVER combine a Dress or Jumpsuit with a separate Bottoms item (trousers, jeans, shorts, skirt) in the same outfit. If you pick a Dress or Jumpsuit, do not also pick anything from the Bottoms category.",
     "Weather overrides everything else for outerwear: above roughly 15°C, do not include a substantial coat (wool coat, trench, overcoat, puffer, quilted jacket) — it reads as overdressed for the actual weather regardless of how elegant the rest of the look is. Above roughly 26°C, also drop lighter layers — blazers, cardigans, jackets — a lightweight top alone is correct, even for a cocktail or formal occasion (there is always a lighter way to be elegant). Below roughly 10°C, prioritize real warmth over anything else. Only add outerwear when the temperature genuinely calls for it.",
@@ -480,7 +485,7 @@ export async function suggestOutfitCore(params: {
     '{"item_ids": ["id1", "id2"], "explanation": "short reason"}',
   ].join("\n");
 
-  const userContent = `${wx} ${occ}\nWardrobe:\n${JSON.stringify(catalog)}`;
+  const userContent = `${wx} ${occ}${params.commuteLayerHint ? `\n${params.commuteLayerHint}` : ""}\nWardrobe:\n${JSON.stringify(catalog)}`;
 
   // Hard, code-level guardrails — mirrors the pattern in
   // suggest-daily-looks.functions.ts. The prompt above ALSO asks for all
@@ -488,10 +493,18 @@ export async function suggestOutfitCore(params: {
   const SLOT_LIMITS: Record<string, number> = {
     Tops: 1, Bottoms: 1, Dresses: 1, Jumpsuits: 1, Shoes: 1, Bags: 1, Outerwear: 1,
   };
+  // A cardigan / open-front knit stored under Tops is a LAYER, worn over a top: it takes the outerwear
+  // slot (one layer per outfit), not the top slot. Counted as a top, "cardigan + tank underneath" was a
+  // slot violation, so the only valid answer left was a cardigan with nothing under it.
+  const isOpenLayerPiece = (c: { category?: string | null; subcategory?: string | null; style?: string | string[] | null }) =>
+    /cardigan|blazer|jacket|giacca|coat|cappotto|kimono|duster|gilet|waistcoat|shrug|bolero|coprispalle/i.test(`${c.subcategory ?? ""} ${c.style ?? ""}`);
+  const slotOf = (c: { category?: string | null; subcategory?: string | null; style?: string | string[] | null }) =>
+    c.category === "Tops" && isOpenLayerPiece(c) ? "Outerwear" : (c.category ?? "");
   const hasSlotViolation = (ids: string[]): boolean => {
     const counts: Record<string, number> = {};
     for (const id of ids) {
-      const cat = catalog.find((c) => c.id === id)?.category;
+      const item = catalog.find((c) => c.id === id);
+      const cat = item ? slotOf(item) : "";
       if (!cat) continue;
       counts[cat] = (counts[cat] ?? 0) + 1;
     }
@@ -664,8 +677,7 @@ export async function suggestOutfitCore(params: {
       .map((id) => catalog.find((c) => c.id === id))
       .filter((c): c is NonNullable<typeof c> => !!c && (c.category === "Tops" || c.category === "Outerwear"));
     if (upper.length === 0) return false;
-    const isOpenLayer = (c: (typeof upper)[number]) =>
-      /cardigan|blazer|jacket|giacca|coat|cappotto|kimono|duster|gilet|waistcoat/i.test(`${c.subcategory ?? ""} ${c.style ?? ""}`);
+    const isOpenLayer = (c: (typeof upper)[number]) => isOpenLayerPiece(c);
     // A dress or jumpsuit already covers the torso — a cardigan over one
     // is complete, no separate top required.
     const hasDressBase = ids.some((id) => {
@@ -704,9 +716,11 @@ export async function suggestOutfitCore(params: {
   const missingLegs = (ids: string[]): boolean =>
     structureRequired && !hasFullBody(ids) && !ids.some((id) => catOfId(id) === "Bottoms")
     && catalog.some((c) => c.category === "Bottoms" && usableAddition(c));
+  // A cardigan alone is not a torso: it needs a real top under it (a tank at least).
+  const isBaseTop = (c: (typeof catalog)[number] | undefined) => !!c && c.category === "Tops" && !isOpenLayerPiece(c);
   const missingTorso = (ids: string[]): boolean =>
-    structureRequired && !hasFullBody(ids) && !ids.some((id) => catOfId(id) === "Tops")
-    && catalog.some((c) => c.category === "Tops" && usableAddition(c));
+    structureRequired && !hasFullBody(ids) && !ids.some((id) => isBaseTop(catalog.find((c) => c.id === id)))
+    && catalog.some((c) => isBaseTop(c) && usableAddition(c));
 
   const isValidResult = (ids: string[]): boolean => {
     if (!ids.length) return false;
@@ -789,7 +803,8 @@ export async function suggestOutfitCore(params: {
           const seen = new Set<string>();
           // The mandatory piece is processed first so it is the one kept in its slot.
           item_ids = ensureAnchor(item_ids, params.mustIncludeItemId, (id) => catalog.find((c) => c.id === id)?.category).filter((id) => {
-            const cat = catalog.find((c) => c.id === id)?.category ?? "";
+            const item = catalog.find((c) => c.id === id);
+            const cat = item ? slotOf(item) : "";
             const key = SLOT_LIMITS[cat] ? cat : id;
             if (seen.has(key)) return false;
             seen.add(key);
@@ -872,7 +887,7 @@ export async function suggestOutfitCore(params: {
       if (bottom) item_ids = [...item_ids, bottom.id];
     }
     if (missingTorso(item_ids)) {
-      const top = pickBest("Tops");
+      const top = pickBest("Tops", (c) => !isOpenLayerPiece(c));
       if (top) item_ids = [...item_ids, top.id];
     }
 
@@ -889,6 +904,21 @@ export async function suggestOutfitCore(params: {
     if (!item_ids.some((id) => catalog.find((c) => c.id === id)?.category === "Shoes")) {
       const shoe = pickBest("Shoes", (c) => !violatesFootwearRule([c.id]));
       if (shoe) item_ids = [...item_ids, shoe.id];
+    }
+
+    // Cool commute, warm afternoon: one removable layer, always (not only when the model thinks of
+    // it). A light one — a blazer, a jacket, a cardigan — never a winter coat; a cardigan then gets a
+    // top under it from the torso rule above.
+    if (params.requireRemovableLayer && !item_ids.some((id) => { const c = catalog.find((x) => x.id === id); return !!c && slotOf(c) === "Outerwear"; })) {
+      const notHeavy = (c: (typeof catalog)[number]) => !/coat|cappotto|puffer|piumino|parka|down|quilted|trench|shearling|montone/i.test(c.subcategory ?? "");
+      const layer = pickBest("Outerwear", notHeavy) ?? pickBest("Tops", (c) => isOpenLayerPiece(c) && notHeavy(c));
+      if (layer) {
+        item_ids = [...item_ids, layer.id];
+        if (missingTorso(item_ids)) {
+          const top = pickBest("Tops", (c) => !isOpenLayerPiece(c));
+          if (top) item_ids = [...item_ids, top.id];
+        }
+      }
     }
 
     if (missingMandatoryBag(item_ids)) {

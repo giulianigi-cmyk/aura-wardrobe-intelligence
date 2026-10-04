@@ -5,6 +5,7 @@ import { suggestOutfitCore, type SuggestOutfitItem } from "./ai-suggest-outfit.f
 import { dressPreferencesToPrompt, hasAnyPreference, type DressPreferences } from "./dress-preferences";
 import { resolvePlanSlot, validateEventSlot } from "./outfit-plan-slot";
 import { describeWeather } from "./weather";
+import { commuteLayerHint, commuteWeather } from "./commute-weather";
 
 const DailyWeatherSchema = z.object({
   date: z.string(),
@@ -222,6 +223,9 @@ export const generateWeeklyOutfits = createServerFn({ method: "POST" })
       const w = weatherByDate.get(date);
       const wForRules = w ?? nearestForecast(date);
       const occasionHint = eventTitleByDate.get(date) ? `Work · ${eventTitleByDate.get(date)}` : "Work";
+      // Leaving half an hour before work starts and coming back after it ends: a cool commute and a
+      // warm afternoon mean one removable layer (commute-weather.ts).
+      const commute = wForRules ? commuteWeather(workStart, workEnd, wForRules.tempMin, wForRules.tempMax) : null;
 
       const result = await suggestOutfitCore({
         supabase, userId,
@@ -238,6 +242,8 @@ export const generateWeeklyOutfits = createServerFn({ method: "POST" })
         // The day actually being planned, not today — a week generated in June for a July date
         // should already treat that July date as summer, and vice versa at the season's edges.
         forDateIso: date,
+        commuteLayerHint: commute?.needsRemovableLayer ? commuteLayerHint(commute) : null,
+        requireRemovableLayer: commute?.needsRemovableLayer ?? false,
       });
 
       if (!result.ok || !result.item_ids.length) {

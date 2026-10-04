@@ -212,6 +212,11 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
   // plans and pending confirmations stay on screen instead of being swapped for a spinner.
   const loadedOnceRef = useRef(false);
   const [occasion, setOccasion] = useState<string>("Everyday");
+  // The occasion values stay in English (they are what the AI and the data use); shown translated.
+  const occasionLabel = (o: string) => {
+    const l = t(`shop.occasion.${o.replace(/\s+/g, "")}`, { defaultValue: o });
+    return l.charAt(0).toUpperCase() + l.slice(1);
+  };
   const [aiBusy, setAiBusy] = useState(false);
   const [query, setQuery] = useState("");
   const [shareFor, setShareFor] = useState<string | null>(null);
@@ -792,7 +797,9 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
 
       <section className="px-6 mt-8">
         <h2 className="font-serif text-2xl italic mb-3">{t("aiStylist.myOutfits")}</h2>
-        <div className="flex rounded-full border border-border p-1 mb-4">
+        {/* Labels never squeezed together or wrapped: each keeps its own padding and the row scrolls
+            sideways when they don't fit (longer languages); the selected one is scrolled into view. */}
+        <div className="flex gap-1 rounded-full border border-border p-1 mb-4 overflow-x-auto no-scrollbar">
           {([
             { key: "upcoming", label: t("aiStylist.tabUpcoming") },
             { key: "worn", label: t("aiStylist.tabWorn") },
@@ -802,8 +809,8 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
           ] as { key: OutfitTab; label: string }[]).map((t2) => (
             <button
               key={t2.key}
-              onClick={() => setOutfitTab(t2.key)}
-              className={`flex-1 h-8 rounded-full text-[10px] uppercase tracking-[0.15em] ${outfitTab === t2.key ? "bg-foreground text-background" : "text-muted-foreground"}`}
+              onClick={(e) => { setOutfitTab(t2.key); e.currentTarget.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" }); }}
+              className={`flex-auto shrink-0 h-8 px-3.5 rounded-full whitespace-nowrap text-[10px] uppercase tracking-[0.15em] ${outfitTab === t2.key ? "bg-foreground text-background" : "text-muted-foreground"}`}
             >{t2.label}</button>
           ))}
         </div>
@@ -1051,8 +1058,9 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
           className="mt-2 w-full h-12 rounded-full border border-border text-foreground text-xs uppercase tracking-[0.3em] active:scale-[0.98] flex items-center justify-center gap-2"
         ><CalendarIcon size={13} /> {t("aiStylist.createWorkOutfits")}</button>
 
-        <details className="mt-4">
-          <summary className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground cursor-pointer">{t("aiStylist.moreOptions")}</summary>
+        {/* Always open: the occasion chips and the AI suggestion used to hide behind a fold. */}
+        <div className="mt-5">
+          <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("aiStylist.moreOptions")}</p>
           <div className="mt-3">
             <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">{t("aiStylist.occasion")}</p>
             <div className="flex flex-wrap gap-1.5">
@@ -1061,7 +1069,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
                   key={o}
                   onClick={() => setOccasion(o)}
                   className={`rounded-full px-3 py-1.5 text-xs transition ${occasion === o ? "bg-foreground text-background" : "bg-secondary/60"}`}
-                >{o}</button>
+                >{occasionLabel(o)}</button>
               ))}
             </div>
             <button
@@ -1073,7 +1081,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
               <span className="text-[10px] uppercase tracking-[0.3em]">{t("aiStylist.aiSuggest")}</span>
             </button>
           </div>
-        </details>
+        </div>
       </section>
 
       {detailItemId && (() => {

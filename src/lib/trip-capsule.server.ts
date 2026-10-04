@@ -222,6 +222,14 @@ function hasEleganceSignal(req: Requirement): boolean {
 /** The activity name must survive into the AI prompt even when a dress
  *  code exists — "Sport" alone loses "Yoga at sunset", and the prompt
  *  rules below key off those words. */
+/** A daytime activity that isn't dressy (no formal/cocktail/elegant dress code): on a trip that means
+ *  walking a lot, so comfortable shoes count. */
+function isWalkingDay(req: Requirement): boolean {
+  if (req.daySegment !== "day") return false;
+  const text = `${req.label ?? ""} ${req.dressCode ?? ""}`;
+  return !/formal|cocktail|elegant|elegante|black tie|gala|wedding|matrimonio|business|meeting|work|lavoro/i.test(text);
+}
+
 function occasionText(req: Requirement): string {
   const parts = [req.label, req.dressCode].filter(Boolean) as string[];
   const base = !parts.length ? "Trip" : parts.length === 2 && parts[0] !== parts[1] ? `${parts[0]} (${parts[1]})` : parts[0];
@@ -509,6 +517,13 @@ function versatility(it: PoolItem, req?: Requirement, temperature?: number | nul
     if (req.daySegment === "evening" && it.category === "Shoes") {
       const sub = (it.subcategory ?? "").toLowerCase();
       if (/sneaker|running|trainer|scarpe da ginnastica/.test(sub)) score -= 3;
+    }
+    // A daytime on a trip usually means walking a lot (sightseeing, a city, a transfer): sneakers and flat
+    // walking shoes are a real option there, mules and heels less so — unless the day is a dressy one.
+    if (isWalkingDay(req) && it.category === "Shoes") {
+      const sub = (it.subcategory ?? "").toLowerCase();
+      if (/sneaker|trainer|loafer|mocassin|flat|ballerin|espadrille/.test(sub)) score += 2;
+      if (/mule|heel|pump|décolleté|decollete|slingback|stiletto|tacco/.test(sub)) score -= 1;
     }
 
     // Sleeve length vs. real temperature: independent of the item's own
@@ -1527,6 +1542,8 @@ export async function generateTripCapsuleCore({ data, context }: {
         // it can't let anything unsafe through.
         occasion: activityKind(req) === "concert"
           ? `${occasionText(req)} — a concert/DJ set: hours on your feet, dancing, in a crowd, often outdoors. Dress for a party or festival, NOT for a formal dinner: crop tops, fitted or cut-out tops, mini skirts, short shorts, bodysuits, mesh, metallic or leather details and bold accessories are all appropriate. Comfort and freedom of movement matter more than formality.`
+          : isWalkingDay(req)
+          ? `${occasionText(req)} — a day out on a trip, likely walking a lot: comfortable shoes (clean sneakers or flat walking shoes) are a good choice; mules and heels only if the day involves little walking.`
           : occasionText(req),
         dressRules,
         gender: profile?.gender ?? null,
