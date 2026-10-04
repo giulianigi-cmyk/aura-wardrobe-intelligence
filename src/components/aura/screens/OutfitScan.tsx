@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import { saveGeneralPlanAskingSameDay } from "@/lib/same-day-choice";
 import { useServerFn } from "@tanstack/react-start";
 import { useTranslation } from "react-i18next";
 import { parsePositivePrice } from "@/lib/price-parse";
@@ -729,14 +730,10 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
     setSavingOutfit(true);
     try {
       const status = calendarDate <= todayIso() ? "worn" : "planned";
-      const { data: planRow, error } = await supabase.from("outfit_plans").insert({
-        user_id: user.id,
-        date: calendarDate,
-        item_ids: finishedItemIds,
-        status,
-      } as never).select("id").single();
-      if (error) throw error;
-      const planId = (planRow as { id: string }).id;
+      // Only one general outfit per day used to be possible, so a photo outfit on a day that already
+      // had a hand-made one failed. Now the person chooses: add it (they changed clothes) or replace.
+      const planId = await saveGeneralPlanAskingSameDay(supabase, user.id, calendarDate, { item_ids: finishedItemIds, status }, t);
+      if (!planId) { setSavingOutfit(false); return; }
       if (myOutfitEventId) {
         await (supabase.from("wardrobe_events" as never) as any)
           .update({ outfit_plan_id: planId }).eq("id", myOutfitEventId);

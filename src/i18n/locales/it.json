@@ -828,6 +828,8 @@
     "planOutfit": "Pianifica outfit",
     "eventFallback": "Evento",
     "generalLabel": "Generale",
+    "extraOutfitLabel": "Outfit {{n}}",
+    "extraOutfitSub": "Cambio d'abito",
     "noSpecificEvent": "Nessun evento specifico",
     "untitledEvent": "Evento senza titolo",
     "worn": "Indossato",
@@ -2213,5 +2215,11 @@
       "Swimwear": "Costumi",
       "Activewear": "Sportswear"
     }
+  },
+  "sameDay": {
+    "title": "Hai già un outfit per questo giorno",
+    "body": "Ti sei cambiata? Puoi aggiungere anche questo o sostituire quello che c'è.",
+    "add": "Aggiungi",
+    "replace": "Sostituisci"
   }
 }

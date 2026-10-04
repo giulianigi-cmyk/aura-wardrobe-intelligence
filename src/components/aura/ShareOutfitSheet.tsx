@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { savePlanAskingSameDay } from "@/lib/same-day-choice";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -116,7 +117,8 @@ export function ShareOutfitSheet({ outfitId, onClose }: { outfitId: string; onCl
     if (!info?.itemIds.length) { toast.error(t("shareOutfitSheet.couldNotAddToCalendar")); return; }
     setSavingCalendar(true);
     try {
-      await savePlan({ data: { itemIds: info.itemIds, date: calendarDate } });
+      // A day that already has another outfit: add this one too (a change of clothes) or replace it.
+      if (!(await savePlanAskingSameDay(savePlan, info.itemIds, calendarDate, t))) return;
       outfitPlansCache.invalidate();
       toast.success(t("shareOutfitSheet.addedToCalendar"));
       setShowCalendarPicker(false);

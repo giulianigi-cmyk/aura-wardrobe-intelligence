@@ -452,8 +452,9 @@ export function Planner({ go, openStylistChat, openBuilder, openAvatarTryOn, foc
 // Day detail sheet: plan / log / view
 // ============================================================================
 
-type Slot = { type: "general" } | { type: "event"; event: ImportedEvent };
-const slotKey = (s: Slot) => (s.type === "general" ? "general" : `event:${s.event.id}`);
+// "extra": a further outfit of the same day (a change of clothes — outfit_plans.extra_slot > 0).
+type Slot = { type: "general" } | { type: "event"; event: ImportedEvent } | { type: "extra"; planId: string };
+const slotKey = (s: Slot) => (s.type === "general" ? "general" : s.type === "extra" ? `extra:${s.planId}` : `event:${s.event.id}`);
 
 function DayDetail({
   date, plans, calendarEvents, openStylistChat, openBuilder, openAvatarTryOn, items, signed, weather, currentTempC,
@@ -482,7 +483,9 @@ function DayDetail({
   const isPast = date < toISO(new Date());
 
   const eventIdOf = (p: OutfitPlan) => (p as unknown as { calendar_event_id?: string | null }).calendar_event_id ?? null;
-  const generalPlan = plans.find((p) => !eventIdOf(p)) ?? null;
+  const extraSlotOf = (p: OutfitPlan) => (p as unknown as { extra_slot?: number | null }).extra_slot ?? 0;
+  const generalPlan = plans.find((p) => !eventIdOf(p) && extraSlotOf(p) === 0) ?? null;
+  const extraPlans = plans.filter((p) => !eventIdOf(p) && extraSlotOf(p) > 0).sort((a, b) => extraSlotOf(a) - extraSlotOf(b));
   const planForEvent = (eventId: string) => plans.find((p) => eventIdOf(p) === eventId) ?? null;
 
   // A plain day with nothing going on skips straight to the old
@@ -495,7 +498,10 @@ function DayDetail({
   // The whole look as a canvas (auto-composed, like Home), with pieces / avatar / save / share
   const [viewingLook, setViewingLook] = useState<{ itemIds: string[]; occasion: string | null; notes: string | null } | null>(null);
 
-  const plan = !activeSlot ? null : activeSlot.type === "general" ? generalPlan : planForEvent(activeSlot.event.id);
+  const plan = !activeSlot ? null
+    : activeSlot.type === "general" ? generalPlan
+    : activeSlot.type === "extra" ? plans.find((p) => p.id === activeSlot.planId) ?? null
+    : planForEvent(activeSlot.event.id);
   const activeEventId = activeSlot?.type === "event" ? activeSlot.event.id : null;
 
   const [editing, setEditing] = useState(!plan);
@@ -597,11 +603,15 @@ function DayDetail({
       if (problem) { setSaving(false); toast.error(problem); return; }
     }
     const { onConflict } = resolvePlanSlot({ calendarEventId: activeEventId });
-    const { data: savedPlan, error } = await supabase
-      .from("outfit_plans")
-      .upsert(payload as never, { onConflict })
-      .select("id")
-      .single();
+    // A further outfit of the day is not the day's general slot: updated by its own id, otherwise the
+    // upsert would land on the day's main outfit.
+    const { data: savedPlan, error } = activeSlot?.type === "extra" && plan
+      ? await supabase.from("outfit_plans").update(payload as never).eq("id", plan.id).select("id").single()
+      : await supabase
+        .from("outfit_plans")
+        .upsert(payload as never, { onConflict })
+        .select("id")
+        .single();
     if (error) { setSaving(false); toast.error(error.message); return; }
     const planId = (savedPlan as { id: string }).id;
 
@@ -858,6 +868,16 @@ function DayDetail({
               onOpen={() => setActiveSlot({ type: "general" })}
               onAsk={() => askStylistFor(null)}
             />
+            {extraPlans.map((p, i) => (
+              <SlotRow
+                key={p.id}
+                label={t("planner.extraOutfitLabel", { n: i + 2 })}
+                sublabel={t("planner.extraOutfitSub")}
+                slotPlan={p}
+                onOpen={() => setActiveSlot({ type: "extra", planId: p.id })}
+                onAsk={() => askStylistFor(null)}
+              />
+            ))}
             {calendarEvents.map((e) => (
               <SlotRow
                 key={e.id}

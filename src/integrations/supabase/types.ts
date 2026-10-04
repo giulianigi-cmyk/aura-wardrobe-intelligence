@@ -797,6 +797,7 @@ export type Database = {
           created_at: string
           date: string
           day_segment: string | null
+          extra_slot: number
           general_date: string | null
           id: string
           item_ids: string[]
@@ -819,6 +820,7 @@ export type Database = {
           created_at?: string
           date: string
           day_segment?: string | null
+          extra_slot?: number
           general_date?: string | null
           id?: string
           item_ids?: string[]
@@ -841,6 +843,7 @@ export type Database = {
           created_at?: string
           date?: string
           day_segment?: string | null
+          extra_slot?: number
           general_date?: string | null
           id?: string
           item_ids?: string[]

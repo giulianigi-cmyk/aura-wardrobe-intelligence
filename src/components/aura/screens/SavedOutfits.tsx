@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { saveGeneralPlanAskingSameDay } from "@/lib/same-day-choice";
 import { toast } from "sonner";
 import { ArrowLeft, Heart, Sparkles, Calendar as CalendarIcon, Loader2, Plus, Trash2, Copy, Share2 } from "lucide-react";
 import type { BuilderInit, Screen } from "../AuraApp";
@@ -6,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { ShareOutfitSheet } from "../ShareOutfitSheet";
 import type { Tables } from "@/integrations/supabase/types";
-import { resolvePlanSlot } from "@/lib/outfit-plan-slot";
+import { useTranslation } from "react-i18next";
 import { outfitThumbSrc, backfillOutfitThumbs } from "@/lib/outfit-thumb";
 import { OutfitThumb } from "../OutfitThumb";
 
@@ -15,6 +16,7 @@ type Outfit = Tables<"outfits">;
 export function SavedOutfits({ go, openBuilder }: { go: (s: Screen) => void; openBuilder: (init: BuilderInit) => void }) {
 
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [outfits, setOutfits] = useState<Outfit[]>([]);
   const [signed, setSigned] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -60,15 +62,15 @@ export function SavedOutfits({ go, openBuilder }: { go: (s: Screen) => void; ope
     if (!assignFor || !user) return;
     // No calendar event / trip here: this is the day's general slot, whose
     // unique constraint is (user_id, general_date). See outfit-plan-slot.ts.
-    const { error } = await supabase.from("outfit_plans").upsert({
-      user_id: user.id,
-      date,
-      item_ids: assignFor.item_ids,
-      occasion: assignFor.occasion?.[0] ?? null,
-      notes: assignFor.notes ?? assignFor.name ?? null,
-      calendar_event_id: null,
-    }, { onConflict: resolvePlanSlot({}).onConflict });
-    if (error) { toast.error(error.message); return; }
+    // A day that already has another outfit: add this one too or replace it (same-day-choice.ts).
+    try {
+      const planId = await saveGeneralPlanAskingSameDay(supabase, user.id, date, {
+        item_ids: assignFor.item_ids,
+        occasion: assignFor.occasion?.[0] ?? null,
+        notes: assignFor.notes ?? assignFor.name ?? null,
+      }, t);
+      if (!planId) return;
+    } catch (e) { toast.error(e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e)); return; }
     toast.success("Added to calendar");
     setAssignFor(null);
     go("planner");

@@ -828,6 +828,8 @@
     "planOutfit": "Planifier une tenue",
     "eventFallback": "Événement",
     "generalLabel": "Général",
+    "extraOutfitLabel": "Tenue {{n}}",
+    "extraOutfitSub": "Changement de tenue",
     "noSpecificEvent": "Aucun événement spécifique",
     "untitledEvent": "Événement sans titre",
     "worn": "Portée",
@@ -2213,5 +2215,11 @@
       "Swimwear": "Maillots",
       "Activewear": "Sport"
     }
+  },
+  "sameDay": {
+    "title": "Tu as déjà une tenue ce jour-là",
+    "body": "Tu t'es changée ? Ajoute aussi celle-ci ou remplace celle qui y est.",
+    "add": "Ajouter",
+    "replace": "Remplacer"
   }
 }

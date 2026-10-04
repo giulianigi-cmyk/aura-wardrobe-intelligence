@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { savePlanAskingSameDay } from "@/lib/same-day-choice";
 import { FramedPhoto } from "./FramedPhoto";
 import type { PhotoFraming } from "@/lib/photo-framing";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
@@ -218,7 +219,8 @@ export function OutfitViewerSheet({
   const saveToCalendar = async () => {
     setSavingCalendar(true);
     try {
-      await savePlan({ data: { itemIds, date: calendarDate } });
+      // A day that already has another outfit: add this one too (a change of clothes) or replace it.
+      if (!(await savePlanAskingSameDay(savePlan, itemIds, calendarDate, t))) return;
       plansCache.invalidate();
       toast.success(t("avatar.addedToCalendar"));
       setShowCalendar(false);
