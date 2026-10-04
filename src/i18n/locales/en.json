@@ -736,7 +736,9 @@
     "sameModelOwned_one": "You already own a {{name}} ({{colors}}).",
     "sameModelOwned_other": "You already own {{count}} {{name}} ({{colors}}).",
     "priceVsUsual": {
-      "above_usual": "About €{{price}}: more than you usually spend on this kind of piece (about €{{usual}}).",
+      "above_usual": "About €{{price}}: more than you usually spend on this kind of piece (usually about €{{usual}}, at most about €{{top}}).",
+      "upper_range": "About €{{price}}: the expensive end of what you spend on this kind of piece (usually about €{{usual}}, up to about €{{top}}).",
+      "sameModelPaid": "You paid about €{{paid}} for your {{name}}.",
       "usual": "About €{{price}}: in line with what you usually spend on this kind of piece.",
       "below_usual": "About €{{price}}: less than you usually spend on this kind of piece (about €{{usual}})."
     },

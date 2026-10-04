@@ -268,7 +268,7 @@ function contextFacts(sameModel: SameModel | null | undefined, price: PriceConte
   const kind = (product.subcategory || product.category || "pieces").toLowerCase();
   return [
     sameModel ? `- The person already owns ${sameModel.count} piece(s) of this SAME model (${sameModel.name}${sameModel.colors.length ? `: ${sameModel.colors.join(", ")}` : ""}). This one is a variant of a model they have — say so, and say how it differs (shade, occasion), not that it is new.` : "",
-    price ? `- Price ≈ ${price.priceEur} EUR. What this person usually pays for ${kind}: about ${price.usualEur} EUR (median of ${price.basedOn} owned pieces) — so this is ${price.tier === "above_usual" ? "ABOVE what they usually spend: say it is worth weighing for the price" : price.tier === "below_usual" ? "below what they usually spend" : "in line with what they usually spend"}. Judge the price against THEIR habits, never in absolute terms.` : "",
+    price ? `- Price ≈ ${price.priceEur} EUR. What this person usually pays for ${kind}: about ${price.usualEur} EUR, up to about ${price.topEur} EUR at the top of their range (${price.basedOn} owned pieces)${price.sameModelPaidEur != null ? `; they paid about ${price.sameModelPaidEur} EUR for the same model` : ""} — so this is ${price.tier === "above_usual" ? "ABOVE what they usually spend: say it is worth weighing for the price" : price.tier === "upper_range" ? "at the expensive end of what they spend (within their habits, not beyond): worth weighing, never call it far above their budget" : price.tier === "below_usual" ? "below what they usually spend" : "in line with what they usually spend"}. Judge the price against THEIR habits, never in absolute terms.` : "",
   ].filter(Boolean);
 }
 
@@ -397,7 +397,14 @@ async function resolveProductAndWardrobeFacts(
   const feedback = await loadWardrobeFeedback(supabase, userId);
   const excluded = notSimilarItemIds(feedback, productKey(product));
   const comparableWardrobe = excluded.size ? wardrobe.filter((it) => !excluded.has(it.id)) : wardrobe;
-  const dup = similarOwnedPiece(shape, comparableWardrobe);
+  const dupRaw = similarOwnedPiece(shape, comparableWardrobe);
+  // A clearly darker or lighter shade of the same piece (a deeper wash of the same jeans) is a real
+  // difference, like a detail: a "certain" duplicate becomes "similar", a "similar" one is not.
+  const dupItem = dupRaw ? comparableWardrobe.find((it) => it.id === dupRaw.itemId) : undefined;
+  const dupShade = dupItem ? shadeDifference(product.colors, dupItem.colors ?? []) : null;
+  const dup = dupRaw && dupShade
+    ? (dupRaw.verdict === "certain" ? { ...dupRaw, verdict: "maybe" as const } : null)
+    : dupRaw;
   const saidOwned = product.category
     ? ownedEquivalent({ category: product.category, subcategory: product.subcategory ?? "", colors: product.colors }, alreadyOwnedPieces(feedback))
     : null;
@@ -427,7 +434,7 @@ async function resolveProductAndWardrobeFacts(
   const shade = closestItem ? shadeDifference(product.colors, closestItem.colors ?? []) : null;
   const wearWithShade: WearDifference | null = shade ? { changes: [shade, ...(wear?.changes ?? [])], newOccasions: wear?.newOccasions ?? [] } : wear;
   const differsFrom: DiffersFrom | null = closest && (closest.differences.length || wearWithShade) ? { label: closest.label, differences: closest.differences, wear: wearWithShade } : null;
-  const price = priceContext(product, wardrobe);
+  const price = priceContext(product, wardrobe, sameModelItems);
   // Details of this product that NO owned piece of the same category has (e.g. a slingback when
   // no slingback is owned) — what it would genuinely add (compare-alternatives.ts).
   const ownedDetails = new Set(wardrobe.filter((it) => it.category === product.category).flatMap((it) => [...detailsIn(ownedText(it))]));
@@ -658,7 +665,10 @@ const CachedFactsSchema = z.object({
   fashion: FashionSignalsSchema.nullable().optional(),
   novelDetails: z.array(z.string()).optional(),
   sameModel: z.object({ count: z.number(), name: z.string(), colors: z.array(z.string()) }).nullable().optional(),
-  price: z.object({ priceEur: z.number(), usualEur: z.number(), basedOn: z.number(), tier: z.enum(["above_usual", "usual", "below_usual"]) }).nullable().optional(),
+  price: z.object({
+    priceEur: z.number(), usualEur: z.number(), topEur: z.number().optional().default(0), basedOn: z.number(),
+    tier: z.enum(["above_usual", "upper_range", "usual", "below_usual"]), sameModelPaidEur: z.number().nullable().optional().default(null),
+  }).nullable().optional(),
   pairsWithCount: z.number(),
   wardrobeGap: z.boolean(),
   isLabelOnly: z.boolean(),

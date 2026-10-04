@@ -736,7 +736,9 @@
     "sameModelOwned_one": "Hai già un {{name}} ({{colors}}).",
     "sameModelOwned_other": "Hai già {{count}} {{name}} ({{colors}}).",
     "priceVsUsual": {
-      "above_usual": "Circa {{price}} €: più di quanto spendi di solito per questo tipo di capo (circa {{usual}} €).",
+      "above_usual": "Circa {{price}} €: più di quanto spendi di solito per questo tipo di capo (di solito circa {{usual}} €, al massimo circa {{top}} €).",
+      "upper_range": "Circa {{price}} €: nella fascia alta di quello che spendi per questo tipo di capo (di solito circa {{usual}} €, fino a circa {{top}} €).",
+      "sameModelPaid": "Per i tuoi {{name}} hai speso circa {{paid}} €.",
       "usual": "Circa {{price}} €: in linea con quanto spendi di solito per questo tipo di capo.",
       "below_usual": "Circa {{price}} €: meno di quanto spendi di solito per questo tipo di capo (circa {{usual}} €)."
     },
