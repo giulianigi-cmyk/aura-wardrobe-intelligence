@@ -46,6 +46,13 @@ export type SimilarOwned = { verdict: Exclude<DedupeVerdict, "new">; itemId: str
 /** The closest owned piece of the same kind and what the product has that it doesn't. */
 export type ClosestOwned = { itemId: string; label: string; differences: string[]; rawVerdict: Exclude<DedupeVerdict, "new"> };
 
+/** Details the product has that a given owned piece doesn't (slingback, patent…). */
+export function differencesFrom(product: ProductShape, owned: WardrobeItem): string[] {
+  const mine = detailsIn([product.subcategory, product.text].filter(Boolean).join(" "));
+  const theirs = detailsIn(ownedText(owned));
+  return [...mine].filter((k) => !theirs.has(k));
+}
+
 export function closestOwnedPiece(product: ProductShape, wardrobe: WardrobeItem[]): ClosestOwned | null {
   if (!product.category) return null;
   const candidates = comparablePieces(product, wardrobe);

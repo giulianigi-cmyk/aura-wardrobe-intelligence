@@ -407,7 +407,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                                 : t("shop.alternativeOther", { names: it.alternative.withNames.join(", ") })}
                             </p>
                           )}
-                          <FashionAndDifferences fashion={it.fashion} differsFrom={it.wardrobe.differsFrom} />
+                          <FashionAndDifferences fashion={it.fashion} differsFrom={it.wardrobe.differsFrom} sameModel={it.wardrobe.sameModel} price={it.wardrobe.price} />
                         </div>
                       </div>
                     );
@@ -549,7 +549,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                 {result.verdict === "buy" ? <Check size={11} /> : result.verdict === "maybe" ? <HelpCircle size={11} /> : <XIcon size={11} />}
                 {result.verdict === "buy" ? t("shop.verdictBuy") : result.verdict === "maybe" ? t("shop.verdictMaybe") : t("shop.verdictSkip")}
               </div>
-              <FashionAndDifferences fashion={result.fashion} differsFrom={result.wardrobe.differsFrom} />
+              <FashionAndDifferences fashion={result.fashion} differsFrom={result.wardrobe.differsFrom} sameModel={result.wardrobe.sameModel} price={result.wardrobe.price} />
               <p className="mt-2 text-sm text-foreground/80 leading-relaxed">{result.reason}</p>
               {/* Corrections: remembered for this person and the analysis runs again. */}
               {result.analysis.category && (
@@ -720,7 +720,9 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
 
 /** Fashion value (iconic, timeless, trend, status) and how the piece differs from the closest owned
  *  one of the same kind — shown under a verdict so it's clear what the advice is based on. */
-function FashionAndDifferences({ fashion, differsFrom }: {
+function FashionAndDifferences({ fashion, differsFrom, sameModel, price }: {
+  sameModel?: { count: number; name: string; colors: string[] } | null;
+  price?: { priceEur: number; usualEur: number; tier: "above_usual" | "usual" | "below_usual" } | null;
   fashion: { iconic: boolean; timeless: boolean; onTrend: boolean; statusPiece: boolean } | null | undefined;
   differsFrom: { label: string; differences: string[]; wear?: { changes: string[]; newOccasions: string[] } | null } | null | undefined;
 }) {
@@ -735,7 +737,7 @@ function FashionAndDifferences({ fashion, differsFrom }: {
         ...(wear.newOccasions.length ? [t("shop.wear.alsoFor", { occasions: wear.newOccasions.map((o) => t(`shop.occasion.${o.replace(/\s+/g, "")}`, { defaultValue: o })).join(", ") })] : []),
       ]
     : [];
-  if (!chips.length && !wearBits.length) return null;
+  if (!chips.length && !wearBits.length && !sameModel && !price) return null;
   return (
     <div className="mt-1.5 space-y-1">
       {chips.length > 0 && (
@@ -744,6 +746,17 @@ function FashionAndDifferences({ fashion, differsFrom }: {
             <span key={k} className="rounded-full border border-border px-2 py-0.5 text-[9px] uppercase tracking-widest text-foreground/70">{t(`shop.fashion.${k}`)}</span>
           ))}
         </div>
+      )}
+      {/* The same model already owned, and the price against what the person usually spends. */}
+      {sameModel && (
+        <p className="text-[11px] text-foreground/80 leading-snug">
+          {t("shop.sameModelOwned", { count: sameModel.count, name: sameModel.name, colors: sameModel.colors.join(", ") })}
+        </p>
+      )}
+      {price && (
+        <p className="text-[11px] text-muted-foreground leading-snug">
+          {t(`shop.priceVsUsual.${price.tier}`, { price: price.priceEur, usual: price.usualEur })}
+        </p>
       )}
       {differsFrom && wearBits.length > 0 && (
         <p className="text-[11px] text-muted-foreground leading-snug">
