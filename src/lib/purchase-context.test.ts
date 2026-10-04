@@ -177,17 +177,17 @@ test("cost per wear: pieces rotate with the same outfit role, time of day and se
   const profile = { category: "Outerwear", subcategory: "Coat", seasons: ["Autumn", "Winter"], dayEvening: "both" };
   const fewCoats = costPerWear(profile, [...coat(2), item({ category: "Outerwear", subcategory: "Blazer", season: "All Seasons" })], price)!;
   const manyCoats = costPerWear(profile, coat(15), price)!;
-  assert.equal(fewCoats.rotatingWith, 2);       // blazers are not the outer layer
+  assert.equal(fewCoats.rotatingWith, 2);       // coats with coats, not with blazers
   assert.ok(fewCoats.wearsPerYear > manyCoats.wearsPerYear * 1.5, `${fewCoats.wearsPerYear} vs ${manyCoats.wearsPerYear}`);
 
-  // Knitwear: a sweater rotates with sweaters and cardigans, not with t-shirts.
+  // A sweater rotates with sweaters — not with cardigans or t-shirts.
   const tops = [
     ...Array.from({ length: 4 }, () => item({ category: "Tops", subcategory: "Sweater", season: "Autumn, Winter" })),
     ...Array.from({ length: 3 }, () => item({ category: "Tops", subcategory: "Cardigan", season: "All Seasons" })),
     ...Array.from({ length: 10 }, () => item({ category: "Tops", subcategory: "T-Shirt", season: "All Seasons" })),
   ];
   const sweater = costPerWear({ category: "Tops", subcategory: "Sweater", seasons: ["Autumn", "Winter"] }, tops, price)!;
-  assert.equal(sweater.rotatingWith, 7);
+  assert.equal(sweater.rotatingWith, 4);
 });
 
 test("cost per wear: every kind of piece is estimated from how often its role is needed", () => {
@@ -200,10 +200,10 @@ test("cost per wear: every kind of piece is estimated from how often its role is
   // A winter coat among 3 coats: worn on most cold days.
   const coat = costPerWear({ category: "Outerwear", subcategory: "Coat", seasons: ["Autumn", "Winter"] }, many(3, { category: "Outerwear", subcategory: "Coat", season: "Autumn, Winter" }), price)!;
   assert.ok(coat.wearsPerYear >= 30, String(coat.wearsPerYear));
-  // Jeans share the legs with trousers and skirts.
+  // Jeans rotate with jeans, not with every trouser or skirt.
   const bottoms = [...many(10, { category: "Bottoms", subcategory: "Jeans" }), ...many(10, { category: "Bottoms", subcategory: "Trousers" }), ...many(5, { category: "Bottoms", subcategory: "Skirt" })];
   const jeans = costPerWear({ category: "Bottoms", subcategory: "Jeans", seasons: ["All Seasons"], dayEvening: "both" }, bottoms, price)!;
-  assert.equal(jeans.rotatingWith, 25);
+  assert.equal(jeans.rotatingWith, 10);
   assert.ok(jeans.wearsPerYear >= 12 && jeans.wearsPerYear <= 25, String(jeans.wearsPerYear));
   // A suit: a couple of days a week, not a generic low guess.
   const suit = costPerWear({ category: "Suits", subcategory: "Suit", seasons: ["All Seasons"], dayEvening: "day" }, [], price)!;
@@ -227,4 +227,13 @@ test("cost per wear: only elegant summer pieces (fine heels, formal) also count 
   assert.ok(!costPerWear({ category: "Dresses", subcategory: "Slip Dress", seasons: ["Summer"], dayEvening: "evening", formality: 3 }, [], price)!.reasons.includes("formalAllYear"));
   // ~32 summer nights plus ~4–5 galas in the other seasons.
   assert.ok(jewel.wearsPerYear >= 30, String(jewel.wearsPerYear));
+});
+
+test("cost per wear: coats with coats, jackets with jackets, blazers with blazers", () => {
+  const price = { priceEur: 900, usualEur: 600, topEur: 1000, basedOn: 10, tier: "upper_range" as const, sameModelPaidEur: null };
+  const many = (n: number, subcategory: string) => Array.from({ length: n }, () => item({ category: "Outerwear", subcategory, season: "All Seasons" }));
+  const outer = [...many(3, "Coat"), ...many(2, "Trench Coat"), ...many(4, "Bomber Jacket"), ...many(18, "Blazer")];
+  assert.equal(costPerWear({ category: "Outerwear", subcategory: "Coat", seasons: ["All Seasons"] }, outer, price)!.rotatingWith, 5);
+  assert.equal(costPerWear({ category: "Outerwear", subcategory: "Leather Jacket", seasons: ["All Seasons"] }, outer, price)!.rotatingWith, 4);
+  assert.equal(costPerWear({ category: "Outerwear", subcategory: "Blazer", seasons: ["All Seasons"] }, outer, price)!.rotatingWith, 18);
 });
