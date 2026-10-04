@@ -733,8 +733,17 @@
       "onTrend": "Di tendenza",
       "statusPiece": "Pezzo status"
     },
+    "sameModelOwned_one": "Hai già un {{name}} ({{colors}}).",
+    "sameModelOwned_other": "Hai già {{count}} {{name}} ({{colors}}).",
+    "priceVsUsual": {
+      "above_usual": "Circa {{price}} €: più di quanto spendi di solito per questo tipo di capo (circa {{usual}} €).",
+      "usual": "Circa {{price}} €: in linea con quanto spendi di solito per questo tipo di capo.",
+      "below_usual": "Circa {{price}} €: meno di quanto spendi di solito per questo tipo di capo (circa {{usual}} €)."
+    },
     "wornDifferently": "Rispetto al tuo {{label}}: {{details}}",
     "wear": {
+      "darker": "più scuro",
+      "lighter": "più chiaro",
       "higherHeel": "tacco più alto",
       "lowerHeel": "tacco più basso",
       "moreEvening": "più da sera",

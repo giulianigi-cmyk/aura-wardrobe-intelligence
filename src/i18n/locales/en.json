@@ -733,8 +733,17 @@
       "onTrend": "On trend",
       "statusPiece": "Status piece"
     },
+    "sameModelOwned_one": "You already own a {{name}} ({{colors}}).",
+    "sameModelOwned_other": "You already own {{count}} {{name}} ({{colors}}).",
+    "priceVsUsual": {
+      "above_usual": "About €{{price}}: more than you usually spend on this kind of piece (about €{{usual}}).",
+      "usual": "About €{{price}}: in line with what you usually spend on this kind of piece.",
+      "below_usual": "About €{{price}}: less than you usually spend on this kind of piece (about €{{usual}})."
+    },
     "wornDifferently": "Compared with your {{label}}: {{details}}",
     "wear": {
+      "darker": "darker",
+      "lighter": "lighter",
       "higherHeel": "higher heel",
       "lowerHeel": "lower heel",
       "moreEvening": "more for evening",

@@ -733,8 +733,17 @@
       "onTrend": "Tendance",
       "statusPiece": "Pièce statutaire"
     },
+    "sameModelOwned_one": "Tu as déjà un {{name}} ({{colors}}).",
+    "sameModelOwned_other": "Tu as déjà {{count}} {{name}} ({{colors}}).",
+    "priceVsUsual": {
+      "above_usual": "Environ {{price}} € : plus que ce que tu dépenses d'habitude pour ce type de pièce (environ {{usual}} €).",
+      "usual": "Environ {{price}} € : dans la ligne de ce que tu dépenses d'habitude pour ce type de pièce.",
+      "below_usual": "Environ {{price}} € : moins que ce que tu dépenses d'habitude pour ce type de pièce (environ {{usual}} €)."
+    },
     "wornDifferently": "Par rapport à ton {{label}} : {{details}}",
     "wear": {
+      "darker": "plus foncé",
+      "lighter": "plus clair",
       "higherHeel": "talon plus haut",
       "lowerHeel": "talon plus bas",
       "moreEvening": "plus pour le soir",

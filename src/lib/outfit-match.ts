@@ -83,6 +83,11 @@ function labOf(name: string): Lab | null {
   return LAB_BY_NAME.get(n) ?? LAB_BY_NAME.get(BASIC_COLOR_ALIASES[n] ?? "") ?? null;
 }
 
+/** Lightness (CIE L*, 0 = black, 100 = white) of a named colour, null for unknown names. */
+export function colorLightness(name: string): number | null {
+  return labOf(name)?.L ?? null;
+}
+
 /** 1 = same colour, ~0.85 = near shade (jet vs soft black), ~0.5 = neighbouring colour that lighting
  *  can confuse (black vs navy), →0 = clearly different. Gaussian on ΔE2000 so small differences
  *  stay close to 1 and real differences fall off quickly. */
