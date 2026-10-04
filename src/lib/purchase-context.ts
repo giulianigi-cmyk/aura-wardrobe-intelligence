@@ -133,29 +133,41 @@ export function applyPurchaseContext<V extends { verdict: "buy" | "maybe" | "ski
 // pieces it would rotate with. The reasons are returned so the person sees why.
 // ---------------------------------------------------------------------------------------------
 
-/** A modest base: wears per year of ONE everyday, all-season piece of this kind. */
-const BASE_WEARS: [RegExp, number][] = [
-  [/sneaker|trainer/i, 40],
-  [/bag|tote|shoulder|crossbody|backpack|borsa/i, 40],
-  [/watch|orologio|ring|anello|bracelet|bracciale|necklace|collana|earring|orecchin/i, 50],
-  [/jeans/i, 30],
-  [/legging/i, 25],
-  [/trouser|pant|chino|cargo/i, 25],
-  [/loafer|flat|ballerin|mocassin|boot|stival/i, 25],
-  [/coat|trench|parka|puffer|cappotto/i, 25],
-  [/t-?shirt|tank|camisole|bodysuit|top|polo/i, 20],
-  [/blazer/i, 20],
-  [/sweater|knit|cardigan|jumper|sweatshirt|hoodie/i, 18],
-  [/shirt|blouse|camicia/i, 18],
-  [/jacket|giacca|shacket|bomber/i, 18],
-  [/belt|cintura|sunglass|occhiali/i, 25],
-  [/skirt|gonna/i, 15],
-  [/short/i, 12],
-  [/pump|heel|sandal|slingback|mule|décolleté|decollete/i, 12],
-  [/scarf|sciarpa|foulard/i, 15],
-  [/dress|abito|jumpsuit|tuta/i, 10],
-  [/clutch|minaudi/i, 8],
-];
+/** How many days a year a piece of this outfit role is worn, if it were needed all year round and
+ *  by day (whichever piece of the role is chosen): one bag and one pair of shoes almost every day,
+ *  a bottom and a top on every day without a dress, a bra or briefs every day, a coat on every day
+ *  that needs an outer layer, a blazer a couple of days a week… Seasons, evenings and the pieces
+ *  it rotates with then decide the share of the new piece. */
+function roleDemand(role: string, subcategory: string | null | undefined): number {
+  const s = (subcategory ?? "").toLowerCase();
+  switch (role) {
+    case "bags": case "shoes": return 300;
+    case "top": case "bottoms": return 280;
+    case "outer": return 250;
+    case "knit": return 200;
+    case "onepiece": return 90;
+    case "blazer": case "suit": return 100;
+    case "vest": return 60;
+    case "swim|top": case "swim|bottom": return 120;
+    case "active|top": case "active|bottom": case "active|bra": return 150;
+    case "underwear|bra": return 330;
+    case "underwear|briefs": case "underwear|sleep": return 365;
+    case "underwear|tights": return 150;
+    case "underwear|shapewear": return 40;
+  }
+  if (role.startsWith("underwear")) return 200;
+  if (role.startsWith("accessories")) {
+    if (/watch|orologio/.test(s)) return 300;
+    if (/sunglass|occhiali|earring|orecchin|ring|anello/.test(s)) return 250;
+    if (/bracelet|bracciale/.test(s)) return 200;
+    if (/belt|cintura|necklace|collana|scarf|sciarpa|foulard/.test(s)) return 150;
+    if (/hair|capelli/.test(s)) return 120;
+    if (/hat|cap|cappello|beanie/.test(s)) return 60;
+    return 100;
+  }
+  return 80;
+}
+
 
 export type WearReason = "yourHistory" | "allSeasons" | "oneSeason" | "fewSeasons" | "dayAndEvening" | "eveningOnly" | "veryDressy" | "statement" | "trendPiece" | "timeless" | "versatile" | "notVersatile" | "rotation";
 
@@ -185,24 +197,41 @@ export type WearProfile = {
 };
 
 /** Estimated wears per year of the piece and why (no history). */
+/** Evenings out a year: weekends all year round, 2–3 evenings a week. */
+export const EVENINGS_OUT_PER_YEAR = 130;
+/** Black-tie, gala and wedding-type events a year. */
+export const FORMAL_EVENTS_PER_YEAR = 6;
+
 export function estimateWears(p: WearProfile, rotatingWith: number): { wearsPerYear: number; reasons: WearReason[] } {
-  const kind = `${p.subcategory ?? ""} ${p.category ?? ""}`;
-  let w = BASE_WEARS.find(([re]) => re.test(kind))?.[1] ?? 12;
+  const role = outfitRole(p.category, p.subcategory);
+  const when = dayRole(p.subcategory, p.dayEvening);
   const reasons: WearReason[] = [];
-  const seasons = (p.seasons ?? []).map((x) => x.toLowerCase());
-  if (seasons.includes("all seasons") || seasons.length >= 4) reasons.push("allSeasons");
-  else if (seasons.length === 1) { w *= 0.45; reasons.push("oneSeason"); }
-  else if (seasons.length === 2 || seasons.length === 3) { w *= 0.75; reasons.push("fewSeasons"); }
-  if (p.dayEvening === "evening") { w *= 0.35; reasons.push("eveningOnly"); }
-  else if (p.dayEvening === "both") { w *= 1.1; reasons.push("dayAndEvening"); }
-  if ((p.formality ?? 0) >= 5) { w *= 0.5; reasons.push("veryDressy"); }
+  let demand = roleDemand(role, p.subcategory);
+  // Bags and shoes: an evening one is carried on every night out — weekends all year round, 2–3
+  // evenings a week. Clothes worn only at night: about a third of the days.
+  const seasons = seasonSet(p.seasons);
+  const seasonShare = seasons.size / 4;
+  if (seasons.size === 4) reasons.push("allSeasons");
+  else reasons.push(seasons.size === 1 ? "oneSeason" : "fewSeasons");
+  if (when === "evening") {
+    demand = role === "bags" || role === "shoes" ? EVENINGS_OUT_PER_YEAR : demand * 0.35;
+    reasons.push("eveningOnly");
+  } else if (when === "both") reasons.push("dayAndEvening");
+  // Black-tie and gala pieces are worn at those events only, a handful a year.
+  if ((p.formality ?? 0) >= 5) { demand = Math.min(demand, FORMAL_EVENTS_PER_YEAR); reasons.push("veryDressy"); }
+  let w = demand * seasonShare;
+  // Shared with the pieces it rotates with. Not an exact split: who owns more of something tends to
+  // wear that kind of piece more often, so the share shrinks a little slower than 1/n.
+  if (rotatingWith > 0) { w /= Math.pow(rotatingWith + 1, 0.9); reasons.push("rotation"); }
+  if (when === "both") w *= 1.1;
   if ((p.details ?? []).some((d) => d === "embellished" || d === "cutOut")) { w *= 0.55; reasons.push("statement"); }
   if (p.fashion?.onTrend && !p.fashion.timeless) { w *= 0.8; reasons.push("trendPiece"); }
   else if (p.fashion?.timeless) { w *= 1.1; reasons.push("timeless"); }
   if (p.fashion?.versatility === "high") { w *= 1.15; reasons.push("versatile"); }
   else if (p.fashion?.versatility === "low") { w *= 0.6; reasons.push("notVersatile"); }
-  // Many similar pieces in rotation share the wears (softly: square root).
-  if (rotatingWith > 3) { w /= Math.sqrt((rotatingWith + 1) / 4); reasons.push("rotation"); }
+  // Nobody wears the same garment every day; a bag, shoes, underwear or jewellery can come close.
+  const everyday = role === "bags" || role === "shoes" || role.startsWith("underwear") || role.startsWith("accessories");
+  w = Math.min(w, demand * seasonShare * (everyday ? 0.9 : 0.6));
   return { wearsPerYear: Math.max(1, Math.round(w)), reasons };
 }
 
@@ -212,16 +241,103 @@ export function estimateWears(p: WearProfile, rotatingWith: number): { wearsPerY
  *  moves towards their real use instead of switching at a fixed date. */
 export const HISTORY_FULL_WEIGHT_PIECE_YEARS = 3;
 
+const EVENING_ONLY = /clutch|pochette|minaudi/i;
+const DAY_OCCASION = /everyday|work|weekend|travel|casual|resort|office|daily|beach|sport/i;
+const EVENING_OCCASION = /evening|formal|cocktail|wedding|black tie|gala|party|dinner/i;
+const SEASONS = ["spring", "summer", "autumn", "winter"] as const;
+
+/** The outfit role a piece fills: pieces with the same role are the ones you choose between on a
+ *  given day. Bags and shoes rotate whatever their shape (a pump with sandals and sneakers, a tote
+ *  with a top-handle bag); dresses and jumpsuits are all one-piece outfits; coats and jackets are
+ *  the outer layer (blazers apart: they are worn indoors as a jacket); knitwear is a layer of its
+ *  own; shirts, t-shirts and tops share the torso, jeans, trousers and skirts the legs; underwear,
+ *  swimwear and activewear rotate by piece (a bra with bras); accessories by type (a belt with
+ *  belts, earrings with earrings). */
+function outfitRole(category: string | null | undefined, subcategory: string | null | undefined): string {
+  const c = (category ?? "").toLowerCase();
+  const s = (subcategory ?? "").toLowerCase();
+  if (/bag|borse|borsa/.test(c) || /bag|tote|clutch|pochette|minaudi/.test(s)) return "bags";
+  if (/shoe|scarpe|footwear/.test(c)) return "shoes";
+  if (/suit|complet|tailleur/.test(c) || /suit|complet|tailleur/.test(s)) return "suit";
+  if (/swim|costum/.test(c)) return /bottom|slip/.test(s) ? "swim|bottom" : "swim|top";
+  if (/active|sport/.test(c)) return /bra|reggiseno/.test(s) ? "active|bra" : /legging|short|pant|jogger/.test(s) ? "active|bottom" : "active|top";
+  if (/underwear|intimo|lingerie/.test(c)) {
+    if (/tight|stocking|calz|collant/.test(s)) return "underwear|tights";
+    if (/bra|reggiseno|bralette/.test(s)) return "underwear|bra";
+    if (/pant|brief|thong|slip|culotte|mutand/.test(s)) return "underwear|briefs";
+    if (/sleep|pajama|pyjama|pigiama|nightgown|camicia da notte/.test(s)) return "underwear|sleep";
+    if (/shape|guaina/.test(s)) return "underwear|shapewear";
+    return `underwear|${s}`;
+  }
+  if (/dress|abiti|jumpsuit|tute/.test(c)) return "onepiece";
+  if (/outer|capispalla/.test(c)) return /blazer/.test(s) ? "blazer" : /vest|gilet/.test(s) ? "vest" : "outer";
+  if (/top|maglie/.test(c)) return /sweater|cardigan|jumper|knit|hoodie|sweatshirt|maglion|felpa/.test(s) ? "knit" : "top";
+  if (/bottom|pantaloni/.test(c)) return "bottoms";
+  if (/accessor/.test(c)) return `accessories|${s}`;
+  return `${c}|${s}`;
+}
+
+type DayRole = "day" | "evening" | "both";
+
+/** When a piece is worn: from its day/evening field and its occasions; clutches are evening. */
+function dayRole(subcategory: string | null | undefined, dayEvening: string | null | undefined, occasion?: string | null): DayRole {
+  if (EVENING_ONLY.test(subcategory ?? "")) return "evening";
+  if (dayEvening === "evening") return "evening";
+  if (dayEvening === "day") return "day";
+  if (occasion) {
+    const day = DAY_OCCASION.test(occasion);
+    const evening = EVENING_OCCASION.test(occasion);
+    if (day && !evening) return "day";
+    if (evening && !day) return "evening";
+  }
+  return "both";
+}
+
+function seasonSet(v: string | string[] | null | undefined): Set<string> {
+  const text = (Array.isArray(v) ? v.join(",") : v ?? "").toLowerCase();
+  const found = SEASONS.filter((x) => text.includes(x) || (x === "autumn" && text.includes("fall")));
+  return new Set(!text || /all/.test(text) || !found.length ? SEASONS : found);
+}
+
+/** The owned pieces a new one would share its wears with — same outfit role, worn at the same time
+ *  of day (an evening piece doesn't compete with day-only ones) and in overlapping seasons — and
+ *  how many they amount to: a piece worn in only half of the new one's seasons counts half. A coat
+ *  in a wardrobe with few coats is worn far more often than a top among fifty. */
+export function rotationPool(product: WearProfile, wardrobe: WardrobeItem[]): { items: WardrobeItem[]; effective: number } {
+  const role = outfitRole(product.category, product.subcategory);
+  const when = dayRole(product.subcategory, product.dayEvening);
+  const seasons = seasonSet(product.seasons);
+  const items: WardrobeItem[] = [];
+  let effective = 0;
+  for (const it of wardrobe) {
+    if ((it as { archived?: boolean }).archived) continue;
+    if (outfitRole(it.category, it.subcategory) !== role) continue;
+    const itWhen = dayRole(it.subcategory, (it as { day_evening?: string | null }).day_evening, (it as { occasion?: string | null }).occasion);
+    if (when !== "both" && itWhen !== "both" && itWhen !== when) continue;
+    const itSeasons = seasonSet((it as { season?: string | null }).season);
+    const overlap = [...seasons].filter((x) => itSeasons.has(x)).length / seasons.size;
+    if (overlap === 0) continue;
+    items.push(it);
+    effective += overlap;
+  }
+  return { items, effective };
+}
+
 export function costPerWear(
   product: WearProfile,
   wardrobe: WardrobeItem[],
   price: PriceContext | null,
   now: Date = new Date(),
+  /** Share of days the person logs what they wear (0.2–1): wears not logged are not counted, so the
+   *  logged rate is scaled up by it. */
+  loggingCoverage = 1,
 ): CostPerWear | null {
   if (!price || !product.subcategory) return null;
-  const sameType = wardrobe.filter((it) => it.category === product.category && it.subcategory === product.subcategory && !(it as { archived?: boolean }).archived);
+  const { items: sameType, effective } = rotationPool(product, wardrobe);
+  // Time in the APP, not since purchase: wears are only logged from when the piece was added, so a
+  // pair bought in 2020 and added six weeks ago has six weeks of history, not six years.
   const yearsOwned = (it: WardrobeItem) => {
-    const since = (it as { purchase_date?: string | null }).purchase_date || (it as { created_at?: string }).created_at;
+    const since = (it as { created_at?: string }).created_at;
     return since ? Math.max(0, (now.getTime() - new Date(since).getTime()) / (365 * 86400000)) : 0;
   };
   // The person's own wear rate for this kind of piece: logged wears per piece per year, over the
@@ -233,14 +349,15 @@ export function costPerWear(
   // season — the history only takes over fully once it covers at least half a year.
   const span = observed.reduce((m, it) => Math.max(m, yearsOwned(it)), 0);
   const weight = Math.min(1, pieceYears / HISTORY_FULL_WEIGHT_PIECE_YEARS) * Math.min(1, span / 0.5);
-  const est = estimateWears(product, sameType.length);
+  const est = estimateWears(product, effective);
   let wearsPerYear = est.wearsPerYear;
   let basis: CostPerWear["basis"] = "estimate";
   const reasons = [...est.reasons];
   if (weight > 0 && pieceYears > 0) {
     // Logged wears are spread over all the similar pieces already; the new one would join them, so
     // its share is the per-piece rate — the same rotation the estimate models.
-    const ownRate = wears / pieceYears;
+    const coverage = Math.min(1, Math.max(0.2, loggingCoverage));
+    const ownRate = wears / pieceYears / coverage;
     wearsPerYear = Math.max(1, Math.round(weight * ownRate + (1 - weight) * est.wearsPerYear));
     if (weight >= 1) basis = "history";
     else reasons.push("yourHistory");

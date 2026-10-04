@@ -761,7 +761,7 @@
       "timeless": "atemporal",
       "versatile": "muy versátil",
       "notVersatile": "poco versátil",
-      "rotation": "se alterna con tus {{count}} prendas parecidas"
+      "rotation": "se alterna con otras {{count}} prendas que usarías en su lugar"
     },
     "wornDifferently": "Frente a tu {{label}}: {{details}}",
     "wear": {

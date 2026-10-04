@@ -287,7 +287,7 @@ function contextFacts(sameModel: SameModel | null | undefined, price: PriceConte
   const kind = (product.subcategory || product.category || "pieces").toLowerCase();
   return [
     sameModel ? `- The person already owns ${sameModel.count} piece(s) of this SAME model (${sameModel.name}${sameModel.colors.length ? `: ${sameModel.colors.join(", ")}` : ""}). This one is a variant of a model they have — say so, and say how it differs (shade, occasion), not that it is new.` : "",
-    cpw ? `- Cost per wear: likely worn about ${cpw.wearsPerYear} times a year (${cpw.basis === "history" ? "from how often they actually wear this kind of piece" : `an estimate from how usable it is${cpw.reasons.includes("yourHistory") ? ", already adjusted with how often they wear this kind of piece" : ""}: ${cpw.reasons.filter((r) => r !== "yourHistory").join(", ") || "its kind"}`}${cpw.rotatingWith > 3 ? `, sharing the wears with the ${cpw.rotatingWith} similar pieces they already own` : ""}) → about ${cpw.costPerWearEur} EUR per wear over ${cpw.years} years. Use it to judge the price concretely (a piece worn often justifies more).` : "",
+    cpw ? `- Cost per wear: likely worn about ${cpw.wearsPerYear} times a year (${cpw.basis === "history" ? "from how often they actually wear this kind of piece" : `an estimate from how usable it is${cpw.reasons.includes("yourHistory") ? ", already adjusted with how often they wear this kind of piece" : ""}: ${cpw.reasons.filter((r) => r !== "yourHistory").join(", ") || "its kind"}`}${cpw.rotatingWith > 3 ? `, sharing the wears with the ${cpw.rotatingWith} pieces they already own and would wear instead of it (same outfit role, time of day and seasons)` : ""}) → about ${cpw.costPerWearEur} EUR per wear over ${cpw.years} years. Use it to judge the price concretely (a piece worn often justifies more).` : "",
     price ? `- Price ≈ ${price.priceEur} EUR. What this person usually pays for ${kind}: about ${price.usualEur} EUR, up to about ${price.topEur} EUR at the top of their range (${price.basedOn} owned pieces)${price.sameModelPaidEur != null ? `; they paid about ${price.sameModelPaidEur} EUR for the same model` : ""} — so this is ${price.tier === "above_usual" ? "FAR ABOVE what they usually spend for this kind of piece: if something similar is owned, say plainly it adds nothing but the label, and that the only reason to buy it would be wanting this specific brand/piece itself" : price.tier === "upper_range" ? "at the expensive end of what they spend (within their habits, not beyond): worth weighing, never call it far above their budget" : price.tier === "below_usual" ? "below what they usually spend" : "in line with what they usually spend"}. Judge the price against THEIR habits, never in absolute terms.` : "",
   ].filter(Boolean);
 }
@@ -521,7 +521,14 @@ async function resolveProductAndWardrobeFacts(
   // What it costs per wear (purchase-context.ts): how usable the piece is — seasons, day/evening,
   // dressiness, statement details, timeless vs trend, versatility, the pieces it rotates with.
   const productDetails = [...new Set([...detailsIn([product.subcategory, productText].filter(Boolean).join(" ")), ...(product.visualDetails ?? [])])];
-  const cpw = costPerWear({ ...product, details: productDetails, fashion }, wardrobe, price);
+  // How often the person logs what they wear (days with a logged outfit / days, over the last 90 days
+  // or since they started): unlogged wears are not counted, so the logged rate is scaled up by it.
+  const appStart = wardrobe.reduce((m, it) => { const c = (it as { created_at?: string }).created_at; return c && c < m ? c : m; }, new Date().toISOString());
+  const windowDays = Math.max(1, Math.min(90, (Date.now() - new Date(appStart).getTime()) / 86400000));
+  const sinceIso = new Date(Date.now() - windowDays * 86400000).toISOString().slice(0, 10);
+  const { data: wornDays } = await supabase.from("wardrobe_events").select("event_date").eq("user_id", userId).eq("event_type", "worn").gte("event_date", sinceIso);
+  const loggingCoverage = new Set(((wornDays ?? []) as { event_date: string }[]).map((e) => e.event_date)).size / windowDays;
+  const cpw = costPerWear({ ...product, details: productDetails, fashion }, wardrobe, price, new Date(), loggingCoverage);
 
   return { ok: true, product, wardrobe, duplicate, similarItemsCount, comparableLabels, pairsWithCount, wardrobeGap, fashion, differsFrom, novelDetails, sameModel, price, cpw };
 }
