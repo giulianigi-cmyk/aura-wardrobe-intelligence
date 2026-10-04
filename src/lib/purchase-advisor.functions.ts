@@ -10,6 +10,7 @@ import { closestOwnedPiece, comparablePieces, differencesFrom, ownedPieceLabel, 
 import { compareVisually, MAX_VISUAL_CANDIDATES } from "./purchase-visual.server";
 import { detailsIn } from "./garment-details";
 import { occasionList, wearDifference, type WearDifference } from "./wear-difference";
+import { localizeLabel } from "./garment-names";
 import { applyPurchaseContext, costPerWear, priceContext, sameModelOwned, shadeDifference, type CostPerWear, type PriceContext } from "./purchase-context";
 import { alternativeGroups, compareRanking, positiveFeatures } from "./compare-alternatives";
 import { alreadyOwnedPieces, loadWardrobeFeedback, notSimilarItemIds, productKey } from "./wardrobe-feedback";
@@ -649,6 +650,7 @@ export const analyzePurchase = createServerFn({ method: "POST" })
       "Never state the exact pairing-count number anywhere in your text, for any verdict — it's always shown separately, right below what you write, so stating it again would be a plain repetition of the same fact the person already just read.",
       "Grammar matters: use the correct grammatical gender and article for every product noun in the target language — e.g. in Italian \"i sandali\" (masculine plural, never \"le sandali\"), \"le décolleté\" / \"le pumps\" (feminine), \"gli stivaletti\", \"le sneakers\", \"la borsa\", \"il blazer\". Agree adjectives and past participles accordingly.",
       `Respond in ${langName}.`,
+      "Write every colour and garment-type name in the response language, never in English (in Italian: \"nero\", not \"Jet Black\"; \"sandali\", not \"Sandals\"); brand and model names stay as they are.",
       verdict === "maybe"
         ? "Keep it under 340 characters — that's the hard limit this app enforces, so a longer reason gets cut off mid-sentence rather than shown in full. Say less, not more, if there isn't room to finish a thought."
         : "Keep it under 280 characters — that's the hard limit this app enforces, so a longer reason gets cut off mid-sentence rather than shown in full. Say less, not more, if there isn't room to finish a thought.",
@@ -657,15 +659,15 @@ export const analyzePurchase = createServerFn({ method: "POST" })
       `- Product: ${product.category ?? "unknown category"}${product.subcategory ? " / " + product.subcategory : ""}, colors: ${product.colors.join(", ") || "unclear"}, brand: ${product.brand || "unknown"}, price: ${product.price ?? "unknown"}.`,
       ...(product.description ? [`- Product's own description (from the retailer's page, use for fabric/fit/styling detail in your reason, but never to override the facts above): "${product.description}"`] : []),
       duplicate?.verdict === "certain"
-        ? `- Near-duplicate of an owned piece: ${duplicate.label}. Name it when you mention it.`
+        ? `- Near-duplicate of an owned piece: ${localizeLabel(duplicate.label, langCode)}. Name it when you mention it.`
         : duplicate?.verdict === "maybe"
-        ? `- Similar to an owned piece (not a certain duplicate): ${duplicate.label}. Name it when you mention it.`
+        ? `- Similar to an owned piece (not a certain duplicate): ${localizeLabel(duplicate.label, langCode)}. Name it when you mention it.`
         : "- Nothing similar already owned. Do NOT say or imply it resembles something owned.",
       `- Would pair with about ${pairsWithCount} piece(s) already owned.`,
       wardrobeGap
         ? "- Fills a real gap: nothing of this kind owned yet."
-        : `- Not a gap: pieces of the same kind already owned, e.g. ${comparableLabels.join("; ")}. They are the same kind of piece, not necessarily similar — only call it similar if the line above says so.`,
-      differsFrom ? `- The owned piece that looks most like it is ${differsFrom.label}${differsFrom.visual ? ` (from the photos: ${differsFrom.visual.similarity}/100 similar; what differs: ${differsFrom.visual.note || "nothing notable"})` : ""}${differsFrom.differences.length ? `; details it adds: ${differsFrom.differences.join(", ")}` : ""}${wearFacts(differsFrom.wear)}. Name that piece and say concretely how this one differs and for which occasions.` : "",
+        : `- Not a gap: pieces of the same kind already owned, e.g. ${comparableLabels.map((l) => localizeLabel(l, langCode)).join("; ")}. They are the same kind of piece, not necessarily similar — only call it similar if the line above says so.`,
+      differsFrom ? `- The owned piece that looks most like it is ${localizeLabel(differsFrom.label, langCode)}${differsFrom.visual ? ` (from the photos: ${differsFrom.visual.similarity}/100 similar; what differs: ${differsFrom.visual.note || "nothing notable"})` : ""}${differsFrom.differences.length ? `; details it adds: ${differsFrom.differences.join(", ")}` : ""}${wearFacts(differsFrom.wear)}. Name that piece and say concretely how this one differs and for which occasions.` : "",
       ...contextFacts(sameModel, price, product, cpw),
       ...fashionFacts(fashion),
       dressViolation ? "- Conflicts with a stated dress preference — this is why it's a skip." : "",
@@ -984,15 +986,15 @@ export const comparePurchases = createServerFn({ method: "POST" })
     const describeItem = (label: string, r: Extract<(typeof resolvedAll)[number], { ok: true }>, verdict: ComparedItem["verdict"], violation: boolean) => [
       `${label} ("${nameOfItem(letters.indexOf(label))}"): ${r.product.category ?? "unknown category"}${r.product.subcategory ? " / " + r.product.subcategory : ""}, colors: ${r.product.colors.join(", ") || "unclear"}, brand: ${r.product.brand || "unknown"}, price: ${r.product.price ?? "unknown"}. Individual verdict already decided: ${verdict.toUpperCase()}.`,
       r.duplicate?.verdict === "certain"
-        ? `${label} is a near-duplicate of an owned piece${r.duplicate.label ? `: ${r.duplicate.label}` : ""} — name that piece if you mention it.`
+        ? `${label} is a near-duplicate of an owned piece${r.duplicate.label ? `: ${localizeLabel(r.duplicate.label, langCode)}` : ""} — name that piece if you mention it.`
         : r.duplicate?.verdict === "maybe"
-        ? `${label} is similar to an owned piece${r.duplicate.label ? `: ${r.duplicate.label}` : ""} (not a certain duplicate) — name that piece if you mention it.`
+        ? `${label} is similar to an owned piece${r.duplicate.label ? `: ${localizeLabel(r.duplicate.label, langCode)}` : ""} (not a certain duplicate) — name that piece if you mention it.`
         : `${label}: nothing similar already owned — do NOT say or imply it resembles something owned.`,
       `${label} would pair with about ${r.pairsWithCount} piece(s) already owned.`,
       r.wardrobeGap
         ? `${label} fills a real gap — nothing of this kind owned yet.`
-        : `${label} is not a gap — pieces of the same kind already owned${r.comparableLabels.length ? ` (e.g. ${r.comparableLabels.join("; ")})` : ""}; same kind does not mean similar.`,
-      r.differsFrom ? `${label}: the owned piece that looks most like it is ${r.differsFrom.label}${r.differsFrom.visual ? ` (from the photos: ${r.differsFrom.visual.similarity}/100 similar; what differs: ${r.differsFrom.visual.note || "nothing notable"})` : ""}${r.differsFrom.differences.length ? `; details it adds: ${r.differsFrom.differences.join(", ")}` : ""}${wearFacts(r.differsFrom.wear)}.` : "",
+        : `${label} is not a gap — pieces of the same kind already owned${r.comparableLabels.length ? ` (e.g. ${r.comparableLabels.map((l) => localizeLabel(l, langCode)).join("; ")})` : ""}; same kind does not mean similar.`,
+      r.differsFrom ? `${label}: the owned piece that looks most like it is ${localizeLabel(r.differsFrom.label, langCode)}${r.differsFrom.visual ? ` (from the photos: ${r.differsFrom.visual.similarity}/100 similar; what differs: ${r.differsFrom.visual.note || "nothing notable"})` : ""}${r.differsFrom.differences.length ? `; details it adds: ${r.differsFrom.differences.join(", ")}` : ""}${wearFacts(r.differsFrom.wear)}.` : "",
       ...contextFacts(r.sameModel, r.price, r.product, r.cpw).map((line) => `${label}: ${line.replace(/^- /, "")}`),
       ...fashionFacts(r.fashion).map((line) => `${label}: ${line.replace(/^- /, "")}`),
       violation ? `${label} conflicts with a stated dress preference.` : "",
@@ -1008,6 +1010,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
       "Describe the products and the owned pieces ONLY through the facts below (colours, listed details, the differences from the photos). Never add a material, finish, heel shape or detail that is not stated (no \"suede\", \"square heel\", \"satin\" unless listed), and never call a different colour lighter or darker.",
       "Grammar matters: use the correct grammatical gender and article for every product noun in the target language — e.g. in Italian \"i sandali\" (masculine plural, never \"le sandali\"), \"le décolleté\" / \"le pumps\" (feminine), \"gli stivaletti\", \"le sneakers\", \"la borsa\", \"il blazer\". Agree adjectives and past participles accordingly.",
       `Respond in ${langName}.`,
+      "Write every colour and garment-type name in the response language, never in English (in Italian: \"nero\", not \"Jet Black\"; \"sandali\", not \"Sandals\"); brand and model names stay as they are.",
       "Keep it under 320 characters — a bit more room than the single-item advisor, since a real ranking across several pieces needs a little more space to state honestly.",
       `The ranking is ALREADY DECIDED, best first: ${ranking.map((i) => `${letters[i]} ("${nameOfItem(i)}")`).join(" > ")}. It follows the verdicts, then how much each piece has going for it — its positive features (iconic, timeless, status, on trend, versatile), whether it fills a gap or is unlike anything owned, and what new it adds. Explain THIS order (say which comes first and why, naming its strengths); never propose a different one.`,
       ...ranking.map((i) => `${letters[i]} positive features: ${positiveFeatures(rankingFacts[i].fashion)}; ${rankingFacts[i].wardrobeGap ? "fills a gap" : rankingFacts[i].similarOwned ? "something similar is owned" : "nothing similar owned"}.`),
@@ -1015,7 +1018,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
       ...groups.map((g) => {
         const why = (i: number) => resolved[i].novelDetails.length
           ? `adds ${resolved[i].novelDetails.join(", ")}, which nothing in the wardrobe has`
-          : resolved[i].wardrobeGap ? "fills a gap" : resolved[i].differsFrom ? `is a ${resolved[i].differsFrom!.differences.join("/")} variant of the owned ${resolved[i].differsFrom!.label}` : "is close to what is owned";
+          : resolved[i].wardrobeGap ? "fills a gap" : resolved[i].differsFrom ? `is a ${resolved[i].differsFrom!.differences.join("/")} variant of the owned ${localizeLabel(resolved[i].differsFrom!.label, langCode)}` : "is close to what is owned";
         return `ALTERNATIVES: ${[g.preferred, ...g.others].map((i) => letters[i]).join(", ")} do the same job (same kind and colour) — one replaces the other, so say clearly to buy ONE of them, not all. Prefer ${letters[g.preferred]} ("${shortName(g.preferred)}"): it ${why(g.preferred)}; ${g.others.map((o) => `${letters[o]} ("${shortName(o)}") ${why(o)}`).join("; ")}.`;
       }),
       "Facts:",
