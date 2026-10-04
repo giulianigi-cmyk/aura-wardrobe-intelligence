@@ -298,10 +298,18 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     /** Rejects a look with more than one item in a single-per-outfit slot
      *  (e.g. two Bottoms, a skirt AND trousers) — structural coherence is a
      *  hard requirement, never left to the model's judgment alone. */
+    // A cardigan / open-front knit stored under Tops is a layer worn over a top: it takes the outerwear
+    // slot, and never counts as the top itself (same rule as ai-suggest-outfit.functions.ts).
+    const isOpenLayerPiece = (c: { subcategory?: string | null } | undefined) =>
+      !!c && /cardigan|blazer|jacket|giacca|coat|cappotto|kimono|duster|gilet|waistcoat|shrug|bolero|coprispalle/i.test(c.subcategory ?? "");
+    const slotOfId = (id: string) => {
+      const c = catalog.find((x) => x.id === id);
+      return c?.category === "Tops" && isOpenLayerPiece(c) ? "Outerwear" : c?.category;
+    };
     const hasSlotViolation = (ids: string[]): boolean => {
       const counts: Record<string, number> = {};
       for (const id of ids) {
-        const cat = catalog.find((c) => c.id === id)?.category;
+        const cat = slotOfId(id);
         if (!cat) continue;
         counts[cat] = (counts[cat] ?? 0) + 1;
       }
@@ -601,7 +609,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
           // look, "today" has no retry to fall back to, so the fix is to keep the FIRST of the
           // duplicates (the one the model listed first) and drop the rest, rather than reject the
           // whole look.
-          const cat = catalog.find((c) => c.id === id)?.category;
+          const cat = slotOfId(id);
           if (cat && SLOT_LIMITS[cat]) {
             const seenSoFar = seenSlotCounts[cat] ?? 0;
             if (seenSoFar >= SLOT_LIMITS[cat]) return false;
@@ -673,7 +681,8 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       const isCompleteLook = (ids: string[]) => {
         const cats = ids.map(catOf);
         const fullBody = cats.includes("Dresses") || cats.includes("Jumpsuits");
-        const torso = fullBody || cats.includes("Tops");
+        // A cardigan alone is not a top: something (a tank at least) goes under it.
+        const torso = fullBody || ids.some((id) => catOf(id) === "Tops" && !isOpenLayerPiece(catalog.find((c) => c.id === id)));
         const legs = fullBody || cats.includes("Bottoms");
         const feet = !catalogHasShoes || cats.includes("Shoes");
         return torso && legs && feet;

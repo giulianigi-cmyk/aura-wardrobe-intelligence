@@ -2102,6 +2102,7 @@
     "Synthetic": "Sintético"
   },
   "outfitViewer": {
+    "editCanvas": "Editar",
     "canvas": "Canvas",
     "composing": "Componiendo el canvas",
     "onAvatar": "Avatar",
