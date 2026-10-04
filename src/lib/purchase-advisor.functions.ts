@@ -222,6 +222,16 @@ const COULD_NOT_READ_PAGE: Record<string, string> = {
  *  be avoided — the previous plain `.slice(0, 300)` produced things like "...il prezzo di" trailing
  *  into nothing. Prefers the last sentence-ending punctuation before the limit; falls back to the
  *  last whole word; only hard-cuts if neither exists (an unbroken 300-character word). */
+/** "Maybe" is a decision with a condition, never a shrug: a high-end personal stylist says WHEN it is
+ *  worth buying (the specific use, occasion or outfit only this piece covers) and when it isn't (the
+ *  owned piece that already does the job, the price against the person's habits). */
+const MAYBE_SHAPE =
+  "This is a CONDITIONAL recommendation, never a vague 'not a priority': say precisely WHEN it is worth buying and when it is not, from the facts only. " +
+  "1) The yes: the concrete use only this piece covers — the occasion, the look, what you would wear it with (name owned pieces from the facts when you can). " +
+  "2) The no: the owned piece that already does the same job (name it), and/or the price against what the person usually spends when the facts give it. " +
+  "No generic filler (\"versatile\", \"in modo diverso\", \"altre occasioni\") — every clause must be specific. " +
+  "Shape to follow (Italian for tone/structure only; write it naturally in the target language): \"Forse: prendilo se [uso concreto che solo questo copre, con cosa lo abbineresti]. Se invece [caso], [capo posseduto] fa già lo stesso lavoro[, e il prezzo è …].\"";
+
 function truncateAtBoundary(text: string, max: number): string {
   if (text.length <= max) return text;
   const slice = text.slice(0, max);
@@ -573,7 +583,7 @@ export const analyzePurchase = createServerFn({ method: "POST" })
       verdict === "buy"
         ? "Open by recommending the purchase, then give the CONCRETE reason: what specific value this exact piece adds to the wardrobe (fabric, color, silhouette, the occasion it unlocks). Do NOT restate the pairing count in this sentence — it's already shown on its own separate line right below your text, so repeating it here is redundant. Shape to follow (the Italian is for tone/structure calibration only; write it naturally in the target language above, never a word-for-word translation of this exact sentence): \"Ti suggerisco di acquistarlo: [prodotto] aggiunge [valore concreto] al tuo guardaroba.\""
         : verdict === "maybe"
-        ? "Frame it as worth a look but not urgent, and say concretely why — something new, but limited real-world occasions to wear it, or partial overlap with what's owned. Shape to follow (same calibration note as above): \"Potrebbe essere un buon acquisto, ma non è una priorità: [motivo concreto basato sui fatti].\""
+        ? MAYBE_SHAPE
         : "Say plainly it isn't worth it and give the concrete reason (a near-duplicate already owned, or too few genuine new combinations). Shape to follow (same calibration note as above): \"Non lo considererei una priorità: [motivo concreto basato sui fatti].\"";
     const system = [
       "You are an elegant, knowledgeable personal stylist writing the explanation for a wardrobe purchase verdict that has ALREADY been decided — you only explain it, using ONLY the facts listed below. Never invent facts, prices, qualities, or wardrobe details not listed. Never soften, contradict, hedge, or second-guess the decision.",
@@ -582,7 +592,9 @@ export const analyzePurchase = createServerFn({ method: "POST" })
       "Never state the exact pairing-count number anywhere in your text, for any verdict — it's always shown separately, right below what you write, so stating it again would be a plain repetition of the same fact the person already just read.",
       "Grammar matters: use the correct grammatical gender and article for every product noun in the target language — e.g. in Italian \"i sandali\" (masculine plural, never \"le sandali\"), \"le décolleté\" / \"le pumps\" (feminine), \"gli stivaletti\", \"le sneakers\", \"la borsa\", \"il blazer\". Agree adjectives and past participles accordingly.",
       `Respond in ${langName}.`,
-      "Keep it under 280 characters — that's the hard limit this app enforces, so a longer reason gets cut off mid-sentence rather than shown in full. Say less, not more, if there isn't room to finish a thought.",
+      verdict === "maybe"
+        ? "Keep it under 340 characters — that's the hard limit this app enforces, so a longer reason gets cut off mid-sentence rather than shown in full. Say less, not more, if there isn't room to finish a thought."
+        : "Keep it under 280 characters — that's the hard limit this app enforces, so a longer reason gets cut off mid-sentence rather than shown in full. Say less, not more, if there isn't room to finish a thought.",
       `The decided verdict is ${verdict.toUpperCase()}. ${verdictShape}`,
       "Facts:",
       `- Product: ${product.category ?? "unknown category"}${product.subcategory ? " / " + product.subcategory : ""}, colors: ${product.colors.join(", ") || "unclear"}, brand: ${product.brand || "unknown"}, price: ${product.price ?? "unknown"}.`,
@@ -613,7 +625,7 @@ export const analyzePurchase = createServerFn({ method: "POST" })
       // overruns anyway, cut at the last full sentence/word instead of mid-phrase (this is what
       // produced "...il prezzo di" trailing into nothing before): a shorter, complete thought reads
       // as honest; a hard mid-word cut reads as broken.
-      reason = truncateAtBoundary(parsed.reason, 300);
+      reason = truncateAtBoundary(parsed.reason, verdict === "maybe" ? 360 : 300);
     } catch (e) {
       console.error("[AURA purchase-advisor] reason generation failed", e);
       reason = FALLBACK_REASON[profile?.language ?? "en"] ?? FALLBACK_REASON.en;
@@ -893,6 +905,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
       "Speak directly TO the person — \"il tuo guardaroba\", \"possiedi\", \"ti starebbe meglio\" (translated naturally into the target language) — never in the third person. Sound like a stylist giving a real, personal opinion, not a database printing out matched fields.",
       "NEVER mention the letters A, B, C… in your reason, not even in brackets like \"(C)\" or \"(A e B)\" — the person cannot see them and has no idea what they refer to. Name each piece by its brand and model instead (e.g. \"i sandali Rene Caovilla Cleo\", \"le Louboutin Iriza\"), or by a short natural description when several share a brand. The letters are only internal references.",
       "Your reason must reflect the full picture honestly: if every option is a SKIP, say plainly that none is really worth it, while still noting which would be the least bad if forced to pick. If several are a BUY, you can recommend more than one while still stating which comes first. Never imply a SKIP item is a good purchase just because it ranks above another SKIP.",
+      "For a MAYBE piece, be precise like a high-end personal stylist, never vague: say in a few words when it is worth it (the concrete use only it covers) and what already does its job otherwise (the owned piece, or the price vs their habits).",
       "NEVER say or imply that YOU (the app) or the person already bought, chose, or picked any of these — this is advice about a decision not yet made.",
       "Grammar matters: use the correct grammatical gender and article for every product noun in the target language — e.g. in Italian \"i sandali\" (masculine plural, never \"le sandali\"), \"le décolleté\" / \"le pumps\" (feminine), \"gli stivaletti\", \"le sneakers\", \"la borsa\", \"il blazer\". Agree adjectives and past participles accordingly.",
       `Respond in ${langName}.`,
