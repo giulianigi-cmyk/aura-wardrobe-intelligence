@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 
 /** One gallery tile image: skeleton while the signed URL resolves and while the
@@ -19,6 +20,7 @@ export function OutfitThumb({
   signing: boolean;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const [src, setSrc] = useState<string | undefined>(url);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -45,7 +47,7 @@ export function OutfitThumb({
   if (missing || failed) {
     return (
       <div className={`${className} bg-secondary/40 flex items-center justify-center px-3 text-center`}>
-        <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Impossibile caricare</span>
+        <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{t("outfitThumb.loadFailed")}</span>
       </div>
     );
   }

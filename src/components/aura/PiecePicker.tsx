@@ -126,7 +126,7 @@ export function PiecePicker({
           {visible.map((it) => {
             const src = thumbSrc(it, signed) || (toStoragePath(it.image_url) ? signed[toStoragePath(it.image_url)!] ?? "" : "");
             const on = selectedIds.includes(it.id);
-            const label = it.colors?.[0] ?? it.color ?? it.category ?? "Wardrobe piece";
+            const label = it.colors?.[0] ?? it.color ?? it.category ?? t("wardrobe.wardrobePieceFallback");
             return (
               <button key={it.id} onClick={() => onToggle(it.id)} className="group text-left">
                 <div
@@ -147,7 +147,7 @@ export function PiecePicker({
                 <div className="px-0.5 mt-1.5">
                   <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground truncate">{it.brand ?? it.category}</p>
                   <p className={`font-serif leading-tight truncate ${columns === 3 ? "text-[13px]" : "text-[15px]"}`}>
-                    {garmentWithColor(it.category, it.colors?.[0] ?? it.color, i18n.language) || label}
+                    {garmentWithColor(it.subcategory || it.category, it.colors?.[0] ?? it.color, i18n.language) || label}
                   </p>
                 </div>
               </button>

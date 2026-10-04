@@ -71,7 +71,7 @@ export function SavedOutfits({ go, openBuilder }: { go: (s: Screen) => void; ope
       }, t);
       if (!planId) return;
     } catch (e) { toast.error(e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e)); return; }
-    toast.success("Added to calendar");
+    toast.success(t("savedOutfits.addedToCalendar"));
     setAssignFor(null);
     go("planner");
   };
@@ -92,7 +92,7 @@ export function SavedOutfits({ go, openBuilder }: { go: (s: Screen) => void; ope
     setOutfits((prev) => prev.filter((o) => o.id !== id));
     setConfirmDelete(null);
     setDeleting(false);
-    toast.success("Outfit deleted");
+    toast.success(t("savedOutfits.deleted"));
   };
   return (
     <div className="h-full overflow-y-auto no-scrollbar pb-28 bg-background">
@@ -100,11 +100,11 @@ export function SavedOutfits({ go, openBuilder }: { go: (s: Screen) => void; ope
         <button onClick={() => go("profile")} className="h-10 w-10 rounded-full border border-border flex items-center justify-center active:scale-90">
           <ArrowLeft size={15} />
         </button>
-        <p className="font-serif text-lg italic">My outfits</p>
+        <p className="font-serif text-lg italic">{t("savedOutfits.title")}</p>
         <button
           onClick={() => go("builder")}
           className="h-10 w-10 rounded-full border border-border flex items-center justify-center active:scale-90"
-          aria-label="Create outfit"
+          aria-label={t("savedOutfits.create")}
         ><Plus size={15} /></button>
       </header>
 
@@ -115,14 +115,14 @@ export function SavedOutfits({ go, openBuilder }: { go: (s: Screen) => void; ope
           <div className="mx-auto h-14 w-14 rounded-full bg-secondary/60 flex items-center justify-center mb-4">
             <Heart size={20} />
           </div>
-          <h2 className="font-serif text-2xl italic">Your edits live here</h2>
+          <h2 className="font-serif text-2xl italic">{t("savedOutfits.emptyTitle")}</h2>
           <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-            Compose outfits from your wardrobe and they&apos;ll appear here as a beautifully curated gallery.
+            {t("savedOutfits.emptyBody")}
           </p>
           <button
             onClick={() => go("builder")}
             className="mt-6 h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center gap-2"
-          ><Sparkles size={12} /> Open the builder</button>
+          ><Sparkles size={12} /> {t("savedOutfits.openBuilder")}</button>
         </section>
       ) : (
         <div className="mx-4 mt-4 grid grid-cols-2 gap-3">
@@ -139,7 +139,7 @@ export function SavedOutfits({ go, openBuilder }: { go: (s: Screen) => void; ope
             });
             const duplicate = () => openBuilder({
               itemIds: o.item_ids,
-              name: `${o.name} Copy`,
+              name: t("savedOutfits.copyName", { name: o.name }),
               occasion: o.occasion?.[0],
               notes: o.notes ?? undefined,
             });
@@ -149,48 +149,48 @@ export function SavedOutfits({ go, openBuilder }: { go: (s: Screen) => void; ope
                   {imgPath ? (
                     <OutfitThumb path={imgPath} url={url} alt={o.name} signing={loading} className="aspect-square" />
                   ) : (
-                    <div className="aspect-square flex items-center justify-center text-xs text-muted-foreground">Open canvas</div>
+                    <div className="aspect-square flex items-center justify-center text-xs text-muted-foreground">{t("savedOutfits.openCanvas")}</div>
                   )}
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); duplicate(); }}
-                  aria-label="Duplicate outfit"
+                  aria-label={t("savedOutfits.duplicate")}
                   className="absolute top-2 right-20 h-8 w-8 rounded-full bg-background/80 backdrop-blur flex items-center justify-center active:scale-90 shadow-soft"
                 ><Copy size={14} /></button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setShareFor(o.id); }}
-                  aria-label="Share outfit"
+                  aria-label={t("savedOutfits.share")}
                   className="absolute top-2 right-11 h-8 w-8 rounded-full bg-background/80 backdrop-blur flex items-center justify-center active:scale-90 shadow-soft"
                 ><Share2 size={14} /></button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setConfirmDelete(o.id); }}
-                  aria-label="Delete outfit"
+                  aria-label={t("savedOutfits.delete")}
                   className="absolute top-2 right-2 h-8 w-8 rounded-full bg-background/80 backdrop-blur flex items-center justify-center active:scale-90 shadow-soft"
                 ><Trash2 size={14} /></button>
                 <div className="p-3">
                   <button onClick={open} className="block w-full text-left">
                     <p className="font-serif text-base truncate">{o.name}</p>
-                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{o.item_ids.length} pieces</p>
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{t("savedOutfits.pieces", { count: o.item_ids.length })}</p>
                   </button>
                   <button
                     onClick={() => setAssignFor(o)}
                     className="mt-2 h-8 w-full rounded-full border border-border text-[10px] uppercase tracking-[0.25em] active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
-                  ><CalendarIcon size={11} /> Plan</button>
+                  ><CalendarIcon size={11} /> {t("savedOutfits.plan")}</button>
                 </div>
 
                 {confirmDelete === o.id && (
                   <div className="absolute inset-0 z-10 bg-background/90 backdrop-blur flex flex-col items-center justify-center gap-2 p-3 text-center">
-                    <p className="text-xs">Delete this outfit?</p>
+                    <p className="text-xs">{t("savedOutfits.confirmDelete")}</p>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setConfirmDelete(null)}
                         className="h-8 px-4 rounded-full border border-border text-[10px] uppercase tracking-[0.2em]"
-                      >Cancel</button>
+                      >{t("savedOutfits.cancel")}</button>
                       <button
                         disabled={deleting}
                         onClick={() => void deleteOutfit(o.id)}
                         className="h-8 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] disabled:opacity-60"
-                      >{deleting ? "…" : "Delete"}</button>
+                      >{deleting ? "…" : t("savedOutfits.deleteButton")}</button>
                     </div>
                   </div>
                 )}
@@ -207,7 +207,7 @@ export function SavedOutfits({ go, openBuilder }: { go: (s: Screen) => void; ope
       {assignFor && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end" onClick={() => setAssignFor(null)}>
           <div onClick={(e) => e.stopPropagation()} className="w-full bg-card rounded-t-3xl border-t border-border p-5 space-y-3">
-            <p className="font-serif italic text-lg">Assign to a date</p>
+            <p className="font-serif italic text-lg">{t("savedOutfits.assignTitle")}</p>
             <input
               type="date"
               value={date}
@@ -217,7 +217,7 @@ export function SavedOutfits({ go, openBuilder }: { go: (s: Screen) => void; ope
             <button
               onClick={assignToDay}
               className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98]"
-            >Save to calendar</button>
+            >{t("savedOutfits.saveToCalendar")}</button>
           </div>
         </div>
       )}

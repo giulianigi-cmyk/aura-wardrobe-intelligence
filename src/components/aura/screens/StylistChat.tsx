@@ -145,7 +145,7 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
           setSigned(await resolveWardrobeUrls(list));
         } catch (e) {
           console.error("[AURA stylist-chat] wardrobe load/sign failed", e);
-          setItemsError(e instanceof Error ? e.message : "Failed to load wardrobe");
+          setItemsError(e instanceof Error ? e.message : t("stylistChat.wardrobeLoadFailed"));
         } finally {
           setItemsLoaded(true);
         }

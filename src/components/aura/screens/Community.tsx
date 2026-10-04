@@ -153,12 +153,12 @@ export function Community({ go, openConversation, openUserProfile }: { go: (s: S
     const q = query.trim();
     if (q.length < 2) { setResults([]); setSearching(false); return; }
     setSearching(true);
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       try { setResults(await searchProfiles(q)); }
-      catch (e) { toast.error(e instanceof Error ? e.message : "Search failed"); }
+      catch (e) { toast.error(e instanceof Error ? e.message : t("community.searchFailed")); }
       finally { setSearching(false); }
     }, 350);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [query, friends]);
 
   const sendRequest = async (id: string) => {

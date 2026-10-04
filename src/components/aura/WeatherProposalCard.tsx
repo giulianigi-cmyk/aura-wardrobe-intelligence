@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { CloudRain, Loader2, Umbrella } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { thumbSrc } from "@/lib/wardrobe-image";
 import { acceptWeatherProposal, resolveWeatherProposal } from "@/lib/plan-weather.functions";
@@ -60,6 +61,7 @@ export function WeatherProposalCard({
   onResolved: (outcome: "accepted" | "dismissed") => void;
   onCustomize?: () => void;
 }) {
+  const { t } = useTranslation();
   const accept = useServerFn(acceptWeatherProposal);
   const resolve = useServerFn(resolveWeatherProposal);
   const [busy, setBusy] = useState<null | "accept" | "keep">(null);
@@ -70,10 +72,10 @@ export function WeatherProposalCard({
     setBusy("accept");
     try {
       await accept({ data: { notificationId: proposal.id } });
-      toast.success("Outfit updated for the new forecast");
+      toast.success(t("weatherProposal.updated"));
       onResolved("accepted");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't update the outfit");
+      toast.error(e instanceof Error ? e.message : t("weatherProposal.updateFailed"));
     } finally { setBusy(null); }
   };
 
@@ -83,7 +85,7 @@ export function WeatherProposalCard({
       await resolve({ data: { notificationId: proposal.id, status: "dismissed" } });
       onResolved("dismissed");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't dismiss the suggestion");
+      toast.error(e instanceof Error ? e.message : t("weatherProposal.dismissFailed"));
     } finally { setBusy(null); }
   };
 
@@ -109,13 +111,13 @@ export function WeatherProposalCard({
 
       {rainPct != null && rainPct > UMBRELLA_PRECIPITATION_THRESHOLD && (
         <p className="text-xs flex items-center gap-1.5">
-          <Umbrella size={12} /> {Math.round(rainPct)}% chance of rain — don't forget your umbrella
+          <Umbrella size={12} /> {t("weatherProposal.rain", { pct: Math.round(rainPct) })}
         </p>
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <Row label="Planned" ids={d.old_item_ids ?? []} items={items} signed={signed} />
-        <Row label="Suggested" ids={d.new_item_ids ?? []} items={items} signed={signed} />
+        <Row label={t("weatherProposal.planned")} ids={d.old_item_ids ?? []} items={items} signed={signed} />
+        <Row label={t("weatherProposal.suggested")} ids={d.new_item_ids ?? []} items={items} signed={signed} />
       </div>
 
       <div className="flex flex-wrap gap-2 pt-1">
@@ -124,14 +126,14 @@ export function WeatherProposalCard({
           disabled={busy !== null}
           className="flex-1 min-w-[100px] h-10 rounded-full bg-foreground text-background text-xs tracking-wide active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
         >
-          {busy === "accept" ? <Loader2 size={13} className="animate-spin" /> : null} Accept
+          {busy === "accept" ? <Loader2 size={13} className="animate-spin" /> : null} {t("weatherProposal.accept")}
         </button>
         <button
           onClick={() => void onKeep()}
           disabled={busy !== null}
           className="flex-1 min-w-[100px] h-10 rounded-full border border-border text-xs tracking-wide active:scale-95 disabled:opacity-50"
         >
-          Keep original
+          {t("weatherProposal.keep")}
         </button>
         {onCustomize && (
           <button
@@ -139,7 +141,7 @@ export function WeatherProposalCard({
             disabled={busy !== null}
             className="flex-1 min-w-[100px] h-10 rounded-full border border-border text-xs tracking-wide active:scale-95 disabled:opacity-50"
           >
-            Customize
+            {t("weatherProposal.customize")}
           </button>
         )}
       </div>

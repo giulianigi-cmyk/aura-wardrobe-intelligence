@@ -1022,7 +1022,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
               </div>
               <div className="px-0.5 mt-1.5">
                 <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground truncate">{it.brand ?? it.category}</p>
-                <p className="font-serif text-[15px] leading-tight truncate">{it.colors?.[0] ?? it.color ? garmentWithColor(it.category, it.colors?.[0] ?? it.color, i18n.language) : [label, it.category && garmentName(it.category, i18n.language)].filter(Boolean).join(" ")}</p>
+                <p className="font-serif text-[15px] leading-tight truncate">{it.colors?.[0] ?? it.color ? garmentWithColor(it.subcategory || it.category, it.colors?.[0] ?? it.color, i18n.language) : [label, (it.subcategory || it.category) && garmentName(it.subcategory || it.category || "", i18n.language)].filter(Boolean).join(" ")}</p>
                 {showLoaned && loan && (
                   <p className="text-[10px] text-muted-foreground truncate mt-0.5">
                     {t("wardrobe.loanedToLabel", { name: loan.borrower_name })} · {new Date(`${loan.loaned_at}T00:00:00`).toLocaleDateString(i18n.language, { month: "short", day: "numeric" })}
@@ -1123,7 +1123,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
               <>
                 <div className="mt-4 text-center">
                   <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{detail.brand ?? detail.category}</p>
-                  <p className="font-serif text-2xl mt-1">{garmentWithColor(detail.category, detail.colors?.[0] ?? detail.color, i18n.language)}</p>
+                  <p className="font-serif text-2xl mt-1">{garmentWithColor(detail.subcategory || detail.category, detail.colors?.[0] ?? detail.color, i18n.language)}</p>
                   {detail.season && <p className="text-xs text-muted-foreground mt-1">{optionList(detail.season, i18n.language)}</p>}
                   {detail.size && (
                     <p className="text-xs text-muted-foreground mt-1">

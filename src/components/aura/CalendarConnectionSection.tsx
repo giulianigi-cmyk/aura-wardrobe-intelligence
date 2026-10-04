@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Calendar, Check, Loader2, RefreshCcw, X, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { startCalendarConnect, getCalendarStatus, disconnectCalendar, syncCalendarNow } from "@/lib/calendar-connections.functions";
 import { connectAppleCalendar, getAppleCalendarStatus, disconnectAppleCalendar, syncAppleCalendarNow } from "@/lib/calendar-connections.functions";
 import { startOutlookCalendarConnect, getOutlookCalendarStatus, disconnectOutlookCalendar, syncOutlookCalendarNow } from "@/lib/calendar-connections.functions";
 
 export function CalendarConnectionSection() {
+  const { t, i18n } = useTranslation();
   const start = useServerFn(startCalendarConnect);
   const status = useServerFn(getCalendarStatus);
   const disconnect = useServerFn(disconnectCalendar);
@@ -47,9 +49,9 @@ export function CalendarConnectionSection() {
     const params = new URLSearchParams(window.location.search);
     const result = params.get("calendar");
     if (!result) return;
-    if (result === "connected") { toast.success("Google Calendar connected"); void load(); }
-    else if (result === "denied") toast.message("Calendar connection cancelled");
-    else if (result === "error") toast.error("Couldn't connect Google Calendar — please try again.");
+    if (result === "connected") { toast.success(t("calendarConnect.connected", { name: "Google Calendar" })); void load(); }
+    else if (result === "denied") toast.message(t("calendarConnect.cancelled"));
+    else if (result === "error") toast.error(t("calendarConnect.connectFailed", { name: "Google Calendar" }));
     params.delete("calendar");
     const clean = params.toString();
     window.history.replaceState({}, "", clean ? `${window.location.pathname}?${clean}` : window.location.pathname);
@@ -63,7 +65,7 @@ export function CalendarConnectionSection() {
       window.location.href = res.url;
     } catch (e) {
       console.error("[AURA calendar] connect failed", e);
-      toast.error("Couldn't start the connection");
+      toast.error(t("calendarConnect.startFailed"));
       setConnecting(false);
     }
   };
@@ -72,8 +74,8 @@ export function CalendarConnectionSection() {
     setSyncing(true);
     try {
       const res = await sync();
-      if (res.ok) toast.success(`Synced — ${res.imported ?? 0} event${res.imported === 1 ? "" : "s"}`);
-      else toast.error(res.error ?? "Sync failed");
+      if (res.ok) toast.success(t("calendarConnect.synced", { count: res.imported ?? 0 }));
+      else toast.error(res.error ?? t("calendarConnect.syncFailed"));
       await load();
     } finally {
       setSyncing(false);
@@ -85,10 +87,10 @@ export function CalendarConnectionSection() {
     try {
       await disconnect();
       setConnected(false);
-      toast.success("Disconnected");
+      toast.success(t("calendarConnect.disconnected"));
     } catch (e) {
       console.error("[AURA calendar] disconnect failed", e);
-      toast.error("Couldn't disconnect");
+      toast.error(t("calendarConnect.disconnectFailed"));
     } finally {
       setDisconnecting(false);
     }
@@ -98,7 +100,7 @@ export function CalendarConnectionSection() {
     <section className="mx-6 mt-4 rounded-3xl gradient-warm border border-border/60 p-4 animate-fade-up">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Calendar</p>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("calendarConnect.eyebrow")}</p>
           <p className="font-serif text-lg mt-0.5">Google Calendar</p>
         </div>
         <Calendar size={18} className="text-muted-foreground" />
@@ -112,8 +114,8 @@ export function CalendarConnectionSection() {
         <>
           <div className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <Check size={12} className="text-foreground" />
-            Connected
-            {lastSyncedAt ? ` · synced ${new Date(lastSyncedAt).toLocaleString("en-US")}` : ""}
+            {t("calendarConnect.connectedState")}
+            {lastSyncedAt ? ` · ${t("calendarConnect.syncedAt", { when: new Date(lastSyncedAt).toLocaleString(i18n.language) })}` : ""}
           </div>
           {displayedSyncError && (
             <p className="mt-1 text-[11px] text-red-700">{displayedSyncError}</p>
@@ -125,7 +127,7 @@ export function CalendarConnectionSection() {
                 disabled={connecting}
                 className="flex-1 h-10 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.25em] flex items-center justify-center gap-1.5 disabled:opacity-60"
               >
-                {connecting ? <Loader2 size={12} className="animate-spin" /> : <RefreshCcw size={12} />} Reconnect
+                {connecting ? <Loader2 size={12} className="animate-spin" /> : <RefreshCcw size={12} />} {t("calendarConnect.reconnect")}
               </button>
             ) : (
               <button
@@ -133,21 +135,21 @@ export function CalendarConnectionSection() {
                 disabled={syncing}
                 className="flex-1 h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.25em] flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
-                {syncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCcw size={12} />} Sync now
+                {syncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCcw size={12} />} {t("calendarConnect.syncNow")}
               </button>
             )}
             <button
               onClick={() => void runDisconnect()}
               disabled={disconnecting}
               className="h-10 w-10 rounded-full border border-border flex items-center justify-center disabled:opacity-50"
-              aria-label="Disconnect Google Calendar"
+              aria-label={t("calendarConnect.disconnectAria", { name: "Google Calendar" })}
             ><X size={14} /></button>
           </div>
         </>
       ) : (
         <>
           <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-            Connect your Google Calendar so AURA can understand your day — work, dinners, travel — and suggest outfits accordingly.
+            {t("calendarConnect.googleIntro")}
           </p>
           <button
             onClick={() => void connect()}
@@ -155,7 +157,7 @@ export function CalendarConnectionSection() {
             className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {connecting ? <Loader2 size={12} className="animate-spin" /> : null}
-            Connect Google Calendar
+            {t("calendarConnect.connectButton", { name: "Google Calendar" })}
           </button>
         </>
       )}
@@ -164,6 +166,7 @@ export function CalendarConnectionSection() {
 }
 
 export function AppleCalendarConnectionSection() {
+  const { t, i18n } = useTranslation();
   const connectFn = useServerFn(connectAppleCalendar);
   const status = useServerFn(getAppleCalendarStatus);
   const disconnect = useServerFn(disconnectAppleCalendar);
@@ -201,20 +204,20 @@ export function AppleCalendarConnectionSection() {
   useEffect(() => { void load(); }, []);
 
   const connect = async () => {
-    if (!email.trim() || !appPassword.trim()) { toast.error("Enter your Apple ID email and app-specific password"); return; }
+    if (!email.trim() || !appPassword.trim()) { toast.error(t("calendarConnect.appleMissing")); return; }
     setConnecting(true);
     try {
       const res = await connectFn({ data: { email, appPassword } });
       if (res.ok) {
-        toast.success("Apple Calendar connected");
+        toast.success(t("calendarConnect.connected", { name: "Apple Calendar" }));
         setEmail(""); setAppPassword("");
         await load();
       } else {
-        toast.error(res.error ?? "Couldn't connect");
+        toast.error(res.error ?? t("calendarConnect.connectFailedShort"));
       }
     } catch (e) {
       console.error("[AURA apple-calendar] connect failed", e);
-      toast.error("Couldn't connect Apple Calendar");
+      toast.error(t("calendarConnect.connectFailed", { name: "Apple Calendar" }));
     } finally {
       setConnecting(false);
     }
@@ -224,8 +227,8 @@ export function AppleCalendarConnectionSection() {
     setSyncing(true);
     try {
       const res = await sync();
-      if (res.ok) toast.success(`Synced — ${res.imported ?? 0} event${res.imported === 1 ? "" : "s"}`);
-      else toast.error(res.error ?? "Sync failed");
+      if (res.ok) toast.success(t("calendarConnect.synced", { count: res.imported ?? 0 }));
+      else toast.error(res.error ?? t("calendarConnect.syncFailed"));
       await load();
     } finally {
       setSyncing(false);
@@ -237,10 +240,10 @@ export function AppleCalendarConnectionSection() {
     try {
       await disconnect();
       setConnected(false);
-      toast.success("Disconnected");
+      toast.success(t("calendarConnect.disconnected"));
     } catch (e) {
       console.error("[AURA apple-calendar] disconnect failed", e);
-      toast.error("Couldn't disconnect");
+      toast.error(t("calendarConnect.disconnectFailed"));
     } finally {
       setDisconnecting(false);
     }
@@ -250,7 +253,7 @@ export function AppleCalendarConnectionSection() {
     <section className="mx-6 mt-4 rounded-3xl gradient-warm border border-border/60 p-4 animate-fade-up">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Calendar</p>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("calendarConnect.eyebrow")}</p>
           <p className="font-serif text-lg mt-0.5">Apple Calendar</p>
         </div>
         <Calendar size={18} className="text-muted-foreground" />
@@ -264,8 +267,8 @@ export function AppleCalendarConnectionSection() {
         <>
           <div className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <Check size={12} className="text-foreground" />
-            Connected{accountEmail ? ` as ${accountEmail}` : ""}
-            {lastSyncedAt ? ` · synced ${new Date(lastSyncedAt).toLocaleString("en-US")}` : ""}
+            {accountEmail ? t("calendarConnect.connectedAs", { email: accountEmail }) : t("calendarConnect.connectedState")}
+            {lastSyncedAt ? ` · ${t("calendarConnect.syncedAt", { when: new Date(lastSyncedAt).toLocaleString(i18n.language) })}` : ""}
           </div>
           {lastSyncError && (
             <p className="mt-1 text-[11px] text-red-700">{lastSyncError}</p>
@@ -276,28 +279,28 @@ export function AppleCalendarConnectionSection() {
               disabled={syncing}
               className="flex-1 h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.25em] flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
-              {syncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCcw size={12} />} Sync now
+              {syncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCcw size={12} />} {t("calendarConnect.syncNow")}
             </button>
             <button
               onClick={() => void runDisconnect()}
               disabled={disconnecting}
               className="h-10 w-10 rounded-full border border-border flex items-center justify-center disabled:opacity-50"
-              aria-label="Disconnect Apple Calendar"
+              aria-label={t("calendarConnect.disconnectAria", { name: "Apple Calendar" })}
             ><X size={14} /></button>
           </div>
         </>
       ) : (
         <>
           <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-            Connect your iCloud Calendar with your Apple ID email and an{" "}
-            <a href="https://appleid.apple.com" target="_blank" rel="noreferrer" className="underline">app-specific password</a>{" "}
-            (not your regular Apple ID password).
+            {t("calendarConnect.appleIntroBefore")}{" "}
+            <a href="https://appleid.apple.com" target="_blank" rel="noreferrer" className="underline">{t("calendarConnect.appleIntroLink")}</a>{" "}
+            {t("calendarConnect.appleIntroAfter")}
           </p>
           <div className="mt-3 space-y-2">
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Apple ID email"
+              placeholder={t("calendarConnect.appleEmailPlaceholder")}
               type="email"
               autoCapitalize="none"
               autoCorrect="off"
@@ -316,7 +319,7 @@ export function AppleCalendarConnectionSection() {
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={showPassword ? t("calendarConnect.hidePassword") : t("calendarConnect.showPassword")}
                 className="absolute right-1 top-1 h-9 w-9 rounded-full flex items-center justify-center text-muted-foreground"
               >
                 {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -329,7 +332,7 @@ export function AppleCalendarConnectionSection() {
             className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {connecting ? <Loader2 size={12} className="animate-spin" /> : null}
-            Connect Apple Calendar
+            {t("calendarConnect.connectButton", { name: "Apple Calendar" })}
           </button>
         </>
       )}
@@ -339,6 +342,7 @@ export function AppleCalendarConnectionSection() {
 
 /** Outlook/Microsoft calendar — OAuth redirect, same pattern as Google. */
 export function OutlookCalendarConnectionSection() {
+  const { t, i18n } = useTranslation();
   const start = useServerFn(startOutlookCalendarConnect);
   const status = useServerFn(getOutlookCalendarStatus);
   const disconnect = useServerFn(disconnectOutlookCalendar);
@@ -376,7 +380,7 @@ export function OutlookCalendarConnectionSection() {
       window.location.href = res.url;
     } catch (e) {
       console.error("[AURA outlook-calendar] connect failed", e);
-      toast.error("Couldn't start the connection");
+      toast.error(t("calendarConnect.startFailed"));
       setConnecting(false);
     }
   };
@@ -385,8 +389,8 @@ export function OutlookCalendarConnectionSection() {
     setSyncing(true);
     try {
       const res = await sync();
-      if (res.ok) toast.success(`Synced — ${res.imported ?? 0} event${res.imported === 1 ? "" : "s"}`);
-      else toast.error(res.error ?? "Sync failed");
+      if (res.ok) toast.success(t("calendarConnect.synced", { count: res.imported ?? 0 }));
+      else toast.error(res.error ?? t("calendarConnect.syncFailed"));
       await load();
     } finally {
       setSyncing(false);
@@ -398,10 +402,10 @@ export function OutlookCalendarConnectionSection() {
     try {
       await disconnect();
       setConnected(false);
-      toast.success("Disconnected");
+      toast.success(t("calendarConnect.disconnected"));
     } catch (e) {
       console.error("[AURA outlook-calendar] disconnect failed", e);
-      toast.error("Couldn't disconnect");
+      toast.error(t("calendarConnect.disconnectFailed"));
     } finally {
       setDisconnecting(false);
     }
@@ -411,7 +415,7 @@ export function OutlookCalendarConnectionSection() {
     <section className="mx-6 mt-4 rounded-3xl gradient-warm border border-border/60 p-4 animate-fade-up">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Calendar</p>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("calendarConnect.eyebrow")}</p>
           <p className="font-serif text-lg mt-0.5">Outlook Calendar</p>
         </div>
         <Calendar size={18} className="text-muted-foreground" />
@@ -425,8 +429,8 @@ export function OutlookCalendarConnectionSection() {
         <>
           <div className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <Check size={12} className="text-foreground" />
-            Connected
-            {lastSyncedAt ? ` · synced ${new Date(lastSyncedAt).toLocaleString("en-US")}` : ""}
+            {t("calendarConnect.connectedState")}
+            {lastSyncedAt ? ` · ${t("calendarConnect.syncedAt", { when: new Date(lastSyncedAt).toLocaleString(i18n.language) })}` : ""}
           </div>
           {lastSyncError && (
             <p className="mt-1 text-[11px] text-red-700">{lastSyncError}</p>
@@ -437,20 +441,20 @@ export function OutlookCalendarConnectionSection() {
               disabled={syncing}
               className="flex-1 h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.25em] flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
-              {syncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCcw size={12} />} Sync now
+              {syncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCcw size={12} />} {t("calendarConnect.syncNow")}
             </button>
             <button
               onClick={() => void runDisconnect()}
               disabled={disconnecting}
               className="h-10 w-10 rounded-full border border-border flex items-center justify-center disabled:opacity-50"
-              aria-label="Disconnect Outlook Calendar"
+              aria-label={t("calendarConnect.disconnectAria", { name: "Outlook Calendar" })}
             ><X size={14} /></button>
           </div>
         </>
       ) : (
         <>
           <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-            Connect your Outlook/Microsoft Calendar so AURA can understand your day and suggest outfits accordingly.
+            {t("calendarConnect.outlookIntro")}
           </p>
           <button
             onClick={() => void connect()}
@@ -458,7 +462,7 @@ export function OutlookCalendarConnectionSection() {
             className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {connecting ? <Loader2 size={12} className="animate-spin" /> : null}
-            Connect Outlook Calendar
+            {t("calendarConnect.connectButton", { name: "Outlook Calendar" })}
           </button>
         </>
       )}

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Check, Clock, Loader2, User, UserPlus } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+import "@/i18n/config";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { PhoneFrame } from "@/components/aura/PhoneFrame";
@@ -26,6 +28,7 @@ export const RETURN_KEY = "aura:add_friend_return";
 type Found = { id: string; username: string | null; profile_image: string | null; relation: string };
 
 function Inner({ username }: { username: string }) {
+  const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [state, setState] = useState<"loading" | "missing" | "found" | "signedout">("loading");
@@ -69,20 +72,20 @@ function Inner({ username }: { username: string }) {
     const { error } = await supabase.from("friends").insert({ requester_id: user.id, addressee_id: found.id });
     setSending(false);
     if (error) {
-      toast.error(error.code === "23505" ? "Request already sent" : error.message);
+      toast.error(error.code === "23505" ? t("addFriend.alreadySent") : error.message);
       await load();
       return;
     }
-    toast.success("Request sent");
+    toast.success(t("addFriend.sent"));
     setFound({ ...found, relation: "outgoing" });
   };
 
   const label = (() => {
     switch (found?.relation) {
-      case "self": return "This is your own QR code.";
-      case "friends": return "You're already friends.";
-      case "outgoing": return "Request sent.";
-      case "incoming": return "They already sent you a request — accept it in Community.";
+      case "self": return t("addFriend.self");
+      case "friends": return t("addFriend.friends");
+      case "outgoing": return t("addFriend.outgoing");
+      case "incoming": return t("addFriend.incoming");
       default: return null;
     }
   })();
@@ -93,28 +96,28 @@ function Inner({ username }: { username: string }) {
         <Loader2 size={18} className="animate-spin text-muted-foreground" />
       ) : state === "signedout" ? (
         <>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Aura invite</p>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("addFriend.invite")}</p>
           <p className="mt-5 font-serif text-3xl italic">@{username}</p>
-          <p className="mt-3 text-sm text-muted-foreground">Sign in to view this profile and send a friend request.</p>
+          <p className="mt-3 text-sm text-muted-foreground">{t("addFriend.signInToView")}</p>
           <button
             onClick={signIn}
             className="mt-8 w-full max-w-xs h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-95"
-          >Sign in to add</button>
-          <p className="mt-3 text-[11px] text-muted-foreground">You'll come back here right after signing in.</p>
+          >{t("addFriend.signInToAdd")}</button>
+          <p className="mt-3 text-[11px] text-muted-foreground">{t("addFriend.comeBack")}</p>
         </>
       ) : state === "missing" ? (
 
         <>
-          <p className="font-serif text-3xl italic">Profile not found</p>
-          <p className="mt-3 text-sm text-muted-foreground">No AURA member goes by @{username}.</p>
+          <p className="font-serif text-3xl italic">{t("addFriend.notFound")}</p>
+          <p className="mt-3 text-sm text-muted-foreground">{t("addFriend.noMember", { username })}</p>
           <button
             onClick={() => void navigate({ to: "/" })}
             className="mt-8 h-11 px-7 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] active:scale-95"
-          >Open Aura</button>
+          >{t("addFriend.openAura")}</button>
         </>
       ) : (
         <>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Aura member</p>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("addFriend.member")}</p>
           <div className="mt-6 h-24 w-24 rounded-full p-[3px] bg-gradient-to-br from-[var(--champagne)] to-[var(--taupe)] animate-scale-in">
             {avatar ? (
               <img src={avatar} alt={`@${found?.username}`} className="h-full w-full rounded-full object-cover border-2 border-background" />
@@ -134,9 +137,9 @@ function Inner({ username }: { username: string }) {
                 <button
                   onClick={signIn}
                   className="w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-95"
-                >Sign in to add</button>
+                >{t("addFriend.signInToAdd")}</button>
                 <p className="mt-3 text-[11px] text-muted-foreground">
-                  You'll come back here right after signing in.
+                  {t("addFriend.comeBack")}
                 </p>
               </>
             ) : label ? (
@@ -150,13 +153,13 @@ function Inner({ username }: { username: string }) {
                 disabled={sending}
                 className="w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
               >
-                {sending ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />} Add friend
+                {sending ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />} {t("addFriend.add")}
               </button>
             )}
             <button
               onClick={() => void navigate({ to: "/" })}
               className="w-full h-11 mt-3 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] active:scale-95"
-            >Open Aura</button>
+            >{t("addFriend.openAura")}</button>
           </div>
         </>
       )}

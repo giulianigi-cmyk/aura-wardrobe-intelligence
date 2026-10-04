@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { Loader2, Check } from "lucide-react";
@@ -20,6 +21,7 @@ export function ChatOutfitPicker({
   onPick: (outfit: PickedOutfit) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<PickedOutfit[]>([]);
   const [images, setImages] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -53,14 +55,13 @@ export function ChatOutfitPicker({
         onClick={(e) => e.stopPropagation()}
         className="w-full bg-card rounded-t-3xl border-t border-border p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] space-y-4 max-h-[82vh] overflow-y-auto overscroll-contain"
       >
-        <p className="font-serif italic text-lg">Allega un outfit</p>
+        <p className="font-serif italic text-lg">{t("chatPicker.title")}</p>
 
         {loading ? (
           <div className="flex justify-center py-10"><Loader2 className="animate-spin" size={18} /></div>
         ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Nessun outfit con immagine salvata. Crea un look nell'Outfit Builder e salvalo:
-            lo snapshot del canvas viene generato lì.
+            {t("chatPicker.empty")}
           </p>
         ) : (
           <>
@@ -89,7 +90,7 @@ export function ChatOutfitPicker({
               onClick={() => chosen && onPick(chosen)}
               disabled={!chosen}
               className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-50"
-            >Allega</button>
+            >{t("chatPicker.attach")}</button>
           </>
         )}
       </div>
