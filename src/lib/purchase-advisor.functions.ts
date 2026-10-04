@@ -278,7 +278,7 @@ function contextFacts(sameModel: SameModel | null | undefined, price: PriceConte
   const kind = (product.subcategory || product.category || "pieces").toLowerCase();
   return [
     sameModel ? `- The person already owns ${sameModel.count} piece(s) of this SAME model (${sameModel.name}${sameModel.colors.length ? `: ${sameModel.colors.join(", ")}` : ""}). This one is a variant of a model they have — say so, and say how it differs (shade, occasion), not that it is new.` : "",
-    price ? `- Price ≈ ${price.priceEur} EUR. What this person usually pays for ${kind}: about ${price.usualEur} EUR, up to about ${price.topEur} EUR at the top of their range (${price.basedOn} owned pieces)${price.sameModelPaidEur != null ? `; they paid about ${price.sameModelPaidEur} EUR for the same model` : ""} — so this is ${price.tier === "above_usual" ? "ABOVE what they usually spend: say it is worth weighing for the price" : price.tier === "upper_range" ? "at the expensive end of what they spend (within their habits, not beyond): worth weighing, never call it far above their budget" : price.tier === "below_usual" ? "below what they usually spend" : "in line with what they usually spend"}. Judge the price against THEIR habits, never in absolute terms.` : "",
+    price ? `- Price ≈ ${price.priceEur} EUR. What this person usually pays for ${kind}: about ${price.usualEur} EUR, up to about ${price.topEur} EUR at the top of their range (${price.basedOn} owned pieces)${price.sameModelPaidEur != null ? `; they paid about ${price.sameModelPaidEur} EUR for the same model` : ""} — so this is ${price.tier === "above_usual" ? "FAR ABOVE what they usually spend for this kind of piece: if something similar is owned, say plainly it adds nothing but the label, and that the only reason to buy it would be wanting this specific brand/piece itself" : price.tier === "upper_range" ? "at the expensive end of what they spend (within their habits, not beyond): worth weighing, never call it far above their budget" : price.tier === "below_usual" ? "below what they usually spend" : "in line with what they usually spend"}. Judge the price against THEIR habits, never in absolute terms.` : "",
   ].filter(Boolean);
 }
 
@@ -564,7 +564,7 @@ export const analyzePurchase = createServerFn({ method: "POST" })
         fashion,
         { dressViolation, duplicate, pairsWithCount, wardrobeGap },
       ),
-      { sameModelCount: sameModel?.count ?? 0, price, wardrobeGap },
+      { sameModelCount: sameModel?.count ?? 0, price, wardrobeGap, similarOwned: !!duplicate || similarItemsCount > 0, iconic: !!fashion?.iconic },
     );
 
     const base = {
@@ -813,7 +813,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
           r.fashion,
           { dressViolation: violations[i], duplicate: r.duplicate, pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap },
         ),
-        { sameModelCount: r.sameModel?.count ?? 0, price: r.price, wardrobeGap: r.wardrobeGap },
+        { sameModelCount: r.sameModel?.count ?? 0, price: r.price, wardrobeGap: r.wardrobeGap, similarOwned: !!r.duplicate || !r.wardrobeGap, iconic: !!r.fashion?.iconic },
       ),
     );
 

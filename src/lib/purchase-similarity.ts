@@ -3,13 +3,16 @@
 // watches: same category (Accessories), same brand, a colour in common. A ring is not a watch. Only
 // pieces of the same KIND (same subcategory — ring with ring, loafers with loafers) can be similar,
 // and the owned piece is named, so the person can see what the comparison is about.
-import { findBestMatch, type DedupeVerdict } from "./outfit-dedupe";
+import { scoreMatch, type DedupeVerdict } from "./outfit-dedupe";
+import { colorNameSimilarity } from "./outfit-match";
 import type { WardrobeItem } from "./aura-types";
 
 type ProductShape = {
   category: string | null; subcategory: string | null; colors: string[]; brand: string | null;
   /** Free text that can reveal details: title, description, style tags, material. */
   text?: string | null;
+  fit?: string | null;
+  length?: string | null;
 };
 
 import { detailsIn, DETAIL_WORDS_FOR_KEY } from "./garment-details";
@@ -57,15 +60,32 @@ export function closestOwnedPiece(product: ProductShape, wardrobe: WardrobeItem[
   if (!product.category) return null;
   const candidates = comparablePieces(product, wardrobe);
   if (!candidates.length) return null;
-  const d = findBestMatch(
-    { category: product.category, subcategory: product.subcategory ?? undefined, colors: product.colors, brand: product.brand },
-    candidates,
-  );
-  if (d.verdict === "new" || !d.match) return null;
+  const detected = { category: product.category, subcategory: product.subcategory ?? undefined, colors: product.colors, brand: product.brand };
+  const scored = candidates.map((it) => ({ it, score: scoreMatch(detected, it) }));
+  const best = Math.max(...scored.map((x) => x.score));
+  const verdict: DedupeVerdict = best >= 0.9 ? "certain" : best >= 0.6 ? "maybe" : "new";
+  if (verdict === "new") return null;
+  // Among the pieces that score the same on brand / colour / type (ten denim-wash jeans tie), pick the
+  // one that really looks most like the product: closest colours, same fit and length, and no
+  // details the product doesn't have (crystals, a logo, a silver accent). The first one in the list
+  // used to win — an embellished pair next to a plain one.
   const mine = detailsIn([product.subcategory, product.text].filter(Boolean).join(" "));
-  const theirs = detailsIn(ownedText(d.match));
+  const refine = (it: WardrobeItem) => {
+    const theirs = detailsIn(ownedText(it));
+    const extraDetails = [...theirs].filter((k) => !mine.has(k)).length;
+    const colors = it.colors?.length ? it.colors : it.color ? [it.color] : [];
+    const colorFit = product.colors.length && colors.length
+      ? colors.reduce((sum, c) => sum + Math.max(...product.colors.map((p) => (p === c ? 1 : colorNameSimilarity(p, c) ?? 0))), 0) / colors.length
+      : 0;
+    const fit = product.fit && it.fit && product.fit === it.fit ? 0.1 : 0;
+    const length = product.length && it.length && product.length === it.length ? 0.05 : 0;
+    return colorFit * 0.3 + fit + length - extraDetails * 0.15;
+  };
+  const tied = scored.filter((x) => x.score >= best - 0.05).sort((a, b) => refine(b.it) - refine(a.it) || b.score - a.score);
+  const match = tied[0].it;
+  const theirs = detailsIn(ownedText(match));
   const differences = [...mine].filter((k) => !theirs.has(k));
-  return { itemId: d.match.id, label: ownedPieceLabel(d.match), differences, rawVerdict: d.verdict };
+  return { itemId: match.id, label: ownedPieceLabel(match), differences, rawVerdict: verdict };
 }
 
 /** The owned piece the product is a (near-)duplicate of, compared only with pieces of the same kind.

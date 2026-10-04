@@ -62,3 +62,11 @@ test("shade: a navy wash is darker than a sky-blue one", () => {
   assert.equal(shadeDifference(["Sky Blue"], ["Navy"]), "lighter");
   assert.equal(shadeDifference(["Denim Wash"], ["Denim Wash"]), null);
 });
+
+test("far beyond the person's range with a similar pair owned → skip (unless iconic or a gap)", () => {
+  const price = { priceEur: 1100, usualEur: 175, topEur: 358, basedOn: 24, tier: "above_usual" as const, sameModelPaidEur: null };
+  assert.equal(applyPurchaseContext({ verdict: "maybe", confidence: "medium" }, { sameModelCount: 0, price, wardrobeGap: false, similarOwned: true }).verdict, "skip");
+  assert.equal(applyPurchaseContext({ verdict: "buy", confidence: "high" }, { sameModelCount: 0, price, wardrobeGap: false, similarOwned: true, iconic: true }).verdict, "buy");
+  assert.equal(applyPurchaseContext({ verdict: "buy", confidence: "high" }, { sameModelCount: 0, price, wardrobeGap: true, similarOwned: false }).verdict, "buy");
+});
+

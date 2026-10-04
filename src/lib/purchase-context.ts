@@ -105,14 +105,19 @@ export function shadeDifference(productColors: string[], ownedColors: string[]):
   return null;
 }
 
-/** On top of the wardrobe/fashion verdict: the same model already owned AND a price at the top of (or
- *  above) what the person usually spends on that kind of piece → "maybe" instead of "buy" (worth weighing, not an
- *  easy yes). Never upgrades. */
+/** On top of the wardrobe/fashion verdict, never an upgrade:
+ *  - far beyond what the person usually pays for this kind of piece (above the top of their range)
+ *    while something similar is already owned and it isn't an iconic piece → "skip": it adds nothing
+ *    but the label (1100 € jeans next to a similar pair, when jeans usually cost up to ~360 €);
+ *  - the same model already owned and a price at the top of (or above) their range, or two of the
+ *    same model already → "maybe" instead of "buy". */
 export function applyPurchaseContext<V extends { verdict: "buy" | "maybe" | "skip"; confidence: "high" | "medium" | "low" }>(
   base: V,
-  ctx: { sameModelCount: number; price: PriceContext | null; wardrobeGap: boolean },
+  ctx: { sameModelCount: number; price: PriceContext | null; wardrobeGap: boolean; similarOwned?: boolean; iconic?: boolean },
 ): V {
-  if (base.verdict !== "buy" || ctx.wardrobeGap) return base;
+  if (base.verdict === "skip" || ctx.wardrobeGap) return base;
+  if (ctx.price?.tier === "above_usual" && ctx.similarOwned && !ctx.iconic) return { ...base, verdict: "skip", confidence: "medium" };
+  if (base.verdict !== "buy") return base;
   if (ctx.sameModelCount >= 1 && (ctx.price?.tier === "above_usual" || ctx.price?.tier === "upper_range")) return { ...base, verdict: "maybe", confidence: "medium" };
   if (ctx.sameModelCount >= 2) return { ...base, verdict: "maybe", confidence: "medium" };
   return base;
