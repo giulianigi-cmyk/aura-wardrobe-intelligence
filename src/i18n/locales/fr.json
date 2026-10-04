@@ -2255,5 +2255,11 @@
     "body": "Tu t'es changée ? Ajoute aussi celle-ci ou remplace celle qui y est.",
     "add": "Ajouter",
     "replace": "Remplacer"
+  },
+  "colorPicker": {
+    "title": "Couleurs",
+    "add": "Ajouter des couleurs",
+    "search": "Rechercher une couleur",
+    "remove": "Retirer {{name}}"
   }
 }

@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { OCCASIONS } from "./Planner";
 import { matchCulturalDressNotes } from "@/lib/cultural-dress-notes";
 import i18n from "@/i18n/config";
+import { optionLabel, optionList } from "@/lib/garment-names";
 import type { BuilderInit } from "../AuraApp";
 import { listCalendarEventsForTrip, importCalendarEventToTrip, linkExistingOutfitToTripActivity, type CalendarEventForTrip } from "@/lib/trip-calendar-link.functions";
 import { CalendarPlus } from "lucide-react";
@@ -1180,7 +1181,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
                   key={o}
                   onClick={() => setActDressCode(actDressCode === o ? "" : o)}
                   className={`px-3 py-1 rounded-full text-[11px] ${actDressCode === o ? "bg-foreground text-background" : "bg-secondary/60"}`}
-                >{o}</button>
+                >{optionLabel(o, i18n.language)}</button>
               ))}
             </div>
             <div className="flex gap-2 pt-1">
@@ -1542,7 +1543,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
             </div>
             <div className="p-4">
               {previewItem.brand && <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{previewItem.brand}</p>}
-              <p className="font-serif text-lg mt-0.5">{previewItem.subcategory || previewItem.category || t("tripDetail.untitledEvent")}</p>
+              <p className="font-serif text-lg mt-0.5">{optionLabel(previewItem.subcategory || previewItem.category || "", i18n.language) || t("tripDetail.untitledEvent")}</p>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {previewItem.category && (
                   <span className="rounded-full bg-secondary/60 px-2.5 py-1 text-[10px] uppercase tracking-widest">{previewItem.category}</span>

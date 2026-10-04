@@ -1,7 +1,7 @@
 // Run with: bun test src/lib/garment-names.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { colorName, garmentName, hasColorName, hasGarmentGender, hasGarmentName, localizeLabel } from "./garment-names";
+import { colorName, garmentName, garmentWithColor, hasColorName, hasGarmentGender, hasGarmentName, localizeLabel, matchesSearch, optionLabel, optionList, searchableText } from "./garment-names";
 import { COLOR_NAMES } from "./color-palette";
 import { SUBCATEGORY_OPTIONS } from "./wardrobe-options";
 
@@ -28,4 +28,24 @@ test("every palette colour and every garment type has a translation", () => {
   for (const sub of Object.values(SUBCATEGORY_OPTIONS).flat()) assert.ok(hasGarmentName(sub), `type ${sub}`);
   for (const cat of Object.keys(SUBCATEGORY_OPTIONS)) assert.ok(hasGarmentName(cat), `category ${cat}`);
   for (const g of [...Object.values(SUBCATEGORY_OPTIONS).flat(), ...Object.keys(SUBCATEGORY_OPTIONS)]) assert.ok(hasGarmentGender(g), `gender ${g}`);
+});
+
+test("search finds pieces by their name in the person's language", () => {
+  const text = searchableText(["Shoes", "Sandals", "Aquazzura", "Jet Black", "Autumn, Winter", "Leather"], "it");
+  for (const q of ["sandali", "Sandals", "nero", "scarpe", "inverno", "aquazzura"]) assert.ok(matchesSearch(text, q), q);
+  assert.ok(!matchesSearch(text, "borsa"));
+  assert.ok(matchesSearch(searchableText(["Pumps"], "it"), "decollete"), "accents ignored");
+  assert.ok(matchesSearch(searchableText(["Pumps"], "fr"), "escarpins"));
+});
+
+test("option values read in the person's language; stored values never change", () => {
+  assert.equal(optionLabel("All Seasons", "it"), "Tutte le stagioni");
+  assert.equal(optionLabel("Wedding Guest", "es"), "Invitada de boda");
+  assert.equal(optionLabel("Blacks & Greys", "fr"), "Noirs et gris");
+  assert.equal(optionList("Autumn, Winter", "it"), "Autunno, Inverno");
+  assert.equal(optionLabel("Some Brand", "it"), "Some Brand");
+  assert.equal(optionLabel("Autumn", "en"), "Autumn");
+  assert.equal(garmentWithColor("Shoes", "Jet Black", "it"), "Scarpe nere");
+  assert.equal(garmentWithColor("Bags", "Pure White", "es"), "Bolsos blancos");
+  assert.equal(garmentWithColor("Shoes", "Jet Black", "en"), "Jet Black Shoes");
 });

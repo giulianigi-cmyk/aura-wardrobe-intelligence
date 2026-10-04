@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n/config";
+import { optionLabel, optionList } from "@/lib/garment-names";
 import { ColorPicker } from "@/components/aura/ColorPicker";
 import { MaterialCombobox } from "@/components/aura/MaterialCombobox";
 import {
@@ -119,7 +121,7 @@ export function DetectedItemCard({
               key={c}
               onClick={() => onChange({ category: c, subcategory: "" })}
               className={`rounded-full px-3 py-1.5 text-xs ${item.category === c ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"}`}
-            >{c}</button>
+            >{optionLabel(c, i18n.language)}</button>
           ))}
         </div>
       </div>
@@ -133,7 +135,7 @@ export function DetectedItemCard({
                 key={s}
                 onClick={() => onChange({ subcategory: item.subcategory === s ? "" : s })}
                 className={`rounded-full px-3 py-1.5 text-xs ${item.subcategory === s ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"}`}
-              >{s}</button>
+              >{optionLabel(s, i18n.language)}</button>
             ))}
           </div>
         </div>
@@ -167,7 +169,7 @@ export function DetectedItemCard({
                 key={s}
                 onClick={() => onChange({ seasons: nextSeasons })}
                 className={`rounded-full px-3 py-1.5 text-xs ${on ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"}`}
-              >{s}</button>
+              >{optionLabel(s, i18n.language)}</button>
             );
           })}
 
@@ -183,7 +185,7 @@ export function DetectedItemCard({
                 key={s}
                 onClick={() => onChange({ sleeveLength: item.sleeveLength === s ? "" : s })}
                 className={`rounded-full px-3 py-1.5 text-xs ${item.sleeveLength === s ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"}`}
-              >{s}</button>
+              >{optionLabel(s, i18n.language)}</button>
             ))}
           </div>
         </div>
@@ -198,7 +200,7 @@ export function DetectedItemCard({
                 key={s}
                 onClick={() => onChange({ length: item.length === s ? "" : s })}
                 className={`rounded-full px-3 py-1.5 text-xs ${item.length === s ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"}`}
-              >{s}</button>
+              >{optionLabel(s, i18n.language)}</button>
             ))}
           </div>
         </div>
@@ -213,7 +215,7 @@ export function DetectedItemCard({
                 key={s}
                 onClick={() => onChange({ fit: item.fit === s ? "" : s })}
                 className={`rounded-full px-3 py-1.5 text-xs ${item.fit === s ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"}`}
-              >{s}</button>
+              >{optionLabel(s, i18n.language)}</button>
             ))}
           </div>
         </div>
@@ -228,7 +230,7 @@ export function DetectedItemCard({
                 key={s}
                 onClick={() => onChange({ heelHeight: item.heelHeight === s ? "" : s })}
                 className={`rounded-full px-3 py-1.5 text-xs ${item.heelHeight === s ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"}`}
-              >{s}</button>
+              >{optionLabel(s, i18n.language)}</button>
             ))}
           </div>
         </div>
@@ -243,7 +245,7 @@ export function DetectedItemCard({
                 key={s}
                 onClick={() => onChange({ toeShape: item.toeShape === s ? "" : s })}
                 className={`rounded-full px-3 py-1.5 text-xs ${item.toeShape === s ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"}`}
-              >{s}</button>
+              >{optionLabel(s, i18n.language)}</button>
             ))}
           </div>
         </div>
@@ -258,7 +260,7 @@ export function DetectedItemCard({
                 key={s}
                 onClick={() => onChange({ closure: item.closure === s ? "" : s })}
                 className={`rounded-full px-3 py-1.5 text-xs ${item.closure === s ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"}`}
-              >{s}</button>
+              >{optionLabel(s, i18n.language)}</button>
             ))}
           </div>
         </div>
@@ -272,7 +274,7 @@ export function DetectedItemCard({
               key={s}
               onClick={() => onChange({ gender: item.gender === s ? "" : s })}
               className={`rounded-full px-3 py-1.5 text-xs ${item.gender === s ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"}`}
-            >{s}</button>
+            >{optionLabel(s, i18n.language)}</button>
           ))}
         </div>
       </div>
@@ -287,7 +289,7 @@ export function DetectedItemCard({
                 key={s}
                 onClick={() => onChange({ styleTags: on ? item.styleTags.filter((x) => x !== s) : [...item.styleTags, s] })}
                 className={`rounded-full px-3 py-1.5 text-xs ${on ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"}`}
-              >{s}</button>
+              >{optionLabel(s, i18n.language)}</button>
             );
           })}
         </div>
@@ -395,7 +397,7 @@ export function DetectedItemCard({
                 key={s}
                 onClick={() => onChange({ styles: on ? item.styles.filter((x) => x !== s) : [...item.styles, s] })}
                 className={`rounded-full px-3 py-1.5 text-xs ${on ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"}`}
-              >{s}</button>
+              >{optionLabel(s, i18n.language)}</button>
             );
           })}
         </div>
@@ -411,7 +413,7 @@ export function DetectedItemCard({
                 key={o}
                 onClick={() => onChange({ occasions: on ? item.occasions.filter((x) => x !== o) : [...item.occasions, o] })}
                 className={`rounded-full px-3 py-1.5 text-xs ${on ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"}`}
-              >{o}</button>
+              >{optionLabel(o, i18n.language)}</button>
             );
           })}
         </div>

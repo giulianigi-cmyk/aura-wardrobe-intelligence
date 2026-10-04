@@ -32,6 +32,7 @@ import { useOutfits, useOutfitsCacheActions } from "@/lib/outfits-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { ITEM_CATEGORIES } from "@/lib/wardrobe-options";
 import i18n from "@/i18n/config";
+import { garmentWithColor, optionLabel } from "@/lib/garment-names";
 const OCCASIONS = ["Everyday", "Work", "Evening", "Weekend", "Travel", "Formal", "Sport"];
 // Stable, shared reference for the "no outfits yet" case — see its use
 // alongside useOutfits() below for why a fresh [] on every render was a
@@ -1106,8 +1107,8 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
               </div>
               <div className="mt-4 text-center">
                 <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{it.brand ?? it.category}</p>
-                <p className="font-serif text-2xl mt-1">{[label, it.category].filter(Boolean).join(" ")}</p>
-                {it.subcategory && <p className="text-xs text-muted-foreground mt-1">{it.subcategory}</p>}
+                <p className="font-serif text-2xl mt-1">{garmentWithColor(it.category, it.colors?.[0] ?? it.color, i18n.language) || label}</p>
+                {it.subcategory && <p className="text-xs text-muted-foreground mt-1">{optionLabel(it.subcategory, i18n.language)}</p>}
               </div>
               <div className="mt-4 flex flex-wrap justify-center gap-1.5">
                 {(Array.isArray(it.material) ? it.material : []).map((m) => (
@@ -1368,7 +1369,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
                     key={c}
                     onClick={() => setPickerCat(c)}
                     className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] ${pickerCat === c ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"}`}
-                  >{c}</button>
+                  >{c === "All" ? t("piecePicker.all") : t(`piecePicker.categories.${c}`, { defaultValue: c })}</button>
                 ))}
               </div>
                            <div className="mt-3 overflow-y-auto grid grid-cols-2 gap-x-3 gap-y-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
@@ -1392,7 +1393,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
                       </div>
                       <div className="px-0.5 mt-1.5">
                         <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground truncate">{it.brand ?? it.category}</p>
-                        <p className="font-serif text-[15px] leading-tight truncate">{[label, it.category].filter(Boolean).join(" ")}</p>
+                        <p className="font-serif text-[15px] leading-tight truncate">{garmentWithColor(it.category, it.colors?.[0] ?? it.color, i18n.language) || label}</p>
                       </div>
                     </button>
                   );

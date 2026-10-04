@@ -23,6 +23,7 @@ import { WeatherProposalCard, type WeatherProposal } from "../WeatherProposalCar
 import { ItemImageViewer } from "../ItemImageViewer";
 import { OutfitViewerSheet } from "../OutfitViewerSheet";
 import i18n from "@/i18n/config";
+import { optionLabel, optionList } from "@/lib/garment-names";
 
 type OutfitPlan = Tables<"outfit_plans"> & { status?: string | null };
 type ImportedEvent = {
@@ -990,7 +991,7 @@ function DayDetail({
                           key={o}
                           onClick={() => setOccasion(occasion === o ? "" : o)}
                           className={`px-3 py-1 rounded-full text-[11px] ${occasion === o ? "bg-foreground text-background" : "bg-secondary/60"}`}
-                        >{o}</button>
+                        >{optionLabel(o, i18n.language)}</button>
                       ))}
                     </div>
                   </div>

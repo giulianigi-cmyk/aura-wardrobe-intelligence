@@ -297,3 +297,88 @@ export function localizeLabel(label: string, language: string | null | undefined
   }
   return parts.map((p) => (hasColorName(p) ? colorName(p, l) : garmentName(p, l))).join(" · ");
 }
+
+/** "Sandali neri" / "Sandalias negras" / "Sandales noires" / "Jet Black Sandals": a garment with
+ *  its colour, as the language says it. Either part may be missing. */
+export function garmentWithColor(garment: string | null | undefined, color: string | null | undefined, language: string | null | undefined): string {
+  const l = langOf(language);
+  if (!l) return [color, garment].filter(Boolean).join(" ");
+  if (!garment) return color ? colorName(color, l) : "";
+  if (!color) return garmentName(garment, l);
+  return `${garmentName(garment, l)} ${colorAfterGarment(color, garment, l)}`;
+}
+
+const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/** Text to search a piece by, in English AND in the person's language, accents ignored: someone
+ *  typing "sandali", "nero" or "décolleté" finds the pieces stored as Sandals, Jet Black, Pumps. */
+export function searchableText(values: (string | null | undefined)[], language: string | null | undefined): string {
+  const l = langOf(language);
+  const out: string[] = [];
+  for (const v of values) {
+    if (!v) continue;
+    out.push(v);
+    if (l) {
+      if (hasColorName(v)) out.push(colorName(v, l));
+      if (hasGarmentName(v)) out.push(garmentName(v, l));
+      for (const part of v.split(",")) { const o = OPTION_MAP.get(part.trim().toLowerCase()); if (o) out.push(o[LANG_INDEX[l]]); }
+      const p = PATTERN_AFTER[v.trim().toLowerCase()];
+      if (p) out.push(p[LANG_INDEX[l]]);
+    }
+  }
+  return fold(out.join(" | "));
+}
+
+/** Whether a search query matches that text (accents and case ignored). */
+export function matchesSearch(text: string, query: string): boolean {
+  const q = fold(query.trim());
+  return !q || text.includes(q);
+}
+
+// Every other option value stored in English (wardrobe-options.ts): seasons, styles, occasions,
+// fits, lengths, sleeves, heels, toes, closures, gender and style tags.
+const OPTIONS: Names = {
+  Spring: ["Primavera", "Primavera", "Printemps"], Summer: ["Estate", "Verano", "Été"], Autumn: ["Autunno", "Otoño", "Automne"],
+  Winter: ["Inverno", "Invierno", "Hiver"], "All Seasons": ["Tutte le stagioni", "Todas las estaciones", "Toutes saisons"],
+  Minimal: ["Minimal", "Minimalista", "Minimaliste"], Editorial: ["Editoriale", "Editorial", "Éditorial"], "Quiet luxury": ["Lusso discreto", "Lujo discreto", "Luxe discret"],
+  Street: ["Street", "Urbano", "Street"], Romantic: ["Romantico", "Romántico", "Romantique"], Tailored: ["Sartoriale", "Sastre", "Tailleur"],
+  Bohemian: ["Bohémien", "Bohemio", "Bohème"], Sporty: ["Sportivo", "Deportivo", "Sportif"], Vintage: ["Vintage", "Vintage", "Vintage"],
+  Boho: ["Boho", "Boho", "Bohème"], Preppy: ["Preppy", "Preppy", "Preppy"], Elegant: ["Elegante", "Elegante", "Élégant"], Streetwear: ["Streetwear", "Streetwear", "Streetwear"],
+  Office: ["Ufficio", "Oficina", "Bureau"], Y2K: ["Y2K", "Y2K", "Y2K"], "Quiet Luxury": ["Lusso discreto", "Lujo discreto", "Luxe discret"],
+  Grunge: ["Grunge", "Grunge", "Grunge"], Coastal: ["Coastal", "Costero", "Bord de mer"], "Old Money": ["Old money", "Old money", "Old money"],
+  Everyday: ["Tutti i giorni", "Diario", "Quotidien"], Work: ["Lavoro", "Trabajo", "Travail"], "Business Casual": ["Business casual", "Business casual", "Business casual"],
+  "Business Formal": ["Business formale", "Formal de oficina", "Business formel"], "Smart Casual": ["Smart casual", "Smart casual", "Smart casual"],
+  Evening: ["Sera", "Noche", "Soirée"], Cocktail: ["Cocktail", "Cóctel", "Cocktail"], "Black Tie": ["Black tie", "Etiqueta", "Black tie"],
+  "Wedding Guest": ["Invitata a nozze", "Invitada de boda", "Invitée de mariage"], "Garden Party": ["Garden party", "Fiesta en el jardín", "Garden-party"],
+  Weekend: ["Weekend", "Fin de semana", "Week-end"], Travel: ["Viaggio", "Viaje", "Voyage"], Resort: ["Vacanza", "Resort", "Vacances"],
+  Formal: ["Formale", "Formal", "Formel"], Sport: ["Sport", "Deporte", "Sport"],
+  Mini: ["Mini", "Mini", "Mini"], Midi: ["Midi", "Midi", "Midi"], Maxi: ["Maxi", "Maxi", "Maxi"], Cropped: ["Corto", "Corto", "Court"],
+  Regular: ["Regolare", "Regular", "Normal"], Short: ["Corto", "Corto", "Court"], Mid: ["Medio", "Medio", "Moyen"], Long: ["Lungo", "Largo", "Long"],
+  Longline: ["Lungo", "Largo", "Long"], Sleeveless: ["Senza maniche", "Sin mangas", "Sans manches"], "Short Sleeve": ["Manica corta", "Manga corta", "Manches courtes"],
+  "Three-Quarter Sleeve": ["Manica a tre quarti", "Manga tres cuartos", "Manches trois-quarts"], "Long Sleeve": ["Manica lunga", "Manga larga", "Manches longues"],
+  Slim: ["Aderente", "Ajustado", "Ajusté"], Relaxed: ["Morbido", "Holgado", "Décontracté"], Oversized: ["Oversize", "Oversize", "Oversize"],
+  Flat: ["Basso", "Plano", "Plat"], Low: ["Basso", "Bajo", "Bas"], High: ["Alto", "Alto", "Haut"],
+  Round: ["Tonda", "Redonda", "Rond"], Square: ["Quadrata", "Cuadrada", "Carré"], Pointed: ["A punta", "Puntiaguda", "Pointu"], "Open Toe": ["Punta aperta", "Puntera abierta", "Bout ouvert"],
+  Buttons: ["Bottoni", "Botones", "Boutons"], Zip: ["Zip", "Cremallera", "Zip"], Lace: ["Lacci", "Cordones", "Lacets"], "Slip-On": ["Senza chiusura", "Sin cierre", "Sans fermeture"],
+  Neutrals: ["Neutri", "Neutros", "Neutres"], Whites: ["Bianchi", "Blancos", "Blancs"], "Blacks & Greys": ["Neri e grigi", "Negros y grises", "Noirs et gris"],
+  Browns: ["Marroni", "Marrones", "Bruns"], Beiges: ["Beige", "Beiges", "Beiges"], Reds: ["Rossi", "Rojos", "Rouges"], Pinks: ["Rosa", "Rosas", "Roses"],
+  Oranges: ["Arancioni", "Naranjas", "Oranges"], Yellows: ["Gialli", "Amarillos", "Jaunes"], Greens: ["Verdi", "Verdes", "Verts"], Blues: ["Blu", "Azules", "Bleus"],
+  Purples: ["Viola", "Morados", "Violets"], Metallics: ["Metallizzati", "Metalizados", "Métallisés"], Multicolor: ["Multicolore", "Multicolor", "Multicolore"],
+  Buckle: ["Fibbia", "Hebilla", "Boucle"], Woman: ["Donna", "Mujer", "Femme"], Man: ["Uomo", "Hombre", "Homme"], Unisex: ["Unisex", "Unisex", "Unisexe"],
+};
+const OPTION_MAP = lower(OPTIONS);
+
+/** Any stored option value (colour, garment type, category, season, occasion, style, fit…) in the
+ *  person's language for display; the stored value itself never changes. Unknown values unchanged. */
+export function optionLabel(value: string, language: string | null | undefined): string {
+  const l = langOf(language);
+  if (!l || !value) return value;
+  const key = value.trim().toLowerCase();
+  const hit = COLOR_MAP.get(key) ?? NAME_MAP.get(key) ?? OPTION_MAP.get(key);
+  return hit ? hit[LANG_INDEX[l]] : value;
+}
+
+/** A comma-separated stored list ("Autumn, Winter") in the person's language. */
+export function optionList(value: string | null | undefined, language: string | null | undefined): string {
+  return (value ?? "").split(",").map((v) => v.trim()).filter(Boolean).map((v) => optionLabel(v, language)).join(", ");
+}

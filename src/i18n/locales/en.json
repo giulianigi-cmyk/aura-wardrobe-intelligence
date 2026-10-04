@@ -2255,5 +2255,11 @@
     "body": "Changed clothes? Add this one too, or replace the one that's there.",
     "add": "Add",
     "replace": "Replace"
+  },
+  "colorPicker": {
+    "title": "Colors",
+    "add": "Add colors",
+    "search": "Search a color",
+    "remove": "Remove {{name}}"
   }
 }
