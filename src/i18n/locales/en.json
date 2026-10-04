@@ -835,7 +835,9 @@
       "min_sleeve_length": "The sleeves are shorter than you wear",
       "avoid_sheer": "You said you avoid sheer fabrics",
       "avoid_low_neckline": "You said you avoid low necklines"
-    }
+    },
+    "samePieceCheaper": "The same piece as {{names}}, at a lower price: this is the one to buy.",
+    "samePieceDearer": "The same piece as {{names}}, which costs less: buy that one."
   },
   "planner": {
     "calendar": "Calendar",

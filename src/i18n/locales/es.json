@@ -835,7 +835,9 @@
       "min_sleeve_length": "Las mangas son más cortas de las que llevas",
       "avoid_sheer": "Indicaste que evitas los tejidos transparentes",
       "avoid_low_neckline": "Indicaste que evitas los escotes profundos"
-    }
+    },
+    "samePieceCheaper": "Es la misma prenda que {{names}}, a un precio más bajo: conviene esta.",
+    "samePieceDearer": "Es la misma prenda que {{names}}, que cuesta menos: conviene esa."
   },
   "planner": {
     "calendar": "Calendario",

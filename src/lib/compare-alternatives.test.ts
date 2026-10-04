@@ -1,7 +1,7 @@
 // Run with: bun test src/lib/compare-alternatives.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { alternativeGroups, compareRanking, type CompareCandidate } from "./compare-alternatives";
+import { alternativeGroups, sameProduct, compareRanking, type CompareCandidate } from "./compare-alternatives";
 
 const c = (o: Partial<CompareCandidate>): CompareCandidate => ({
   category: "Shoes", subcategory: "Pumps", colors: ["Jet Black"], novelDetails: [], wardrobeGap: false, differences: [], duplicate: false, pairsWithCount: 5, ...o,
@@ -50,4 +50,19 @@ test("tier always wins; the preferred alternative stays ahead of the one it repl
   ];
   const g = [{ preferred: 0, others: [1] }];
   assert.deepEqual(compareRanking(alts, [3, 3], g), [0, 1]);
+});
+
+test("the same product on two sites: recognised, and the cheaper one is preferred", () => {
+  const base = { category: "Shoes", subcategory: "Sandals", colors: ["Sky Blue"], novelDetails: [], wardrobeGap: false, differences: [], duplicate: false, pairsWithCount: 10 };
+  const official = { ...base, brand: "RENE' CAOVILLA", title: "Sandali", priceEur: 1080, novelDetails: ["embellished"] };
+  const outlet = { ...base, brand: "Rene Caovilla", title: "Sandalo Ellabrita Azzurro Con Cristalli", priceEur: 510 };
+  assert.ok(sameProduct(official, outlet));
+  const groups = alternativeGroups([official, outlet]);
+  assert.deepEqual(groups, [{ preferred: 1, others: [0], identical: true }]); // cheaper wins, whatever else differs
+  // Two different models of the same brand and colour are alternatives, not the same product.
+  const cleo = { ...base, brand: "Rene Caovilla", title: "Sandalo Cleo", priceEur: 900 };
+  assert.ok(!sameProduct(outlet, cleo));
+  assert.equal(alternativeGroups([outlet, cleo])[0].identical, undefined);
+  // Different brands are never the same product.
+  assert.ok(!sameProduct(outlet, { ...base, brand: "Aquazzura", title: "Sandali", priceEur: 700 }));
 });

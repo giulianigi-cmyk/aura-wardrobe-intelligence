@@ -410,7 +410,9 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                           )}
                           {it.alternative && (
                             <p className="mt-1 text-[11px] text-foreground/80 leading-snug">
-                              {it.alternative.preferred
+                              {it.alternative.identical
+                                ? t(it.alternative.preferred ? "shop.samePieceCheaper" : "shop.samePieceDearer", { names: it.alternative.withNames.join(", ") })
+                                : it.alternative.preferred
                                 ? t("shop.alternativePreferred", { names: it.alternative.withNames.join(", ") })
                                 : t("shop.alternativeOther", { names: it.alternative.withNames.join(", ") })}
                             </p>

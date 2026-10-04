@@ -20,6 +20,10 @@ export type CompareCandidate = {
   /** A certain duplicate of an owned piece. */
   duplicate: boolean;
   pairsWithCount: number;
+  /** For telling the SAME product apart from two similar ones (optional). */
+  brand?: string | null;
+  title?: string | null;
+  priceEur?: number | null;
 };
 
 function sameColour(a: string[], b: string[]): boolean {
@@ -38,7 +42,33 @@ export function novelty(c: CompareCandidate): number {
   return 3 * c.novelDetails.length + (c.wardrobeGap ? 4 : 0) + c.differences.length - (c.duplicate ? 6 : 0);
 }
 
-export type AlternativeGroup = { preferred: number; others: number[] };
+export type AlternativeGroup = { preferred: number; others: number[]; /** The same product (e.g. on two sites): the cheaper is preferred. */ identical?: boolean };
+
+const brandKey = (b: string | null | undefined) => (b ?? "").toLowerCase().normalize("NFD").replace(/[^a-z]/g, "");
+// Words that say what kind of piece it is, its colour or material — not which model it is.
+const GENERIC = new Set([
+  "sandali", "sandalo", "sandal", "sandals", "scarpe", "scarpa", "shoes", "shoe", "decollete", "pumps", "pump", "tacco", "heel", "heels",
+  "borsa", "bag", "jeans", "jean", "abito", "dress", "camicia", "shirt", "maglia", "maglione", "sweater", "giacca", "jacket", "cappotto", "coat",
+  "con", "with", "and", "the", "per", "donna", "woman", "women", "nuovo", "new", "mini", "midi", "maxi",
+  "cristalli", "crystals", "crystal", "pelle", "leather", "raso", "satin", "suede", "camoscio", "seta", "silk", "vernice", "patent",
+  "nero", "nera", "neri", "nere", "black", "bianco", "white", "azzurro", "azzurri", "blue", "blu", "rosso", "red", "vinaccia", "argento", "silver", "oro", "gold",
+]);
+function modelTokens(title: string | null | undefined, brand: string | null | undefined): Set<string> {
+  const b = new Set((brand ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/));
+  return new Set((title ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !GENERIC.has(w) && !b.has(w)));
+}
+
+/** The same product, possibly sold on different sites at different prices: same brand, same kind
+ *  and colour, and nothing in the names telling two models apart (one name generic, like
+ *  "Sandali", or a model name in common, like "Ellabrita"). */
+export function sameProduct(a: CompareCandidate, b: CompareCandidate): boolean {
+  if (!areAlternatives(a, b)) return false;
+  if (!brandKey(a.brand) || brandKey(a.brand) !== brandKey(b.brand)) return false;
+  const ta = modelTokens(a.title, a.brand), tb = modelTokens(b.title, b.brand);
+  if (!ta.size || !tb.size) return true;
+  return [...ta].some((w) => tb.has(w));
+}
 
 /** Groups of mutually replaceable pieces (indices), each with the piece to prefer. */
 export function alternativeGroups(items: CompareCandidate[]): AlternativeGroup[] {
@@ -52,8 +82,13 @@ export function alternativeGroups(items: CompareCandidate[]): AlternativeGroup[]
     }
     if (members.length < 2) continue;
     members.forEach((m) => seen.add(m));
-    const best = [...members].sort((a, b) => novelty(items[b]) - novelty(items[a]) || items[b].pairsWithCount - items[a].pairsWithCount || a - b)[0];
-    groups.push({ preferred: best, others: members.filter((m) => m !== best) });
+    // The same product twice: only the price differs, so the cheaper one is the one to buy.
+    const identical = members.every((m) => m === members[0] || sameProduct(items[members[0]], items[m]));
+    const price = (i: number) => items[i].priceEur ?? Number.POSITIVE_INFINITY;
+    const best = identical
+      ? [...members].sort((a, b) => price(a) - price(b) || a - b)[0]
+      : [...members].sort((a, b) => novelty(items[b]) - novelty(items[a]) || items[b].pairsWithCount - items[a].pairsWithCount || a - b)[0];
+    groups.push({ preferred: best, others: members.filter((m) => m !== best), ...(identical ? { identical: true } : {}) });
   }
   return groups;
 }

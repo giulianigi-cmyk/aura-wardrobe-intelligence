@@ -300,6 +300,19 @@ const CONFLICT_FACT: Record<DressConflict, string> = {
   avoid_low_neckline: "they avoid low necklines, and this has one",
 };
 
+const PIECE_WORD: Record<string, string> = { it: "capo", en: "piece", es: "prenda", fr: "pièce" };
+
+/** "1.080,00 EUR" / "€1,080" → 1080 (only to order the same product by price). */
+function parsePriceNumber(price: string | null | undefined): number | null {
+  const m = (price ?? "").replace(/\s/g, "").match(/\d[\d.,]*/);
+  if (!m) return null;
+  let n = m[0];
+  if (/,\d{2}$/.test(n)) n = n.replace(/\./g, "").replace(",", ".");
+  else n = n.replace(/[.,](?=\d{3}\b)/g, "").replace(",", ".");
+  const v = Number(n);
+  return Number.isFinite(v) && v > 0 ? v : null;
+}
+
 function truncateAtBoundary(text: string, max: number): string {
   if (text.length <= max) return text;
   const slice = text.slice(0, max);
@@ -823,7 +836,7 @@ type ComparedItem = {
   wardrobe: { duplicate: boolean; similarTo: string | null; differsFrom: DiffersFrom | null; sameModel: SameModel | null; price: PriceContext | null; cpw: CostPerWear | null; pairsWithCount: number; wardrobeGap: boolean; dressPreferenceViolation: boolean; dressConflicts?: DressConflict[] };
   fashion: FashionSignals | null;
   /** Pieces of this comparison that do the same job: buy one or the other (compare-alternatives.ts). */
-  alternative: { preferred: boolean; withNames: string[] } | null;
+  alternative: { preferred: boolean; withNames: string[]; identical?: boolean } | null;
   // Everything the "is this the same item as I already own?" judgment for THIS one product
   // depends on, opaque to the client — pass it back unchanged as this same item's `source` on a
   // later comparePurchases call (e.g. after adding one more piece to the comparison) and this
@@ -955,14 +968,17 @@ export const comparePurchases = createServerFn({ method: "POST" })
       category: r.product.category, subcategory: r.product.subcategory, colors: r.product.colors,
       novelDetails: r.novelDetails, wardrobeGap: r.wardrobeGap, differences: r.differsFrom?.differences ?? [],
       duplicate: r.duplicate?.verdict === "certain", pairsWithCount: r.pairsWithCount,
+      brand: r.product.brand, title: r.product.title, priceEur: r.price?.priceEur ?? parsePriceNumber(r.product.price),
     })));
     const shortName = (i: number) => [resolved[i].product.brand, resolved[i].product.title].filter(Boolean).join(" ").slice(0, 60) || "—";
-    const alternativeOf = new Map<number, { preferred: boolean; withNames: string[] }>();
+    const alternativeOf = new Map<number, { preferred: boolean; withNames: string[]; identical?: boolean }>();
     for (const g of groups) {
-      alternativeOf.set(g.preferred, { preferred: true, withNames: g.others.map(shortName) });
+      alternativeOf.set(g.preferred, { preferred: true, withNames: g.others.map(shortName), ...(g.identical ? { identical: true } : {}) });
       for (const o of g.others) {
-        alternativeOf.set(o, { preferred: false, withNames: [shortName(g.preferred)] });
-        if (verdicts[o].verdict === "buy") verdicts[o] = { verdict: "maybe", confidence: verdicts[o].confidence };
+        alternativeOf.set(o, { preferred: false, withNames: [shortName(g.preferred)], ...(g.identical ? { identical: true } : {}) });
+        // The same piece at a higher price is never worth it; a similar one is "one or the other".
+        if (g.identical) verdicts[o] = { verdict: "skip", confidence: "high" };
+        else if (verdicts[o].verdict === "buy") verdicts[o] = { verdict: "maybe", confidence: verdicts[o].confidence };
       }
     }
 
@@ -1007,10 +1023,10 @@ export const comparePurchases = createServerFn({ method: "POST" })
     const ranking = compareRanking(rankingFacts, tiers, groups);
 
     const langName = LANGUAGE_NAMES[langCode] ?? "English";
-    const letters = ["A", "B", "C", "D", "E", "F"];
-    // The person never sees the letters — only the pieces themselves (their brand and model, in a
-    // ranked list of their own numbering). Letters exist purely so the model can give its ranking
-    // back in a form this code can parse; the reason text must name pieces by what they are.
+    // Each piece is referred to as the person sees it on screen: "capo 1", "capo 2"… — the number
+    // on its card in the ranked list (never letters they can't see).
+    const pieceWord = PIECE_WORD[langCode] ?? PIECE_WORD.en;
+    const letters = items.map((_, i) => `${pieceWord} ${ranking.indexOf(i) + 1}`);
     const nameOfItem = (i: number) =>
       [items[i].product.brand, items[i].product.title].filter(Boolean).join(" ").slice(0, 70) ||
       [resolved[i].product.subcategory, resolved[i].product.category].filter(Boolean).join(" ") || "this piece";
@@ -1034,7 +1050,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
     const system = [
       "You are an elegant, knowledgeable personal stylist helping the person decide, among SEVERAL specific products they're considering, what order they'd be worth getting in — first choice, second choice, and so on, including honestly saying when one (or all) genuinely isn't worth buying at all. Each product's individual buy/maybe/skip verdict is already decided (given below) — you are NOT re-deciding those.",
       "Speak directly TO the person — \"il tuo guardaroba\", \"possiedi\", \"ti starebbe meglio\" (translated naturally into the target language) — never in the third person. Sound like a stylist giving a real, personal opinion, not a database printing out matched fields.",
-      "NEVER mention the letters A, B, C… in your reason, not even in brackets like \"(C)\" or \"(A e B)\" — the person cannot see them and has no idea what they refer to. Name each piece by its brand and model instead (e.g. \"i sandali Rene Caovilla Cleo\", \"le Louboutin Iriza\"), or by a short natural description when several share a brand. The letters are only internal references.",
+      `Name each piece by its brand and model (e.g. \"i sandali Rene Caovilla Cleo\", \"le Louboutin Iriza\"). When several share a brand or a name, add the number the person sees on its card — \"${pieceWord} 1\", \"${pieceWord} 2\" — exactly as written in the facts below; never use letters or other codes (no \"referenza B\").`,
       "Your reason must reflect the full picture honestly: if every option is a SKIP, say plainly that none is really worth it, while still noting which would be the least bad if forced to pick. If several are a BUY, you can recommend more than one while still stating which comes first. Never imply a SKIP item is a good purchase just because it ranks above another SKIP.",
       "For a MAYBE piece, be precise like a high-end personal stylist, never vague: say in a few words when it is worth it (the concrete use only it covers) and what already does its job otherwise (the owned piece, or the price vs their habits).",
       "NEVER say or imply that YOU (the app) or the person already bought, chose, or picked any of these — this is advice about a decision not yet made.",
@@ -1050,6 +1066,9 @@ export const comparePurchases = createServerFn({ method: "POST" })
         const why = (i: number) => resolved[i].novelDetails.length
           ? `adds ${resolved[i].novelDetails.join(", ")}, which nothing in the wardrobe has`
           : resolved[i].wardrobeGap ? "fills a gap" : resolved[i].differsFrom ? `is a ${resolved[i].differsFrom!.differences.join("/")} variant of the owned ${localizeLabel(resolved[i].differsFrom!.label, langCode)}` : "is close to what is owned";
+        if (g.identical) {
+          return `SAME PRODUCT: ${[g.preferred, ...g.others].map((i) => `${letters[i]} ("${shortName(i)}", ${resolved[i].product.price ?? "price unknown"})`).join(" and ")} are the SAME piece (same brand, model and colour) sold at different prices. Say plainly that they are the same and to buy ${letters[g.preferred]}, the cheaper one; never describe any difference between them (no darker/lighter, no material or detail).`;
+        }
         return `ALTERNATIVES: ${[g.preferred, ...g.others].map((i) => letters[i]).join(", ")} do the same job (same kind and colour) — one replaces the other, so say clearly to buy ONE of them, not all. Prefer ${letters[g.preferred]} ("${shortName(g.preferred)}"): it ${why(g.preferred)}; ${g.others.map((o) => `${letters[o]} ("${shortName(o)}") ${why(o)}`).join("; ")}.`;
       }),
       "Facts:",

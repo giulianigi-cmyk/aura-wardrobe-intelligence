@@ -835,7 +835,9 @@
       "min_sleeve_length": "Le maniche sono più corte di quelle che indossi",
       "avoid_sheer": "Hai indicato che eviti i tessuti trasparenti",
       "avoid_low_neckline": "Hai indicato che eviti le scollature profonde"
-    }
+    },
+    "samePieceCheaper": "È lo stesso capo di {{names}}, a un prezzo più basso: conviene questo.",
+    "samePieceDearer": "È lo stesso capo di {{names}}, che costa meno: conviene quello."
   },
   "planner": {
     "calendar": "Calendario",
