@@ -105,15 +105,152 @@ export function shadeDifference(productColors: string[], ownedColors: string[]):
   return null;
 }
 
-/** On top of the wardrobe/fashion verdict: the same model already owned AND a price at the top of (or
- *  above) what the person usually spends on that kind of piece → "maybe" instead of "buy" (worth weighing, not an
- *  easy yes). Never upgrades. */
+/** On top of the wardrobe/fashion verdict, never an upgrade:
+ *  - far beyond what the person usually pays for this kind of piece (above the top of their range)
+ *    while something similar is already owned and it isn't an iconic piece → "skip": it adds nothing
+ *    but the label (1100 € jeans next to a similar pair, when jeans usually cost up to ~360 €);
+ *  - the same model already owned and a price at the top of (or above) their range, or two of the
+ *    same model already → "maybe" instead of "buy". */
 export function applyPurchaseContext<V extends { verdict: "buy" | "maybe" | "skip"; confidence: "high" | "medium" | "low" }>(
   base: V,
-  ctx: { sameModelCount: number; price: PriceContext | null; wardrobeGap: boolean },
+  ctx: { sameModelCount: number; price: PriceContext | null; wardrobeGap: boolean; similarOwned?: boolean; iconic?: boolean },
 ): V {
-  if (base.verdict !== "buy" || ctx.wardrobeGap) return base;
+  if (base.verdict === "skip" || ctx.wardrobeGap) return base;
+  if (ctx.price?.tier === "above_usual" && ctx.similarOwned && !ctx.iconic) return { ...base, verdict: "skip", confidence: "medium" };
+  if (base.verdict !== "buy") return base;
   if (ctx.sameModelCount >= 1 && (ctx.price?.tier === "above_usual" || ctx.price?.tier === "upper_range")) return { ...base, verdict: "maybe", confidence: "medium" };
   if (ctx.sameModelCount >= 2) return { ...base, verdict: "maybe", confidence: "medium" };
   return base;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Cost per wear. The price alone says little: jeans worn all year cost less per wear than an evening
+// gown, a summer-only mini dress, a cut-out piece or crystal heels. Expected wears come from the
+// person's own history for that kind of piece once there is enough of it (6+ months, 3+ pieces);
+// otherwise an ESTIMATE of how usable the piece is: a modest base for its kind, then its seasons
+// (all year vs one season), day/evening range, how dressy it is, statement details (crystals,
+// sequins, cut-outs), whether it is timeless or a trend piece, its versatility — and the similar
+// pieces it would rotate with. The reasons are returned so the person sees why.
+// ---------------------------------------------------------------------------------------------
+
+/** A modest base: wears per year of ONE everyday, all-season piece of this kind. */
+const BASE_WEARS: [RegExp, number][] = [
+  [/sneaker|trainer/i, 40],
+  [/bag|tote|shoulder|crossbody|backpack|borsa/i, 40],
+  [/watch|orologio|ring|anello|bracelet|bracciale|necklace|collana|earring|orecchin/i, 50],
+  [/jeans/i, 30],
+  [/legging/i, 25],
+  [/trouser|pant|chino|cargo/i, 25],
+  [/loafer|flat|ballerin|mocassin|boot|stival/i, 25],
+  [/coat|trench|parka|puffer|cappotto/i, 25],
+  [/t-?shirt|tank|camisole|bodysuit|top|polo/i, 20],
+  [/blazer/i, 20],
+  [/sweater|knit|cardigan|jumper|sweatshirt|hoodie/i, 18],
+  [/shirt|blouse|camicia/i, 18],
+  [/jacket|giacca|shacket|bomber/i, 18],
+  [/belt|cintura|sunglass|occhiali/i, 25],
+  [/skirt|gonna/i, 15],
+  [/short/i, 12],
+  [/pump|heel|sandal|slingback|mule|décolleté|decollete/i, 12],
+  [/scarf|sciarpa|foulard/i, 15],
+  [/dress|abito|jumpsuit|tuta/i, 10],
+  [/clutch|minaudi/i, 8],
+];
+
+export type WearReason = "yourHistory" | "allSeasons" | "oneSeason" | "fewSeasons" | "dayAndEvening" | "eveningOnly" | "veryDressy" | "statement" | "trendPiece" | "timeless" | "versatile" | "notVersatile" | "rotation";
+
+export type CostPerWear = {
+  wearsPerYear: number;
+  /** Years the cost is spread over (shown to the person). */
+  years: number;
+  costPerWearEur: number;
+  /** Similar pieces of the same type already owned (they share the wears). */
+  rotatingWith: number;
+  basis: "history" | "estimate";
+  /** Why the estimate is what it is (only for basis "estimate"). */
+  reasons: WearReason[];
+};
+
+export const CPW_YEARS = 2;
+
+export type WearProfile = {
+  category: string | null;
+  subcategory: string | null;
+  seasons?: string[];
+  dayEvening?: string | null;
+  formality?: number | null;
+  /** Detail keys (garment-details.ts) of the product, e.g. embellished, cutOut. */
+  details?: string[];
+  fashion?: { timeless: boolean; onTrend: boolean; versatility: "low" | "medium" | "high" } | null;
+};
+
+/** Estimated wears per year of the piece and why (no history). */
+export function estimateWears(p: WearProfile, rotatingWith: number): { wearsPerYear: number; reasons: WearReason[] } {
+  const kind = `${p.subcategory ?? ""} ${p.category ?? ""}`;
+  let w = BASE_WEARS.find(([re]) => re.test(kind))?.[1] ?? 12;
+  const reasons: WearReason[] = [];
+  const seasons = (p.seasons ?? []).map((x) => x.toLowerCase());
+  if (seasons.includes("all seasons") || seasons.length >= 4) reasons.push("allSeasons");
+  else if (seasons.length === 1) { w *= 0.45; reasons.push("oneSeason"); }
+  else if (seasons.length === 2 || seasons.length === 3) { w *= 0.75; reasons.push("fewSeasons"); }
+  if (p.dayEvening === "evening") { w *= 0.35; reasons.push("eveningOnly"); }
+  else if (p.dayEvening === "both") { w *= 1.1; reasons.push("dayAndEvening"); }
+  if ((p.formality ?? 0) >= 5) { w *= 0.5; reasons.push("veryDressy"); }
+  if ((p.details ?? []).some((d) => d === "embellished" || d === "cutOut")) { w *= 0.55; reasons.push("statement"); }
+  if (p.fashion?.onTrend && !p.fashion.timeless) { w *= 0.8; reasons.push("trendPiece"); }
+  else if (p.fashion?.timeless) { w *= 1.1; reasons.push("timeless"); }
+  if (p.fashion?.versatility === "high") { w *= 1.15; reasons.push("versatile"); }
+  else if (p.fashion?.versatility === "low") { w *= 0.6; reasons.push("notVersatile"); }
+  // Many similar pieces in rotation share the wears (softly: square root).
+  if (rotatingWith > 3) { w /= Math.sqrt((rotatingWith + 1) / 4); reasons.push("rotation"); }
+  return { wearsPerYear: Math.max(1, Math.round(w)), reasons };
+}
+
+/** How much the person's own history weighs against the estimate: 0 with no history, 1 once the
+ *  owned pieces of this type add up to about 3 "piece-years" of wear logging (e.g. 6 jeans for 6
+ *  months) over at least half a year. It grows with every month and every piece, so the estimate
+ *  moves towards their real use instead of switching at a fixed date. */
+export const HISTORY_FULL_WEIGHT_PIECE_YEARS = 3;
+
+export function costPerWear(
+  product: WearProfile,
+  wardrobe: WardrobeItem[],
+  price: PriceContext | null,
+  now: Date = new Date(),
+): CostPerWear | null {
+  if (!price || !product.subcategory) return null;
+  const sameType = wardrobe.filter((it) => it.category === product.category && it.subcategory === product.subcategory && !(it as { archived?: boolean }).archived);
+  const yearsOwned = (it: WardrobeItem) => {
+    const since = (it as { purchase_date?: string | null }).purchase_date || (it as { created_at?: string }).created_at;
+    return since ? Math.max(0, (now.getTime() - new Date(since).getTime()) / (365 * 86400000)) : 0;
+  };
+  // The person's own wear rate for this kind of piece: logged wears per piece per year, over the
+  // pieces that have been in the app for at least a month.
+  const observed = sameType.filter((it) => yearsOwned(it) >= 1 / 12);
+  const pieceYears = observed.reduce((sum, it) => sum + yearsOwned(it), 0);
+  const wears = observed.reduce((sum, it) => sum + ((it as { worn_count?: number }).worn_count ?? 0), 0);
+  // Enough pieces AND enough time: six weeks with 24 jeans is a lot of piece-years but a single
+  // season — the history only takes over fully once it covers at least half a year.
+  const span = observed.reduce((m, it) => Math.max(m, yearsOwned(it)), 0);
+  const weight = Math.min(1, pieceYears / HISTORY_FULL_WEIGHT_PIECE_YEARS) * Math.min(1, span / 0.5);
+  const est = estimateWears(product, sameType.length);
+  let wearsPerYear = est.wearsPerYear;
+  let basis: CostPerWear["basis"] = "estimate";
+  const reasons = [...est.reasons];
+  if (weight > 0 && pieceYears > 0) {
+    // Logged wears are spread over all the similar pieces already; the new one would join them, so
+    // its share is the per-piece rate — the same rotation the estimate models.
+    const ownRate = wears / pieceYears;
+    wearsPerYear = Math.max(1, Math.round(weight * ownRate + (1 - weight) * est.wearsPerYear));
+    if (weight >= 1) basis = "history";
+    else reasons.push("yourHistory");
+  }
+  return {
+    wearsPerYear,
+    years: CPW_YEARS,
+    costPerWearEur: Math.round(price.priceEur / (wearsPerYear * CPW_YEARS)),
+    rotatingWith: sameType.length,
+    basis,
+    reasons: basis === "history" ? [] : reasons,
+  };
 }

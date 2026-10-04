@@ -742,6 +742,27 @@
       "usual": "Circa {{price}} €: in linea con quanto spendi di solito per questo tipo di capo.",
       "below_usual": "Circa {{price}} €: meno di quanto spendi di solito per questo tipo di capo (circa {{usual}} €)."
     },
+    "visualClosest": "Il più simile che hai: {{label}} — {{note}}.",
+    "visualClosestNoNote": "Il più simile che hai: {{label}}.",
+    "costPerWear_one": "Stima: lo metteresti circa {{count}} volta l'anno, in {{years}} anni circa {{cpw}} € a utilizzo",
+    "costPerWear_other": "Stima: lo metteresti circa {{count}} volte l'anno, in {{years}} anni circa {{cpw}} € a utilizzo",
+    "costPerWearHistory_one": "Da come usi capi simili: circa {{count}} volta l'anno, in {{years}} anni circa {{cpw}} € a utilizzo",
+    "costPerWearHistory_other": "Da come usi capi simili: circa {{count}} volte l'anno, in {{years}} anni circa {{cpw}} € a utilizzo",
+    "wearReason": {
+      "yourHistory": "in parte da come usi capi simili",
+      "allSeasons": "tutte le stagioni",
+      "oneSeason": "una sola stagione",
+      "fewSeasons": "solo alcune stagioni",
+      "dayAndEvening": "giorno e sera",
+      "eveningOnly": "solo sera",
+      "veryDressy": "molto elegante",
+      "statement": "dettagli particolari",
+      "trendPiece": "pezzo di tendenza",
+      "timeless": "senza tempo",
+      "versatile": "molto versatile",
+      "notVersatile": "poco versatile",
+      "rotation": "si alterna con i tuoi {{count}} capi simili"
+    },
     "wornDifferently": "Rispetto al tuo {{label}}: {{details}}",
     "wear": {
       "darker": "più scuro",

@@ -3,13 +3,16 @@
 // watches: same category (Accessories), same brand, a colour in common. A ring is not a watch. Only
 // pieces of the same KIND (same subcategory — ring with ring, loafers with loafers) can be similar,
 // and the owned piece is named, so the person can see what the comparison is about.
-import { findBestMatch, type DedupeVerdict } from "./outfit-dedupe";
+import { scoreMatch, type DedupeVerdict } from "./outfit-dedupe";
+import { colorNameSimilarity } from "./outfit-match";
 import type { WardrobeItem } from "./aura-types";
 
 type ProductShape = {
   category: string | null; subcategory: string | null; colors: string[]; brand: string | null;
   /** Free text that can reveal details: title, description, style tags, material. */
   text?: string | null;
+  fit?: string | null;
+  length?: string | null;
 };
 
 import { detailsIn, DETAIL_WORDS_FOR_KEY } from "./garment-details";
@@ -53,19 +56,40 @@ export function differencesFrom(product: ProductShape, owned: WardrobeItem): str
   return [...mine].filter((k) => !theirs.has(k));
 }
 
-export function closestOwnedPiece(product: ProductShape, wardrobe: WardrobeItem[]): ClosestOwned | null {
-  if (!product.category) return null;
+/** Owned pieces of the same kind, best first: brand / colour / type first (scoreMatch), then — among
+ *  those that tie (ten denim-wash jeans) — closest colours, same fit and length, and no details the
+ *  product doesn't have (crystals, a logo, a silver accent). The first in the list used to win: an
+ *  embellished pair next to a plain one. Also the shortlist the visual comparison looks at. */
+export function rankComparable(product: ProductShape, wardrobe: WardrobeItem[]): { item: WardrobeItem; score: number }[] {
+  if (!product.category) return [];
   const candidates = comparablePieces(product, wardrobe);
-  if (!candidates.length) return null;
-  const d = findBestMatch(
-    { category: product.category, subcategory: product.subcategory ?? undefined, colors: product.colors, brand: product.brand },
-    candidates,
-  );
-  if (d.verdict === "new" || !d.match) return null;
+  const detected = { category: product.category, subcategory: product.subcategory ?? undefined, colors: product.colors, brand: product.brand };
   const mine = detailsIn([product.subcategory, product.text].filter(Boolean).join(" "));
-  const theirs = detailsIn(ownedText(d.match));
-  const differences = [...mine].filter((k) => !theirs.has(k));
-  return { itemId: d.match.id, label: ownedPieceLabel(d.match), differences, rawVerdict: d.verdict };
+  const refine = (it: WardrobeItem) => {
+    const theirs = detailsIn(ownedText(it));
+    const extraDetails = [...theirs].filter((k) => !mine.has(k)).length;
+    const colors = it.colors?.length ? it.colors : it.color ? [it.color] : [];
+    const colorFit = product.colors.length && colors.length
+      ? colors.reduce((sum, c) => sum + Math.max(...product.colors.map((p) => (p === c ? 1 : colorNameSimilarity(p, c) ?? 0))), 0) / colors.length
+      : 0;
+    const fit = product.fit && it.fit && product.fit === it.fit ? 0.1 : 0;
+    const length = product.length && it.length && product.length === it.length ? 0.05 : 0;
+    return colorFit * 0.3 + fit + length - extraDetails * 0.15;
+  };
+  return candidates
+    .map((item) => ({ item, score: scoreMatch(detected, item), refined: refine(item) }))
+    .sort((a, b) => (Math.abs(b.score - a.score) > 0.05 ? b.score - a.score : b.refined - a.refined || b.score - a.score))
+    .map(({ item, score }) => ({ item, score }));
+}
+
+export function closestOwnedPiece(product: ProductShape, wardrobe: WardrobeItem[]): ClosestOwned | null {
+  const ranked = rankComparable(product, wardrobe);
+  if (!ranked.length) return null;
+  const best = Math.max(...ranked.map((x) => x.score));
+  const verdict: DedupeVerdict = best >= 0.9 ? "certain" : best >= 0.6 ? "maybe" : "new";
+  if (verdict === "new") return null;
+  const match = ranked[0].item;
+  return { itemId: match.id, label: ownedPieceLabel(match), differences: differencesFrom(product, match), rawVerdict: verdict };
 }
 
 /** The owned piece the product is a (near-)duplicate of, compared only with pieces of the same kind.

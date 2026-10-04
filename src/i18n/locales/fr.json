@@ -742,6 +742,27 @@
       "usual": "Environ {{price}} € : dans la ligne de ce que tu dépenses d'habitude pour ce type de pièce.",
       "below_usual": "Environ {{price}} € : moins que ce que tu dépenses d'habitude pour ce type de pièce (environ {{usual}} €)."
     },
+    "visualClosest": "Ce que tu as de plus proche : {{label}} — {{note}}.",
+    "visualClosestNoNote": "Ce que tu as de plus proche : {{label}}.",
+    "costPerWear_one": "Estimation : tu le porterais environ {{count}} fois par an, environ {{cpw}} € par utilisation sur {{years}} ans",
+    "costPerWear_other": "Estimation : tu le porterais environ {{count}} fois par an, environ {{cpw}} € par utilisation sur {{years}} ans",
+    "costPerWearHistory_one": "D'après ta façon de porter des pièces similaires : environ {{count}} fois par an, environ {{cpw}} € par utilisation sur {{years}} ans",
+    "costPerWearHistory_other": "D'après ta façon de porter des pièces similaires : environ {{count}} fois par an, environ {{cpw}} € par utilisation sur {{years}} ans",
+    "wearReason": {
+      "yourHistory": "en partie d'après ta façon de porter des pièces similaires",
+      "allSeasons": "toutes saisons",
+      "oneSeason": "une seule saison",
+      "fewSeasons": "quelques saisons seulement",
+      "dayAndEvening": "jour et soir",
+      "eveningOnly": "soir uniquement",
+      "veryDressy": "très habillé",
+      "statement": "détails marquants",
+      "trendPiece": "pièce tendance",
+      "timeless": "intemporel",
+      "versatile": "très polyvalent",
+      "notVersatile": "peu polyvalent",
+      "rotation": "alterne avec tes {{count}} pièces similaires"
+    },
     "wornDifferently": "Par rapport à ton {{label}} : {{details}}",
     "wear": {
       "darker": "plus foncé",

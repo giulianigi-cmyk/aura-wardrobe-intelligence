@@ -1,7 +1,7 @@
 // Run with: bun test src/lib/purchase-context.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyPurchaseContext, priceContext, sameModelOwned, shadeDifference } from "./purchase-context";
+import { applyPurchaseContext, costPerWear, priceContext, sameModelOwned, shadeDifference } from "./purchase-context";
 import type { WardrobeItem } from "./aura-types";
 
 const item = (o: Partial<WardrobeItem> & Record<string, unknown>) => ({ id: Math.random().toString(), category: "Bottoms", colors: [], ...o }) as unknown as WardrobeItem;
@@ -62,3 +62,53 @@ test("shade: a navy wash is darker than a sky-blue one", () => {
   assert.equal(shadeDifference(["Sky Blue"], ["Navy"]), "lighter");
   assert.equal(shadeDifference(["Denim Wash"], ["Denim Wash"]), null);
 });
+
+test("far beyond the person's range with a similar pair owned → skip (unless iconic or a gap)", () => {
+  const price = { priceEur: 1100, usualEur: 175, topEur: 358, basedOn: 24, tier: "above_usual" as const, sameModelPaidEur: null };
+  assert.equal(applyPurchaseContext({ verdict: "maybe", confidence: "medium" }, { sameModelCount: 0, price, wardrobeGap: false, similarOwned: true }).verdict, "skip");
+  assert.equal(applyPurchaseContext({ verdict: "buy", confidence: "high" }, { sameModelCount: 0, price, wardrobeGap: false, similarOwned: true, iconic: true }).verdict, "buy");
+  assert.equal(applyPurchaseContext({ verdict: "buy", confidence: "high" }, { sameModelCount: 0, price, wardrobeGap: true, similarOwned: false }).verdict, "buy");
+});
+
+
+test("cost per wear: an all-season denim is far more usable than an evening gown or a summer crystal heel", () => {
+  const price = (eur: number) => ({ priceEur: eur, usualEur: eur, topEur: eur, basedOn: 5, tier: "usual" as const, sameModelPaidEur: null });
+  const jeans = costPerWear({ category: "Bottoms", subcategory: "Jeans", seasons: ["All Seasons"], dayEvening: "both", formality: 2, fashion: { timeless: true, onTrend: false, versatility: "high" } }, [], price(400))!;
+  assert.equal(jeans.basis, "estimate");
+  assert.ok(jeans.wearsPerYear >= 35, String(jeans.wearsPerYear));
+  assert.deepEqual(jeans.reasons, ["allSeasons", "dayAndEvening", "timeless", "versatile"]);
+  const gown = costPerWear({ category: "Dresses", subcategory: "Evening Dress", seasons: ["All Seasons"], dayEvening: "evening", formality: 5 }, [], price(300))!;
+  assert.ok(gown.wearsPerYear <= 2, String(gown.wearsPerYear));
+  const heels = costPerWear({ category: "Shoes", subcategory: "Sandals", seasons: ["Summer"], dayEvening: "evening", formality: 4, details: ["embellished"] }, [], price(900))!;
+  assert.equal(heels.wearsPerYear, 1);
+  assert.ok(heels.reasons.includes("oneSeason") && heels.reasons.includes("statement"));
+  const sneakers = costPerWear({ category: "Shoes", subcategory: "Sneakers", seasons: ["All Seasons"], dayEvening: "day", formality: 1 }, [], price(500))!;
+  assert.ok(sneakers.wearsPerYear > heels.wearsPerYear * 10);
+});
+
+test("cost per wear: many similar pieces in rotation share the wears", () => {
+  const price = { priceEur: 1100, usualEur: 175, topEur: 358, basedOn: 24, tier: "above_usual" as const, sameModelPaidEur: null };
+  const owned = Array.from({ length: 24 }, () => item({ subcategory: "Jeans", created_at: new Date().toISOString() }));
+  const c = costPerWear({ category: "Bottoms", subcategory: "Jeans", seasons: ["All Seasons"], dayEvening: "both" }, owned, price)!;
+  assert.equal(c.rotatingWith, 24);
+  assert.ok(c.reasons.includes("rotation"));
+  assert.ok(c.wearsPerYear < 20, String(c.wearsPerYear));
+});
+
+test("cost per wear moves from the estimate towards the person's own wear rate as history grows", () => {
+  const price = { priceEur: 400, usualEur: 175, topEur: 358, basedOn: 6, tier: "upper_range" as const, sameModelPaidEur: null };
+  const now = new Date("2027-04-01T00:00:00Z");
+  const owned = (monthsAgo: number, worn: number) => Array.from({ length: 6 }, () => item({
+    subcategory: "Jeans", worn_count: worn, created_at: new Date(now.getTime() - monthsAgo * 30.4 * 86400000).toISOString(),
+  }));
+  const profile = { category: "Bottoms", subcategory: "Jeans", seasons: ["All Seasons"], dayEvening: "both" };
+  const fresh = costPerWear(profile, owned(0, 0), price, now)!;           // just added: pure estimate
+  assert.equal(fresh.basis, "estimate");
+  const half = costPerWear(profile, owned(3, 2), price, now)!;            // 1.5 piece-years: half weight
+  assert.ok(half.reasons.includes("yourHistory"));
+  assert.ok(half.wearsPerYear < fresh.wearsPerYear);
+  const full = costPerWear(profile, owned(12, 5), price, now)!;           // 6 piece-years: own rate (5/yr)
+  assert.equal(full.basis, "history");
+  assert.equal(full.wearsPerYear, 5);
+});
+

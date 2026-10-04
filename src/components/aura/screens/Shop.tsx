@@ -407,7 +407,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                                 : t("shop.alternativeOther", { names: it.alternative.withNames.join(", ") })}
                             </p>
                           )}
-                          <FashionAndDifferences fashion={it.fashion} differsFrom={it.wardrobe.differsFrom} sameModel={it.wardrobe.sameModel} price={it.wardrobe.price} />
+                          <FashionAndDifferences fashion={it.fashion} differsFrom={it.wardrobe.differsFrom} sameModel={it.wardrobe.sameModel} price={it.wardrobe.price} cpw={it.wardrobe.cpw} />
                         </div>
                       </div>
                     );
@@ -549,7 +549,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                 {result.verdict === "buy" ? <Check size={11} /> : result.verdict === "maybe" ? <HelpCircle size={11} /> : <XIcon size={11} />}
                 {result.verdict === "buy" ? t("shop.verdictBuy") : result.verdict === "maybe" ? t("shop.verdictMaybe") : t("shop.verdictSkip")}
               </div>
-              <FashionAndDifferences fashion={result.fashion} differsFrom={result.wardrobe.differsFrom} sameModel={result.wardrobe.sameModel} price={result.wardrobe.price} />
+              <FashionAndDifferences fashion={result.fashion} differsFrom={result.wardrobe.differsFrom} sameModel={result.wardrobe.sameModel} price={result.wardrobe.price} cpw={result.wardrobe.cpw} />
               <p className="mt-2 text-sm text-foreground/80 leading-relaxed">{result.reason}</p>
               {/* Corrections: remembered for this person and the analysis runs again. */}
               {result.analysis.category && (
@@ -720,11 +720,12 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
 
 /** Fashion value (iconic, timeless, trend, status) and how the piece differs from the closest owned
  *  one of the same kind — shown under a verdict so it's clear what the advice is based on. */
-function FashionAndDifferences({ fashion, differsFrom, sameModel, price }: {
+function FashionAndDifferences({ fashion, differsFrom, sameModel, price, cpw }: {
+  cpw?: { wearsPerYear: number; years: number; costPerWearEur: number; rotatingWith: number; basis?: string; reasons?: string[] } | null;
   sameModel?: { count: number; name: string; colors: string[] } | null;
   price?: { priceEur: number; usualEur: number; topEur?: number; tier: "above_usual" | "upper_range" | "usual" | "below_usual"; sameModelPaidEur?: number | null } | null;
   fashion: { iconic: boolean; timeless: boolean; onTrend: boolean; statusPiece: boolean } | null | undefined;
-  differsFrom: { label: string; differences: string[]; wear?: { changes: string[]; newOccasions: string[] } | null } | null | undefined;
+  differsFrom: { label: string; differences: string[]; wear?: { changes: string[]; newOccasions: string[] } | null; visual?: { similarity: number; note: string } | null } | null | undefined;
 }) {
   const { t } = useTranslation();
   const chips = fashion ? (["iconic", "timeless", "onTrend", "statusPiece"] as const).filter((k) => fashion[k]) : [];
@@ -737,7 +738,8 @@ function FashionAndDifferences({ fashion, differsFrom, sameModel, price }: {
         ...(wear.newOccasions.length ? [t("shop.wear.alsoFor", { occasions: wear.newOccasions.map((o) => t(`shop.occasion.${o.replace(/\s+/g, "")}`, { defaultValue: o })).join(", ") })] : []),
       ]
     : [];
-  if (!chips.length && !wearBits.length && !sameModel && !price) return null;
+  const visual = differsFrom?.visual ?? null;
+  if (!chips.length && !wearBits.length && !sameModel && !price && !visual && !cpw) return null;
   return (
     <div className="mt-1.5 space-y-1">
       {chips.length > 0 && (
@@ -757,6 +759,24 @@ function FashionAndDifferences({ fashion, differsFrom, sameModel, price }: {
         <p className="text-[11px] text-muted-foreground leading-snug">
           {t(`shop.priceVsUsual.${price.tier}`, { price: price.priceEur, usual: price.usualEur, top: price.topEur ?? price.usualEur })}
           {price.sameModelPaidEur != null && sameModel ? ` ${t("shop.priceVsUsual.sameModelPaid", { name: sameModel.name, paid: price.sameModelPaidEur })}` : ""}
+        </p>
+      )}
+      {/* The owned piece that LOOKS most like it, judged from the photos, and what differs. */}
+      {/* What it costs per wear: worn often justifies more. */}
+      {cpw && (
+        <p className="text-[11px] text-muted-foreground leading-snug">
+          {t(cpw.basis === "history" ? "shop.costPerWearHistory" : "shop.costPerWear", { count: cpw.wearsPerYear, years: cpw.years, cpw: cpw.costPerWearEur })}
+          {/* Why: the estimate comes from how usable the piece is. */}
+          {cpw.reasons?.length
+            ? ` (${cpw.reasons.map((r) => t(`shop.wearReason.${r}`, { count: cpw.rotatingWith })).join(", ")})`
+            : ""}
+        </p>
+      )}
+      {differsFrom && visual && (
+        <p className="text-[11px] text-foreground/80 leading-snug">
+          {visual.note
+            ? t("shop.visualClosest", { label: differsFrom.label, note: visual.note })
+            : t("shop.visualClosestNoNote", { label: differsFrom.label })}
         </p>
       )}
       {differsFrom && wearBits.length > 0 && (
