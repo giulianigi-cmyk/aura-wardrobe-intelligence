@@ -112,3 +112,17 @@ test("cost per wear moves from the estimate towards the person's own wear rate a
   assert.equal(full.wearsPerYear, 5);
 });
 
+test("cost per wear: history counts from when pieces entered the app, scaled by how often wears are logged", () => {
+  const price = { priceEur: 1100, usualEur: 175, topEur: 358, basedOn: 24, tier: "above_usual" as const, sameModelPaidEur: null };
+  const now = new Date("2026-10-04T00:00:00Z");
+  // reported case: 24 jeans bought years ago but added ~6 weeks ago, 17 logged wears, wears logged on about half the days
+  const owned = Array.from({ length: 24 }, (_, i) => item({
+    subcategory: "Jeans", worn_count: i < 17 ? 1 : 0, purchase_date: "2020-01-01", created_at: "2026-08-20T00:00:00Z",
+  }));
+  const profile = { category: "Bottoms", subcategory: "Jeans", seasons: ["All Seasons"], dayEvening: "both" };
+  const c = costPerWear(profile, owned, price, now, 0.47)!;
+  assert.notEqual(c.basis, "history");          // six weeks is not a history yet
+  assert.ok(c.wearsPerYear >= 8, String(c.wearsPerYear)); // never "once a year" for jeans
+  assert.ok(c.reasons.includes("yourHistory"));
+});
+

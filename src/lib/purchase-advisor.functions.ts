@@ -521,7 +521,14 @@ async function resolveProductAndWardrobeFacts(
   // What it costs per wear (purchase-context.ts): how usable the piece is — seasons, day/evening,
   // dressiness, statement details, timeless vs trend, versatility, the pieces it rotates with.
   const productDetails = [...new Set([...detailsIn([product.subcategory, productText].filter(Boolean).join(" ")), ...(product.visualDetails ?? [])])];
-  const cpw = costPerWear({ ...product, details: productDetails, fashion }, wardrobe, price);
+  // How often the person logs what they wear (days with a logged outfit / days, over the last 90 days
+  // or since they started): unlogged wears are not counted, so the logged rate is scaled up by it.
+  const appStart = wardrobe.reduce((m, it) => { const c = (it as { created_at?: string }).created_at; return c && c < m ? c : m; }, new Date().toISOString());
+  const windowDays = Math.max(1, Math.min(90, (Date.now() - new Date(appStart).getTime()) / 86400000));
+  const sinceIso = new Date(Date.now() - windowDays * 86400000).toISOString().slice(0, 10);
+  const { data: wornDays } = await supabase.from("wardrobe_events").select("event_date").eq("user_id", userId).eq("event_type", "worn").gte("event_date", sinceIso);
+  const loggingCoverage = new Set(((wornDays ?? []) as { event_date: string }[]).map((e) => e.event_date)).size / windowDays;
+  const cpw = costPerWear({ ...product, details: productDetails, fashion }, wardrobe, price, new Date(), loggingCoverage);
 
   return { ok: true, product, wardrobe, duplicate, similarItemsCount, comparableLabels, pairsWithCount, wardrobeGap, fashion, differsFrom, novelDetails, sameModel, price, cpw };
 }

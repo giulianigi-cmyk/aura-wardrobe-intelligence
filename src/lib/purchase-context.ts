@@ -217,11 +217,16 @@ export function costPerWear(
   wardrobe: WardrobeItem[],
   price: PriceContext | null,
   now: Date = new Date(),
+  /** Share of days the person logs what they wear (0.2–1): wears not logged are not counted, so the
+   *  logged rate is scaled up by it. */
+  loggingCoverage = 1,
 ): CostPerWear | null {
   if (!price || !product.subcategory) return null;
   const sameType = wardrobe.filter((it) => it.category === product.category && it.subcategory === product.subcategory && !(it as { archived?: boolean }).archived);
+  // Time in the APP, not since purchase: wears are only logged from when the piece was added, so a
+  // pair bought in 2020 and added six weeks ago has six weeks of history, not six years.
   const yearsOwned = (it: WardrobeItem) => {
-    const since = (it as { purchase_date?: string | null }).purchase_date || (it as { created_at?: string }).created_at;
+    const since = (it as { created_at?: string }).created_at;
     return since ? Math.max(0, (now.getTime() - new Date(since).getTime()) / (365 * 86400000)) : 0;
   };
   // The person's own wear rate for this kind of piece: logged wears per piece per year, over the
@@ -240,7 +245,8 @@ export function costPerWear(
   if (weight > 0 && pieceYears > 0) {
     // Logged wears are spread over all the similar pieces already; the new one would join them, so
     // its share is the per-piece rate — the same rotation the estimate models.
-    const ownRate = wears / pieceYears;
+    const coverage = Math.min(1, Math.max(0.2, loggingCoverage));
+    const ownRate = wears / pieceYears / coverage;
     wearsPerYear = Math.max(1, Math.round(weight * ownRate + (1 - weight) * est.wearsPerYear));
     if (weight >= 1) basis = "history";
     else reasons.push("yourHistory");
