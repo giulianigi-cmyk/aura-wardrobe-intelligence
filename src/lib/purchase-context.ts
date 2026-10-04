@@ -135,6 +135,8 @@ export function applyPurchaseContext<V extends { verdict: "buy" | "maybe" | "ski
 
 /** A modest base: wears per year of ONE everyday, all-season piece of this kind. */
 const BASE_WEARS: [RegExp, number][] = [
+  // Before the generic bag rule: a clutch is an evening bag, not one carried every day.
+  [/clutch|pochette|minaudi/i, 8],
   [/sneaker|trainer/i, 40],
   [/bag|tote|shoulder|crossbody|backpack|borsa/i, 40],
   [/watch|orologio|ring|anello|bracelet|bracciale|necklace|collana|earring|orecchin/i, 50],
@@ -154,7 +156,6 @@ const BASE_WEARS: [RegExp, number][] = [
   [/pump|heel|sandal|slingback|mule|décolleté|decollete/i, 12],
   [/scarf|sciarpa|foulard/i, 15],
   [/dress|abito|jumpsuit|tuta/i, 10],
-  [/clutch|minaudi/i, 8],
 ];
 
 export type WearReason = "yourHistory" | "allSeasons" | "oneSeason" | "fewSeasons" | "dayAndEvening" | "eveningOnly" | "veryDressy" | "statement" | "trendPiece" | "timeless" | "versatile" | "notVersatile" | "rotation";
@@ -212,6 +213,34 @@ export function estimateWears(p: WearProfile, rotatingWith: number): { wearsPerY
  *  moves towards their real use instead of switching at a fixed date. */
 export const HISTORY_FULL_WEIGHT_PIECE_YEARS = 3;
 
+const BAG = /bag|borsa|borse|tote|clutch|pochette|minaudi/i;
+const EVENING_BAG = /clutch|pochette|minaudi/i;
+const DAY_OCCASION = /everyday|work|weekend|travel|casual|resort|office|daily/i;
+
+/** Day or evening role of an owned bag: clutches and evening-only bags are "evening", the rest
+ *  (including day-and-evening bags) are carried day to day. */
+function bagRole(it: WardrobeItem): "day" | "evening" {
+  if (EVENING_BAG.test(it.subcategory ?? "")) return "evening";
+  const de = (it as { day_evening?: string | null }).day_evening;
+  if (de === "evening") return "evening";
+  const occ = (it as { occasion?: string | null }).occasion;
+  if (occ && !DAY_OCCASION.test(occ)) return "evening";
+  return "day";
+}
+
+/** The owned pieces a new one would share its wears with. Clothes rotate with the same type (jeans
+ *  with jeans, not with every trouser). Bags rotate by use, whatever their shape: a day bag joins
+ *  all the day bags (shoulder, top handle, tote, crossbody…), an evening bag the clutches and
+ *  evening bags. */
+export function rotationPool(product: WearProfile, wardrobe: WardrobeItem[]): WardrobeItem[] {
+  const active = wardrobe.filter((it) => !(it as { archived?: boolean }).archived);
+  if (BAG.test(`${product.category ?? ""} ${product.subcategory ?? ""}`)) {
+    const role = EVENING_BAG.test(product.subcategory ?? "") || product.dayEvening === "evening" ? "evening" : "day";
+    return active.filter((it) => it.category === product.category && bagRole(it) === role);
+  }
+  return active.filter((it) => it.category === product.category && it.subcategory === product.subcategory);
+}
+
 export function costPerWear(
   product: WearProfile,
   wardrobe: WardrobeItem[],
@@ -222,7 +251,7 @@ export function costPerWear(
   loggingCoverage = 1,
 ): CostPerWear | null {
   if (!price || !product.subcategory) return null;
-  const sameType = wardrobe.filter((it) => it.category === product.category && it.subcategory === product.subcategory && !(it as { archived?: boolean }).archived);
+  const sameType = rotationPool(product, wardrobe);
   // Time in the APP, not since purchase: wears are only logged from when the piece was added, so a
   // pair bought in 2020 and added six weeks ago has six weeks of history, not six years.
   const yearsOwned = (it: WardrobeItem) => {

@@ -126,3 +126,23 @@ test("cost per wear: history counts from when pieces entered the app, scaled by 
   assert.ok(c.reasons.includes("yourHistory"));
 });
 
+
+test("cost per wear: a day bag rotates with all the day bags, an evening bag with the clutches", () => {
+  const price = { priceEur: 2500, usualEur: 1500, topEur: 3000, basedOn: 20, tier: "upper_range" as const, sameModelPaidEur: null };
+  const bag = (subcategory: string | null, occasion: string, extra: Record<string, unknown> = {}) =>
+    item({ category: "Bags", subcategory, occasion, ...extra });
+  const owned = [
+    ...Array.from({ length: 8 }, () => bag("Top Handle Bag", "Everyday, Work")),
+    ...Array.from({ length: 6 }, () => bag("Shoulder Bag", "Everyday, Weekend")),
+    bag("Crossbody", "Everyday, Travel"), bag("Tote", "Work, Travel"), bag(null, "Everyday, Evening"),
+    bag("Top Handle Bag", "Evening"),
+    ...Array.from({ length: 4 }, () => bag("Clutch", "Evening, Formal")),
+  ];
+  const day = costPerWear({ category: "Bags", subcategory: "Top Handle Bag", seasons: ["All Seasons"], dayEvening: "day" }, owned, price)!;
+  assert.equal(day.rotatingWith, 17);           // every day bag, whatever its shape — not only the 8 top-handles
+  const clutch = costPerWear({ category: "Bags", subcategory: "Clutch", seasons: ["All Seasons"], dayEvening: "evening" }, owned, price)!;
+  assert.equal(clutch.rotatingWith, 5);         // the clutches and the evening-only bag
+  assert.ok(day.wearsPerYear > clutch.wearsPerYear * 3, `${day.wearsPerYear} vs ${clutch.wearsPerYear}`);
+  // A day bag is carried most days in rotation: with 17 day bags still well above a few times a year.
+  assert.ok(day.wearsPerYear >= 12, String(day.wearsPerYear));
+});
