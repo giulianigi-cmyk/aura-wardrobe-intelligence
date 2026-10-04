@@ -40,7 +40,9 @@
     "occasionWork": "Travail",
     "occasionWeekend": "Week-end",
     "occasionEvening": "Soirée",
-    "noImage": "Aucune image"
+    "noImage": "Aucune image",
+    "looksGenerateFailed": "Impossible de créer les looks du jour.",
+    "looksLoadFailed": "Impossible de charger les looks du jour."
   },
   "profile": {
     "languageLabel": "Langue"
@@ -177,7 +179,8 @@
     "toastRequestCancelled": "Demande annulée",
     "toastFriendRemoved": "Ami retiré",
     "youSharedToFeed": "Vous avez partagé sur le fil",
-    "sharedToFeed": "Sur le fil"
+    "sharedToFeed": "Sur le fil",
+    "searchFailed": "La recherche a échoué"
   },
   "chats": {
     "title": "Chat",
@@ -574,7 +577,8 @@
     "replyFailed": "Je n'ai pas pu répondre pour le moment. Ton message est toujours là : réessaie.",
     "retry": "Réessayer",
     "whichPiece": "Laquelle veux-tu dire ?",
-    "thisOne": "Celle-ci : {{label}}"
+    "thisOne": "Celle-ci : {{label}}",
+    "wardrobeLoadFailed": "Impossible de charger la garde-robe"
   },
   "splash": {
     "tagline": "Intelligence de garde-robe",
@@ -2275,5 +2279,108 @@
     "add": "Ajouter des couleurs",
     "search": "Rechercher une couleur",
     "remove": "Retirer {{name}}"
+  },
+  "calendarConnect": {
+    "connected": "{{name}} connecté",
+    "cancelled": "Connexion du calendrier annulée",
+    "connectFailed": "Impossible de connecter {{name}} : réessaie.",
+    "startFailed": "Impossible de démarrer la connexion",
+    "synced_one": "Synchronisé : {{count}} événement",
+    "synced_other": "Synchronisé : {{count}} événements",
+    "syncFailed": "La synchronisation a échoué",
+    "disconnected": "Déconnecté",
+    "disconnectFailed": "Impossible de se déconnecter",
+    "appleMissing": "Saisis l'e-mail de ton identifiant Apple et le mot de passe pour app",
+    "connectFailedShort": "Impossible de se connecter",
+    "eyebrow": "Calendrier",
+    "connectedState": "Connecté",
+    "connectedAs": "Connecté en tant que {{email}}",
+    "syncedAt": "synchronisé {{when}}",
+    "reconnect": "Reconnecter",
+    "syncNow": "Synchroniser",
+    "disconnectAria": "Déconnecter {{name}}",
+    "googleIntro": "Connecte Google Calendar pour qu'AURA comprenne ta journée — travail, dîners, voyages — et te propose des tenues adaptées.",
+    "appleIntroBefore": "Connecte ton calendrier iCloud avec l'e-mail de ton identifiant Apple et un",
+    "appleIntroLink": "mot de passe pour app",
+    "appleIntroAfter": "(pas le mot de passe habituel de ton identifiant Apple).",
+    "appleEmailPlaceholder": "E-mail de l'identifiant Apple",
+    "hidePassword": "Masquer le mot de passe",
+    "showPassword": "Afficher le mot de passe",
+    "connectButton": "Connecter {{name}}",
+    "outlookIntro": "Connecte ton calendrier Outlook/Microsoft pour qu'AURA comprenne ta journée et te propose des tenues adaptées."
+  },
+  "savedOutfits": {
+    "addedToCalendar": "Ajouté au calendrier",
+    "deleted": "Tenue supprimée",
+    "title": "Mes tenues",
+    "create": "Créer une tenue",
+    "emptyTitle": "Tes looks vivent ici",
+    "emptyBody": "Compose des tenues avec ta garde-robe : elles apparaîtront ici dans une galerie soignée.",
+    "openBuilder": "Ouvrir le créateur",
+    "copyName": "{{name}} (copie)",
+    "openCanvas": "Ouvrir la toile",
+    "duplicate": "Dupliquer la tenue",
+    "share": "Partager la tenue",
+    "delete": "Supprimer la tenue",
+    "pieces_one": "{{count}} pièce",
+    "pieces_other": "{{count}} pièces",
+    "plan": "Planifier",
+    "confirmDelete": "Supprimer cette tenue ?",
+    "cancel": "Annuler",
+    "deleteButton": "Supprimer",
+    "assignTitle": "Attribuer à une date",
+    "saveToCalendar": "Enregistrer dans le calendrier"
+  },
+  "weatherProposal": {
+    "updated": "Tenue mise à jour pour les nouvelles prévisions",
+    "updateFailed": "Impossible de mettre à jour la tenue",
+    "dismissFailed": "Impossible d'ignorer la suggestion",
+    "rain": "{{pct}} % de risque de pluie — n'oublie pas ton parapluie",
+    "planned": "Prévu",
+    "suggested": "Suggéré",
+    "accept": "Accepter",
+    "keep": "Garder l'original",
+    "customize": "Personnaliser"
+  },
+  "chatPicker": {
+    "title": "Joindre une tenue",
+    "empty": "Aucune tenue avec image enregistrée. Crée un look dans l'Outfit Builder et enregistre-le : l'image de la toile y est générée.",
+    "attach": "Joindre"
+  },
+  "conversations": {
+    "loadFailed": "Impossible de charger les conversations",
+    "emptyTitle": "Aucune conversation",
+    "emptyBody": "Écris à une amie ou crée un groupe pour partager des tenues et recevoir des avis.",
+    "start": "Commencer",
+    "sharedOutfit": "Tenue partagée",
+    "groupUpdate": "Mise à jour du groupe",
+    "noMessages": "Aucun message",
+    "frozen": "Gelée"
+  },
+  "outfitThumb": {
+    "loadFailed": "Chargement impossible"
+  },
+  "avatarCropper": {
+    "processFailed": "Impossible de traiter la photo : réessaie.",
+    "zoom": "Zoom",
+    "cancel": "Annuler",
+    "save": "Enregistrer"
+  },
+  "addFriend": {
+    "alreadySent": "Demande déjà envoyée",
+    "sent": "Demande envoyée",
+    "self": "C'est ton propre code QR.",
+    "friends": "Vous êtes déjà amies.",
+    "outgoing": "Demande envoyée.",
+    "incoming": "Elle t'a déjà envoyé une demande : accepte-la dans Community.",
+    "invite": "Invitation Aura",
+    "signInToView": "Connecte-toi pour voir ce profil et envoyer une demande d'ami.",
+    "signInToAdd": "Se connecter pour ajouter",
+    "comeBack": "Tu reviendras ici juste après la connexion.",
+    "notFound": "Profil introuvable",
+    "noMember": "Aucun membre AURA ne s'appelle @{{username}}.",
+    "openAura": "Ouvrir Aura",
+    "member": "Membre Aura",
+    "add": "Ajouter en ami"
   }
 }

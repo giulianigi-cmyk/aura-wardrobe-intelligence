@@ -40,7 +40,9 @@
     "occasionWork": "Work",
     "occasionWeekend": "Weekend",
     "occasionEvening": "Evening",
-    "noImage": "No image"
+    "noImage": "No image",
+    "looksGenerateFailed": "Couldn't generate today's looks.",
+    "looksLoadFailed": "Couldn't load today's looks."
   },
   "profile": {
     "languageLabel": "Language"
@@ -177,7 +179,8 @@
     "toastRequestCancelled": "Request cancelled",
     "toastFriendRemoved": "Friend removed",
     "youSharedToFeed": "You shared to the Feed",
-    "sharedToFeed": "On the Feed"
+    "sharedToFeed": "On the Feed",
+    "searchFailed": "Search failed"
   },
   "chats": {
     "title": "Chat",
@@ -574,7 +577,8 @@
     "replyFailed": "I couldn't answer just now. Your message is still here — try again.",
     "retry": "Try again",
     "whichPiece": "Which one do you mean?",
-    "thisOne": "This one: {{label}}"
+    "thisOne": "This one: {{label}}",
+    "wardrobeLoadFailed": "Couldn't load your wardrobe"
   },
   "splash": {
     "tagline": "Wardrobe Intelligence",
@@ -2275,5 +2279,108 @@
     "add": "Add colors",
     "search": "Search a color",
     "remove": "Remove {{name}}"
+  },
+  "calendarConnect": {
+    "connected": "{{name}} connected",
+    "cancelled": "Calendar connection cancelled",
+    "connectFailed": "Couldn't connect {{name}} — please try again.",
+    "startFailed": "Couldn't start the connection",
+    "synced_one": "Synced — {{count}} event",
+    "synced_other": "Synced — {{count}} events",
+    "syncFailed": "Sync failed",
+    "disconnected": "Disconnected",
+    "disconnectFailed": "Couldn't disconnect",
+    "appleMissing": "Enter your Apple ID email and app-specific password",
+    "connectFailedShort": "Couldn't connect",
+    "eyebrow": "Calendar",
+    "connectedState": "Connected",
+    "connectedAs": "Connected as {{email}}",
+    "syncedAt": "synced {{when}}",
+    "reconnect": "Reconnect",
+    "syncNow": "Sync now",
+    "disconnectAria": "Disconnect {{name}}",
+    "googleIntro": "Connect your Google Calendar so AURA can understand your day — work, dinners, travel — and suggest outfits accordingly.",
+    "appleIntroBefore": "Connect your iCloud Calendar with your Apple ID email and an",
+    "appleIntroLink": "app-specific password",
+    "appleIntroAfter": "(not your regular Apple ID password).",
+    "appleEmailPlaceholder": "Apple ID email",
+    "hidePassword": "Hide password",
+    "showPassword": "Show password",
+    "connectButton": "Connect {{name}}",
+    "outlookIntro": "Connect your Outlook/Microsoft Calendar so AURA can understand your day and suggest outfits accordingly."
+  },
+  "savedOutfits": {
+    "addedToCalendar": "Added to calendar",
+    "deleted": "Outfit deleted",
+    "title": "My outfits",
+    "create": "Create outfit",
+    "emptyTitle": "Your edits live here",
+    "emptyBody": "Compose outfits from your wardrobe and they'll appear here as a beautifully curated gallery.",
+    "openBuilder": "Open the builder",
+    "copyName": "{{name}} Copy",
+    "openCanvas": "Open canvas",
+    "duplicate": "Duplicate outfit",
+    "share": "Share outfit",
+    "delete": "Delete outfit",
+    "pieces_one": "{{count}} piece",
+    "pieces_other": "{{count}} pieces",
+    "plan": "Plan",
+    "confirmDelete": "Delete this outfit?",
+    "cancel": "Cancel",
+    "deleteButton": "Delete",
+    "assignTitle": "Assign to a date",
+    "saveToCalendar": "Save to calendar"
+  },
+  "weatherProposal": {
+    "updated": "Outfit updated for the new forecast",
+    "updateFailed": "Couldn't update the outfit",
+    "dismissFailed": "Couldn't dismiss the suggestion",
+    "rain": "{{pct}}% chance of rain — don't forget your umbrella",
+    "planned": "Planned",
+    "suggested": "Suggested",
+    "accept": "Accept",
+    "keep": "Keep original",
+    "customize": "Customize"
+  },
+  "chatPicker": {
+    "title": "Attach an outfit",
+    "empty": "No outfit with a saved image yet. Create a look in the Outfit Builder and save it: the canvas snapshot is made there.",
+    "attach": "Attach"
+  },
+  "conversations": {
+    "loadFailed": "Couldn't load your conversations",
+    "emptyTitle": "No conversations",
+    "emptyBody": "Write to a friend or create a group to share outfits and get opinions.",
+    "start": "Start",
+    "sharedOutfit": "Shared outfit",
+    "groupUpdate": "Group update",
+    "noMessages": "No messages",
+    "frozen": "Frozen"
+  },
+  "outfitThumb": {
+    "loadFailed": "Couldn't load"
+  },
+  "avatarCropper": {
+    "processFailed": "Couldn't process that photo — please try again.",
+    "zoom": "Zoom",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "addFriend": {
+    "alreadySent": "Request already sent",
+    "sent": "Request sent",
+    "self": "This is your own QR code.",
+    "friends": "You're already friends.",
+    "outgoing": "Request sent.",
+    "incoming": "They already sent you a request — accept it in Community.",
+    "invite": "Aura invite",
+    "signInToView": "Sign in to view this profile and send a friend request.",
+    "signInToAdd": "Sign in to add",
+    "comeBack": "You'll come back here right after signing in.",
+    "notFound": "Profile not found",
+    "noMember": "No AURA member goes by @{{username}}.",
+    "openAura": "Open Aura",
+    "member": "Aura member",
+    "add": "Add friend"
   }
 }

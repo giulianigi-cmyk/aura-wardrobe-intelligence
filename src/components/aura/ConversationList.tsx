@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Loader2, MessageCircle, Users } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -23,6 +24,7 @@ export function ConversationList({
   openThread: (id: string) => void;
   onStartChat?: () => void;
 }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [rows, setRows] = useState<Conversation[]>([]);
   const [avatars, setAvatars] = useState<Record<string, string>>({});
@@ -35,7 +37,7 @@ export function ConversationList({
       setRows(list);
       setAvatars(await signPaths("avatars", list.map((r) => r.other_profile_image)));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Impossibile caricare le conversazioni");
+      toast.error(e instanceof Error ? e.message : t("conversations.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -53,15 +55,15 @@ export function ConversationList({
         <div className="mx-auto h-14 w-14 rounded-full bg-secondary/60 flex items-center justify-center mb-4">
           <MessageCircle size={20} />
         </div>
-        <h2 className="font-serif text-2xl italic">Nessuna conversazione</h2>
+        <h2 className="font-serif text-2xl italic">{t("conversations.emptyTitle")}</h2>
         <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-          Scrivi a un'amica o crea un gruppo per condividere outfit e ricevere pareri.
+          {t("conversations.emptyBody")}
         </p>
         {onStartChat && (
           <button
             onClick={onStartChat}
             className="mt-6 h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98]"
-          >Inizia</button>
+          >{t("conversations.start")}</button>
         )}
       </section>
     );
@@ -87,14 +89,14 @@ export function ConversationList({
             </p>
             <p className="text-xs text-muted-foreground truncate">
               {c.last_message_type === "outfit_share"
-                ? "Outfit condiviso"
+                ? t("conversations.sharedOutfit")
                 : c.last_message_type === "system"
-                  ? "Aggiornamento del gruppo"
-                  : c.last_message_body ?? "Nessun messaggio"}
+                  ? t("conversations.groupUpdate")
+                  : c.last_message_body ?? t("conversations.noMessages")}
             </p>
           </div>
           {c.status !== "active" && (
-            <span className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Frozen</span>
+            <span className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">{t("conversations.frozen")}</span>
           )}
           {c.unread_count > 0 && (
             <span className="min-w-5 h-5 px-1.5 rounded-full bg-foreground text-background text-[10px] flex items-center justify-center">

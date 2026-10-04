@@ -126,7 +126,7 @@ export function PiecePicker({
           {visible.map((it) => {
             const src = thumbSrc(it, signed) || (toStoragePath(it.image_url) ? signed[toStoragePath(it.image_url)!] ?? "" : "");
             const on = selectedIds.includes(it.id);
-            const label = it.colors?.[0] ?? it.color ?? it.category ?? "Wardrobe piece";
+            const label = it.colors?.[0] ?? it.color ?? it.category ?? t("wardrobe.wardrobePieceFallback");
             return (
               <button key={it.id} onClick={() => onToggle(it.id)} className="group text-left">
                 <div

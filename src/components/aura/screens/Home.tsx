@@ -321,14 +321,14 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
             } else if (cacheItemsStillReal(cachedRow)) {
               useRow(cachedRow!);
             } else {
-              setLooksError(res.error ?? "Couldn't generate today's looks.");
+              setLooksError(t("home.looksGenerateFailed"));
             }
           } catch (err) {
             console.error("[AURA home] look generation failed", err);
             if (cacheItemsStillReal(cachedRow)) {
               useRow(cachedRow!);
             } else {
-              setLooksError("Couldn't generate today's looks.");
+              setLooksError(t("home.looksGenerateFailed"));
             }
           }
         } else if (cacheItemsStillReal(cachedRow)) {
@@ -336,7 +336,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
         }
       } catch (err) {
         console.error("[AURA home] daily looks effect failed", err);
-        setLooksError("Couldn't load today's looks.");
+        setLooksError(t("home.looksLoadFailed"));
       } finally {
         setTodayLook(today_);
         setCuratedLooks(curated_);

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import Cropper, { type Area } from "react-easy-crop";
 import { Loader2 } from "lucide-react";
@@ -50,6 +51,7 @@ async function getCroppedBlob(src: string, area: Area): Promise<Blob> {
 }
 
 export function AvatarCropper({ src, onCancel, onSave }: Props) {
+  const { t } = useTranslation();
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [area, setArea] = useState<Area | null>(null);
@@ -71,7 +73,7 @@ export function AvatarCropper({ src, onCancel, onSave }: Props) {
       await onSave(blob);
     } catch (e) {
       console.error("[AURA avatar] crop/save failed", e);
-      toast.error("Couldn't process that photo — please try again.");
+      toast.error(t("avatarCropper.processFailed"));
     } finally {
       setSaving(false);
     }
@@ -94,7 +96,7 @@ export function AvatarCropper({ src, onCancel, onSave }: Props) {
       </div>
       <div className="bg-background px-6 pt-5 pb-[max(2rem,env(safe-area-inset-bottom))] space-y-5 shrink-0">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">Zoom</p>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">{t("avatarCropper.zoom")}</p>
           <input
             type="range" min={1} max={4} step={0.01}
             value={zoom} onChange={e => setZoom(Number(e.target.value))}
@@ -106,14 +108,14 @@ export function AvatarCropper({ src, onCancel, onSave }: Props) {
             onClick={onCancel} disabled={saving}
             className="flex-1 h-12 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-60"
           >
-            Cancel
+            {t("avatarCropper.cancel")}
           </button>
           <button
             onClick={handleSave} disabled={saving || !area}
             className="flex-1 h-12 rounded-full bg-foreground text-background flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-60"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-            Save
+            {t("avatarCropper.save")}
           </button>
         </div>
       </div>
