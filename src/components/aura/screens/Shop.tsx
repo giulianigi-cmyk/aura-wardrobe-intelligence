@@ -400,12 +400,19 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                             {it.verdict === "buy" ? <Check size={9} /> : it.verdict === "maybe" ? <HelpCircle size={9} /> : <XIcon size={9} />}
                             {it.verdict === "buy" ? t("shop.verdictBuy") : it.verdict === "maybe" ? t("shop.verdictMaybe") : t("shop.verdictSkip")}
                           </div>
+                          {it.wardrobe.dressPreferenceViolation && (
+                            <p className="mt-1 text-[11px] text-destructive leading-snug">
+                              {[t("shop.notInLineWithYou"), ...(it.wardrobe.dressConflicts ?? []).map((c) => t(`shop.dressConflict.${c}`))].join(" — ")}
+                            </p>
+                          )}
                           {it.wardrobe.similarTo && !it.wardrobe.differsFrom && (
                             <p className="mt-1 text-[11px] text-muted-foreground leading-snug">{it.wardrobe.similarTo === "said-owned" ? t("shop.saidOwned") : t("shop.similarTo", { label: L(it.wardrobe.similarTo) })}</p>
                           )}
                           {it.alternative && (
                             <p className="mt-1 text-[11px] text-foreground/80 leading-snug">
-                              {it.alternative.preferred
+                              {it.alternative.identical
+                                ? t(it.alternative.preferred ? "shop.samePieceCheaper" : "shop.samePieceDearer", { names: it.alternative.withNames.join(", ") })
+                                : it.alternative.preferred
                                 ? t("shop.alternativePreferred", { names: it.alternative.withNames.join(", ") })
                                 : t("shop.alternativeOther", { names: it.alternative.withNames.join(", ") })}
                             </p>
@@ -573,7 +580,11 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                   just one more soft suggestion. */}
               {result.rules.dressPreferenceViolation && (
                 <div className="mt-3 rounded-xl bg-destructive/10 border border-destructive/30 px-3 py-2">
-                  <p className="text-[11px] font-medium text-destructive">{t("shop.conflictsWithPreferences")}</p>
+                  <p className="text-[11px] font-medium text-destructive">{t("shop.notInLineWithYou")}</p>
+                  {/* Which of their own "never" rules it breaks, in their words. */}
+                  {(result.rules.dressConflicts ?? []).map((c) => (
+                    <p key={c} className="text-[11px] text-destructive/90">{t(`shop.dressConflict.${c}`)}</p>
+                  ))}
                 </div>
               )}
 

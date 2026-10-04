@@ -272,3 +272,49 @@ export function isItemAllowedByDressPreferences(
 
   return true;
 }
+
+
+/** Which of the person's own "never" rules a piece breaks (only the general ones are passed in:
+ *  what someone avoids at work says nothing about what they buy for their free time). Same rules
+ *  as isItemAllowedByDressPreferences, plus the ones a product page can reveal: sleeves shorter than
+ *  the minimum, sheer fabric, a low neckline. Empty when it fits. */
+export type DressConflict =
+  | "cover_legs" | "min_skirt_length" | "cover_arms" | "cover_shoulders" | "avoid_tight"
+  | "max_heel_height" | "min_sleeve_length" | "avoid_sheer" | "avoid_low_neckline";
+
+const SLEEVE_MIN_ORDER: Record<SleeveLength, number> = { none: 0, short: 1, "three-quarter": 2, long: 3 };
+const ITEM_SLEEVE_ORDER: Record<string, number> = { Sleeveless: 0, "Short Sleeve": 1, "Three-Quarter Sleeve": 2, "Long Sleeve": 3 };
+const SHEER = /\b(sheer|see[- ]through|transparent|mesh|tulle|organza|chiffon trasparente|trasparent\w*|velat\w*|transparente|transparent\w*)\b/i;
+const LOW_NECK = /\b(plunging|plunge|deep[- ]v|low[- ]cut|deep neckline|décolleté profond|scollatura profonda|scollo profondo|molto scollat\w*|escote profundo)\b/i;
+
+export function dressPreferenceConflicts(
+  item: { category?: string | null; subcategory?: string | null; length?: string | null; sleeveLength?: string | null; fit?: string | null; styleTags?: string[] | null; heelHeight?: string | null; text?: string | null },
+  p: DressPreferences | null | undefined,
+): DressConflict[] {
+  if (!p) return [];
+  const out: DressConflict[] = [];
+  const category = item.category ?? "";
+  const isSkirtBottom = category === "Bottoms" && item.subcategory === "Skirt";
+  const isDressOrSkirt = category === "Dresses" || isSkirtBottom;
+  if (p.cover_legs && ["Dresses", "Jumpsuits", "Bottoms"].includes(category) && !coversLegs(item)) out.push("cover_legs");
+  if (isDressOrSkirt && p.min_skirt_length && item.length) {
+    const have = ITEM_LENGTH_ORDER[item.length];
+    if (have !== undefined && have < SKIRT_MIN_ORDER[p.min_skirt_length]) out.push("min_skirt_length");
+  }
+  const armRelevant = ["Tops", "Dresses", "Outerwear", "Jumpsuits"].includes(category);
+  if (p.cover_arms && armRelevant && !coversArms(item)) out.push("cover_arms");
+  if (p.min_sleeve_length && p.min_sleeve_length !== "none" && ["Tops", "Dresses", "Jumpsuits"].includes(category) && item.sleeveLength) {
+    const have = ITEM_SLEEVE_ORDER[item.sleeveLength];
+    if (have !== undefined && have < SLEEVE_MIN_ORDER[p.min_sleeve_length]) out.push("min_sleeve_length");
+  }
+  if (p.cover_shoulders && armRelevant && !coversShoulders(item)) out.push("cover_shoulders");
+  if (p.avoid_tight && item.fit === "Slim") out.push("avoid_tight");
+  if (category === "Shoes" && p.max_heel_height && item.heelHeight) {
+    const have = HEEL_ORDER[item.heelHeight as HeelHeight];
+    if (have !== undefined && have > HEEL_ORDER[p.max_heel_height]) out.push("max_heel_height");
+  }
+  const text = `${item.subcategory ?? ""} ${(item.styleTags ?? []).join(" ")} ${item.text ?? ""}`;
+  if (p.avoid_sheer && SHEER.test(text)) out.push("avoid_sheer");
+  if (p.avoid_low_neckline && LOW_NECK.test(text)) out.push("avoid_low_neckline");
+  return out;
+}
