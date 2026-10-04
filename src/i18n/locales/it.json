@@ -823,7 +823,19 @@
     "alreadyOwnSimilar": "Ne ho già uno così",
     "saidOwned": "Hai indicato che ne hai già uno così.",
     "alternativePreferred": "Tra le alternative ({{names}}) è quella che aggiunge di più al tuo armadio.",
-    "alternativeOther": "Alternativa a {{names}}: si sostituiscono, ne basta una."
+    "alternativeOther": "Alternativa a {{names}}: si sostituiscono, ne basta una.",
+    "notInLineWithYou": "Non è in linea con quello che indossi di solito",
+    "dressConflict": {
+      "cover_legs": "Hai indicato che tieni le gambe coperte",
+      "min_skirt_length": "È più corto della lunghezza minima che hai indicato per gonne e abiti",
+      "cover_arms": "Hai indicato che tieni le braccia coperte",
+      "cover_shoulders": "Hai indicato che tieni le spalle coperte",
+      "avoid_tight": "Hai indicato che eviti i capi aderenti",
+      "max_heel_height": "Il tacco è più alto di quello che porti",
+      "min_sleeve_length": "Le maniche sono più corte di quelle che indossi",
+      "avoid_sheer": "Hai indicato che eviti i tessuti trasparenti",
+      "avoid_low_neckline": "Hai indicato che eviti le scollature profonde"
+    }
   },
   "planner": {
     "calendar": "Calendario",

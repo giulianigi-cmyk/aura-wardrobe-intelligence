@@ -19,7 +19,7 @@ import { ownedEquivalent } from "./gap-ownership";
 /** itemId of a "duplicate" that comes from the person's own "Ce l'ho già", not from a wardrobe piece. */
 export const SAID_OWNED_ID = "said-owned";
 import { applyFashionSignals, fashionFacts, fashionPrompt, FashionSignalsSchema, type FashionSignals } from "./purchase-fashion";
-import { isItemAllowedByDressPreferences, hasAnyPreference, type DressPreferences } from "./dress-preferences";
+import { dressPreferenceConflicts, hasAnyPreference, type DressConflict, type DressPreferences } from "./dress-preferences";
 import { COLOR_PALETTE } from "./color-palette";
 import type { WardrobeItem } from "./aura-types";
 
@@ -121,6 +121,8 @@ export type PurchaseAdvisorResult =
       fashion: FashionSignals | null;
       rules: {
         dressPreferenceViolation: boolean;
+        /** Which of the person's general "never" rules it breaks (dress-preferences.ts). */
+        dressConflicts?: DressConflict[];
       };
     }
   | { ok: false; error: string };
@@ -273,6 +275,30 @@ async function generateReason(model: Parameters<typeof generateText>[0]["model"]
   if (second) return second;
   throw new Error("No readable reason in the model response");
 }
+
+/** The product as the dress-preference rules read it (general preferences only — what someone
+ *  avoids at work is not what they avoid when buying for their free time). */
+function conflictsFor(product: PurchaseProduct, prefs: DressPreferences | null | undefined): DressConflict[] {
+  if (!hasAnyPreference(prefs) || !product.category) return [];
+  return dressPreferenceConflicts({
+    category: product.category, subcategory: product.subcategory, length: product.length, sleeveLength: product.sleeveLength,
+    fit: product.fit, styleTags: product.styleTags, heelHeight: product.heelHeight ?? null,
+    text: [product.title, product.description, ...(product.visualDetails ?? [])].filter(Boolean).join(" "),
+  }, prefs);
+}
+
+/** The broken rules, named for the stylist prompt. */
+const CONFLICT_FACT: Record<DressConflict, string> = {
+  cover_legs: "they keep their legs covered, and this does not",
+  min_skirt_length: "their skirts and dresses are never shorter than the length they set, and this one is",
+  cover_arms: "they keep their arms covered, and this leaves them bare",
+  cover_shoulders: "they keep their shoulders covered, and this leaves them bare",
+  avoid_tight: "they avoid tight fits, and this is tight",
+  max_heel_height: "they never wear heels this high",
+  min_sleeve_length: "they never wear sleeves this short",
+  avoid_sheer: "they avoid sheer fabrics, and this is sheer",
+  avoid_low_neckline: "they avoid low necklines, and this has one",
+};
 
 function truncateAtBoundary(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -636,12 +662,8 @@ export const analyzePurchase = createServerFn({ method: "POST" })
 
     // ---- 3. Dress preferences — hard rule, same as the outfit engine ----
     const dressPrefs = profile?.dress_preferences ?? null;
-    const dressViolation = hasAnyPreference(dressPrefs) && product.category
-      ? !isItemAllowedByDressPreferences(
-          { category: product.category, subcategory: product.subcategory, length: product.length, sleeveLength: product.sleeveLength, fit: product.fit, styleTags: product.styleTags },
-          dressPrefs,
-        )
-      : false;
+    const dressConflicts = conflictsFor(product, dressPrefs);
+    const dressViolation = dressConflicts.length > 0;
 
     // ---- 4. Deterministic verdict — the AI never decides this part ----
     // Same model already owned + a price above the person's usual spend → worth weighing, not a yes.
@@ -664,7 +686,7 @@ export const analyzePurchase = createServerFn({ method: "POST" })
       analysis: { category: product.category, subcategory: product.subcategory, colors: product.colors, material: product.material },
       wardrobe: { duplicate, similarItemsCount, pairsWithCount, wardrobeGap, differsFrom, sameModel, price, cpw },
       fashion,
-      rules: { dressPreferenceViolation: dressViolation },
+      rules: { dressPreferenceViolation: dressViolation, dressConflicts },
     };
 
     // ---- 5. AI writes ONLY the reason for the already-decided verdict ----
@@ -702,7 +724,7 @@ export const analyzePurchase = createServerFn({ method: "POST" })
       differsFrom ? `- The owned piece that looks most like it is ${localizeLabel(differsFrom.label, langCode)}${differsFrom.visual ? ` (from the photos: ${differsFrom.visual.similarity}/100 similar; what differs: ${differsFrom.visual.note || "nothing notable"})` : ""}${differsFrom.differences.length ? `; details it adds: ${differsFrom.differences.join(", ")}` : ""}${wearFacts(differsFrom.wear)}. Name that piece and say concretely how this one differs and for which occasions.` : "",
       ...contextFacts(sameModel, price, product, cpw),
       ...fashionFacts(fashion),
-      dressViolation ? "- Conflicts with a stated dress preference — this is why it's a skip." : "",
+      dressViolation ? `- Conflicts with the person's own dress rules: ${dressConflicts.map((c) => CONFLICT_FACT[c]).join("; ")}. This is why it's a skip — say plainly that it is not in line with what they normally wear, naming that rule, without judging it.` : "",
       profile?.season ? `- Estimated color season: ${profile.season}${profile.undertone ? ` (${profile.undertone})` : ""} — soft note only, never a reason on its own.` : "",
       "Respond with ONLY a single valid JSON object, no markdown fences:",
       '{"reason": ""}',
@@ -798,7 +820,7 @@ type ComparedItem = {
   product: ComparedProductOut;
   verdict: "buy" | "maybe" | "skip";
   confidence: "high" | "medium" | "low";
-  wardrobe: { duplicate: boolean; similarTo: string | null; differsFrom: DiffersFrom | null; sameModel: SameModel | null; price: PriceContext | null; cpw: CostPerWear | null; pairsWithCount: number; wardrobeGap: boolean; dressPreferenceViolation: boolean };
+  wardrobe: { duplicate: boolean; similarTo: string | null; differsFrom: DiffersFrom | null; sameModel: SameModel | null; price: PriceContext | null; cpw: CostPerWear | null; pairsWithCount: number; wardrobeGap: boolean; dressPreferenceViolation: boolean; dressConflicts?: DressConflict[] };
   fashion: FashionSignals | null;
   /** Pieces of this comparison that do the same job: buy one or the other (compare-alternatives.ts). */
   alternative: { preferred: boolean; withNames: string[] } | null;
@@ -905,14 +927,8 @@ export const comparePurchases = createServerFn({ method: "POST" })
     if (firstError) return firstError;
     const resolved = resolvedAll as Extract<(typeof resolvedAll)[number], { ok: true }>[];
 
-    const violations = resolved.map((r) =>
-      hasAnyPreference(dressPrefs) && r.product.category
-        ? !isItemAllowedByDressPreferences(
-            { category: r.product.category, subcategory: r.product.subcategory, length: r.product.length, sleeveLength: r.product.sleeveLength, fit: r.product.fit, styleTags: r.product.styleTags },
-            dressPrefs,
-          )
-        : false,
-    );
+    const conflicts = resolved.map((r) => conflictsFor(r.product, dressPrefs));
+    const violations = conflicts.map((c) => c.length > 0);
 
     const isLabelOnly = data.items.map((it) => (it.source === "cached" ? it.isLabelOnly : it.source === "label"));
 
@@ -955,7 +971,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
       alternative: alternativeOf.get(i) ?? null,
       verdict: verdicts[i].verdict,
       confidence: verdicts[i].confidence,
-      wardrobe: { duplicate: r.duplicate?.verdict === "certain", similarTo: r.duplicate?.itemId === SAID_OWNED_ID ? SAID_OWNED_ID : r.duplicate?.label || null, differsFrom: r.differsFrom, sameModel: r.sameModel, price: r.price, cpw: r.cpw, pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, dressPreferenceViolation: violations[i] },
+      wardrobe: { duplicate: r.duplicate?.verdict === "certain", similarTo: r.duplicate?.itemId === SAID_OWNED_ID ? SAID_OWNED_ID : r.duplicate?.label || null, differsFrom: r.differsFrom, sameModel: r.sameModel, price: r.price, cpw: r.cpw, pairsWithCount: r.pairsWithCount, wardrobeGap: r.wardrobeGap, dressPreferenceViolation: violations[i], dressConflicts: conflicts[i] },
       fashion: r.fashion,
       cacheKey: {
         source: "cached" as const,
@@ -1012,7 +1028,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
       r.differsFrom ? `${label}: the owned piece that looks most like it is ${localizeLabel(r.differsFrom.label, langCode)}${r.differsFrom.visual ? ` (from the photos: ${r.differsFrom.visual.similarity}/100 similar; what differs: ${r.differsFrom.visual.note || "nothing notable"})` : ""}${r.differsFrom.differences.length ? `; details it adds: ${r.differsFrom.differences.join(", ")}` : ""}${wearFacts(r.differsFrom.wear)}.` : "",
       ...contextFacts(r.sameModel, r.price, r.product, r.cpw).map((line) => `${label}: ${line.replace(/^- /, "")}`),
       ...fashionFacts(r.fashion).map((line) => `${label}: ${line.replace(/^- /, "")}`),
-      violation ? `${label} conflicts with a stated dress preference.` : "",
+      violation ? `${label} is not in line with what the person wears: ${conflicts[letters.indexOf(label)].map((c) => CONFLICT_FACT[c]).join("; ")}.` : "",
     ].filter(Boolean);
 
     const system = [

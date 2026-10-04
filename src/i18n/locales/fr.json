@@ -823,7 +823,19 @@
     "alreadyOwnSimilar": "J'en ai déjà un comme ça",
     "saidOwned": "Tu as indiqué en avoir déjà un comme ça.",
     "alternativePreferred": "Parmi les alternatives ({{names}}), c'est celle qui apporte le plus à ta garde-robe.",
-    "alternativeOther": "Alternative à {{names}} : elles se remplacent, une seule suffit."
+    "alternativeOther": "Alternative à {{names}} : elles se remplacent, une seule suffit.",
+    "notInLineWithYou": "Ne correspond pas à ce que tu portes d'habitude",
+    "dressConflict": {
+      "cover_legs": "Tu as indiqué garder les jambes couvertes",
+      "min_skirt_length": "C'est plus court que la longueur minimale indiquée pour les jupes et robes",
+      "cover_arms": "Tu as indiqué garder les bras couverts",
+      "cover_shoulders": "Tu as indiqué garder les épaules couvertes",
+      "avoid_tight": "Tu as indiqué éviter les coupes ajustées",
+      "max_heel_height": "Le talon est plus haut que ce que tu portes",
+      "min_sleeve_length": "Les manches sont plus courtes que ce que tu portes",
+      "avoid_sheer": "Tu as indiqué éviter les tissus transparents",
+      "avoid_low_neckline": "Tu as indiqué éviter les décolletés profonds"
+    }
   },
   "planner": {
     "calendar": "Calendrier",

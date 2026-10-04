@@ -823,7 +823,19 @@
     "alreadyOwnSimilar": "I already have one like it",
     "saidOwned": "You told AURA you already have one like it.",
     "alternativePreferred": "Of the alternatives ({{names}}) this one adds the most to your wardrobe.",
-    "alternativeOther": "An alternative to {{names}}: they replace each other, one is enough."
+    "alternativeOther": "An alternative to {{names}}: they replace each other, one is enough.",
+    "notInLineWithYou": "Not in line with what you usually wear",
+    "dressConflict": {
+      "cover_legs": "You said you keep your legs covered",
+      "min_skirt_length": "It is shorter than the minimum length you set for skirts and dresses",
+      "cover_arms": "You said you keep your arms covered",
+      "cover_shoulders": "You said you keep your shoulders covered",
+      "avoid_tight": "You said you avoid tight fits",
+      "max_heel_height": "The heel is higher than you wear",
+      "min_sleeve_length": "The sleeves are shorter than you wear",
+      "avoid_sheer": "You said you avoid sheer fabrics",
+      "avoid_low_neckline": "You said you avoid low necklines"
+    }
   },
   "planner": {
     "calendar": "Calendar",
