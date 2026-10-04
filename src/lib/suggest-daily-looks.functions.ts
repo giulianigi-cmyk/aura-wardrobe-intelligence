@@ -4,6 +4,7 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
+import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
 import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, isSummerSeason } from "./outfit-styling-rules";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 import { explanationLanguageInstruction } from "./language_prompt";
@@ -149,7 +150,9 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     const history = await loadWearHistory(context.supabase as never, context.userId, data.items.map((it) => it.id));
     const pool = rotationOrder(
       withoutRecentPerCategory(
-        data.items.filter((it) => allowedFor("General", it) || allowedFor("Work", it)),
+        // Today's weather applies to every look: on a wet day, no suede, light colours, canvas shoes,
+        // hems that touch the ground or precious bags where something suitable exists (rain-rules.ts).
+        filterForRain(data.items.filter((it) => allowedFor("General", it) || allowedFor("Work", it)), data.condition),
         recentlyWornIds(history, todayIso),
         2,
       ),
@@ -184,6 +187,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       ...(languageLine ? [languageLine] : []),
       ...styleMemorySection,
       BLAZER_WARMTH_PROMPT_RULE,
+      ...(isWetCondition(data.condition) ? [RAIN_PROMPT_RULE] : []),
       BELT_BODYCON_PROMPT_RULE,
       ACCESSORY_OCCASION_PROMPT_RULE,
     OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
