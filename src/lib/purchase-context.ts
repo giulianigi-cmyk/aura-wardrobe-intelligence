@@ -169,7 +169,7 @@ function roleDemand(role: string, subcategory: string | null | undefined): numbe
 }
 
 
-export type WearReason = "yourHistory" | "allSeasons" | "oneSeason" | "fewSeasons" | "dayAndEvening" | "eveningOnly" | "veryDressy" | "statement" | "trendPiece" | "timeless" | "versatile" | "notVersatile" | "rotation";
+export type WearReason = "yourHistory" | "allSeasons" | "oneSeason" | "fewSeasons" | "dayAndEvening" | "eveningOnly" | "veryDressy" | "statement" | "trendPiece" | "timeless" | "versatile" | "notVersatile" | "rotation" | "formalAllYear";
 
 export type CostPerWear = {
   wearsPerYear: number;
@@ -220,18 +220,27 @@ export function estimateWears(p: WearProfile, rotatingWith: number): { wearsPerY
   // Black-tie and gala pieces are worn at those events only, a handful a year.
   if ((p.formality ?? 0) >= 5) { demand = Math.min(demand, FORMAL_EVENTS_PER_YEAR); reasons.push("veryDressy"); }
   let w = demand * seasonShare;
+  // Elegant evening shoes, bags and dresses also come out of season for a gala or a very elegant
+  // evening (a summer sandal with tights in winter): the formal events of the other seasons.
+  const dressyEvening = (when === "evening" || (p.formality ?? 0) >= 4) && (role === "shoes" || role === "bags" || role === "onepiece");
+  if (dressyEvening && seasons.size < 4) {
+    w += FORMAL_EVENTS_PER_YEAR * (1 - seasonShare);
+    reasons.push("formalAllYear");
+  }
+  const cap = w;
   // Shared with the pieces it rotates with. Not an exact split: who owns more of something tends to
   // wear that kind of piece more often, so the share shrinks a little slower than 1/n.
   if (rotatingWith > 0) { w /= Math.pow(rotatingWith + 1, 0.9); reasons.push("rotation"); }
   if (when === "both") w *= 1.1;
-  if ((p.details ?? []).some((d) => d === "embellished" || d === "cutOut")) { w *= 0.55; reasons.push("statement"); }
+  // Crystals, sequins or cut-outs limit a day piece; at night they are what it is worn for.
+  if (when !== "evening" && (p.details ?? []).some((d) => d === "embellished" || d === "cutOut")) { w *= 0.55; reasons.push("statement"); }
   if (p.fashion?.onTrend && !p.fashion.timeless) { w *= 0.8; reasons.push("trendPiece"); }
   else if (p.fashion?.timeless) { w *= 1.1; reasons.push("timeless"); }
   if (p.fashion?.versatility === "high") { w *= 1.15; reasons.push("versatile"); }
   else if (p.fashion?.versatility === "low") { w *= 0.6; reasons.push("notVersatile"); }
   // Nobody wears the same garment every day; a bag, shoes, underwear or jewellery can come close.
   const everyday = role === "bags" || role === "shoes" || role.startsWith("underwear") || role.startsWith("accessories");
-  w = Math.min(w, demand * seasonShare * (everyday ? 0.9 : 0.6));
+  w = Math.min(w, cap * (everyday ? 0.9 : 0.6));
   return { wearsPerYear: Math.max(1, Math.round(w)), reasons };
 }
 
@@ -301,7 +310,7 @@ function seasonSet(v: string | string[] | null | undefined): Set<string> {
 
 /** The owned pieces a new one would share its wears with — same outfit role, worn at the same time
  *  of day (an evening piece doesn't compete with day-only ones) and in overlapping seasons — and
- *  how many they amount to: a piece worn in only half of the new one's seasons counts half. A coat
+ *  how many they amount to: each counts by the share of seasons the two have in common. A coat
  *  in a wardrobe with few coats is worn far more often than a top among fifty. */
 export function rotationPool(product: WearProfile, wardrobe: WardrobeItem[]): { items: WardrobeItem[]; effective: number } {
   const role = outfitRole(product.category, product.subcategory);
@@ -315,10 +324,15 @@ export function rotationPool(product: WearProfile, wardrobe: WardrobeItem[]): { 
     const itWhen = dayRole(it.subcategory, (it as { day_evening?: string | null }).day_evening, (it as { occasion?: string | null }).occasion);
     if (when !== "both" && itWhen !== "both" && itWhen !== when) continue;
     const itSeasons = seasonSet((it as { season?: string | null }).season);
-    const overlap = [...seasons].filter((x) => itSeasons.has(x)).length / seasons.size;
-    if (overlap === 0) continue;
+    // How much the two compete: the shared seasons, as a share of both. A summer sandal and an
+    // all-season pump meet only in summer, a quarter of the pump's year: the pump counts a quarter.
+    const shared = [...seasons].filter((x) => itSeasons.has(x)).length;
+    if (shared === 0) continue;
+    const overlap = (shared * shared) / (seasons.size * itSeasons.size);
     items.push(it);
-    effective += overlap;
+    // A day-and-evening piece covers only part of the nights out (it is worn by day too), so for an
+    // evening piece it counts half.
+    effective += when === "evening" && itWhen === "both" ? overlap / 2 : overlap;
   }
   return { items, effective };
 }

@@ -71,7 +71,7 @@ test("far beyond the person's range with a similar pair owned → skip (unless i
 });
 
 
-test("cost per wear: an all-season denim is far more usable than an evening gown or a summer crystal heel", () => {
+test("cost per wear: an all-season denim is far more usable than an evening gown or a summer crystal sandal", () => {
   const price = (eur: number) => ({ priceEur: eur, usualEur: eur, topEur: eur, basedOn: 5, tier: "usual" as const, sameModelPaidEur: null });
   const jeans = costPerWear({ category: "Bottoms", subcategory: "Jeans", seasons: ["All Seasons"], dayEvening: "both", formality: 2, fashion: { timeless: true, onTrend: false, versatility: "high" } }, [], price(400))!;
   assert.equal(jeans.basis, "estimate");
@@ -81,8 +81,13 @@ test("cost per wear: an all-season denim is far more usable than an evening gown
   assert.ok(gown.wearsPerYear <= 4, String(gown.wearsPerYear)); // a handful of black-tie events a year
   const shoes = Array.from({ length: 20 }, () => item({ category: "Shoes", subcategory: "Pumps", season: "All Seasons" }));
   const heels = costPerWear({ category: "Shoes", subcategory: "Sandals", seasons: ["Summer"], dayEvening: "evening", formality: 4, details: ["embellished"] }, shoes, price(900))!;
-  assert.equal(heels.wearsPerYear, 1);
-  assert.ok(heels.reasons.includes("oneSeason") && heels.reasons.includes("statement"));
+  // Summer nights out (~a quarter of ~130 evenings), shared with pumps that are also worn by day and
+  // in other seasons: several times a summer, not once a year. Crystals are not a minus at night.
+  assert.ok(heels.wearsPerYear >= 5 && heels.wearsPerYear <= 15, String(heels.wearsPerYear));
+  assert.ok(heels.reasons.includes("oneSeason") && heels.reasons.includes("eveningOnly") && !heels.reasons.includes("statement"));
+  const summerEvening = Array.from({ length: 8 }, () => item({ category: "Shoes", subcategory: "Sandals", season: "Summer", day_evening: "evening" }));
+  const crowded = costPerWear({ category: "Shoes", subcategory: "Sandals", seasons: ["Summer"], dayEvening: "evening", formality: 4, details: ["embellished"] }, [...shoes, ...summerEvening], price(900))!;
+  assert.ok(crowded.wearsPerYear >= 2 && crowded.wearsPerYear < heels.wearsPerYear, String(crowded.wearsPerYear)); // more evening sandals to choose from
   const sneakers = costPerWear({ category: "Shoes", subcategory: "Sneakers", seasons: ["All Seasons"], dayEvening: "day", formality: 1 }, [], price(500))!;
   assert.ok(sneakers.wearsPerYear > heels.wearsPerYear * 10);
 });
@@ -206,4 +211,14 @@ test("cost per wear: every kind of piece is estimated from how often its role is
   // Summer swimwear: a few dozen beach days, shared with the swimsuits owned.
   const swim = costPerWear({ category: "Swimwear", subcategory: "One-piece Swimsuit", seasons: ["Summer"] }, many(3, { category: "Swimwear", subcategory: "Bikini Top", season: "Summer" }), price)!;
   assert.ok(swim.wearsPerYear >= 5 && swim.wearsPerYear <= 15, String(swim.wearsPerYear));
+});
+
+test("cost per wear: an elegant summer sandal also counts the galas of the other seasons", () => {
+  const price = { priceEur: 900, usualEur: 600, topEur: 1000, basedOn: 20, tier: "upper_range" as const, sameModelPaidEur: null };
+  const jewel = costPerWear({ category: "Shoes", subcategory: "Sandals", seasons: ["Summer"], dayEvening: "evening", formality: 4 }, [], price)!;
+  assert.ok(jewel.reasons.includes("formalAllYear"));
+  const beach = costPerWear({ category: "Shoes", subcategory: "Sandals", seasons: ["Summer"], dayEvening: "day", formality: 1 }, [], price)!;
+  assert.ok(!beach.reasons.includes("formalAllYear"));
+  // ~32 summer nights plus ~4–5 galas in the other seasons.
+  assert.ok(jewel.wearsPerYear >= 30, String(jewel.wearsPerYear));
 });

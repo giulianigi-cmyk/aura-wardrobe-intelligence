@@ -742,7 +742,7 @@ const CachedFactsSchema = z.object({
   cpw: z.object({
     wearsPerYear: z.number(), years: z.number(), costPerWearEur: z.number(), rotatingWith: z.number(),
     basis: z.enum(["history", "estimate", "typical"]).transform((v) => (v === "typical" ? "estimate" as const : v)),
-    reasons: z.array(z.enum(["yourHistory", "allSeasons", "oneSeason", "fewSeasons", "dayAndEvening", "eveningOnly", "veryDressy", "statement", "trendPiece", "timeless", "versatile", "notVersatile", "rotation"])).optional().default([]),
+    reasons: z.array(z.enum(["yourHistory", "allSeasons", "oneSeason", "fewSeasons", "dayAndEvening", "eveningOnly", "veryDressy", "statement", "trendPiece", "timeless", "versatile", "notVersatile", "rotation", "formalAllYear"])).optional().default([]),
   }).nullable().optional(),
   pairsWithCount: z.number(),
   wardrobeGap: z.boolean(),

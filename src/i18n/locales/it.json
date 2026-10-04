@@ -761,7 +761,8 @@
       "timeless": "senza tempo",
       "versatile": "molto versatile",
       "notVersatile": "poco versatile",
-      "rotation": "si alterna con altri {{count}} capi che useresti al suo posto"
+      "rotation": "si alterna con altri {{count}} capi che useresti al suo posto",
+      "formalAllYear": "anche fuori stagione per serate eleganti e gala"
     },
     "wornDifferently": "Rispetto al tuo {{label}}: {{details}}",
     "wear": {
