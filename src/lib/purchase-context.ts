@@ -142,9 +142,16 @@ function roleDemand(role: string, subcategory: string | null | undefined): numbe
   const s = (subcategory ?? "").toLowerCase();
   switch (role) {
     case "bags": case "shoes": return 300;
-    case "top": case "bottoms": return 280;
-    case "outer": return 250;
-    case "knit": return 200;
+    case "jeans": case "trousers": return 130;
+    case "skirt": case "leggings": return 80;
+    case "shorts": return 200;
+    case "top": return 200;
+    case "shirt": return 120;
+    case "coat": return 250;
+    case "jacket": return 120;
+    case "sweater": return 150;
+    case "cardigan": return 100;
+    case "sweatshirt": return 80;
     case "onepiece": return 90;
     case "blazer": case "suit": return 100;
     case "vest": return 60;
@@ -264,11 +271,11 @@ const SEASONS = ["spring", "summer", "autumn", "winter"] as const;
 
 /** The outfit role a piece fills: pieces with the same role are the ones you choose between on a
  *  given day. Bags and shoes rotate whatever their shape (a pump with sandals and sneakers, a tote
- *  with a top-handle bag); dresses and jumpsuits are all one-piece outfits; coats and jackets are
- *  the outer layer (blazers apart: they are worn indoors as a jacket); knitwear is a layer of its
- *  own; shirts, t-shirts and tops share the torso, jeans, trousers and skirts the legs; underwear,
- *  swimwear and activewear rotate by piece (a bra with bras); accessories by type (a belt with
- *  belts, earrings with earrings). */
+ *  with a top-handle bag); dresses and jumpsuits are all one-piece outfits. Clothes rotate with
+ *  their own kind, because a day in jeans is not a day in tailored trousers: jeans with jeans,
+ *  trousers with trousers, sweaters with sweaters, coats with coats, jackets with jackets, blazers
+ *  with blazers, shirts with shirts. Underwear, swimwear and activewear rotate by piece (a bra with
+ *  bras); accessories by type (a belt with belts, earrings with earrings). */
 function outfitRole(category: string | null | undefined, subcategory: string | null | undefined): string {
   const c = (category ?? "").toLowerCase();
   const s = (subcategory ?? "").toLowerCase();
@@ -286,9 +293,26 @@ function outfitRole(category: string | null | undefined, subcategory: string | n
     return `underwear|${s}`;
   }
   if (/dress|abiti|jumpsuit|tute/.test(c)) return "onepiece";
-  if (/outer|capispalla/.test(c)) return /blazer/.test(s) ? "blazer" : /vest|gilet/.test(s) ? "vest" : "outer";
-  if (/top|maglie/.test(c)) return /sweater|cardigan|jumper|knit|hoodie|sweatshirt|maglion|felpa/.test(s) ? "knit" : "top";
-  if (/bottom|pantaloni/.test(c)) return "bottoms";
+  if (/outer|capispalla/.test(c)) {
+    if (/blazer/.test(s)) return "blazer";
+    if (/vest|gilet/.test(s)) return "vest";
+    if (/coat|trench|parka|puffer|cappotto|piumino|montgomery|peacoat/.test(s)) return "coat";
+    return "jacket";
+  }
+  if (/top|maglie/.test(c)) {
+    if (/cardigan/.test(s)) return "cardigan";
+    if (/hoodie|sweatshirt|felpa/.test(s)) return "sweatshirt";
+    if (/sweater|jumper|pullover|maglion/.test(s)) return "sweater";
+    if (/shirt|blouse|camicia/.test(s) && !/t-?shirt/.test(s)) return "shirt";
+    return "top";
+  }
+  if (/bottom|pantaloni/.test(c)) {
+    if (/jean/.test(s)) return "jeans";
+    if (/skirt|gonna/.test(s)) return "skirt";
+    if (/short/.test(s)) return "shorts";
+    if (/legging/.test(s)) return "leggings";
+    return "trousers";
+  }
   if (/accessor/.test(c)) return `accessories|${s}`;
   return `${c}|${s}`;
 }
