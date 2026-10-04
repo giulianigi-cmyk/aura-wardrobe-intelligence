@@ -736,7 +736,9 @@
     "sameModelOwned_one": "Ya tienes un {{name}} ({{colors}}).",
     "sameModelOwned_other": "Ya tienes {{count}} {{name}} ({{colors}}).",
     "priceVsUsual": {
-      "above_usual": "Unos {{price}} €: más de lo que sueles gastar en este tipo de prenda (unos {{usual}} €).",
+      "above_usual": "Unos {{price}} €: más de lo que sueles gastar en este tipo de prenda (normalmente unos {{usual}} €, como mucho unos {{top}} €).",
+      "upper_range": "Unos {{price}} €: en la franja alta de lo que gastas en este tipo de prenda (normalmente unos {{usual}} €, hasta unos {{top}} €).",
+      "sameModelPaid": "Por tus {{name}} pagaste unos {{paid}} €.",
       "usual": "Unos {{price}} €: en línea con lo que sueles gastar en este tipo de prenda.",
       "below_usual": "Unos {{price}} €: menos de lo que sueles gastar en este tipo de prenda (unos {{usual}} €)."
     },

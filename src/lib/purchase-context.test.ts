@@ -20,17 +20,24 @@ test("reported case: Alina jeans — two Alina already owned", () => {
   assert.equal(sameModelOwned({ brand: "Victoria Beckham", title: "Pleated Trouser", category: "Bottoms" }, wardrobe).length, 0);
 });
 
-test("price against the person's usual spend for the category", () => {
-  const p = priceContext({ price: "390", currency: "GBP", category: "Bottoms" }, wardrobe)!;
-  assert.equal(p.tier, "above_usual");
-  assert.ok(p.priceEur > 440 && p.priceEur < 470, String(p.priceEur));
-  assert.equal(p.usualEur, 110);
-  const luxury = Array.from({ length: 4 }, () => item({ price: 500, currency: "EUR" }));
-  assert.equal(priceContext({ price: "450", currency: "EUR", category: "Bottoms" }, luxury)!.tier, "usual");
+test("price against what the person pays for the same type", () => {
+  const jeans = (price: number) => item({ subcategory: "Jeans", price, currency: "EUR" });
+  const cheapTrousers = Array.from({ length: 30 }, () => item({ subcategory: "Trousers", price: 40, currency: "EUR" }));
+  // reported case: jeans usually ~170 €, several at 400–620 € → 400 € is the top of her range, not "more than usual"
+  const w2 = [...cheapTrousers, ...[60, 90, 120, 150, 170, 175, 200, 380, 400, 450, 620].map(jeans)];
+  const p = priceContext({ price: "400", currency: "EUR", category: "Bottoms", subcategory: "Jeans" }, w2)!;
+  assert.equal(p.tier, "upper_range");
+  assert.equal(p.usualEur, 175);
+  // someone who never paid more than ~110 € for jeans: 455 € is beyond their habits
+  const p2 = priceContext({ price: "390", currency: "GBP", category: "Bottoms", subcategory: "Jeans" }, [40, 60, 80, 99, 110].map(jeans))!;
+  assert.equal(p2.tier, "above_usual");
+  // same model already bought at 450 €: never "beyond their habits"
+  const alina = [item({ brand: "VICTORIA BECKHAM", model: "Alina", subcategory: "Jeans", price: 450, currency: "EUR" })];
+  assert.equal(priceContext({ price: "500", currency: "EUR", category: "Bottoms", subcategory: "Jeans" }, [40, 60, 80, 99, 110].map(jeans), alina)!.tier, "upper_range");
 });
 
 test("same model + expensive for this person → maybe, never an upgrade", () => {
-  const p = priceContext({ price: "390", currency: "GBP", category: "Bottoms" }, wardrobe);
+  const p = priceContext({ price: "390", currency: "GBP", category: "Bottoms", subcategory: "Jeans" }, wardrobe);
   assert.equal(applyPurchaseContext({ verdict: "buy", confidence: "high" }, { sameModelCount: 2, price: p, wardrobeGap: false }).verdict, "maybe");
   assert.equal(applyPurchaseContext({ verdict: "skip", confidence: "high" }, { sameModelCount: 2, price: p, wardrobeGap: false }).verdict, "skip");
   assert.equal(applyPurchaseContext({ verdict: "buy", confidence: "high" }, { sameModelCount: 0, price: p, wardrobeGap: false }).verdict, "buy");

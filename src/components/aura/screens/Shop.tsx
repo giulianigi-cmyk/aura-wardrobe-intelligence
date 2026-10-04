@@ -722,7 +722,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
  *  one of the same kind — shown under a verdict so it's clear what the advice is based on. */
 function FashionAndDifferences({ fashion, differsFrom, sameModel, price }: {
   sameModel?: { count: number; name: string; colors: string[] } | null;
-  price?: { priceEur: number; usualEur: number; tier: "above_usual" | "usual" | "below_usual" } | null;
+  price?: { priceEur: number; usualEur: number; topEur?: number; tier: "above_usual" | "upper_range" | "usual" | "below_usual"; sameModelPaidEur?: number | null } | null;
   fashion: { iconic: boolean; timeless: boolean; onTrend: boolean; statusPiece: boolean } | null | undefined;
   differsFrom: { label: string; differences: string[]; wear?: { changes: string[]; newOccasions: string[] } | null } | null | undefined;
 }) {
@@ -755,7 +755,8 @@ function FashionAndDifferences({ fashion, differsFrom, sameModel, price }: {
       )}
       {price && (
         <p className="text-[11px] text-muted-foreground leading-snug">
-          {t(`shop.priceVsUsual.${price.tier}`, { price: price.priceEur, usual: price.usualEur })}
+          {t(`shop.priceVsUsual.${price.tier}`, { price: price.priceEur, usual: price.usualEur, top: price.topEur ?? price.usualEur })}
+          {price.sameModelPaidEur != null && sameModel ? ` ${t("shop.priceVsUsual.sameModelPaid", { name: sameModel.name, paid: price.sameModelPaidEur })}` : ""}
         </p>
       )}
       {differsFrom && wearBits.length > 0 && (

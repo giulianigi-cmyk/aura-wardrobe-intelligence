@@ -736,7 +736,9 @@
     "sameModelOwned_one": "Tu as déjà un {{name}} ({{colors}}).",
     "sameModelOwned_other": "Tu as déjà {{count}} {{name}} ({{colors}}).",
     "priceVsUsual": {
-      "above_usual": "Environ {{price}} € : plus que ce que tu dépenses d'habitude pour ce type de pièce (environ {{usual}} €).",
+      "above_usual": "Environ {{price}} € : plus que ce que tu dépenses d'habitude pour ce type de pièce (d'habitude environ {{usual}} €, au plus environ {{top}} €).",
+      "upper_range": "Environ {{price}} € : le haut de ta fourchette pour ce type de pièce (d'habitude environ {{usual}} €, jusqu'à environ {{top}} €).",
+      "sameModelPaid": "Tu as payé environ {{paid}} € pour tes {{name}}.",
       "usual": "Environ {{price}} € : dans la ligne de ce que tu dépenses d'habitude pour ce type de pièce.",
       "below_usual": "Environ {{price}} € : moins que ce que tu dépenses d'habitude pour ce type de pièce (environ {{usual}} €)."
     },
