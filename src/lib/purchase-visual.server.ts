@@ -29,11 +29,24 @@ export function visualPrompt(product: { category: string | null; subcategory: st
     `The first image (PRODUCT) is a ${kind} the person is thinking of buying${product.title ? ` ("${product.title}")` : ""}.`,
     `The next ${refs.length} images are pieces the person already owns, labelled ${refs.join(", ")}.`,
     "For EACH owned piece, judge how similar it is to the PRODUCT as a wardrobe choice — would it do the same job in an outfit? Compare what you actually SEE: shape and cut (for trousers: leg shape, rise, length; for bags: shape, size, handles, strap; for shoes: heel, toe, straps; for tops: neckline, sleeves, fit), colour and shade (a darker or lighter wash, a different tone), material and finish, and distinctive details (logos, hardware, embellishment, pockets, prints).",
+    "Each owned piece comes with what the person recorded about it (colours, materials, details). A photo shows one side only: a detail recorded for it (crystals on the back, a bow, a satin finish) is real even when the photo doesn't show it — never say it lacks that. Don't name a material (suede, satin, leather, patent) that is neither clearly visible nor recorded, and never call a different colour (teal, burgundy next to black) \"lighter\" or \"darker\": say it is a different colour.",
     "similarity 0-100: 90-100 = practically the same piece; 70-89 = very similar, does the same job; 50-69 = same kind with visible differences; below 50 = clearly different. Do not inflate; equally similar pieces get equal scores.",
     `note: at most 12 words in ${language}, what the PRODUCT has that differs from that owned piece (e.g. Italian "lavaggio più scuro, gamba più ampia, vita più alta"); "quasi identico" (in ${language}) when there is no real difference.`,
     "Respond with ONLY a single valid JSON object, no markdown fences:",
     `{"candidates": [{"ref": "${refs[0]}", "similarity": 0, "note": ""}]} with one entry per owned piece, in order.`,
   ].join("\n");
+}
+
+/** What the person recorded about an owned piece, next to its photo. */
+export function recorded(it: WardrobeItem | undefined): string {
+  if (!it) return "";
+  const parts = [
+    it.colors?.length ? `colours ${it.colors.join(", ")}` : "",
+    Array.isArray(it.material) && it.material.length ? `materials ${it.material.join(", ")}` : "",
+    ((it as { details?: string[] | null }).details ?? []).length ? `details ${((it as { details?: string[] | null }).details ?? []).join(", ")}` : "",
+    it.heel_height ? `heel ${it.heel_height}` : "",
+  ].filter(Boolean);
+  return parts.length ? ` (recorded: ${parts.join("; ")})` : "";
 }
 
 /** Maps "C1…Cn" back to item ids; unknown or repeated refs are dropped. */
@@ -80,7 +93,7 @@ export async function compareVisually(opts: {
     { type: "text" as const, text: visualPrompt(opts.product, refs, opts.language) },
     { type: "text" as const, text: "PRODUCT:" },
     { type: "image" as const, image: opts.productImageDataUrl },
-    ...usable.flatMap((c, i) => [{ type: "text" as const, text: `${refs[i]}:` }, { type: "image" as const, image: c.dataUrl }]),
+    ...usable.flatMap((c, i) => [{ type: "text" as const, text: `${refs[i]}${recorded(opts.candidates.find((it) => it.id === c.id))}:` }, { type: "image" as const, image: c.dataUrl }]),
   ];
   try {
     const r = await generateText({ model: opts.model, abortSignal: AbortSignal.timeout(25_000), messages: [{ role: "user", content }] });

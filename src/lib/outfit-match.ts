@@ -83,6 +83,11 @@ function labOf(name: string): Lab | null {
   return LAB_BY_NAME.get(n) ?? LAB_BY_NAME.get(BASIC_COLOR_ALIASES[n] ?? "") ?? null;
 }
 
+/** CIE Lab of a named colour, null for unknown names. */
+export function colorLab(name: string): Lab | null {
+  return labOf(name);
+}
+
 /** Lightness (CIE L*, 0 = black, 100 = white) of a named colour, null for unknown names. */
 export function colorLightness(name: string): number | null {
   return labOf(name)?.L ?? null;

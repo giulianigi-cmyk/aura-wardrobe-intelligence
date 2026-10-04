@@ -768,6 +768,7 @@
     "wear": {
       "darker": "más oscuro",
       "lighter": "más claro",
+      "otherColor": "color distinto",
       "higherHeel": "tacón más alto",
       "lowerHeel": "tacón más bajo",
       "moreEvening": "más de noche",

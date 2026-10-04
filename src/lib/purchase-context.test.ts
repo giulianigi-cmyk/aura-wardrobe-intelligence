@@ -237,3 +237,12 @@ test("cost per wear: coats with coats, jackets with jackets, blazers with blazer
   assert.equal(costPerWear({ category: "Outerwear", subcategory: "Leather Jacket", seasons: ["All Seasons"] }, outer, price)!.rotatingWith, 4);
   assert.equal(costPerWear({ category: "Outerwear", subcategory: "Blazer", seasons: ["All Seasons"] }, outer, price)!.rotatingWith, 18);
 });
+
+test("a different colour is not a lighter or darker shade", () => {
+  assert.equal(shadeDifference(["Teal"], ["Jet Black"]), "otherColor");
+  assert.equal(shadeDifference(["Burgundy"], ["Jet Black"]), "otherColor");
+  assert.equal(shadeDifference(["Navy"], ["Jet Black"]), "otherColor");
+  assert.equal(shadeDifference(["Denim Wash"], ["Sky Blue"]), "darker"); // same blue, deeper wash
+  assert.equal(shadeDifference(["Cherry Red"], ["Burgundy"]), "lighter");
+  assert.equal(shadeDifference(["Charcoal"], ["Jet Black"]), "lighter");
+});

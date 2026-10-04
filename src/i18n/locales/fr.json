@@ -768,6 +768,7 @@
     "wear": {
       "darker": "plus foncé",
       "lighter": "plus clair",
+      "otherColor": "couleur différente",
       "higherHeel": "talon plus haut",
       "lowerHeel": "talon plus bas",
       "moreEvening": "plus pour le soir",

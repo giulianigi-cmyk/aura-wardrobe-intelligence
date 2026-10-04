@@ -277,7 +277,7 @@ async function fetchAsDataUrl(imageUrl: string): Promise<string> {
 /** "; worn differently: higher heel, more evening; also for Cocktail" for the stylist prompt. */
 function wearFacts(w: WearDifference | null | undefined): string {
   if (!w) return "";
-  const words: Record<string, string> = { higherHeel: "higher heel", lowerHeel: "lower heel", moreEvening: "more evening", moreDaytime: "more daytime", moreFormal: "more formal", moreCasual: "more casual" };
+  const words: Record<string, string> = { higherHeel: "higher heel", lowerHeel: "lower heel", moreEvening: "more evening", moreDaytime: "more daytime", moreFormal: "more formal", moreCasual: "more casual", darker: "darker shade", lighter: "lighter shade", otherColor: "a different colour (not just a lighter or darker shade)" };
   const bits = [w.changes.map((c) => words[c] ?? c).join(", "), w.newOccasions.length ? `also for ${w.newOccasions.join(", ")}` : ""].filter(Boolean);
   return bits.length ? `; worn differently: ${bits.join("; ")}` : "";
 }
@@ -643,7 +643,7 @@ export const analyzePurchase = createServerFn({ method: "POST" })
         ? MAYBE_SHAPE
         : "Say plainly it isn't worth it and give the concrete reason (a near-duplicate already owned, or too few genuine new combinations). Shape to follow (same calibration note as above): \"Non lo considererei una priorità: [motivo concreto basato sui fatti].\"";
     const system = [
-      "You are an elegant, knowledgeable personal stylist writing the explanation for a wardrobe purchase verdict that has ALREADY been decided — you only explain it, using ONLY the facts listed below. Never invent facts, prices, qualities, or wardrobe details not listed. Never soften, contradict, hedge, or second-guess the decision.",
+      "You are an elegant, knowledgeable personal stylist writing the explanation for a wardrobe purchase verdict that has ALREADY been decided — you only explain it, using ONLY the facts listed below. Never invent facts, prices, qualities, or wardrobe details not listed — no material, finish, heel shape or detail that is not stated, and never call a different colour lighter or darker. Never soften, contradict, hedge, or second-guess the decision.",
       "Speak directly TO the person — \"il tuo guardaroba\", \"possiedi\", \"puoi abbinarlo\" (translated naturally into the target language) — never in the third person (\"la persona ha...\", \"l'utente possiede...\"). Sound like a stylist giving a real, personal opinion, not a database printing out matched fields — no generic filler a stock listing could produce (\"è un capo versatile\", \"aggiunge un tocco di stile\") unless tied to a specific, concrete reason from the facts below.",
       "NEVER say or imply that YOU (the app) or the person already bought, chose, or picked this item — a verdict is advice about a decision not yet made, never a report of one that already happened. (A genuinely already-purchased item is a different, past-tense case this prompt does not cover.)",
       "Never state the exact pairing-count number anywhere in your text, for any verdict — it's always shown separately, right below what you write, so stating it again would be a plain repetition of the same fact the person already just read.",
@@ -972,6 +972,7 @@ export const comparePurchases = createServerFn({ method: "POST" })
       "Your reason must reflect the full picture honestly: if every option is a SKIP, say plainly that none is really worth it, while still noting which would be the least bad if forced to pick. If several are a BUY, you can recommend more than one while still stating which comes first. Never imply a SKIP item is a good purchase just because it ranks above another SKIP.",
       "For a MAYBE piece, be precise like a high-end personal stylist, never vague: say in a few words when it is worth it (the concrete use only it covers) and what already does its job otherwise (the owned piece, or the price vs their habits).",
       "NEVER say or imply that YOU (the app) or the person already bought, chose, or picked any of these — this is advice about a decision not yet made.",
+      "Describe the products and the owned pieces ONLY through the facts below (colours, listed details, the differences from the photos). Never add a material, finish, heel shape or detail that is not stated (no \"suede\", \"square heel\", \"satin\" unless listed), and never call a different colour lighter or darker.",
       "Grammar matters: use the correct grammatical gender and article for every product noun in the target language — e.g. in Italian \"i sandali\" (masculine plural, never \"le sandali\"), \"le décolleté\" / \"le pumps\" (feminine), \"gli stivaletti\", \"le sneakers\", \"la borsa\", \"il blazer\". Agree adjectives and past participles accordingly.",
       `Respond in ${langName}.`,
       "Keep it under 320 characters — a bit more room than the single-item advisor, since a real ranking across several pieces needs a little more space to state honestly.",
