@@ -174,10 +174,74 @@ const SUBCATEGORIES: Names = {
   Swimwear: ["Costumi", "Baño", "Maillots"], Activewear: ["Abbigliamento sportivo", "Ropa deportiva", "Sport"],
 };
 
+// Grammatical gender and number of each garment type, per language (m/f, s/p), so the colour after
+// it agrees: "sandali neri", "borsa nera", "sandalias negras", "sandales noires".
+type GN = "ms" | "fs" | "mp" | "fp";
+const GENDER: Record<string, [GN, GN, GN]> = {
+  "T-Shirt": ["fs", "fs", "ms"], Shirt: ["fs", "fs", "fs"], Blouse: ["fs", "fs", "ms"], "Tank Top": ["fs", "fs", "ms"], Camisole: ["ms", "fs", "ms"],
+  "Crop Top": ["ms", "ms", "ms"], Bodysuit: ["ms", "ms", "ms"], Polo: ["fs", "ms", "ms"], Sweater: ["ms", "ms", "ms"], Cardigan: ["ms", "ms", "ms"],
+  Hoodie: ["fs", "fs", "ms"], Sweatshirt: ["fs", "fs", "ms"], "Vest Top": ["fs", "fs", "ms"], "Knit Top": ["ms", "ms", "ms"], Tunic: ["fs", "fs", "fs"],
+  Jeans: ["mp", "mp", "ms"], Trousers: ["mp", "mp", "ms"], "Cargo Pants": ["mp", "mp", "ms"], Joggers: ["mp", "mp", "ms"], Leggings: ["mp", "mp", "ms"],
+  Shorts: ["mp", "mp", "ms"], "Bermuda Shorts": ["mp", "fp", "ms"], Skirt: ["fs", "fs", "fs"],
+  "Slip Dress": ["ms", "ms", "fs"], "Shirt Dress": ["ms", "ms", "fs"], "Wrap Dress": ["ms", "ms", "fs"], "Bodycon Dress": ["ms", "ms", "fs"],
+  "A-line Dress": ["ms", "ms", "fs"], "Shift Dress": ["ms", "ms", "fs"], "Sweater Dress": ["ms", "ms", "fs"], "Evening Dress": ["ms", "ms", "fs"],
+  Jumpsuit: ["fs", "ms", "fs"], Playsuit: ["fs", "ms", "ms"], Romper: ["ms", "ms", "fs"],
+  Blazer: ["ms", "fs", "ms"], Coat: ["ms", "ms", "ms"], "Trench Coat": ["ms", "fs", "ms"], "Puffer Jacket": ["ms", "ms", "fs"], Parka: ["ms", "fs", "fs"],
+  "Rain Jacket": ["ms", "ms", "ms"], Windbreaker: ["fs", "ms", "ms"], "Denim Jacket": ["fs", "fs", "fs"], "Leather Jacket": ["fs", "fs", "fs"],
+  "Bomber Jacket": ["ms", "fs", "ms"], Shacket: ["fs", "fs", "fs"], Cape: ["fs", "fs", "fs"], Vest: ["ms", "ms", "ms"],
+  Sneakers: ["fp", "fp", "fp"], "Running Shoes": ["fp", "fp", "fp"], Sandals: ["mp", "fp", "fp"], Flats: ["fp", "fp", "fp"], Loafers: ["mp", "mp", "mp"],
+  Pumps: ["fp", "mp", "mp"], Boots: ["mp", "fp", "fp"], "Chelsea Boots": ["mp", "mp", "fp"], "Combat Boots": ["mp", "fp", "mp"], "Ankle Boots": ["mp", "mp", "fp"],
+  "Knee Boots": ["mp", "fp", "fp"], "Over-the-Knee Boots": ["mp", "fp", "fp"], Espadrilles: ["fp", "fp", "fp"], Slides: ["fp", "fp", "fp"], Mules: ["fp", "fp", "fp"],
+  Wedges: ["fp", "fp", "fp"], Clogs: ["mp", "mp", "mp"], Slippers: ["fp", "fp", "mp"], "Flip Flops": ["mp", "fp", "fp"],
+  Tote: ["fs", "ms", "ms"], Crossbody: ["fs", "fs", "ms"], "Shoulder Bag": ["fs", "ms", "ms"], Clutch: ["fs", "ms", "fs"], Backpack: ["ms", "fs", "ms"],
+  "Bucket Bag": ["fs", "ms", "ms"], "Belt Bag": ["ms", "fs", "ms"], Satchel: ["fs", "fs", "ms"], "Hobo Bag": ["fs", "ms", "ms"], "Top Handle Bag": ["fs", "ms", "ms"],
+  Belt: ["fs", "ms", "fs"], Scarf: ["fs", "fs", "fs"], Hat: ["ms", "ms", "ms"], Cap: ["ms", "fs", "fs"], Gloves: ["mp", "mp", "mp"], Watch: ["ms", "ms", "fs"],
+  Sunglasses: ["mp", "fp", "fp"], "Hair Accessory": ["ms", "ms", "ms"], Tie: ["fs", "fs", "fs"], Earrings: ["mp", "mp", "fp"], Necklace: ["fs", "ms", "ms"],
+  Bracelet: ["ms", "fs", "ms"], Ring: ["ms", "ms", "fs"], Brooch: ["fs", "ms", "fs"], Anklet: ["fs", "fs", "ms"],
+  Bra: ["ms", "ms", "ms"], "Sports Bra": ["ms", "ms", "fs"], Briefs: ["ms", "fp", "fs"], Panties: ["fp", "fp", "fs"], Boxers: ["mp", "mp", "ms"],
+  Shapewear: ["ms", "fs", "ms"], Sleepwear: ["ms", "ms", "ms"], Socks: ["mp", "mp", "fp"], Tights: ["mp", "fp", "mp"],
+  "One-piece Swimsuit": ["ms", "ms", "ms"], "Bikini Top": ["ms", "ms", "ms"], "Bikini Bottom": ["ms", "fs", "ms"], "Cover-up": ["ms", "ms", "ms"], "Swim Shorts": ["mp", "ms", "ms"],
+  "Training Top": ["ms", "fs", "ms"], "Performance Jacket": ["fs", "fs", "fs"], "Running Shorts": ["mp", "ms", "ms"], "Bike Shorts": ["mp", "fp", "ms"],
+  "Training Leggings": ["mp", "fp", "ms"], "Tennis Skirt": ["ms", "fs", "fs"], Tracksuit: ["fs", "ms", "ms"],
+  Tops: ["ms", "mp", "mp"], Bottoms: ["mp", "mp", "mp"], Dresses: ["mp", "mp", "fp"], Jumpsuits: ["fp", "mp", "fp"], Outerwear: ["mp", "mp", "mp"],
+  Shoes: ["fp", "mp", "fp"], Bags: ["fp", "mp", "mp"], Accessories: ["mp", "mp", "mp"], Underwear: ["ms", "fs", "fs"], Swimwear: ["mp", "ms", "mp"], Activewear: ["ms", "fs", "ms"],
+};
+
+// Prints read as "a righe", "de rayas", "à rayures" after the garment, not as a colour word.
+const PATTERN_AFTER: Record<string, [string, string, string]> = {
+  striped: ["a righe", "de rayas", "à rayures"], checkered: ["a quadri", "de cuadros", "à carreaux"],
+  floral: ["a fiori", "de flores", "à fleurs"], "animal print": ["animalier", "animal print", "à imprimé animal"],
+  "tie dye": ["tie-dye", "tie-dye", "tie-dye"], "denim wash": ["lavaggio denim", "lavado denim", "délavé denim"],
+};
+
+// Single-word colour adjectives that agree with the garment; every other colour (rosa, blu,
+// beige, bordeaux, compound names like "rosso ciliegia") stays invariable after the noun.
+const AGREE: Record<Lang, Record<string, [string, string, string, string]>> = {
+  it: {
+    nero: ["nero", "nera", "neri", "nere"], bianco: ["bianco", "bianca", "bianchi", "bianche"], rosso: ["rosso", "rossa", "rossi", "rosse"],
+    giallo: ["giallo", "gialla", "gialli", "gialle"], grigio: ["grigio", "grigia", "grigi", "grigie"], azzurro: ["azzurro", "azzurra", "azzurri", "azzurre"],
+    verde: ["verde", "verde", "verdi", "verdi"], marrone: ["marrone", "marrone", "marroni", "marroni"], arancione: ["arancione", "arancione", "arancioni", "arancioni"],
+    celeste: ["celeste", "celeste", "celesti", "celesti"],
+  },
+  es: {
+    negro: ["negro", "negra", "negros", "negras"], blanco: ["blanco", "blanca", "blancos", "blancas"], rojo: ["rojo", "roja", "rojos", "rojas"],
+    amarillo: ["amarillo", "amarilla", "amarillos", "amarillas"], gris: ["gris", "gris", "grises", "grises"], verde: ["verde", "verde", "verdes", "verdes"],
+    azul: ["azul", "azul", "azules", "azules"], "marrón": ["marrón", "marrón", "marrones", "marrones"], morado: ["morado", "morada", "morados", "moradas"],
+    crudo: ["crudo", "cruda", "crudos", "crudas"], "marfil": ["marfil", "marfil", "marfil", "marfil"],
+  },
+  fr: {
+    noir: ["noir", "noire", "noirs", "noires"], blanc: ["blanc", "blanche", "blancs", "blanches"], gris: ["gris", "grise", "gris", "grises"],
+    vert: ["vert", "verte", "verts", "vertes"], bleu: ["bleu", "bleue", "bleus", "bleues"], rouge: ["rouge", "rouge", "rouges", "rouges"],
+    jaune: ["jaune", "jaune", "jaunes", "jaunes"], rose: ["rose", "rose", "roses", "roses"], violet: ["violet", "violette", "violets", "violettes"],
+    fauve: ["fauve", "fauve", "fauves", "fauves"], beige: ["beige", "beige", "beiges", "beiges"],
+  },
+};
+
 const LANG_INDEX: Record<Lang, 0 | 1 | 2> = { it: 0, es: 1, fr: 2 };
 const lower = (m: Names) => new Map(Object.entries(m).map(([k, v]) => [k.toLowerCase(), v]));
 const COLOR_MAP = lower(COLORS);
 const NAME_MAP = lower(SUBCATEGORIES);
+const GENDER_MAP = new Map(Object.entries(GENDER).map(([k, v]) => [k.toLowerCase(), v]));
 
 function langOf(language: string | null | undefined): Lang | null {
   const l = (language ?? "").slice(0, 2).toLowerCase();
@@ -187,6 +251,7 @@ function langOf(language: string | null | undefined): Lang | null {
 /** Whether a colour / garment name has translations (for tests and fallbacks). */
 export const hasColorName = (name: string) => COLOR_MAP.has(name.trim().toLowerCase());
 export const hasGarmentName = (name: string) => NAME_MAP.has(name.trim().toLowerCase());
+export const hasGarmentGender = (name: string) => GENDER_MAP.has(name.trim().toLowerCase());
 
 /** A colour name (palette or plain word) in the language; unknown names unchanged. */
 export function colorName(name: string, language: string | null | undefined): string {
@@ -202,13 +267,33 @@ export function garmentName(name: string, language: string | null | undefined): 
   return hit ? hit[LANG_INDEX[l!]] : name;
 }
 
-/** "Aquazzura · Jet Black · Sandals" → "Aquazzura · Nero · Sandali": each part that is a known
- *  colour or garment type is translated; brands, models and anything else stay as written. */
+/** A colour as it reads after a garment of that gender/number: "neri", "nera", "rosso ciliegia",
+ *  "a righe". */
+export function colorAfterGarment(color: string, garment: string, language: string | null | undefined): string {
+  const l = langOf(language);
+  if (!l) return color;
+  const key = color.trim().toLowerCase();
+  const pattern = PATTERN_AFTER[key];
+  if (pattern) return pattern[LANG_INDEX[l]];
+  const word = colorName(color, l).toLowerCase();
+  if (word.includes(" ")) return word; // compound colours stay invariable
+  const gn = GENDER_MAP.get(garment.trim().toLowerCase())?.[LANG_INDEX[l]] ?? "ms";
+  const forms = AGREE[l][word];
+  return forms ? forms[["ms", "fs", "mp", "fp"].indexOf(gn)] : word;
+}
+
+/** "Aquazzura · Jet Black · Sandals" → "Aquazzura · Sandali neri" (Italian), "Aquazzura ·
+ *  Sandalias negras", "Aquazzura · Sandales noires": the garment type with its colour after it,
+ *  agreeing as the language wants; brands and models stay as written. English is unchanged. */
 export function localizeLabel(label: string, language: string | null | undefined): string {
-  if (!langOf(language)) return label;
-  return label.split(" · ").map((part) => {
-    const c = colorName(part, language);
-    if (c !== part) return c;
-    return garmentName(part, language);
-  }).join(" · ");
+  const l = langOf(language);
+  if (!l) return label;
+  const parts = label.split(" · ");
+  const colorIdx = parts.findIndex((p) => hasColorName(p) || PATTERN_AFTER[p.trim().toLowerCase()] != null);
+  const typeIdx = parts.findIndex((p, i) => i !== colorIdx && hasGarmentName(p));
+  if (colorIdx >= 0 && typeIdx >= 0) {
+    const merged = `${garmentName(parts[typeIdx], l)} ${colorAfterGarment(parts[colorIdx], parts[typeIdx], l)}`;
+    return parts.flatMap((p, i) => (i === colorIdx ? [] : i === typeIdx ? [merged] : [p])).join(" · ");
+  }
+  return parts.map((p) => (hasColorName(p) ? colorName(p, l) : garmentName(p, l))).join(" · ");
 }
