@@ -361,7 +361,7 @@ return { w, h: w * aspect };
   if (beltBeside) {
     const bw = BOX.belt.w * W;
     if (outer) {
-      beltRects = placeGroup(beltList, "belt", BOX.belt, 0.17 * W, 0.81 * H, "y");
+      // placed in the right-hand column below (the coat fills the left side)
     } else {
       const beltY = anchorBucket === "bottom" ? A.t + 0.11 * H : A.t + 0.38 * aH;
       beltRects = placeGroup(beltList, "belt", BOX.belt, Math.max(MX + bw / 2, A.l - bw / 2 - 0.02 * W), beltY, "y");
@@ -395,9 +395,15 @@ return { w, h: w * aspect };
     }
     if (wristList.length) columnEntries.push({ list: wristList, bucket: "wrist", box: BOX.wrist, axis: "x" });
     if (has("bag")) columnEntries.push({ list: by.get("bag")!, bucket: "bag", box: BOX.bag, axis: "y" });
+    // Scarf / other accessories and the belt: in the bottom-left corner they landed on the coat
+    // and on each other, so with a coat they join the column too.
+    if (has("acc")) columnEntries.push({ list: by.get("acc")!, bucket: "acc", box: BOX.acc, axis: "x" });
+    if (beltList.length && beltBeside) columnEntries.push({ list: beltList, bucket: "belt", box: BOX.belt, axis: "y" });
     if (has("shoes")) columnEntries.push({ list: by.get("shoes")!, bucket: "shoes", box: shoeBox, axis: by.get("shoes")!.length > 1 ? "y" : "x" });
   }
   const useColumn = columnEntries.length >= 2;
+  // A coat with only a belt to place (no column): the belt keeps its bottom-left spot.
+  if (outer && beltBeside && !useColumn) beltRects = placeGroup(beltList, "belt", BOX.belt, 0.17 * W, 0.81 * H, "y");
   let shoeRects: LayoutRect[] = [];
   if (useColumn) {
     const n = columnEntries.length;
@@ -412,18 +418,30 @@ return { w, h: w * aspect };
     };
     // 1) fit the strip's width (≤ ~25% overlap with the anchor)
     const stripW = Math.max(0.16 * W, (W - MX - A.r) / 0.75);
-    // One scale for the whole column: each piece used to be shrunk on its own to fit the strip, so a
-    // large bag (wide box, tall strap) came out smaller than the shoes under it.
-    const kWidth = Math.min(...columnEntries.map((e) => Math.min(1, stripW / groupSize(e, 1).w)));
-    let ks = columnEntries.map(() => kWidth);
+    // Bag and shoes share one scale (each used to be shrunk on its own to fit the strip, so a large
+    // bag came out smaller than the shoes under it); small accessories (watch, scarf, belt…) fit on
+    // their own and are the first to give way when the column is too short.
+    const isMain = (e: (typeof columnEntries)[number]) => e.bucket === "bag" || e.bucket === "shoes";
+    const ownK = columnEntries.map((e) => Math.min(1, stripW / groupSize(e, 1).w));
+    const mainKs = ownK.filter((_, i) => isMain(columnEntries[i]));
+    const kMain = mainKs.length ? Math.min(...mainKs) : 1;
+    let ks = columnEntries.map((e, i) => (isMain(e) ? kMain : ownK[i]));
     // 2) fit its height
     const colTop = topRects.length ? Math.max(...topRects.map((r) => r.y + r.h)) + 0.02 * H : necklaceSide === "right" ? torso.t : wristTop;
-    const colBottom = 0.92 * H;
+    const colBottom = H - MB; // the logo strip, not .92 (the shoes were pushed up onto the piece above)
     const gapMin = 0.02 * H;
     let hs = columnEntries.map((e, i) => groupSize(e, ks[i]).h);
     const sum = () => hs.reduce((a, h) => a + h, 0);
-    if (sum() + gapMin * (n - 1) > colBottom - colTop) {
-      const k = Math.max(0.6, (colBottom - colTop - gapMin * (n - 1)) / sum());
+    const room = colBottom - colTop - gapMin * (n - 1);
+    if (sum() > room) {
+      const mainH = hs.reduce((a, h, i) => a + (isMain(columnEntries[i]) ? h : 0), 0);
+      const smallH = sum() - mainH;
+      const kSmall = smallH > 0 ? Math.max(0.5, Math.min(1, (room - mainH) / smallH)) : 1;
+      ks = ks.map((k, i) => (isMain(columnEntries[i]) ? k : k * kSmall));
+      hs = columnEntries.map((e, i) => groupSize(e, ks[i]).h);
+    }
+    if (sum() > room) {
+      const k = Math.max(0.6, room / sum());
       ks = ks.map((x) => x * k);
       hs = columnEntries.map((e, i) => groupSize(e, ks[i]).h);
     }
@@ -518,7 +536,8 @@ return { w, h: w * aspect };
     }
   }
 
-  const accList = [...(by.get("acc") ?? []), ...(beltList.length && !beltBeside ? beltList : [])];
+  const accInColumn = useColumn && columnEntries.some((e) => e.bucket === "acc");
+  const accList = [...(accInColumn ? [] : by.get("acc") ?? []), ...(beltList.length && !beltBeside ? beltList : [])];
   if (accList.length) placeGroup(accList, "acc", BOX.acc, 0.17 * W, 0.83 * H, "y");
 
   // Short pieces (a mini skirt, shorts) make a short composition: centre it vertically
