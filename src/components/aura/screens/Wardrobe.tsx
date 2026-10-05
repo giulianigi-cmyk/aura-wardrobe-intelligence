@@ -907,7 +907,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
             className={`shrink-0 rounded-full px-4 py-2 text-xs tracking-wide transition ${
               cat === c ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"
             }`}
-          >{c === "All" ? t("wardrobe.allCategory") : c}</button>
+          >{c === "All" ? t("wardrobe.allCategory") : optionLabel(c, i18n.language)}</button>
         ))}
       </div>
 
