@@ -147,6 +147,7 @@ export const stylistChat = createServerFn({ method: "POST" })
     const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
     const gateway = createLovableAiGatewayProvider(key);
     const model = gateway("google/gemini-2.5-flash");
+    const { setUsageStep } = await import("./ai-usage.server");
 
     const wx = data.temperature != null
       ? `Weather for this occasion: ${Math.round(data.temperature)}°C, ${data.condition ?? "unknown"}.`
@@ -461,6 +462,7 @@ export const stylistChat = createServerFn({ method: "POST" })
       let text: string;
       let firstCallError: string | null = null;
       try {
+        setUsageStep("reply");
         const r1 = await generateText({ model, system, messages: history, abortSignal: AbortSignal.timeout(AI_CALL_TIMEOUT_MS) });
         text = r1.text;
       } catch (err) {
@@ -480,6 +482,7 @@ export const stylistChat = createServerFn({ method: "POST" })
         parsed = parseAiJson(text, OutputSchema);
       } catch {
         try {
+          setUsageStep("reparse");
           const r2 = await generateText({
             model,
             system,
@@ -675,8 +678,23 @@ export const stylistChat = createServerFn({ method: "POST" })
           missing.push("a different piece for whichever item doesn't meet this specific place's own dress requirement (covered shoulders, covered knees/legs, not too fitted, or a higher formality level) — swap it for a suitable alternative from the wardrobe");
         }
 
+        // Only the bag is missing: add the best-fitting one in code (as the outfit engine does)
+        // instead of a whole second round with the full catalog — the costliest step of a request.
+        if (missing.length === 1 && missing[0] === "a bag") {
+          const fs = finalItemIds.map((id) => catalog.find((c) => c.id === id)?.formality).filter((f): f is number => typeof f === "number");
+          const target = fs.length ? fs.reduce((a, b) => a + b, 0) / fs.length : 3;
+          const bag = catalog
+            .filter((c) => c.category === "Bags" && !finalItemIds.includes(c.id) && !violatesOccasionTag(c.id) && !violatesWeatherId(c.id) && !violatesPlaceRequirements(c.id))
+            .sort((a, b) => Math.abs((a.formality ?? target) - target) - Math.abs((b.formality ?? target) - target))[0];
+          if (bag) {
+            finalItemIds = [...finalItemIds, bag.id];
+            missing.length = 0;
+          }
+        }
+
         if (missing.length > 0) {
           try {
+            setUsageStep("repair_outfit");
             const r3 = await generateText({
               model,
               system,
@@ -773,6 +791,7 @@ export const stylistChat = createServerFn({ method: "POST" })
         const INVENTED_CONTEXT_SIGNAL = /consideran(?:do|te) l'orario|dato l'orario|per l'ora dell'evento|given the time|considering the time|la serata sarà|il clima sarà|il tempo sarà|weather will be|evening will be/i;
         if (INVENTED_CONTEXT_SIGNAL.test(finalReply)) {
           try {
+            setUsageStep("repair_context");
             const r4 = await generateText({
               model,
               system,
@@ -807,6 +826,7 @@ export const stylistChat = createServerFn({ method: "POST" })
         const changedOthers = pieceChange.keepIds.some((id) => !finalItemIds.includes(id));
         if (changedOthers) {
           try {
+            setUsageStep("repair_piece_change");
             const r5 = await generateText({
               model, system, abortSignal: AbortSignal.timeout(REPAIR_CALL_TIMEOUT_MS),
               messages: [

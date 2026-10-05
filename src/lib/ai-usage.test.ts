@@ -88,3 +88,16 @@ test("the gateway still hands the SDK an intact answer while usage is read", asy
   assert.equal(r.text, "ciao");
   assert.equal(r.usage.inputTokens, 5);
 });
+
+test("a named step labels the rows of the calls that follow it, within the same request", async () => {
+  const { setUsageStep } = await import("./ai-usage.server");
+  const rows = await runInUsageScope("stylist", "u", async () => {
+    setUsageStep("reply");
+    const a = ledgerRow({ provider: "lovable", success: true });
+    setUsageStep("repair_outfit");
+    const b = ledgerRow({ provider: "lovable", success: true });
+    return [a, b];
+  });
+  assert.deepEqual(rows.map((r) => r.operation), ["reply", "repair_outfit"]);
+  setUsageStep("outside"); // no scope: nothing happens, never throws
+});
