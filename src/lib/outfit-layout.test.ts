@@ -14,13 +14,13 @@ const overlap = (a: { x: number; y: number; w: number; h: number }, b: typeof a)
   (Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y))) / (b.w * b.h);
 
 test("wide trousers (relaxed cargo photographed legs apart) are not shrunk to a small piece", () => {
-  // was 0.40 H for aspect 1.2 against 0.69 H for slim jeans
-  assert.ok(rect(1.2, "pants").h >= 0.52 * H);
-  assert.ok(rect(1.4, "pants").h >= 0.56 * H);
+  // was 0.40 H for aspect 1.2 against 0.69 H for slim jeans; now at least ~85% of slim (0.60 H)
+  assert.ok(rect(1.2, "pants").h >= 0.51 * H);
+  assert.ok(rect(1.4, "pants").h >= 0.51 * H);
 });
 
 test("slim trousers keep their size; they never exceed the canvas", () => {
-  assert.ok(Math.abs(rect(2.4, "pants").h - 0.69 * H) < 0.01 * H);
+  assert.ok(Math.abs(rect(2.4, "pants").h - 0.60 * H) < 0.01 * H);
   for (const a of [1, 1.2, 1.4, 2.4]) {
     const r = rect(a, "pants");
     assert.ok(r.x >= 0 && r.x + r.w <= W && r.y >= 0 && r.y + r.h <= H, `aspect ${a}`);

@@ -45,7 +45,7 @@ const MARGIN = 0.04; // min distance from canvas edge (fraction)
 export const BOTTOM_RESERVED = 0.115;
 const GROUP_SHRINK = 0.75; // when several items share one slot
 /** Full-length trousers: minimum height (fraction of H) and the widest they may become for it. */
-const LONG_BOTTOM_MIN_H = 0.58;
+const LONG_BOTTOM_MIN_H = 0.52;
 const LONG_BOTTOM_MAX_W = 0.56;
 /** Jackets and coats: a blazer photographed with its sleeves out is wider than tall, so the width
  *  box kept it at ~37% of the canvas height next to trousers at ~69% — half their size instead of
@@ -57,7 +57,9 @@ const OUTER_MAX_W = 0.5;
 /** Max box per bucket: [max width, max height], fractions of canvas W / H. */
 const BOX: Record<Bucket, { w: number; h: number }> = {
   dress: { w: 0.46, h: 0.80 },
-  bottom: { w: 0.42, h: 0.69 },
+  // .69 made full-length trousers dominate the board (reported): .60 keeps them about 1⅓ × a
+  // blazer and 1½ × a shirt, close to their real lengths (100 / 75 / 70 cm).
+  bottom: { w: 0.42, h: 0.60 },
   top: { w: 0.42, h: 0.37 },
   outer: { w: 0.42, h: 0.72 },
   shoes: { w: 0.36, h: 0.20 },
@@ -74,7 +76,8 @@ const BOX: Record<Bucket, { w: number; h: number }> = {
 };
 const TOP_AS_ANCHOR = { w: 0.50, h: 0.45 };
 
-const Z: Record<Bucket, number> = { outer: 1, dress: 2, bottom: 2, belt: 5, top: 4, shoes: 5, bag: 5, sunglasses: 5, headwear: 5, earrings: 5, necklace: 5, brooch: 6, wrist: 5, anklet: 5, acc: 5 };
+// The jacket or coat lies OVER the trousers or dress (as on an editorial board), under the top.
+const Z: Record<Bucket, number> = { outer: 3, dress: 2, bottom: 2, belt: 5, top: 4, shoes: 5, bag: 5, sunglasses: 5, headwear: 5, earrings: 5, necklace: 5, brooch: 6, wrist: 5, anklet: 5, acc: 5 };
 
 /** Real-world size, in cm, of the dimension that matters for each kind of piece:
  *  garments → their length (height), bags → width, shoes → length. Unknown → null
@@ -409,7 +412,10 @@ return { w, h: w * aspect };
     };
     // 1) fit the strip's width (≤ ~25% overlap with the anchor)
     const stripW = Math.max(0.16 * W, (W - MX - A.r) / 0.75);
-    let ks = columnEntries.map((e) => Math.min(1, stripW / groupSize(e, 1).w));
+    // One scale for the whole column: each piece used to be shrunk on its own to fit the strip, so a
+    // large bag (wide box, tall strap) came out smaller than the shoes under it.
+    const kWidth = Math.min(...columnEntries.map((e) => Math.min(1, stripW / groupSize(e, 1).w)));
+    let ks = columnEntries.map(() => kWidth);
     // 2) fit its height
     const colTop = topRects.length ? Math.max(...topRects.map((r) => r.y + r.h)) + 0.02 * H : necklaceSide === "right" ? torso.t : wristTop;
     const colBottom = 0.92 * H;
