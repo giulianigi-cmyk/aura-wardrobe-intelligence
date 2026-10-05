@@ -784,8 +784,8 @@
     "occasion": {
       "Everyday": "tutti i giorni",
       "Work": "lavoro",
-      "BusinessCasual": "ufficio informale",
-      "BusinessFormal": "ufficio elegante",
+      "BusinessCasual": "business casual",
+      "BusinessFormal": "business formal",
       "SmartCasual": "casual chic",
       "Evening": "sera",
       "Cocktail": "cocktail",
@@ -794,8 +794,8 @@
       "GardenParty": "ricevimento all'aperto",
       "Weekend": "weekend",
       "Travel": "viaggio",
-      "Resort": "vacanza al mare",
-      "Formal": "cerimonia",
+      "Resort": "vacanza",
+      "Formal": "formale",
       "Sport": "sport"
     },
     "detail": {
