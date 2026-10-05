@@ -1,4 +1,5 @@
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { createServerFn } from "@tanstack/react-start";
 import { checkPublicUrl } from "./safe-url";
 import { fetchImageAsDataUrl } from "./fetch-image";
@@ -75,7 +76,7 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T,
 }
 
 export const createBatchScanFromUrls = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("batch_scan", "from_urls")])
   .inputValidator((input: unknown) => CreateBatchScanFromUrlsSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -153,7 +154,7 @@ export type UrlCandidateResult =
  * candidates to choose from) instead of silently auto-picking one.
  */
 export const resolveBatchUrlCandidates = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("batch_scan", "resolve_urls")])
   .inputValidator((input: unknown) => ResolveBatchUrlCandidatesSchema.parse(input))
   .handler(async ({ data }) => {
     const urls = Array.from(new Set(data.urls.filter(Boolean)));
@@ -188,7 +189,7 @@ export const resolveBatchUrlCandidates = createServerFn({ method: "POST" })
  * are taken as given.
  */
 export const createBatchScanFromSelections = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("batch_scan", "from_selections")])
   .inputValidator((input: unknown) => CreateBatchScanFromSelectionsSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;

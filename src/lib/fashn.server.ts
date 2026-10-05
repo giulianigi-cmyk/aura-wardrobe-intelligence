@@ -44,6 +44,10 @@
 // now lives in the client (AvatarTryOn.tsx), calling checkFashnStatus
 // every ~2s — see avatar-tryon.functions.ts for how each step is wired.
 
+// Type only: the ledger module (node:async_hooks) is loaded lazily, as this file is imported at the
+// top of *.functions.ts files that also ship to the browser bundle.
+import type { FASHN_CREDITS } from "./ai-usage.server";
+
 const FASHN_BASE_URL = "https://api.fashn.ai/v1";
 
 /** Escape hatch for a future explicit "try higher quality" retry path —
@@ -129,7 +133,7 @@ export async function submitFashnRun(
  *  across every FASHN model — status checking doesn't depend on which
  *  endpoint originally submitted the prediction, so this same function
  *  also serves submitFashnEdit below, not just Try-On Max. */
-export async function checkFashnStatus(predictionId: string): Promise<FashnCheckResult> {
+export async function checkFashnStatus(predictionId: string, model: keyof typeof FASHN_CREDITS = "tryon-max"): Promise<FashnCheckResult> {
   const key = process.env.FASHN_API_KEY;
   if (!key) return { ok: false, error: "Missing FASHN_API_KEY" };
 
@@ -140,6 +144,19 @@ export async function checkFashnStatus(predictionId: string): Promise<FashnCheck
     if (!statusRes.ok) return { ok: true, done: false }; // transient — client keeps polling
 
     const status = (await statusRes.json()) as FashnStatus;
+
+    // Consumption ledger: a finished job is counted once (by prediction id) — credits when it
+    // produced an image, none when it failed (FASHN doesn't charge failed predictions).
+    if (status.status === "completed" || status.status === "failed") {
+      const produced = status.status === "completed" && Boolean(status.output?.[0]);
+      const { FASHN_CREDITS, recordUsage, unitCost } = await import("./ai-usage.server");
+      await recordUsage({
+        provider: "fashn", model, operation: model === "edit" ? "edit" : "tryon",
+        units: produced ? FASHN_CREDITS[model] : 0, unitType: "credit",
+        costUsd: produced ? unitCost.fashn(FASHN_CREDITS[model]) : 0,
+        providerRequestId: predictionId, success: produced,
+      });
+    }
 
     if (status.status === "completed") {
       const imageDataUrl = status.output?.[0];

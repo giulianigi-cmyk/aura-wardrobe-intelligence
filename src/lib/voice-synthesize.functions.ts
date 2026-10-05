@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { z } from "zod";
 
 const InputSchema = z.object({
@@ -8,7 +9,7 @@ const InputSchema = z.object({
 
 /** Sintesi vocale via OpenAI TTS. Voce 'nova': calda, funziona bene su più lingue. */
 export const synthesizeVoice = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("voice_tts")])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }) => {
     const key = process.env.OPENAI_API_KEY;
@@ -26,6 +27,9 @@ export const synthesizeVoice = createServerFn({ method: "POST" })
         input: data.text,
       }),
     });
+
+    const { recordUsage, unitCost } = await import("./ai-usage.server");
+    await recordUsage({ provider: "openai", model: "tts-1", operation: "synthesize", units: res.ok ? data.text.length : 0, unitType: "character", costUsd: res.ok ? unitCost.tts(data.text.length) : 0, success: res.ok });
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");

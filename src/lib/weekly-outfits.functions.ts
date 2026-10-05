@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { z } from "zod";
 import { suggestOutfitCore, type SuggestOutfitItem } from "./ai-suggest-outfit.functions";
 import { dressPreferencesToPrompt, hasAnyPreference, type DressPreferences } from "./dress-preferences";
@@ -59,7 +60,7 @@ function timeRangesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: s
  * right now.
  */
 export const generateWeeklyOutfits = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("weekly_outfits")])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;

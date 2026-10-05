@@ -30,6 +30,7 @@
 // coat to place shoes correctly.
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { submitFashnRun, checkFashnStatus } from "@/lib/fashn.server";
@@ -131,7 +132,7 @@ const PrepareInput = z.object({
  *  URL, and the item ids in the order to apply them). Fast: no FASHN
  *  call happens here. */
 export const prepareAvatarTryOn = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("tryon", "prepare")])
   .inputValidator((input: unknown) => PrepareInput.parse(input))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -176,6 +177,9 @@ export const prepareAvatarTryOn = createServerFn({ method: "POST" })
           .from("avatar-private")
           .createSignedUrl(cached.result_image_path, 60 * 60);
         if (signed?.signedUrl) {
+          // Consumption ledger: a try-on served from the cache — used, at no provider cost.
+          const { recordUsage } = await import("./ai-usage.server");
+          await recordUsage({ provider: "fashn", model: "tryon-max", operation: "tryon", units: 0, unitType: "credit", costUsd: 0, success: true, cached: true });
           return { ok: true as const, cached: true as const, imageUrl: signed.signedUrl };
         }
         // Signed-URL failure on an otherwise-valid cache row (e.g. the
@@ -298,7 +302,7 @@ const CheckInput = z.object({ predictionId: z.string(), predictionToken: z.strin
  *  internal wait. Requires the token issued by startTryOnStep so a caller
  *  can only poll predictions they themselves started. */
 export const checkTryOnStep = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("tryon")])
   .inputValidator((input: unknown) => CheckInput.parse(input))
   .handler(async ({ data, context }) => {
     const expected = await signPrediction(context.userId, data.predictionId);

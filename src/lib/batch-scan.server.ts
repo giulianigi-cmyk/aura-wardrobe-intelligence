@@ -6,6 +6,7 @@
 import { detectOutfitItems } from "./outfit-detect.server";
 import { analyzeWardrobeImageCore } from "./ai-analyze.functions";
 import { removeBackgroundCore } from "./ai-bgremove.functions";
+import { runInUsageScope } from "./ai-usage.server";
 
 const MAX_ATTEMPTS = 3;
 const BUCKET = "wardrobe";
@@ -44,7 +45,8 @@ export async function runScanWorker(limit = 5): Promise<WorkerResult> {
   };
   const touchedScans = new Set<string>();
 
-  for (const job of claimed) {
+  // Each job's paid calls are attributed to its owner in the consumption ledger (ai-usage.server.ts).
+  for (const job of claimed) await runInUsageScope("batch_scan", job.user_id, async () => {
     touchedScans.add(job.scan_id);
     try {
       const { data: blob, error: dlErr } = await supabaseAdmin.storage.from(BUCKET).download(job.image_path);
@@ -191,7 +193,7 @@ export async function runScanWorker(limit = 5): Promise<WorkerResult> {
       if (giveUp) result.failed++;
       else result.requeued++;
     }
-  }
+  }, "worker");
 
   for (const scanId of touchedScans) {
     await finalizeScan(scanId);

@@ -19,13 +19,14 @@
 // has changed, not what happens with them afterward.
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { z } from "zod";
 import { detectOutfitItems } from "./outfit-detect.server";
 
 const InputSchema = z.object({ imageDataUrl: z.string().min(20) });
 
 export const detectOutfitPhotoItems = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("outfit_scan", "detect")])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }) => {
     // Detailed mode: also returns pattern, exact shade, a precise visual description and the

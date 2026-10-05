@@ -9,6 +9,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { parseAiJson } from "./ai-json";
 import { mapVisualScores, type VisualScore } from "./outfit-match";
 
@@ -73,7 +74,7 @@ function buildPrompt(g: z.infer<typeof RerankInput>["garment"], refs: string[], 
 }
 
 export const rerankOutfitCandidates = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("outfit_scan", "rerank")])
   .inputValidator((input: unknown) => RerankInput.parse(input))
   .handler(async ({ data, context }): Promise<RerankResult> => {
     const key = process.env.LOVABLE_API_KEY;

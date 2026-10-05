@@ -1,4 +1,5 @@
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
 import { z } from "zod";
@@ -91,7 +92,7 @@ export type DailyLooksResult = z.infer<typeof OutputSchema>;
  * (see home_suggestions table), not re-generated on every page view.
  */
 export const suggestDailyLooks = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("daily_look")])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data, context }) => {
     if (data.items.length < 3) {

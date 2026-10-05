@@ -1,4 +1,5 @@
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { BAG_CARRY_KEYS, DETAIL_KEYS } from "./garment-details";
 import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
@@ -250,6 +251,6 @@ export async function analyzeWardrobeImageCore(imageDataUrl: string): Promise<Wa
 
 /** RPC autenticata, invariata per chi la chiama (AddItem.tsx) — ora è solo un sottile involucro attorno alla logica pura sopra. */
 export const analyzeWardrobeImage = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("item_analysis")])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }) => analyzeWardrobeImageCore(data.imageDataUrl));
