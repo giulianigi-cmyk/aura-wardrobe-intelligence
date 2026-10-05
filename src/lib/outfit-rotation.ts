@@ -57,6 +57,19 @@ export function rotationPriority(h: WearHistory | undefined, todayIso: string): 
 
 /** Catalog order for the model: long-unworn first, with a random factor (±35%) so the order varies
  *  from one generation to the next and is not read as a fixed ranking. `rand` is injectable for tests. */
+/** A repeatable random sequence (mulberry32): one seed per weekly plan or trip gives every day the
+ *  same catalog order — the same varied order, so the catalog is an identical, cacheable opening. */
+export function seededRandom(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 export function rotationOrder<T extends { id: string }>(
   items: T[],
   history: Map<string, WearHistory>,

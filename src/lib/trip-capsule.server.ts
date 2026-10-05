@@ -1229,6 +1229,8 @@ export async function generateTripCapsuleCore({ data, context }: {
     // down to 25 outfit-states should still generate all 25, not an
     // arbitrary 30-activities'-worth that happens to land on fewer groups.
     const capped = requirementsForGeneration.slice(0, 30);
+    // One catalog order for the whole trip, so the requests share a cacheable opening (rotationSeed).
+    const tripSeed = Math.floor(Math.random() * 2 ** 31);
 
     // Transport processed LAST within its own day — the reverse of what
     // it was, deliberately. A transport leg can now reuse another
@@ -1568,6 +1570,7 @@ export async function generateTripCapsuleCore({ data, context }: {
         // variety left the return journey reaching for the event skirt
         // instead. Tops stay subject to variety (a fresh top matters,
         // especially in heat) — only the bottom is exempt.
+        rotationSeed: tripSeed,
         avoidItemIds: Array.from(new Set([
           ...usedOutfits.slice(-avoidOutfitWindow).flat().filter((id) => {
             const it = pool.find((p) => p.id === id);

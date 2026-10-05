@@ -202,6 +202,9 @@ export const generateWeeklyOutfits = createServerFn({ method: "POST" })
     };
 
     const usedThisBatch: string[] = [];
+    // One catalog order for the whole week: the same rules and catalog open every day's request and
+    // are billed as cached input (ai-suggest-outfit.functions.ts, rotationSeed).
+    const batchSeed = Math.floor(Math.random() * 2 ** 31);
     const created: { date: string }[] = [];
     const skippedExisting: string[] = [];
     const failed: { date: string; error: string }[] = [];
@@ -240,6 +243,7 @@ export const generateWeeklyOutfits = createServerFn({ method: "POST" })
         language,
         items,
         avoidItemIds: usedThisBatch,
+        rotationSeed: batchSeed,
         locationIdsOverride: locationIdsForDate(date),
         // The day actually being planned, not today — a week generated in June for a July date
         // should already treat that July date as summer, and vice versa at the season's edges.
