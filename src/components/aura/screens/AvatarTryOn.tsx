@@ -10,7 +10,7 @@ import { resolveWardrobeUrls } from "@/lib/wardrobe-image";
 import { prepareAvatarTryOn, startTryOnStep, checkTryOnStep, finalizeAvatarTryOn } from "@/lib/avatar-tryon.functions";
 import { restoreOriginalFaceAligned } from "@/lib/face-restore";
 import { saveOutfitPlan } from "@/lib/outfit-plan.functions";
-import { orderForTryOn, selectTryOnItems, underLayerFor } from "@/lib/tryon-select";
+import { isNotWornOnAvatar, orderForTryOn, selectTryOnItems, underLayerFor } from "@/lib/tryon-select";
 import { classifyTryOnError, type TryOnErrorKind } from "@/lib/tryon-error";
 import { PiecePicker } from "../PiecePicker";
 import type { WardrobeItem as FullWardrobeItem } from "@/lib/aura-types";
@@ -144,23 +144,26 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
     setErrorStep(null);
     setProgress(null);
     try {
-      // At most 6 pieces go on the avatar (one try-on step each): the main garments, shoes and bag
-      // first, small jewellery last (tryon-select.ts). Whole outfits from the stylist or a scan
-      // often have more, and used to fail with a raw validation error.
-      // Small jewellery (thin bracelets, rings, watches…) is skipped too: it doesn't read on a
-      // full-body image and each piece costs a try-on step.
+      // The avatar wears clothes and shoes only, at most 6 (one try-on step each, tryon-select.ts):
+      // bags and accessories are never tried on, and the person is told so.
       let itemIds = allItemIds;
       const underLayerById: Record<string, "dress" | "top" | null> = {};
       {
         const { data: rows } = await supabase.from("wardrobe_items").select("id, category, subcategory, style_tags, material").in("id", allItemIds);
         type Row = { id: string; category: string | null; subcategory: string | null; style_tags: string[] | null; material: string[] | null };
         const byId = new Map(((rows ?? []) as Row[]).map((r) => [r.id, r]));
-        const { kept, dropped } = selectTryOnItems(allItemIds.map((id) => byId.get(id) ?? { id, category: null, subcategory: null, style_tags: null, material: null }));
+        const { kept, accessories, overLimit } = selectTryOnItems(allItemIds.map((id) => byId.get(id) ?? { id, category: null, subcategory: null, style_tags: null, material: null }));
+        if (!kept.length) {
+          setStage("pick");
+          toast.message(t("avatar.onlyAccessories"));
+          return;
+        }
         // Each step dresses the previous result, so the order is the layering: underneath first.
         const ordered = orderForTryOn(kept);
         itemIds = ordered.map((x) => x.id);
         ordered.forEach((x) => { underLayerById[x.id] = underLayerFor(x, ordered); });
-        if (dropped.length) toast.message(t("avatar.tooManyPieces", { count: dropped.length }));
+        if (accessories.length) toast.message(t("avatar.accessoriesNotWorn", { count: accessories.length }));
+        if (overLimit.length) toast.message(t("avatar.tooManyPieces", { count: overLimit.length }));
       }
       const prepared = await prepare({ data: { itemIds, forceRegenerate } });
       if (myRun !== runToken.current) return; // superseded by a newer attempt
@@ -303,7 +306,8 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
           {/* Same picker as the rest of the app: search, categories, whole pieces visible. */}
           <PiecePicker
             className="mt-4 pb-44"
-            items={wardrobe}
+            // Bags and accessories aren't worn by the avatar (said in the hint above): not offered.
+            items={wardrobe.filter((w) => !isNotWornOnAvatar(w))}
             signed={wardrobeUrls}
             loading={loadingWardrobe}
             selectedIds={selected}

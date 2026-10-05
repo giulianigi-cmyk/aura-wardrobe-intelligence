@@ -2049,7 +2049,7 @@
     "tryOnCta": "Probar en mi avatar",
     "tryOnTitle": "Probar en mi avatar",
     "pickItemsEyebrow": "De tu armario",
-    "pickItemsHint": "Elige las prendas que quieres verte puestas.",
+    "pickItemsHint": "Elige las prendas y los zapatos que quieres verte puestos. El avatar no lleva bolsos ni accesorios.",
     "selectedCount_one": "{{count}} seleccionada",
     "selectedCount_other": "{{count}} seleccionadas",
     "generate": "Generar",
@@ -2084,8 +2084,11 @@
       "network": "La conexión se interrumpió durante la generación. Inténtalo de nuevo.",
       "provider": "Hubo un problema al crear el look. Inténtalo de nuevo."
     },
-    "tooManyPieces_one": "En el avatar se muestran las prendas principales: 1 accesorio pequeño no se incluye.",
-    "tooManyPieces_other": "En el avatar se muestran las prendas principales: {{count}} accesorios pequeños no se incluyen."
+    "tooManyPieces_one": "El avatar se prueba como máximo 6 prendas: 1 prenda no se incluye.",
+    "tooManyPieces_other": "El avatar se prueba como máximo 6 prendas: {{count}} prendas no se incluyen.",
+    "accessoriesNotWorn_one": "El avatar no lleva bolsos ni accesorios: 1 pieza no se incluye en la prueba.",
+    "accessoriesNotWorn_other": "El avatar no lleva bolsos ni accesorios: {{count}} piezas no se incluyen en la prueba.",
+    "onlyAccessories": "El avatar no lleva bolsos ni accesorios: elige al menos una prenda o un par de zapatos."
   },
   "logWear": {
     "title": "¿Qué llevé puesto?",

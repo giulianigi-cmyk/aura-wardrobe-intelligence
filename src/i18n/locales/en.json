@@ -2049,7 +2049,7 @@
     "tryOnCta": "Try on my avatar",
     "tryOnTitle": "Try on my avatar",
     "pickItemsEyebrow": "From your wardrobe",
-    "pickItemsHint": "Choose the pieces you want to see on yourself.",
+    "pickItemsHint": "Choose the clothes and shoes you want to see on yourself. Bags and accessories aren't worn by the avatar.",
     "selectedCount_one": "{{count}} selected",
     "selectedCount_other": "{{count}} selected",
     "generate": "Generate",
@@ -2084,8 +2084,11 @@
       "network": "The connection dropped during generation. Try again.",
       "provider": "Something went wrong creating the look. Try again."
     },
-    "tooManyPieces_one": "Your avatar shows the main pieces: 1 small accessory isn't included.",
-    "tooManyPieces_other": "Your avatar shows the main pieces: {{count}} small accessories aren't included."
+    "tooManyPieces_one": "The avatar tries on up to 6 pieces: 1 piece isn't included.",
+    "tooManyPieces_other": "The avatar tries on up to 6 pieces: {{count}} pieces aren't included.",
+    "accessoriesNotWorn_one": "The avatar doesn't wear bags and accessories: 1 piece isn't included in the try-on.",
+    "accessoriesNotWorn_other": "The avatar doesn't wear bags and accessories: {{count}} pieces aren't included in the try-on.",
+    "onlyAccessories": "The avatar doesn't wear bags and accessories: choose at least one garment or pair of shoes."
   },
   "logWear": {
     "title": "What did I wear?",
