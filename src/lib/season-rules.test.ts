@@ -49,3 +49,14 @@ test("a bag tagged only for daytime never goes in an evening look; untagged or e
   assert.equal(isDayOnlyBag({ category: "Bags", occasion: "" }), false);
   assert.equal(isDayOnlyBag({ category: "Shoes", occasion: "Everyday, Work" }), false);
 });
+
+test("one seed per plan: the same varied catalog order on every day (cacheable); another seed, another order", async () => {
+  const { rotationOrder, seededRandom } = await import("./outfit-rotation");
+  const items = Array.from({ length: 30 }, (_, i) => ({ id: `i${i}` }));
+  const day1 = rotationOrder(items, new Map(), "2026-10-05", seededRandom(42)).map((x) => x.id);
+  const day2 = rotationOrder(items, new Map(), "2026-10-05", seededRandom(42)).map((x) => x.id);
+  const other = rotationOrder(items, new Map(), "2026-10-05", seededRandom(7)).map((x) => x.id);
+  assert.deepEqual(day1, day2);
+  assert.notDeepEqual(day1, other);
+  assert.notDeepEqual(day1, items.map((x) => x.id)); // still varied, not alphabetical
+});

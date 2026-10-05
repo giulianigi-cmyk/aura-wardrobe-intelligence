@@ -6,12 +6,12 @@ import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { isItemAtAnyLocation } from "./wardrobe-location";
 import { isItemAllowedByDressPreferences, hasAnyPreference, coversShoulders, coversArms, coversLegs, type DressPreferences } from "./dress-preferences";
-import { anyItemViolatesWeather, violatesSleeveClimate, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule } from "./outfit-weather-rules";
+import { anyItemViolatesWeather, violatesSleeveClimate, violatesWeatherRule, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, rainLayerFor, RAIN_PROMPT_RULE } from "./rain-rules";
 import { isDayOnlyBag, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
 import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
-import { loadWearHistory, recentlyWornIds, rotationOrder, wearFields, withoutRecentPerCategory, ROTATION_PROMPT_RULE } from "./outfit-rotation";
+import { loadWearHistory, recentlyWornIds, rotationOrder, seededRandom, wearFields, withoutRecentPerCategory, ROTATION_PROMPT_RULE } from "./outfit-rotation";
 import { ensureAnchor, ANCHOR_UNAVAILABLE } from "./outfit-anchor";
 import { explanationLanguageInstruction } from "./language_prompt";
 
@@ -78,6 +78,8 @@ export async function suggestOutfitCore(params: {
   styleBoldness?: string | null;
   items: SuggestOutfitItem[];
   avoidItemIds?: string[];
+  /** One seed for a whole weekly plan or trip: every day gets the same catalog order (cacheable). */
+  rotationSeed?: number;
   locationIdOverride?: string | null;
   // Optional — trip-capsule.server.ts passes this explicitly (it always
   // knows the real day/evening slot for a requirement, independent of
@@ -271,22 +273,10 @@ export async function suggestOutfitCore(params: {
   // avoidance to relax for every other category too. A top only comes
   // back into rotation when tops specifically run out, not because bags
   // ran out first.
-  if (params.avoidItemIds?.length) {
-    const avoidSet = new Set(params.avoidItemIds);
-    const byCategory = new Map<string, SuggestOutfitItem[]>();
-    for (const it of eligibleItems) {
-      const cat = it.category ?? "";
-      const arr = byCategory.get(cat) ?? [];
-      arr.push(it);
-      byCategory.set(cat, arr);
-    }
-    const filtered: SuggestOutfitItem[] = [];
-    for (const catItems of byCategory.values()) {
-      const withoutRecent = catItems.filter((it) => !avoidSet.has(it.id));
-      filtered.push(...(withoutRecent.length > 0 ? withoutRecent : catItems));
-    }
-    eligibleItems = filtered;
-  }
+  // Pieces used earlier in the same batch stay in the catalog (so the catalog is the same for every
+  // day and is billed as cached input from the second day on); the model is told which they are, and
+  // the code below swaps one out whenever its category still has something else.
+  const avoidSet = new Set(params.avoidItemIds ?? []);
 
   // Rotation: wear history from wardrobe_items, then the catalog order (long-unworn first, with a
   // random factor). The mandatory piece and the pieces of an outfit being adapted are never
@@ -309,13 +299,27 @@ export async function suggestOutfitCore(params: {
   eligibleItems = filterForRain(eligibleItems, params.condition);
   // Summer is over: no linen, sleeveless, shorts or sandals on a cool autumn morning.
   eligibleItems = withoutSummerPieces(eligibleItems, params.forDateIso, params.morningTemp);
+  // Pieces the checks below would reject whatever they are paired with — wrong for the temperature, or
+  // tagged only for a different specialised occasion (Sport, Travel, Resort) — leave the catalog before
+  // it is sent: they only cost tokens and, when picked, a correction round. A category is never emptied.
+  {
+    const target = (params.occasion ?? "").split(/[·-]/)[0].trim();
+    const certainMisfit = (it: SuggestOutfitItem): boolean => {
+      if (protectedIds.has(it.id)) return false;
+      if (violatesWeatherRule({ ...it, material: Array.isArray(it.material) ? it.material : it.material ? [it.material] : [] }, params.temperature ?? null)) return true;
+      const tags = (it.occasion ?? "").split(",").map((t) => t.trim()).filter(Boolean);
+      return tags.length > 0 && tags.every((t) => SPECIALIZED_OCCASION_TAGS.includes(t)) && !tags.includes(target);
+    };
+    const keeps = new Set(eligibleItems.filter((it) => !certainMisfit(it)).map((it) => it.category ?? ""));
+    eligibleItems = eligibleItems.filter((it) => !certainMisfit(it) || !keeps.has(it.category ?? ""));
+  }
 
   if (params.rotation === "exclude-recent") {
     const recent = recentlyWornIds(wearHistory, todayIso);
     for (const id of protectedIds) recent.delete(id);
     eligibleItems = withoutRecentPerCategory(eligibleItems, recent);
   }
-  eligibleItems = rotationOrder(eligibleItems, wearHistory, todayIso);
+  eligibleItems = rotationOrder(eligibleItems, wearHistory, todayIso, params.rotationSeed != null ? seededRandom(params.rotationSeed) : undefined);
   if (protectedIds.size) {
     eligibleItems = [...eligibleItems.filter((it) => protectedIds.has(it.id)), ...eligibleItems.filter((it) => !protectedIds.has(it.id))];
   }
@@ -393,48 +397,15 @@ export async function suggestOutfitCore(params: {
   }
 
   const languageLine = explanationLanguageInstruction(params.language);
-  const system = [
-    ...(params.dressRules ? [params.dressRules, ""] : []),
-    ...(languageLine ? [languageLine] : []),
-    ROTATION_PROMPT_RULE,
-    "You are a personal stylist. Compose ONE coherent outfit from the user's wardrobe.",
-    "Pick 3-5 items that work together (typically 1 top + 1 bottom OR 1 dress, + 1 shoes, optionally 1 outerwear and 1 accessory/bag).",
-    ...(genderLine ? [genderLine] : []),
-    "Match the weather and occasion. Prefer colors that harmonize and consistent style.",
-    ...styleMemorySection,
-    // The rules below this line are styling DEFAULTS, not absolute bans —
-    // treat them as: strong preference → deviate when the outfit's own
-    // context makes the combination clearly intentional (a monochrome-
-    // adjacent look, a deliberate color-blocked statement, an eclectic
-    // outfit the wardrobe's style tags support) → your final judgment
-    // wins. A real outfit that reads as put-together always beats
-    // mechanically satisfying every rule below.
-    "Default: avoid combining black and navy/dark blue in the same outfit — two near-identical dark neutrals more often read as a mismatch than a choice. Deviate when one is clearly a small accent against the other as the dominant piece, or when nothing else in the eligible pieces avoids it.",
-    "Default: keep the total color count to about 3-4 per outfit, counting accessories — neutrals (black, white, grey, beige, navy, brown, cream) are forgiving and don't count as strictly as a bold or saturated color does. Going over this isn't a hard stop, just a sign to double check the extra colors are earning their place rather than accumulating by accident.",
-    "Default: when shoes and a bag are both part of the outfit, prefer their leather tone coordinating with EACH OTHER specifically — black shoes with a black/grey-toned bag, brown/cognac/tan shoes with a brown/tan/navy-toned bag. This is only about the two leather accessories relative to each other, not to the rest of the outfit — black shoes with a brown dress, sweater, or trousers is completely normal and not a deviation from anything. And even shoes-vs-bag mismatched tones (e.g. brown dress + black shoes + burgundy bag) can work when the overall palette reads as deliberately coordinated rather than accidental — this is a preference to weigh, not a requirement to enforce mechanically.",
-    "Default: avoid two different bold patterns in the same outfit (leopard with stripes, floral with plaid). One dominant pattern plus one clearly secondary/small-scale pattern can work — e.g. a subtly striped shirt under a tartan blazer — when their scale and color contrast are deliberately different, not just two unrelated statements colliding.",
-    "Default: avoid pairing a bold statement pattern (leopard, animal print, floral, plaid) with another loud, saturated, contrasting color elsewhere in the outfit. Once one piece is doing the visual work, lean the rest neutral or toward the pattern's own dominant color — unless the wardrobe's style tags for this person suggest they genuinely favor maximalist, high-contrast combinations, in which case a bolder pairing can be the right call.",
-    "Default: denim-on-denim works when both pieces are the same wash/tone, or are deliberately very different (white denim with dark blue denim) — two similar-but-not-matching mid-blue denim pieces tend to clash rather than coordinate. When unsure and no clearly-matching or clearly-contrasting pair exists, use only one denim piece.",
-    "Default: don't pair a short/mini-length skirt or dress with a deep/plunging neckline in the same outfit — treat the outfit's overall visual exposure as something to balance, not maximize on every axis at once. This is about overall balance, not a moral judgment, and it never overrides the dress-rules constraints stated earlier, which always take priority when they conflict.",
-    "Default: an evening-specific piece (an evening gown, a cocktail dress, anything formality 5) belongs in an Evening segment, not Day — deviate only if the eligible pieces genuinely leave nothing better for that day.",
-    "Default: keep formality roughly consistent across the outfit — an elegant, dressed-up piece paired with something at the opposite end (flip-flops with a tailored dress, gym sneakers with a cocktail dress) usually reads as unintentional. A deliberate contrast (like a smart top with clean minimal sneakers) can absolutely work when the rest of the outfit supports it as a coherent choice rather than an accident.",
-    "Above ~25°C, prefer a top that hasn't already been worn earlier in this batch over one that has, even if it scores slightly lower on style — a fresh piece matters more in hot weather (sweat, hygiene) than in cooler seasons, where repeating a top once or twice is completely normal.",
+  // Everything that changes from one call to the next (weather, rain, the season, the place, a
+  // mandatory piece…) goes AFTER the wardrobe catalog, at the end of the request: the rules and
+  // the catalog then form an identical opening across the days of a weekly plan, a trip or a
+  // Home refresh, which Gemini bills at the cached-input rate (~90% off). Same lines, new place.
+  const contextRules = [
     ...(params.relativeWarmthHint ? [`Default: ${params.relativeWarmthHint}`] : []),
-    ...(boldnessLine ? [boldnessLine] : []),
-    "NEVER pick more than one outerwear/layering piece in the same outfit — a blazer and a cardigan (or any two of blazer/cardigan/jacket/coat) are never worn together. Pick at most one.",
-    "A cardigan or any open-front knit (even one tied or wrapped at the front) is a LAYER, like a jacket: ALWAYS pair it with a real top underneath — at least a tank top, camisole, t-shirt, bodysuit or fine knit — never as the only top (unless worn over a dress or jumpsuit).",
-    "TEXT MUST MATCH THE ACTUAL ITEM, NOT YOUR INTENT: before writing the explanation, check the subcategory and colors of every item_id you're about to return, and describe each piece using its own real attributes — never call a sandal a 'décolleté'/'pumps' or describe a bag's color/pattern as something other than what it actually is. If nothing in the wardrobe matches what would be ideal, describe what you actually picked, not an idealized version of it.",
-    "A Dress or Jumpsuit is a complete base on its own and REPLACES both top and bottom — NEVER combine a Dress or Jumpsuit with a separate Bottoms item (trousers, jeans, shorts, skirt) in the same outfit. If you pick a Dress or Jumpsuit, do not also pick anything from the Bottoms category.",
-    "Weather overrides everything else for outerwear: above roughly 15°C, do not include a substantial coat (wool coat, trench, overcoat, puffer, quilted jacket) — it reads as overdressed for the actual weather regardless of how elegant the rest of the look is. Above roughly 26°C, also drop lighter layers — blazers, cardigans, jackets — a lightweight top alone is correct, even for a cocktail or formal occasion (there is always a lighter way to be elegant). Below roughly 10°C, prioritize real warmth over anything else. Only add outerwear when the temperature genuinely calls for it.",
     ...(params.temperature == null
-      ? ["NEVER INVENT WEATHER DETAILS: the weather above is unknown — never state or imply a specific temperature or condition ('cool weather', 'possible rain') anywhere in your explanation. Speak only in general, season-appropriate terms if you mention weather at all, and never present an invented condition as the reason for a piece."]
+      ? ["NEVER INVENT WEATHER DETAILS: the weather given in this request is unknown — never state or imply a specific temperature or condition ('cool weather', 'possible rain') anywhere in your explanation. Speak only in general, season-appropriate terms if you mention weather at all, and never present an invented condition as the reason for a piece."]
       : [...(isWetCondition(params.condition) ? [RAIN_PROMPT_RULE] : []), ...(summerIsOver(params.forDateIso, params.morningTemp) ? [summerOverPromptRule(params.morningTemp as number)] : []), "PERCEIVED TEMPERATURE, NOT JUST THE NUMBER: treat the given temperature as a starting point and adjust which side of a threshold you land on based on the actual condition given alongside it — clear/sunny feels a notch warmer (lean lighter at a threshold), rain/wind/overcast feels a notch colder (lean warmer/more covered, and rain specifically means covered shoes and a real outer layer even at a temperature that wouldn't otherwise call for one). Never invent a perceived-temperature number — this only shifts which real option you pick at the boundary."]),
-    // The occasion string carries the real activity name (e.g. "Yoga at
-    // sunset (Sport)"), not just a dress-code label, so these rules can
-    // key off what the day actually is.
-    "If the occasion mentions a pool, swimming, the beach or the sea (pool, piscina, swim, beach, spiaggia, mare, snorkeling): the outfit MUST be built around a Swimwear item — a one-piece swimsuit, or a bikini top AND bikini bottom together — instead of the usual top + bottom. Add a cover-up, a light top/shorts or a dress only as a layer over it, plus sandals/flats and sunglasses if available — never a bag. Never return a city outfit for a swim occasion, and never pair a bikini top with trousers or a skirt.",
-    "If the occasion is Sport or mentions yoga, gym, running, hiking, training, pilates, tennis or cycling: the outfit MUST be built from Activewear pieces (sports bra / training top + leggings, bike shorts or running shorts) with sneakers or the appropriate sport shoe. Exclude denim, tailoring, dresses, heels and anything delicate, and honour the specific activity named — hiking wants covered, sturdy shoes, yoga wants soft stretch pieces.",
-    "If the occasion is Travel (a flight, a transfer, a long drive): prioritise comfort and layers — soft, non-restrictive pieces, closed comfortable shoes (sneakers or flats, no heels), and one light layer that can go on and off.",
     ...(() => {
       const pc = detectPlaceContext(params.occasion);
       if (!pc || !isHardObligation(pc.obligation)) return [];
@@ -461,16 +432,66 @@ export async function suggestOutfitCore(params: {
       // written in, instead of always Italian regardless of who's asking.
       return [`This place may also require: ${extra.join(", ").replace(/_/g, " ")}. Add ONE brief, honest sentence about this to your explanation, phrased as "may also require" rather than certain, in the same language as the rest of your explanation — AURA has no way to check these against the wardrobe, so never imply the outfit satisfies them.`];
     })(),
-    BLAZER_WARMTH_PROMPT_RULE,
-    BELT_BODYCON_PROMPT_RULE,
-    ACCESSORY_OCCASION_PROMPT_RULE,
-    OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
     ...(detectActivityKind({ label: params.occasion, dressCode: null, minFormality: null }) === "concert"
       ? ["If the occasion is a concert, festival, DJ set or club night: NEVER include heels (pumps, stilettos, high sandals) — this is a physically demanding activity (hours standing, dancing, often outdoors), not an elegant sit-down evening. Sneakers, flat boots, or a low ankle boot are the right footwear; an ankle boot is fine in cool weather but should be avoided if it's genuinely hot instead. Build the rest of the outfit for a stylish-but-comfortable going-out look, not a black-tie dinner."]
       : []),
     ...(detectActivityKind({ label: params.occasion, dressCode: null, minFormality: null }) === "business_dinner"
       ? ["If the occasion is a work/business dinner (a client dinner, a work colleagues' dinner, cena di lavoro): favor understated, professional colors (black, navy, grey, white, camel, burgundy) over bright or flashy ones, avoid very short hemlines (mini-length) and anything overtly party-coded (sequins, sheer fabric, a deeply plunging neckline) — this should read polished and professional, not going-out, even though it's still a dinner."]
       : []),
+    ...(params.baseItemIds?.length
+      ? [
+          `This person already planned an outfit made of these items: ${JSON.stringify(params.baseItemIds)}. The weather changed. ADAPT that outfit: keep every piece that still works and replace ONLY the pieces the new weather makes unsuitable, staying on the same occasion, formality and style. Do not redesign the look from scratch. If the temperature change is so large that most pieces no longer make sense, you may rebuild more of it — but always keep as much of the original outfit as the new weather allows.`,
+        ]
+      : []),
+    ...(params.mustIncludeItemId
+      ? [
+          `MANDATORY ITEM: item id "${params.mustIncludeItemId}" MUST be included in item_ids — this is not optional and not subject to the usual fit/formality/color reasoning above being used to exclude it. Instead, use that reasoning to build the strongest possible outfit AROUND it: choose every other piece specifically to complement this one's category, color, formality and style. If this piece is, on its own, a poor match for the requested occasion or weather, still include it and do your best to make the overall look work as well as it can — never drop it and never substitute a different piece in its place.`,
+        ]
+      : []),
+  ];
+
+  const system = [
+    ...(params.dressRules ? [params.dressRules, ""] : []),
+    ...(languageLine ? [languageLine] : []),
+    ROTATION_PROMPT_RULE,
+    "You are a personal stylist. Compose ONE coherent outfit from the user's wardrobe.",
+    "Pick 3-5 items that work together (typically 1 top + 1 bottom OR 1 dress, + 1 shoes, optionally 1 outerwear and 1 accessory/bag).",
+    ...(genderLine ? [genderLine] : []),
+    "Match the weather and occasion. Prefer colors that harmonize and consistent style.",
+    ...styleMemorySection,
+    // The rules below this line are styling DEFAULTS, not absolute bans —
+    // treat them as: strong preference → deviate when the outfit's own
+    // context makes the combination clearly intentional (a monochrome-
+    // adjacent look, a deliberate color-blocked statement, an eclectic
+    // outfit the wardrobe's style tags support) → your final judgment
+    // wins. A real outfit that reads as put-together always beats
+    // mechanically satisfying every rule below.
+    "Default: avoid combining black and navy/dark blue in the same outfit — two near-identical dark neutrals more often read as a mismatch than a choice. Deviate when one is clearly a small accent against the other as the dominant piece, or when nothing else in the eligible pieces avoids it.",
+    "Default: keep the total color count to about 3-4 per outfit, counting accessories — neutrals (black, white, grey, beige, navy, brown, cream) are forgiving and don't count as strictly as a bold or saturated color does. Going over this isn't a hard stop, just a sign to double check the extra colors are earning their place rather than accumulating by accident.",
+    "Default: when shoes and a bag are both part of the outfit, prefer their leather tone coordinating with EACH OTHER specifically — black shoes with a black/grey-toned bag, brown/cognac/tan shoes with a brown/tan/navy-toned bag. This is only about the two leather accessories relative to each other, not to the rest of the outfit — black shoes with a brown dress, sweater, or trousers is completely normal and not a deviation from anything. And even shoes-vs-bag mismatched tones (e.g. brown dress + black shoes + burgundy bag) can work when the overall palette reads as deliberately coordinated rather than accidental — this is a preference to weigh, not a requirement to enforce mechanically.",
+    "Default: avoid two different bold patterns in the same outfit (leopard with stripes, floral with plaid). One dominant pattern plus one clearly secondary/small-scale pattern can work — e.g. a subtly striped shirt under a tartan blazer — when their scale and color contrast are deliberately different, not just two unrelated statements colliding.",
+    "Default: avoid pairing a bold statement pattern (leopard, animal print, floral, plaid) with another loud, saturated, contrasting color elsewhere in the outfit. Once one piece is doing the visual work, lean the rest neutral or toward the pattern's own dominant color — unless the wardrobe's style tags for this person suggest they genuinely favor maximalist, high-contrast combinations, in which case a bolder pairing can be the right call.",
+    "Default: denim-on-denim works when both pieces are the same wash/tone, or are deliberately very different (white denim with dark blue denim) — two similar-but-not-matching mid-blue denim pieces tend to clash rather than coordinate. When unsure and no clearly-matching or clearly-contrasting pair exists, use only one denim piece.",
+    "Default: don't pair a short/mini-length skirt or dress with a deep/plunging neckline in the same outfit — treat the outfit's overall visual exposure as something to balance, not maximize on every axis at once. This is about overall balance, not a moral judgment, and it never overrides the dress-rules constraints stated earlier, which always take priority when they conflict.",
+    "Default: an evening-specific piece (an evening gown, a cocktail dress, anything formality 5) belongs in an Evening segment, not Day — deviate only if the eligible pieces genuinely leave nothing better for that day.",
+    "Default: keep formality roughly consistent across the outfit — an elegant, dressed-up piece paired with something at the opposite end (flip-flops with a tailored dress, gym sneakers with a cocktail dress) usually reads as unintentional. A deliberate contrast (like a smart top with clean minimal sneakers) can absolutely work when the rest of the outfit supports it as a coherent choice rather than an accident.",
+    "Above ~25°C, prefer a top that hasn't already been worn earlier in this batch over one that has, even if it scores slightly lower on style — a fresh piece matters more in hot weather (sweat, hygiene) than in cooler seasons, where repeating a top once or twice is completely normal.",
+    ...(boldnessLine ? [boldnessLine] : []),
+    "NEVER pick more than one outerwear/layering piece in the same outfit — a blazer and a cardigan (or any two of blazer/cardigan/jacket/coat) are never worn together. Pick at most one.",
+    "A cardigan or any open-front knit (even one tied or wrapped at the front) is a LAYER, like a jacket: ALWAYS pair it with a real top underneath — at least a tank top, camisole, t-shirt, bodysuit or fine knit — never as the only top (unless worn over a dress or jumpsuit).",
+    "TEXT MUST MATCH THE ACTUAL ITEM, NOT YOUR INTENT: before writing the explanation, check the subcategory and colors of every item_id you're about to return, and describe each piece using its own real attributes — never call a sandal a 'décolleté'/'pumps' or describe a bag's color/pattern as something other than what it actually is. If nothing in the wardrobe matches what would be ideal, describe what you actually picked, not an idealized version of it.",
+    "A Dress or Jumpsuit is a complete base on its own and REPLACES both top and bottom — NEVER combine a Dress or Jumpsuit with a separate Bottoms item (trousers, jeans, shorts, skirt) in the same outfit. If you pick a Dress or Jumpsuit, do not also pick anything from the Bottoms category.",
+    "Weather overrides everything else for outerwear: above roughly 15°C, do not include a substantial coat (wool coat, trench, overcoat, puffer, quilted jacket) — it reads as overdressed for the actual weather regardless of how elegant the rest of the look is. Above roughly 26°C, also drop lighter layers — blazers, cardigans, jackets — a lightweight top alone is correct, even for a cocktail or formal occasion (there is always a lighter way to be elegant). Below roughly 10°C, prioritize real warmth over anything else. Only add outerwear when the temperature genuinely calls for it.",
+    // The occasion string carries the real activity name (e.g. "Yoga at
+    // sunset (Sport)"), not just a dress-code label, so these rules can
+    // key off what the day actually is.
+    "If the occasion mentions a pool, swimming, the beach or the sea (pool, piscina, swim, beach, spiaggia, mare, snorkeling): the outfit MUST be built around a Swimwear item — a one-piece swimsuit, or a bikini top AND bikini bottom together — instead of the usual top + bottom. Add a cover-up, a light top/shorts or a dress only as a layer over it, plus sandals/flats and sunglasses if available — never a bag. Never return a city outfit for a swim occasion, and never pair a bikini top with trousers or a skirt.",
+    "If the occasion is Sport or mentions yoga, gym, running, hiking, training, pilates, tennis or cycling: the outfit MUST be built from Activewear pieces (sports bra / training top + leggings, bike shorts or running shorts) with sneakers or the appropriate sport shoe. Exclude denim, tailoring, dresses, heels and anything delicate, and honour the specific activity named — hiking wants covered, sturdy shoes, yoga wants soft stretch pieces.",
+    "If the occasion is Travel (a flight, a transfer, a long drive): prioritise comfort and layers — soft, non-restrictive pieces, closed comfortable shoes (sneakers or flats, no heels), and one light layer that can go on and off.",
+    BLAZER_WARMTH_PROMPT_RULE,
+    BELT_BODYCON_PROMPT_RULE,
+    ACCESSORY_OCCASION_PROMPT_RULE,
+    OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
     "For a 'Work' occasion specifically, exclude anything sequinned, sparkly, feathered, fringed, or overtly evening/party-coded (check the material and styleTags fields), exclude cocktail or evening dresses, and exclude very short skirts (mini-length). Separately, exclude genuinely bare-shoulder construction — off-shoulder, bardot, halter, strapless, one-shoulder, bandeau (check subcategory and styleTags for these terms) — but a plain sleeveless top or dress (sleeveLength: Sleeveless, no other bare-shoulder signal) is completely normal workwear and must NOT be excluded just for having no sleeves; judge it on formality/coverage like any other piece. Also treat dayEvening \"evening\" or formality 4-5 as a strong signal the piece belongs in an Evening look, not Work — these read as going-out wear, not workwear, even if the color looks fine on paper.",
     "Color palette by occasion, when choosing between otherwise-equal options: 'Formal'/'Business Formal' favors navy, grey, black, black-and-white; 'Work'/'Business Casual' favors khaki, light grey, navy, brown as a base with bordeaux, olive, camel, or light blue as accents; 'Smart Casual'/'Weekend' allows one clearly colorful statement piece against a simple base. This is a preference between similarly-fitting options, not a hard exclusion — don't reject an otherwise great outfit purely for using an off-palette color.",
     "Sequins, sparkle, or lurex/metallic fabric are for evening only — never pick a sequinned or sparkly piece for a Day segment, regardless of occasion, even outside a Work context specifically.",
@@ -482,23 +503,17 @@ export async function suggestOutfitCore(params: {
        "A belt is a genuine styling option, not just a functional afterthought — actively consider one from Accessories when the outfit has a waist to define (high-rise trousers/jeans/skirt with a tucked or cropped top, a Relaxed/Oversized-fit dress or jumpsuit with no built-in waist definition) and the wardrobe has one whose color/formality fits (leather belt with tailoring, a slimmer or woven belt for casual). Skip it when the piece is already fitted at the waist (Slim/Tailored fit) or is a Wrap style — an extra belt there is redundant, not additive.",
     "LAYERING TECHNIQUES — two specific combinations to actively consider, not just default to a single top: (1) a denim shirt or jacket worn OPEN, unbuttoned, over a well-fitted tank top or t-shirt underneath (the layer underneath must be 'Slim'/'Tailored'/'Regular' fit — never Oversized or Cropped, which reads sloppy layered this way); (2) a lace bra or bralette worn deliberately visible under a semi-sheer/sheer shirt or sweater, or under an open blazer, or peeking from a low/plunging neckline top or dress — for occasions where that reads as styled rather than accidental (evening, going-out, creative/bold contexts — never for a Work occasion, and never if it would violate a stated dress preference). Only propose either technique when the wardrobe actually has pieces that fit it (right subcategory/fit/material) — never force a layering trick onto pieces it doesn't suit.",
     "Return ONLY item ids that exist in the provided catalog. Never invent ids.",
-    ...(params.baseItemIds?.length
-      ? [
-          `This person already planned an outfit made of these items: ${JSON.stringify(params.baseItemIds)}. The weather changed. ADAPT that outfit: keep every piece that still works and replace ONLY the pieces the new weather makes unsuitable, staying on the same occasion, formality and style. Do not redesign the look from scratch. If the temperature change is so large that most pieces no longer make sense, you may rebuild more of it — but always keep as much of the original outfit as the new weather allows.`,
-        ]
-      : []),
-    ...(params.mustIncludeItemId
-      ? [
-          `MANDATORY ITEM: item id "${params.mustIncludeItemId}" MUST be included in item_ids — this is not optional and not subject to the usual fit/formality/color reasoning above being used to exclude it. Instead, use that reasoning to build the strongest possible outfit AROUND it: choose every other piece specifically to complement this one's category, color, formality and style. If this piece is, on its own, a poor match for the requested occasion or weather, still include it and do your best to make the overall look work as well as it can — never drop it and never substitute a different piece in its place.`,
-        ]
-      : []),
     "Explanation: 1-2 short sentences (max 200 chars) on why these pieces work.",
     "",
     "Respond with ONLY a single valid JSON object, no markdown fences, no extra text, in exactly this shape:",
     '{"item_ids": ["id1", "id2"], "explanation": "short reason"}',
   ].join("\n");
 
-  const userContent = `${wx} ${occ}${params.commuteLayerHint ? `\n${params.commuteLayerHint}` : ""}\nWardrobe:\n${JSON.stringify(catalog)}`;
+  const avoidedInCatalog = catalog.filter((c) => avoidSet.has(c.id)).map((c) => c.id);
+  if (avoidedInCatalog.length) {
+    contextRules.push(`ALREADY USED EARLIER IN THIS PLAN: ${JSON.stringify(avoidedInCatalog)}. Do not reuse any of these when the same category has another suitable piece in the catalog; reuse one only when its category has nothing else that fits.`);
+  }
+  const userContent = `Wardrobe:\n${JSON.stringify(catalog)}\n\n${wx} ${occ}${params.commuteLayerHint ? `\n${params.commuteLayerHint}` : ""}${contextRules.length ? `\n\n${contextRules.join("\n")}` : ""}`;
 
   // Hard, code-level guardrails — mirrors the pattern in
   // suggest-daily-looks.functions.ts. The prompt above ALSO asks for all
@@ -803,8 +818,10 @@ export async function suggestOutfitCore(params: {
       try {
         const retry = await generateText({
           model,
-          system: system + "\n\nIMPORTANT — your previous answer broke a hard rule above (either more than one item in the same slot, an evening-coded/bare-shoulder piece for a Work occasion, an item excluded by the person's stated dress preferences, a piece unsuitable for the actual temperature — e.g. a wool/heavy piece when it's hot, or a bare/light piece when it's cold — a long-sleeve top when a short-sleeve one was available and it's mild-to-warm out, or the reverse when it's mild-to-cool — sunglasses in an evening look — or missing the mandatory bag for a women's outfit, or a beach/holiday bag or hiking boots in a Work/business/evening look, or a bare-shoulder/mini/shorts/too-fitted/underdressed piece for a place with its own access requirement (a place of worship, an embassy, a formal venue…), or an outfit without a bottom (trousers/skirt) or without a top). Try again, respecting every rule strictly this time.",
-          messages: [{ role: "user", content: userContent }],
+          system,
+          // The correction is a follow-up message, not an edit of the rules: the rules and the
+          // catalog stay an identical opening, billed at the cached-input rate.
+          messages: [{ role: "user", content: userContent }, { role: "user", content: "IMPORTANT — your previous answer broke a hard rule above (either more than one item in the same slot, an evening-coded/bare-shoulder piece for a Work occasion, an item excluded by the person's stated dress preferences, a piece unsuitable for the actual temperature — e.g. a wool/heavy piece when it's hot, or a bare/light piece when it's cold — a long-sleeve top when a short-sleeve one was available and it's mild-to-warm out, or the reverse when it's mild-to-cool — sunglasses in an evening look — or missing the mandatory bag for a women's outfit, or a beach/holiday bag or hiking boots in a Work/business/evening look, or a bare-shoulder/mini/shorts/too-fitted/underdressed piece for a place with its own access requirement (a place of worship, an embassy, a formal venue…), or an outfit without a bottom (trousers/skirt) or without a top). Try again, respecting every rule strictly this time." }],
         });
         const retryParsed = parseAiJson(retry.text, OutputSchema);
         const retryIds = retryParsed.item_ids.filter((id) => validIds.has(id)).slice(0, 5);
@@ -890,7 +907,8 @@ export async function suggestOutfitCore(params: {
       const relaxed = catalog.filter((c) =>
         c.category === category && notUsed(c) && !violatesWeather([c.id])
         && !violatesOccasionTag([c.id]) && !violatesBeachBag([c.id]));
-      const pool = strict.length ? strict : relaxed;
+      const fresh = (list: typeof catalog) => (list.some((c) => !avoidSet.has(c.id)) ? list.filter((c) => !avoidSet.has(c.id)) : list);
+      const pool = strict.length ? fresh(strict) : fresh(relaxed);
       if (!pool.length) return null;
       const fs = item_ids.map((id) => catalog.find((c) => c.id === id)?.formality).filter((f): f is number => typeof f === "number");
       const target = fs.length ? fs.reduce((a, b) => a + b, 0) / fs.length : 3;
@@ -912,6 +930,19 @@ export async function suggestOutfitCore(params: {
     if (violatesFootwearRule(item_ids)) {
       const replacement = pickBest("Shoes", (c) => c.subcategory !== "Running Shoes");
       if (replacement) item_ids = [...item_ids, replacement.id];
+    }
+
+    // Variety across a weekly plan or trip: a piece used earlier in the batch gives way to an unused
+    // one of the same kind whenever there is one (the catalog keeps used pieces so it can be cached;
+    // the model is told which they are, and this guarantees it).
+    if (avoidSet.size) {
+      item_ids = item_ids.map((id) => {
+        if (!avoidSet.has(id) || protectedIds.has(id)) return id;
+        const c = catalog.find((x) => x.id === id);
+        if (!c?.category) return id;
+        const alt = pickBest(c.category, (x) => !avoidSet.has(x.id) && isOpenLayerPiece(x) === isOpenLayerPiece(c));
+        return alt ? alt.id : id;
+      });
     }
 
     // Shoes are part of the STRUCTURE rule described in the prompt, but nothing ever verified a Shoes item
