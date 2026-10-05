@@ -15,7 +15,7 @@ export type UsageFeature =
   | "weekly_outfits" | "daily_look" | "trip" | "gap_analysis" | "advisor" | "advisor_compare"
   | "tryon" | "unscoped";
 
-type Scope = { feature: UsageFeature; action: string | null; userId: string | null; userRequestId: string; calls: Map<string, number> };
+type Scope = { feature: UsageFeature; action: string | null; step?: string | null; userId: string | null; userRequestId: string; calls: Map<string, number> };
 
 // node:async_hooks is loaded at run time on the server only. Some of the files that record usage
 // are also part of the browser bundle (their server code is never run there), and a static import
@@ -28,6 +28,13 @@ async function scopeStorage(): Promise<AsyncLocalStorage<Scope>> {
     storage ??= new Als<Scope>();
   }
   return storage;
+}
+
+/** Names the step of the current request the next paid calls belong to (a Stylist reply, its
+ *  re-read, a repair…), so the ledger shows which step costs what. No scope → nothing happens. */
+export function setUsageStep(step: string | null): void {
+  const scope = storage?.getStore();
+  if (scope) scope.step = step;
 }
 
 /** Runs fn with every paid call inside it attributed to this feature (and step of it, e.g. an
@@ -131,7 +138,7 @@ export function ledgerRow(entry: UsageEntry, scope: Scope | undefined = storage?
     user_request_id: scope?.userRequestId ?? null,
     provider: entry.provider,
     model: entry.model ?? null,
-    operation: scope?.action ?? entry.operation ?? null,
+    operation: scope?.step ?? scope?.action ?? entry.operation ?? null,
     input_tokens: entry.inputTokens ?? null,
     output_tokens: entry.outputTokens ?? null,
     reasoning_tokens: entry.reasoningTokens ?? null,

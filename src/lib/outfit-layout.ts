@@ -47,6 +47,12 @@ const GROUP_SHRINK = 0.75; // when several items share one slot
 /** Full-length trousers: minimum height (fraction of H) and the widest they may become for it. */
 const LONG_BOTTOM_MIN_H = 0.58;
 const LONG_BOTTOM_MAX_W = 0.56;
+/** Jackets and coats: a blazer photographed with its sleeves out is wider than tall, so the width
+ *  box kept it at ~37% of the canvas height next to trousers at ~69% — half their size instead of
+ *  three quarters. They keep at least OUTER_MIN_H × (real length / 100 cm) of the height, widening
+ *  up to OUTER_MAX_W of the canvas to get there (they sit behind the other pieces). */
+const OUTER_MIN_H = 0.62;
+const OUTER_MAX_W = 0.5;
 
 /** Max box per bucket: [max width, max height], fractions of canvas W / H. */
 const BOX: Record<Bucket, { w: number; h: number }> = {
@@ -229,6 +235,10 @@ const cm = realCm(it.bucket, it.subcategory, it.length);
 if (it.bucket === "bottom" && cm != null && cm >= 90) {
   const minH = LONG_BOTTOM_MIN_H * H * shrink;
   if (w * aspect < minH) w = Math.max(w, Math.min(minH / aspect, LONG_BOTTOM_MAX_W * W * shrink));
+}
+if (it.bucket === "outer" && cm != null) {
+  const minH = Math.min(OUTER_MIN_H * (cm / 100), BOX.outer.h) * H * shrink;
+  if (w * aspect < minH) w = Math.max(w, Math.min(minH / aspect, OUTER_MAX_W * W * shrink));
 }
 
 return { w, h: w * aspect };
