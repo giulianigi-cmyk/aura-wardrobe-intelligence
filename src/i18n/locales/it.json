@@ -2049,7 +2049,7 @@
     "tryOnCta": "Prova sul mio avatar",
     "tryOnTitle": "Prova sul mio avatar",
     "pickItemsEyebrow": "Dal tuo guardaroba",
-    "pickItemsHint": "Scegli i capi che vuoi vedere addosso a te.",
+    "pickItemsHint": "Scegli i capi e le scarpe che vuoi vedere addosso a te. Borse e accessori non vengono indossati dall'avatar.",
     "selectedCount_one": "{{count}} selezionato",
     "selectedCount_other": "{{count}} selezionati",
     "generate": "Genera",
@@ -2084,8 +2084,11 @@
       "network": "Connessione interrotta durante la generazione. Riprova.",
       "provider": "Si è verificato un problema nella creazione del look. Riprova."
     },
-    "tooManyPieces_one": "Sull'avatar mostro i capi principali: 1 accessorio piccolo non è incluso.",
-    "tooManyPieces_other": "Sull'avatar mostro i capi principali: {{count}} accessori piccoli non sono inclusi."
+    "tooManyPieces_one": "Sull'avatar provo al massimo 6 capi: 1 capo non è incluso.",
+    "tooManyPieces_other": "Sull'avatar provo al massimo 6 capi: {{count}} capi non sono inclusi.",
+    "accessoriesNotWorn_one": "L'avatar non indossa borse e accessori: 1 pezzo non è incluso nella prova.",
+    "accessoriesNotWorn_other": "L'avatar non indossa borse e accessori: {{count}} pezzi non sono inclusi nella prova.",
+    "onlyAccessories": "L'avatar non indossa borse e accessori: scegli almeno un capo o un paio di scarpe."
   },
   "logWear": {
     "title": "Cosa ho indossato?",

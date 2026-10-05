@@ -1,43 +1,32 @@
 // Run with: bun test src/lib/tryon-select.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { selectTryOnItems } from "./tryon-select";
+import { isNotWornOnAvatar, orderForTryOn, selectTryOnItems, underLayerFor } from "./tryon-select";
 
 const it = (id: string, category: string, subcategory: string | null = null, style_tags: string[] = []) => ({ id, category, subcategory, style_tags });
 
-test("garments, shoes, bag: unchanged", () => {
-  const items = [it("d", "Dresses"), it("s", "Shoes"), it("b", "Bags")];
-  assert.deepEqual(selectTryOnItems(items).kept, items);
-});
-
-test("small jewellery is left out even when there is room", () => {
-  const items = [it("dress", "Dresses"), it("shoes", "Shoes"), it("bracelet", "Accessories", "Bracelet"), it("ring", "Accessories", "Ring"), it("watch", "Accessories", "Watch")];
-  const { kept, dropped } = selectTryOnItems(items);
+test("the avatar wears clothes and shoes; bags and every accessory are left out and reported", () => {
+  const items = [it("dress", "Dresses"), it("shoes", "Shoes"), it("bag", "Bags"), it("earrings", "Accessories", "Earrings"), it("belt", "Accessories", "Belt")];
+  const { kept, accessories, overLimit } = selectTryOnItems(items);
   assert.deepEqual(kept.map((x) => x.id), ["dress", "shoes"]);
-  assert.deepEqual(dropped.map((x) => x.id), ["bracelet", "ring", "watch"]);
+  assert.deepEqual(accessories.map((x) => x.id), ["bag", "earrings", "belt"]);
+  assert.deepEqual(overLimit, []);
+  assert.equal(isNotWornOnAvatar({ category: "Bags" }), true);
+  assert.equal(isNotWornOnAvatar({ category: "Shoes" }), false);
 });
 
-test("statement jewellery is kept; earrings and necklaces when there is room", () => {
-  const items = [it("dress", "Dresses"), it("cuff", "Accessories", "Bracelet", ["Statement"]), it("earrings", "Accessories", "Earrings"), it("bag", "Bags")];
-  assert.deepEqual(selectTryOnItems(items).kept.map((x) => x.id), ["dress", "cuff", "earrings", "bag"]);
+test("more than 6 garments: clothes first, then shoes, outfit order kept; the rest reported apart", () => {
+  const items = [it("s", "Shoes"), ...["a", "b", "c", "d", "e", "f"].map((id) => it(id, "Tops"))];
+  const { kept, overLimit } = selectTryOnItems(items);
+  assert.deepEqual(kept.map((x) => x.id), ["a", "b", "c", "d", "e", "f"]);
+  assert.deepEqual(overLimit.map((x) => x.id), ["s"]);
 });
 
-test("more than 6: garments, shoes and bag first, outfit order preserved", () => {
-  const items = [
-    it("earrings", "Accessories", "Earrings"), it("dress", "Dresses"), it("watch", "Accessories", "Watch"),
-    it("shoes", "Shoes"), it("bag", "Bags"), it("coat", "Outerwear"), it("necklace", "Accessories", "Necklace"),
-    it("sunglasses", "Accessories", "Sunglasses"), it("belt", "Accessories", "Belt"),
-  ];
-  const { kept } = selectTryOnItems(items);
-  assert.equal(kept.length, 6);
-  assert.deepEqual(kept.map((x) => x.id), ["dress", "shoes", "bag", "coat", "sunglasses", "belt"]);
+test("only bags or accessories chosen: nothing to put on the avatar", () => {
+  const { kept, accessories } = selectTryOnItems([it("ring", "Accessories", "Ring"), it("bag", "Bags")]);
+  assert.equal(kept.length, 0);
+  assert.equal(accessories.length, 2);
 });
-
-test("only small jewellery chosen: still tried on (nothing else to show)", () => {
-  assert.deepEqual(selectTryOnItems([it("ring", "Accessories", "Ring")]).kept.map((x) => x.id), ["ring"]);
-});
-
-import { orderForTryOn, underLayerFor } from "./tryon-select";
 
 test("layering order: dress and base top first, the shirt over them, then shoes and bag", () => {
   const items = [it("bag", "Bags"), it("shirt", "Tops", "Shirt"), it("shoes", "Shoes"), it("dress", "Dresses"), it("earrings", "Accessories", "Earrings")];
