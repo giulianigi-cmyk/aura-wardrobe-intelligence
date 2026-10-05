@@ -120,3 +120,15 @@ export const WORK_ACCESSORY_PROMPT_RULE =
   "WORK / BUSINESS / EVENING / FORMAL: never use a beach or holiday bag (straw, raffia, wicker, basket) or technical outdoor footwear (hiking, trekking, mountain or snow boots) in these looks. " +
   "SEASON: a beach or holiday bag (straw, raffia, wicker, basket) belongs to summer specifically \u2014 never propose one outside roughly June-September, no matter how warm the actual day is; a warm day in another season is not summer. " +
   "Every outfit is COMPLETE: a top AND a bottom (or a dress/jumpsuit), plus shoes \u2014 never return a look without trousers/skirt/shorts when the wardrobe has any.";
+
+/** Occasion tags that make a piece right for an evening look. */
+const EVENING_TAGS = new Set(["Evening", "Cocktail", "Black Tie", "Wedding Guest", "Garden Party", "Formal"]);
+/** A bag the person tagged only for daytime (Everyday, Work, Weekend, Travel…): not for an evening
+ *  look. Read from the occasion tags, not from day/evening — that is "both" on almost every bag, set
+ *  automatically, while the tags are what the person (or the analysis) actually chose. A bag with no
+ *  tags is never excluded. */
+export function isDayOnlyBag(item: { category?: string | null; occasion?: string | null }): boolean {
+  if (item.category !== "Bags") return false;
+  const tags = (item.occasion ?? "").split(",").map((t) => t.trim()).filter(Boolean);
+  return tags.length > 0 && !tags.some((t) => EVENING_TAGS.has(t));
+}

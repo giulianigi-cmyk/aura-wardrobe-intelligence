@@ -80,9 +80,14 @@ const KEEP_PERSON_HINT = "Change only the garment. Keep the person's face, facia
 
 /** A shirt/blouse/cardigan worn over a dress or a base top (t-shirt, tank, camisole): reported as
  *  coming out buttoned closed over the dress, hiding it. Styled the way it is actually worn. */
-function openLayerHint(underLayer: "dress" | "top" | null | undefined): string {
+function openLayerHint(underLayer: "dress" | "top" | null | undefined, category?: string | null): string {
   if (!underLayer) return "";
   const under = underLayer === "dress" ? "the dress" : "the top";
+  // A blazer or jacket over a t-shirt came out buttoned closed, hiding the top entirely (a step paid
+  // for and then invisible): worn open, the way it is styled.
+  if (category === "Outerwear") {
+    return `Open jacket, unbuttoned and worn open over ${under}. Keep ${under} visible down the front; do not button or close it.`;
+  }
   // Short and first in the prompt: a long sentence after the other hints was ignored and the shirt
   // came out buttoned closed over the dress, turning it into a skirt.
   return `Open shirt, fully unbuttoned, worn loose over ${under}. Keep ${under} visible down the whole front; do not button it, do not cover or remove ${under}.`;
@@ -284,7 +289,7 @@ export const startTryOnStep = createServerFn({ method: "POST" })
     }
 
     const result = await submitFashnRun(data.modelImageDataUrl, garmentImage, {
-      prompt: [openLayerHint(data.underLayer), outerwearOverDressHint(item.category, data.hasDressInOutfit ?? false), lengthPromptHint(item.length), KEEP_PERSON_HINT]
+      prompt: [openLayerHint(data.underLayer, item.category), outerwearOverDressHint(item.category, data.hasDressInOutfit ?? false), lengthPromptHint(item.length), KEEP_PERSON_HINT]
         .filter(Boolean).join(" ") || undefined,
     });
     if (!result.ok) return { ok: false as const, error: result.error };

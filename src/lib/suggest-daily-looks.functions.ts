@@ -4,9 +4,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
 import { z } from "zod";
 import { parseAiJson } from "./ai-json";
-import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
+import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
-import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, isSummerSeason } from "./outfit-styling-rules";
+import { isDayOnlyBag, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, isSummerSeason } from "./outfit-styling-rules";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 import { explanationLanguageInstruction } from "./language_prompt";
 import { dressPreferencesToPrompt, hasAnyPreference, isItemAllowedByDressPreferences, type DressPreferences } from "./dress-preferences";
@@ -47,6 +47,8 @@ const ItemSchema = z.object({
 const InputSchema = z.object({
 
   temperature: z.number().nullable().optional(),
+  /** Today's minimum: outside summer a cool morning leaves summer pieces out (withoutSummerPieces). */
+  tempMin: z.number().nullable().optional(),
   condition: z.string().nullable().optional(),
   dressRules: z.string().max(8000).nullable().optional(),
   items: z.array(ItemSchema).min(3),
@@ -153,7 +155,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       withoutRecentPerCategory(
         // Today's weather applies to every look: on a wet day, no suede, light colours, canvas shoes,
         // hems that touch the ground or precious bags where something suitable exists (rain-rules.ts).
-        filterForRain(data.items.filter((it) => allowedFor("General", it) || allowedFor("Work", it)), data.condition),
+        withoutSummerPieces(filterForRain(data.items.filter((it) => allowedFor("General", it) || allowedFor("Work", it)), data.condition), todayIso, data.tempMin),
         recentlyWornIds(history, todayIso),
         2,
       ),
@@ -189,6 +191,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       ...styleMemorySection,
       BLAZER_WARMTH_PROMPT_RULE,
       ...(isWetCondition(data.condition) ? [RAIN_PROMPT_RULE] : []),
+      ...(summerIsOver(todayIso, data.tempMin) ? [summerOverPromptRule(data.tempMin as number)] : []),
       BELT_BODYCON_PROMPT_RULE,
       ACCESSORY_OCCASION_PROMPT_RULE,
     OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
@@ -411,6 +414,8 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       return ids.some((id) => {
         const item = catalog.find((c) => c.id === id);
         if (!item?.occasion) return false;
+        // A day bag (tagged Everyday / Work / Weekend… and nothing evening) never goes out at night.
+        if (occasion === "Evening" && isDayOnlyBag(item)) return true;
         const tags = item.occasion.split(",").map((s) => s.trim()).filter(Boolean);
         const hasSpecialized = tags.some((tg) => SPECIALIZED_OCCASION_TAGS.includes(tg));
         if (!hasSpecialized) return false;

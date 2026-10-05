@@ -16,6 +16,8 @@
 // questa regola indirettamente, perché entrambi chiamano suggestOutfitCore
 // per la generazione finale.
 
+import { isSummerSeason } from "./outfit-styling-rules";
+
 export const HOT_THRESHOLD_C = 26;
 export const COLD_THRESHOLD_C = 10;
 
@@ -169,4 +171,47 @@ export function violatesSleeveClimate<T extends WeatherCheckableItem & { id: str
     if (!mismatched) return false;
     return catalog.some((c) => isTopLike(c) && !ids.includes(c.id) && (warm ? isShort(c) : isLong(c)));
   });
+}
+
+// ---------------------------------------------------------------------------------------------------
+// SUMMER IS OVER. A warm October afternoon in Italy doesn't bring linen, sleeveless dresses, shorts or
+// sandals back: the day starts at 12°C. Outside summer (June–September) and with a cool morning, the
+// pieces made for summer are left out — but only where they really are summer pieces and where their
+// category still has something else. In a place where mornings stay warm (Marrakech, the Bahamas)
+// nothing changes: it is the morning, not the month alone, that decides.
+// ---------------------------------------------------------------------------------------------------
+export const COOL_MORNING_C = 15;
+const SUMMER_FABRIC = /\blinen\b|\blino\b|seersucker|raffia|rafia/i;
+
+export type SeasonCheckableItem = WeatherCheckableItem & { sleeveLength?: string | null; formality?: number | null };
+
+/** Made for summer: linen (whatever its season tag), or a sleeveless / tank / shorts / sandal /
+ *  open-toe piece the person tagged only for spring–summer (one tagged for autumn, winter or all
+ *  seasons — a sleeveless top worn under a jacket all year — is not). */
+export function isSummerPiece(item: SeasonCheckableItem): boolean {
+  const text = `${item.subcategory ?? ""} ${(item.styleTags ?? []).join(" ")} ${(item.material ?? []).join(" ")}`;
+  if (SUMMER_FABRIC.test(text)) return true;
+  // Fine heeled sandals for a gala are worn in winter too (with tights) — not a summer piece.
+  if (item.category === "Shoes" && (item.formality ?? 0) >= 4) return false;
+  const season = (item.season ?? "").toLowerCase();
+  const yearRound = /autumn|fall|winter|all/.test(season);
+  if (yearRound || !/summer|spring/.test(season)) return false;
+  return LIGHT_SIGNAL.test(text) || (item.sleeveLength ?? "").toLowerCase() === "sleeveless" || item.toeShape === "Open Toe";
+}
+
+/** Outside summer, with a morning below COOL_MORNING_C. No morning reading → no opinion. */
+export function summerIsOver(dateIso: string | null | undefined, morningTemp: number | null | undefined): boolean {
+  return morningTemp != null && !Number.isNaN(morningTemp) && morningTemp < COOL_MORNING_C && !isSummerSeason(dateIso);
+}
+
+/** The items to offer once summer is over: summer pieces out, unless one is the only thing its
+ *  category has (a look is never left without shoes because every pair is a sandal). */
+export function withoutSummerPieces<T extends SeasonCheckableItem>(items: T[], dateIso: string | null | undefined, morningTemp: number | null | undefined): T[] {
+  if (!summerIsOver(dateIso, morningTemp)) return items;
+  const hasOther = new Set(items.filter((it) => !isSummerPiece(it)).map((it) => it.category ?? ""));
+  return items.filter((it) => !isSummerPiece(it) || !hasOther.has(it.category ?? ""));
+}
+
+export function summerOverPromptRule(morningTemp: number): string {
+  return `SUMMER IS OVER: the morning starts around ${Math.round(morningTemp)}°C. Even if the afternoon is warm, never propose linen, sleeveless dresses or tops, shorts, tank tops or sandals that belong to summer — choose autumn pieces, with a layer for the cool morning.`;
 }

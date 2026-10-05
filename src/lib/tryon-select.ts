@@ -87,8 +87,14 @@ export function orderForTryOn<T extends Layerable>(items: T[]): T[] {
   return items.map((it, i) => ({ it, i, r: layerRank(it) })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.it);
 }
 
-/** What lies under an open-front top in this outfit, if anything. */
+/** What lies under an open-front top — or a jacket, blazer or coat — in this outfit, if anything.
+ *  A jacket over a dress is handled by its own hint (worn open or on the shoulders); over a top it is
+ *  worn open, so the top it was chosen with stays visible. */
 export function underLayerFor(item: Layerable, outfit: Layerable[]): "dress" | "top" | null {
+  if (item.category === "Outerwear") {
+    if (outfit.some((o) => o.category === "Dresses" || o.category === "Jumpsuits")) return null;
+    return outfit.some((o) => o !== item && (o.category === "Tops" || o.category === "Activewear")) ? "top" : null;
+  }
   const sub = (item.subcategory ?? "").toLowerCase();
   if (item.category !== "Tops" || !OPEN_FRONT_TOPS.has(sub)) return null;
   if (outfit.some((o) => o.category === "Dresses" || o.category === "Jumpsuits")) return "dress";

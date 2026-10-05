@@ -27,8 +27,9 @@ export function isWetCondition(condition: string | null | undefined): boolean {
 }
 
 const DELICATE = /suede|camoscio|scamosciat|nubuck|velvet|velluto|terciopelo|velours|silk|seta|seda|soie|satin|raso|chiffon|organza|tulle|mohair/i;
-const RAIN_READY_OUTER = /rain|impermeabil|trench|parka|puffer|piumino|windbreaker|anorak|k-?way|cerata/i;
-const OPEN_OR_CANVAS_SHOE = /sandal|espadrill|slide|flip.?flop|infradito|ciabatt|canvas|tela|raffia|jute/i;
+export const RAIN_READY_OUTER = /rain|impermeabil|trench|parka|puffer|piumino|windbreaker|anorak|k-?way|cerata/i;
+// Open at the heel or the toe: the foot gets wet and the shoe slips on a wet street.
+const OPEN_OR_CANVAS_SHOE = /sandal|espadrill|slide|flip.?flop|infradito|ciabatt|canvas|tela|raffia|jute|slingback|mule|sabot|peep.?toe|open.?toe/i;
 const PRECIOUS_OR_STAINABLE = /raffia|straw|paglia|wicker|vimini|canvas|tela|crystal|cristall|swarovski|rhinestone|strass|sequin|paillett|pearl|perl|embellish|feather|piume|beaded/i;
 const FLOOR_LENGTH = /maxi|floor|palazzo|flare|zampa|bootcut|wide[- ]?leg|gamba larga|long dress|evening dress|abito lungo|gown/i;
 
@@ -86,3 +87,12 @@ export function filterForRain<T extends RainCheckable & { formality?: number | n
 /** The same rules for the stylist prompt (for what the catalog can't show, and to explain). */
 export const RAIN_PROMPT_RULE =
   "RAIN RULE (it is raining or about to). The occasion always comes first: rain never lowers the formality the occasion needs — at a wedding, gala, ceremony or elegant dinner keep elegant pieces and pick, among them, the ones that cope best with rain (leather rather than suede or satin, a darker pair, a coat or trench over the outfit), never flat ankle boots, sneakers or casual pieces because it rains. Within what suits the occasion: never propose suede (shoes, jackets, bags), velvet, silk, satin or other delicate fabrics; no white or light-coloured shoes, trousers, skirts or dresses, and no light-coloured coat or jacket unless it is a raincoat/trench made for the rain; no light canvas shoes, sandals or open toes; no wide/flared trousers or maxi skirts and dresses that touch the ground; no bags in suede, straw, canvas, precious or embellished fabrics. Prefer closed, water-resistant shoes, a dark or practical bag, and as the outer layer a raincoat, trench or — when the occasion allows it — a puffer rather than a wool coat that soaks up water.";
+
+/** On a wet day the look gets a real outer layer when the wardrobe has one: a raincoat, trench or
+ *  parka first, otherwise any jacket or coat that isn't itself wrong for the rain. Null when the
+ *  look already has one, or nothing suitable exists. */
+export function rainLayerFor<T extends RainCheckable & { id: string }>(chosen: T[], candidates: T[]): T | null {
+  if (chosen.some((it) => it.category === "Outerwear")) return null;
+  const outer = candidates.filter((it) => it.category === "Outerwear" && !rainReason(it));
+  return outer.find((it) => RAIN_READY_OUTER.test(text(it))) ?? outer[0] ?? null;
+}

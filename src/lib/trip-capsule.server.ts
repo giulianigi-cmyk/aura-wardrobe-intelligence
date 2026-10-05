@@ -1549,6 +1549,10 @@ export async function generateTripCapsuleCore({ data, context }: {
         gender: profile?.gender ?? null,
         styleBoldness: profile?.style_boldness ?? null,
         language: profile?.language ?? null,
+        // The day it's for and the destination's morning there: outside summer a cool morning leaves
+        // summer pieces home; a warm one (Marrakech in October) keeps them.
+        forDateIso: req.date,
+        morningTemp: dayWeather?.tempMin ?? null,
         items,
         // Variety avoidance applies to clothes, never to bags and shoes.
         // Nobody packs a fresh bag and fresh sneakers for every day of a
