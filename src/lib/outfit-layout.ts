@@ -40,8 +40,9 @@ const MARGIN = 0.04; // min distance from canvas edge (fraction)
 /** Bottom strip kept EMPTY for the "aura" watermark (drawn bottom-right by
  *  compose-outfit-canvas.ts, baseline 72px from the bottom, glyphs ~42px tall, so
  *  y ≈ .915-.947). No garment or accessory may enter it: everything is clamped to
- *  y ≤ 1 − BOTTOM_RESERVED. */
-export const BOTTOM_RESERVED = 0.085;
+ *  y ≤ 1 − BOTTOM_RESERVED. At .085 the pieces stopped right at the top of the
+ *  letters (shoes touching the mark); .115 leaves a clear ~40px gap above it. */
+export const BOTTOM_RESERVED = 0.115;
 const GROUP_SHRINK = 0.75; // when several items share one slot
 /** Full-length trousers: minimum height (fraction of H) and the widest they may become for it. */
 const LONG_BOTTOM_MIN_H = 0.58;

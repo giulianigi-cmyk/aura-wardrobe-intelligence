@@ -386,6 +386,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
         data: {
           dressRules,
           temperature: weather?.current.temperature ?? null,
+          tempMin: weather?.daily?.[0]?.tempMin ?? null,
           condition: desc,
           occasion,
           items: activeItems.map((it) => ({

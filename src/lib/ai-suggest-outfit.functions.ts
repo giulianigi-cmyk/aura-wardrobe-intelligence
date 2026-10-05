@@ -6,9 +6,9 @@ import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { isItemAtAnyLocation } from "./wardrobe-location";
 import { isItemAllowedByDressPreferences, hasAnyPreference, coversShoulders, coversArms, coversLegs, type DressPreferences } from "./dress-preferences";
-import { anyItemViolatesWeather, violatesSleeveClimate, BLAZER_WARMTH_PROMPT_RULE } from "./outfit-weather-rules";
-import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
-import { BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
+import { anyItemViolatesWeather, violatesSleeveClimate, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule } from "./outfit-weather-rules";
+import { filterForRain, isWetCondition, rainLayerFor, RAIN_PROMPT_RULE } from "./rain-rules";
+import { isDayOnlyBag, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
 import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
 import { loadWearHistory, recentlyWornIds, rotationOrder, wearFields, withoutRecentPerCategory, ROTATION_PROMPT_RULE } from "./outfit-rotation";
@@ -50,6 +50,8 @@ const ItemSchema = z.object({
 
 const InputSchema = z.object({
   temperature: z.number().nullable().optional(),
+  /** Today's minimum, for the summer-is-over rule (withoutSummerPieces). */
+  tempMin: z.number().nullable().optional(),
   condition: z.string().nullable().optional(),
   occasion: z.string().nullable().optional(),
   dressRules: z.string().nullable().optional(),
@@ -142,6 +144,9 @@ export async function suggestOutfitCore(params: {
    *  model, and the guarantee that the outfit has one removable layer even when the model forgets it. */
   commuteLayerHint?: string | null;
   requireRemovableLayer?: boolean;
+  /** The day's morning (minimum) temperature, when known: outside summer a cool morning leaves the
+   *  summer pieces out (outfit-weather-rules.ts, withoutSummerPieces). */
+  morningTemp?: number | null;
 
   /**
    * The app's own selected language (profiles.language — "it" | "en" | "es" | "fr"), so the
@@ -302,6 +307,8 @@ export async function suggestOutfitCore(params: {
   // Rain (rain-rules.ts): suede, delicate fabrics, light colours, light canvas shoes, hems that touch
   // the ground and precious bags are left out wherever the category still has something suitable.
   eligibleItems = filterForRain(eligibleItems, params.condition);
+  // Summer is over: no linen, sleeveless, shorts or sandals on a cool autumn morning.
+  eligibleItems = withoutSummerPieces(eligibleItems, params.forDateIso, params.morningTemp);
 
   if (params.rotation === "exclude-recent") {
     const recent = recentlyWornIds(wearHistory, todayIso);
@@ -421,7 +428,7 @@ export async function suggestOutfitCore(params: {
     "Weather overrides everything else for outerwear: above roughly 15°C, do not include a substantial coat (wool coat, trench, overcoat, puffer, quilted jacket) — it reads as overdressed for the actual weather regardless of how elegant the rest of the look is. Above roughly 26°C, also drop lighter layers — blazers, cardigans, jackets — a lightweight top alone is correct, even for a cocktail or formal occasion (there is always a lighter way to be elegant). Below roughly 10°C, prioritize real warmth over anything else. Only add outerwear when the temperature genuinely calls for it.",
     ...(params.temperature == null
       ? ["NEVER INVENT WEATHER DETAILS: the weather above is unknown — never state or imply a specific temperature or condition ('cool weather', 'possible rain') anywhere in your explanation. Speak only in general, season-appropriate terms if you mention weather at all, and never present an invented condition as the reason for a piece."]
-      : [...(isWetCondition(params.condition) ? [RAIN_PROMPT_RULE] : []), "PERCEIVED TEMPERATURE, NOT JUST THE NUMBER: treat the given temperature as a starting point and adjust which side of a threshold you land on based on the actual condition given alongside it — clear/sunny feels a notch warmer (lean lighter at a threshold), rain/wind/overcast feels a notch colder (lean warmer/more covered, and rain specifically means covered shoes and a real outer layer even at a temperature that wouldn't otherwise call for one). Never invent a perceived-temperature number — this only shifts which real option you pick at the boundary."]),
+      : [...(isWetCondition(params.condition) ? [RAIN_PROMPT_RULE] : []), ...(summerIsOver(params.forDateIso, params.morningTemp) ? [summerOverPromptRule(params.morningTemp as number)] : []), "PERCEIVED TEMPERATURE, NOT JUST THE NUMBER: treat the given temperature as a starting point and adjust which side of a threshold you land on based on the actual condition given alongside it — clear/sunny feels a notch warmer (lean lighter at a threshold), rain/wind/overcast feels a notch colder (lean warmer/more covered, and rain specifically means covered shoes and a real outer layer even at a temperature that wouldn't otherwise call for one). Never invent a perceived-temperature number — this only shifts which real option you pick at the boundary."]),
     // The occasion string carries the real activity name (e.g. "Yoga at
     // sunset (Sport)"), not just a dress-code label, so these rules can
     // key off what the day actually is.
@@ -645,10 +652,13 @@ export async function suggestOutfitCore(params: {
   // excluded by this: most of a wardrobe isn't tagged per-occasion and
   // shouldn't be penalized for it.
   const targetOccasionBase = (params.occasion ?? "").split(/[·-]/)[0].trim();
+  const eveningLook = params.daySegment === "evening" || /evening|sera|cena|dinner|cocktail|gala|party|festa|wedding|matrimonio|black tie|formal/i.test(params.occasion ?? "");
   const violatesOccasionTag = (ids: string[]): boolean =>
     ids.some((id) => {
       const item = catalog.find((c) => c.id === id);
       if (!item?.occasion) return false;
+      // A day bag (tagged Everyday / Work / Weekend… and nothing evening) never goes out at night.
+      if (eveningLook && isDayOnlyBag(item)) return true;
       const tags = item.occasion.split(",").map((s) => s.trim()).filter(Boolean);
       const hasSpecialized = tags.some((tg) => SPECIALIZED_OCCASION_TAGS.includes(tg));
       if (!hasSpecialized) return false;
@@ -927,6 +937,15 @@ export async function suggestOutfitCore(params: {
       }
     }
 
+    // Rain: a real outer layer, always (not only when the model thinks of it) — a raincoat or trench
+    // first — unless it is hot. Chosen among the pieces this outfit may use (occasion, weather rules).
+    if (isWetCondition(params.condition) && (params.temperature == null || params.temperature < 26)) {
+      const usable = catalog.filter((c) => !violatesWeather([c.id]));
+      const chosen = item_ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => !!c);
+      const layer = rainLayerFor(chosen, usable);
+      if (layer) item_ids = [...item_ids, layer.id];
+    }
+
     if (missingMandatoryBag(item_ids)) {
       const bag = pickBest("Bags");
       if (bag) item_ids = [...item_ids, bag.id];
@@ -958,6 +977,7 @@ export const suggestOutfitAI = createServerFn({ method: "POST" })
       supabase: context.supabase,
       userId: context.userId,
       temperature: data.temperature ?? null,
+      morningTemp: data.tempMin ?? null,
       condition: data.condition ?? null,
       occasion: data.occasion ?? null,
       dressRules: data.dressRules ?? null,

@@ -275,6 +275,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
             const res = await generateLooks({
               data: {
                 temperature: weather?.current.temperature ?? null,
+                tempMin: weather?.daily?.[0]?.tempMin ?? null,
                 condition: weather ? describeWeather(weather.current.weatherCode, weather.current.isDay).label : null,
                 dressRules,
                 items: activeItems.map((it) => ({

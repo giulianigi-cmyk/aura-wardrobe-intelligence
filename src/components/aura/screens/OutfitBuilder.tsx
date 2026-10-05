@@ -627,6 +627,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         data: {
           dressRules,
           temperature: weather?.current.temperature ?? null,
+          tempMin: weather?.daily?.[0]?.tempMin ?? null,
           condition: desc,
           occasion: occ || null,
           mustIncludeItemId: anchorId,

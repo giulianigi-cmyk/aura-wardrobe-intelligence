@@ -53,3 +53,10 @@ test("an open-front top knows what is under it", () => {
   assert.equal(underLayerFor(shirt, [shirt, it("jeans", "Bottoms", "Jeans")]), null);
   assert.equal(underLayerFor(it("tee", "Tops", "T-Shirt"), [it("dress", "Dresses")]), null);
 });
+
+test("a jacket or blazer over a top is worn open; over a dress its own hint applies", () => {
+  const blazer = it("blazer", "Outerwear", "Blazer");
+  assert.equal(underLayerFor(blazer, [blazer, it("tee", "Tops", "T-Shirt"), it("trousers", "Bottoms", "Trousers")]), "top");
+  assert.equal(underLayerFor(blazer, [blazer, it("dress", "Dresses")]), null);
+  assert.equal(underLayerFor(blazer, [blazer, it("trousers", "Bottoms", "Trousers")]), null);
+});

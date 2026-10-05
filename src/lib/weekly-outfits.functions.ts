@@ -231,6 +231,7 @@ export const generateWeeklyOutfits = createServerFn({ method: "POST" })
       const result = await suggestOutfitCore({
         supabase, userId,
         temperature: wForRules ? daytimeTemp(wForRules) : null,
+        morningTemp: wForRules ? wForRules.tempMin : null,
         condition: w ? describeWeather(w.weatherCode).label : null,
         occasion: occasionHint,
         dressRules,
