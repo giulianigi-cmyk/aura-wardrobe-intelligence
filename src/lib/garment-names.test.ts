@@ -40,7 +40,9 @@ test("search finds pieces by their name in the person's language", () => {
 
 test("option values read in the person's language; stored values never change", () => {
   assert.equal(optionLabel("All Seasons", "it"), "Tutte le stagioni");
-  assert.equal(optionLabel("Wedding Guest", "es"), "Invitada de boda");
+  assert.equal(optionLabel("Wedding Guest", "es"), "Boda");
+  assert.equal(optionLabel("Wedding Guest", "it"), "Matrimonio");
+  assert.equal(optionLabel("Resort", "it"), "Vacanza al mare");
   assert.equal(optionLabel("Blacks & Greys", "fr"), "Noirs et gris");
   assert.equal(optionList("Autumn, Winter", "it"), "Autunno, Inverno");
   assert.equal(optionLabel("Some Brand", "it"), "Some Brand");
