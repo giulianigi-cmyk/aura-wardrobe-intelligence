@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { z } from "zod";
 import { generateText } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -648,7 +649,7 @@ function computeVerdict(opts: {
  * principle already used everywhere else in the outfit engine.
  */
 export const analyzePurchase = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("advisor")])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data, context }): Promise<PurchaseAdvisorResult> => {
     const { supabase, userId } = context;
@@ -868,7 +869,7 @@ function desirabilityTier(violation: boolean, duplicate: boolean, verdict: "buy"
 }
 
 export const comparePurchases = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("advisor_compare")])
   .inputValidator((input: unknown) => MultiCompareInputSchema.parse(input))
   .handler(async ({ data, context }): Promise<ComparePurchasesResult> => {
     const { supabase, userId } = context;

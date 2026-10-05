@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { submitFashnEdit, checkFashnStatus } from "./fashn.server";
 
 const StartInput = z.object({ imageDataUrl: z.string().min(1) });
@@ -27,7 +28,7 @@ const ENHANCE_PROMPT = [
 ].join(" ");
 
 export const startPhotoEnhance = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("photo_enhance")])
   .inputValidator((input: unknown) => StartInput.parse(input))
   .handler(async ({ data }) => {
     const result = await submitFashnEdit(data.imageDataUrl, ENHANCE_PROMPT);
@@ -38,6 +39,6 @@ export const startPhotoEnhance = createServerFn({ method: "POST" })
 const CheckInput = z.object({ predictionId: z.string().min(1) });
 
 export const checkPhotoEnhance = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("photo_enhance")])
   .inputValidator((input: unknown) => CheckInput.parse(input))
-  .handler(async ({ data }) => checkFashnStatus(data.predictionId));
+  .handler(async ({ data }) => checkFashnStatus(data.predictionId, "edit"));

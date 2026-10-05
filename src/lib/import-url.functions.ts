@@ -1,4 +1,5 @@
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { parsePrice } from "./price-parse";
 import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
@@ -631,7 +632,14 @@ const firecrawlScrape: FallbackScraper = async (url) => {
         proxy: "auto",
       }),
     });
+    // Consumption ledger: credits as Firecrawl reports them (proxy "auto" can bill a stealth retry
+    // at 5), 1 when it doesn't say; failed requests count none.
+    const recordScrape = async (success: boolean, credits: number) => {
+      const { recordUsage, unitCost } = await import("./ai-usage.server");
+      await recordUsage({ provider: "firecrawl", model: "scrape-v2", operation: "scrape", units: credits, unitType: "credit", costUsd: unitCost.firecrawl(credits), success });
+    };
     if (!r.ok) {
+      await recordScrape(false, 0);
       const body = await r.text().catch(() => "");
       console.warn("[AURA import-url] firecrawl non-ok", r.status, body.slice(0, 300));
       return { html: null, errored: true, debug: `http-${r.status}:${body.slice(0, 150)}`, pageBlocked: RETRY_STATUSES.has(r.status) };
@@ -639,8 +647,10 @@ const firecrawlScrape: FallbackScraper = async (url) => {
     const data = await r.json() as {
       success?: boolean;
       error?: string;
-      data?: { rawHtml?: string; html?: string; metadata?: { statusCode?: number } };
+      data?: { rawHtml?: string; html?: string; metadata?: { statusCode?: number; creditsUsed?: number } };
     };
+    const credits = data.data?.metadata?.creditsUsed;
+    await recordScrape(data.success !== false, typeof credits === "number" ? credits : data.success === false ? 0 : 1);
     const html = data.data?.rawHtml || data.data?.html || null;
     const pageStatus = data.data?.metadata?.statusCode;
     const pageBlocked = (pageStatus != null && RETRY_STATUSES.has(pageStatus)) || (html != null && html.length < SUSPICIOUSLY_SHORT_HTML);
@@ -1256,7 +1266,7 @@ export async function resolveProductImageUrl(rawUrl: string, accessToken?: strin
 }
 
 export const importProductFromUrl = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("url_import")])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }) => {
     const target = stripTrackingParams(new URL(data.url));

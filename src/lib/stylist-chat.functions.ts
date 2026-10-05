@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { generateText } from "ai";
 import { z } from "zod";
 import { parseAiJson } from "./ai-json";
@@ -138,7 +139,7 @@ function unwrapIfDoubleEncoded(parsed: z.infer<typeof OutputSchema>): z.infer<ty
 
 
 export const stylistChat = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("stylist")])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data, context }) => {
     const key = process.env.LOVABLE_API_KEY;

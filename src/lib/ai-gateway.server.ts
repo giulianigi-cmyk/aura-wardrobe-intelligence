@@ -1,4 +1,5 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { gatewayCost, recordUsage, type GatewayUsage } from "./ai-usage.server";
 
 /** Cost ceilings for every text call through the gateway (Gemini 2.5 Flash). No call set them, so
  *  each one ran with the model's default dynamic reasoning and a 65k-token output allowance — both
@@ -41,6 +42,52 @@ export function withCostCeilings(baseFetch: typeof fetch): typeof fetch {
   }) as typeof fetch;
 }
 
+function modelOf(body: BodyInit | null | undefined): string | undefined {
+  if (typeof body === "string") {
+    try {
+      const m = (JSON.parse(body) as { model?: unknown }).model;
+      return typeof m === "string" ? m : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  if (typeof FormData !== "undefined" && body instanceof FormData) {
+    const m = body.get("model");
+    return typeof m === "string" ? m : undefined;
+  }
+  return undefined;
+}
+
+/** Writes one consumption-ledger row per gateway answer (chat and image endpoints): the tokens the
+ *  gateway reports and their estimated cost. The response handed back is untouched (read from a
+ *  clone); recording can't fail the call. */
+export function withUsageRecording(baseFetch: typeof fetch): typeof fetch {
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    const operation = url.endsWith("/chat/completions") ? "chat" : /\/images\//.test(url) ? "image" : null;
+    if (!operation) return baseFetch(input, init);
+    const started = Date.now();
+    const res = await baseFetch(input, init);
+    const model = modelOf(init?.body);
+    let usage: GatewayUsage | undefined;
+    if (res.ok) {
+      try {
+        usage = ((await res.clone().json()) as { usage?: GatewayUsage }).usage;
+      } catch {
+        // not JSON — counted without tokens
+      }
+    }
+    const t = gatewayCost(model, usage);
+    await recordUsage({
+      provider: "lovable", model, operation,
+      inputTokens: t.input, outputTokens: t.output, reasoningTokens: t.reasoning, cachedInputTokens: t.cached,
+      units: operation === "image" && res.ok ? 1 : null, unitType: operation === "image" ? "image" : null,
+      costUsd: res.ok ? t.cost : 0, success: res.ok, durationMs: Date.now() - started,
+    });
+    return res;
+  }) as typeof fetch;
+}
+
 /** For tests only. */
 export function resetCostCeilingsForTest() {
   ceilingsRejected = false;
@@ -54,6 +101,6 @@ export function createLovableAiGatewayProvider(lovableApiKey: string) {
       "Lovable-API-Key": lovableApiKey,
       "X-Lovable-AIG-SDK": "vercel-ai-sdk",
     },
-    fetch: withCostCeilings(globalThis.fetch.bind(globalThis)),
+    fetch: withUsageRecording(withCostCeilings(globalThis.fetch.bind(globalThis))),
   });
 }

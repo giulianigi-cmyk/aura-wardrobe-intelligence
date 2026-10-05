@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { z } from "zod";
 
 const InputSchema = z.object({
@@ -12,7 +13,7 @@ const InputSchema = z.object({
  * capisce italiano/inglese/tedesco/cinese ecc. senza doverlo specificare.
  */
 export const transcribeVoice = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("voice_transcribe")])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }) => {
     const key = process.env.OPENAI_API_KEY;
@@ -36,6 +37,8 @@ export const transcribeVoice = createServerFn({ method: "POST" })
     const form = new FormData();
     form.append("file", new Blob([buffer], { type: mime }), `audio.${ext}`);
     form.append("model", "whisper-1");
+    // verbose_json: same "text", plus the audio duration Whisper bills by (consumption ledger).
+    form.append("response_format", "verbose_json");
 
     const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
@@ -43,12 +46,16 @@ export const transcribeVoice = createServerFn({ method: "POST" })
       body: form,
     });
 
+    const { recordUsage, unitCost } = await import("./ai-usage.server");
     if (!res.ok) {
+      await recordUsage({ provider: "openai", model: "whisper-1", operation: "transcribe", units: 0, unitType: "second", costUsd: 0, success: false });
       const errText = await res.text().catch(() => "");
       console.error("[AURA voice-transcribe] OpenAI error", res.status, errText);
       throw new Error(`Transcription failed (${res.status}): ${errText.slice(0, 300) || "no detail"}`);
     }
 
-    const json = (await res.json()) as { text?: string };
+    const json = (await res.json()) as { text?: string; duration?: number };
+    const seconds = typeof json.duration === "number" ? json.duration : null;
+    await recordUsage({ provider: "openai", model: "whisper-1", operation: "transcribe", units: seconds, unitType: "second", costUsd: seconds == null ? null : unitCost.whisper(seconds), success: true });
     return { text: (json.text ?? "").trim() };
   });

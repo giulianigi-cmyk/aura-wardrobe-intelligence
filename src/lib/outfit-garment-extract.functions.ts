@@ -11,6 +11,7 @@
 import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { generateText } from "ai";
 import { submitFashnEdit, checkFashnStatus } from "./fashn.server";
 
@@ -26,7 +27,7 @@ import { submitFashnEdit, checkFashnStatus } from "./fashn.server";
 const DescribeInput = z.object({ imageDataUrl: z.string().min(1) });
 
 export const describeGarmentDetails = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("reconstruction", "describe")])
   .inputValidator((input: unknown) => DescribeInput.parse(input))
   .handler(async ({ data }) => {
     const key = process.env.LOVABLE_API_KEY;
@@ -121,7 +122,7 @@ export type StartExtractionResult =
   | { ok: false; error: string };
 
 export const startGarmentExtraction = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("reconstruction", "extract")])
   .inputValidator((input: unknown) => StartInput.parse(input))
   .handler(async ({ data }): Promise<StartExtractionResult> => {
     const prompt = buildExtractionPrompt(data.garmentDescription);
@@ -138,6 +139,6 @@ export const startGarmentExtraction = createServerFn({ method: "POST" })
 const CheckInput = z.object({ predictionId: z.string().min(1) });
 
 export const checkGarmentExtraction = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("reconstruction", "extract")])
   .inputValidator((input: unknown) => CheckInput.parse(input))
-  .handler(async ({ data }) => checkFashnStatus(data.predictionId));
+  .handler(async ({ data }) => checkFashnStatus(data.predictionId, "edit"));

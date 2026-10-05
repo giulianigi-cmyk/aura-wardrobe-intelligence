@@ -1,4 +1,5 @@
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
 import { z } from "zod";
@@ -131,7 +132,7 @@ const MAX_ATTEMPTS = 3;
  *    an arbitrary fallback slice of the wardrobe.
  */
 export const analyzeWardrobeGap = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("gap_analysis")])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { data: profileRow } = await (context.supabase.from("profiles" as never) as any)

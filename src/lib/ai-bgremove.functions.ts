@@ -1,4 +1,5 @@
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
@@ -44,6 +45,14 @@ export async function removeBackgroundCore(imageDataUrl: string): Promise<{ ok: 
       body: form,
     });
 
+    // Consumption ledger: remove.bg reports the credits it charged in a header; failures cost none.
+    {
+      const charged = Number(resp.headers.get("X-Credits-Charged"));
+      const credits = resp.ok ? (Number.isFinite(charged) && charged > 0 ? charged : 1) : 0;
+      const { recordUsage, unitCost } = await import("./ai-usage.server");
+      await recordUsage({ provider: "removebg", model: "removebg-v1", operation: "remove_background", units: credits, unitType: "credit", costUsd: unitCost.removebg(credits), success: resp.ok });
+    }
+
     if (!resp.ok) {
       const body = await resp.text();
       console.warn("[AURA bgremove] remove.bg error", resp.status, body.slice(0, 300));
@@ -73,6 +82,6 @@ export async function removeBackgroundCore(imageDataUrl: string): Promise<{ ok: 
  * transparent PNG as a data URL.
  */
 export const removeBackground = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("bg_removal")])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }) => removeBackgroundCore(data.imageDataUrl));

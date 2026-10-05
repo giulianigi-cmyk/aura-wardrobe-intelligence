@@ -8,6 +8,7 @@
 // person says so. See docs/ADR (Phase 2 design) for the full reasoning.
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { detectOutfitItems } from "./outfit-detect.server";
@@ -47,7 +48,7 @@ const StartInput = z.object({
  *  migration). Never creates a wear event itself — this is the "AI saw /
  *  AURA thinks" stage only, nothing here is a fact yet. */
 export const startOutfitPhotoDetection = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth, usageFeature("wear_log")])
   .inputValidator((input: unknown) => StartInput.parse(input))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
