@@ -123,7 +123,9 @@
     "sharingTurningOffDesc": "I tuoi capi spariscono dalle ricerche future e le copie anonime delle foto vengono eliminate. I capi che altri membri hanno già importato restano nel loro guardaroba come copie indipendenti — non vengono rimossi.",
     "fromYourWardrobe": "Dal tuo guardaroba",
     "usage": "Piano e utilizzo",
-    "usageSub": "Il tuo piano e quanto hai usato"
+    "usageSub": "Il tuo piano e quanto hai usato",
+    "reportProblem": "Segnala un problema",
+    "reportProblemSub": "Qualcosa non funziona? Dicci cosa"
   },
   "community": {
     "chooseUsername": "Scegli uno username",
@@ -2423,6 +2425,21 @@
       "reconstruction": "Ricostruzioni dei capi",
       "voice_minutes": "Minuti di voce",
       "voice_replies": "Risposte vocali"
+    }
+  },
+  "reportProblem": {
+    "title": "Segnala un problema",
+    "intro": "Raccontaci cosa è successo: cosa stavi facendo, cosa ti aspettavi e cosa invece è successo. Lo leggiamo e lo sistemiamo.",
+    "placeholder": "Es. Nella prova sull'avatar la camicia finisce sopra il gilet…",
+    "privacy": "Non inserire password o dati sensibili.",
+    "send": "Invia",
+    "thanks": "Grazie! Abbiamo ricevuto la segnalazione.",
+    "failed": "Non è stato possibile inviare la segnalazione. Riprova.",
+    "yourReports": "Le tue segnalazioni",
+    "status": {
+      "open": "Ricevuta",
+      "fixed": "Risolta",
+      "wontfix": "Chiusa"
     }
   }
 }
