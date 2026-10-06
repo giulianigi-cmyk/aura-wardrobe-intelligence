@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowLeft, Camera, Check, Loader2, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, Camera, Check, Crop, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { getAvatarStatus, saveAvatarPhoto, deleteAvatar } from "@/lib/avatar.functions";
 import { checkFullBodyPhoto } from "@/lib/avatar-body-check";
+import { FramedPhoto, PhotoFramingEditor } from "../FramedPhoto";
+import { loadFraming, saveFraming, FIT_FRAMING, type PhotoFraming } from "@/lib/photo-framing";
 import type { Screen } from "../AuraApp";
 
 type CheckStage = "idle" | "checking" | "ready" | "no_body";
@@ -41,6 +43,16 @@ export function Avatar({ go }: { go: (s: Screen) => void }) {
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // The avatar is a full-length photo: shown whole (it was cropped to the 4:5 frame, cutting the
+  // feet), then zoomed / centred by the person. Kept on this device; the photo is never changed.
+  const framingKey = user ? `avatar.${user.id}` : null;
+  const [framing, setFraming] = useState<PhotoFraming | null>(null);
+  const [editingFraming, setEditingFraming] = useState(false);
+  useEffect(() => { setFraming(framingKey ? loadFraming(framingKey) : null); }, [framingKey]);
+  const applyFraming = (f: PhotoFraming) => {
+    setFraming(f);
+    if (framingKey) saveFraming(framingKey, f);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -106,6 +118,7 @@ export function Avatar({ go }: { go: (s: Screen) => void }) {
       const result = await savePhoto({ data: { photoPath: path, consentAccepted: true } });
       if (!result.ok) throw new Error("save failed");
 
+      applyFraming(FIT_FRAMING); // a new photo starts whole, not with the old one's framing
       toast.success(t("avatar.avatarReady"));
       setFile(null); setPreview(null); setCheckStage("idle"); setConsentChecked(false);
       await load();
@@ -151,9 +164,24 @@ export function Avatar({ go }: { go: (s: Screen) => void }) {
         <div className="flex justify-center py-16"><Loader2 className="animate-spin" /></div>
       ) : exists && !file ? (
         <div className="px-6 mt-2 animate-fade-up">
-          <div className="rounded-3xl overflow-hidden bg-secondary/40 aspect-[4/5]">
-            {signedPhotoUrl && <img src={signedPhotoUrl} alt="" className="h-full w-full object-cover" />}
-          </div>
+          {signedPhotoUrl ? (
+            <button onClick={() => setEditingFraming(true)} aria-label={t("photoFraming.title")} className="relative block w-full rounded-3xl overflow-hidden">
+              <FramedPhoto src={signedPhotoUrl} framing={framing} />
+              <span className="absolute bottom-3 right-3 h-9 px-3 rounded-full bg-background/80 backdrop-blur flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em]">
+                <Crop size={12} /> {t("photoFraming.title")}
+              </span>
+            </button>
+          ) : (
+            <div className="rounded-3xl bg-secondary/40 aspect-[4/5]" />
+          )}
+          {editingFraming && signedPhotoUrl && (
+            <PhotoFramingEditor
+              src={signedPhotoUrl}
+              initial={framing}
+              onCancel={() => setEditingFraming(false)}
+              onConfirm={(f) => { applyFraming(f); setEditingFraming(false); }}
+            />
+          )}
           <button
             onClick={() => go("avatar-tryon")}
             className="mt-4 w-full h-14 rounded-full bg-foreground text-background flex items-center justify-center gap-2 active:scale-[0.98] transition shadow-luxe"
@@ -200,7 +228,8 @@ export function Avatar({ go }: { go: (s: Screen) => void }) {
 
           <button
             onClick={() => fileRef.current?.click()}
-            className="mt-6 w-full rounded-3xl overflow-hidden bg-secondary/40 aspect-[4/5] flex items-center justify-center relative"
+            // [&>img]:object-contain: the full-length preview is shown whole, not cropped at the feet.
+            className="mt-6 w-full rounded-3xl overflow-hidden bg-secondary/40 aspect-[4/5] flex items-center justify-center relative [&>img]:object-contain"
           >
             {preview ? (
               <img src={preview} alt="" className="h-full w-full object-cover" />

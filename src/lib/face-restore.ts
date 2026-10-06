@@ -30,8 +30,14 @@ const RIGHT_EYE_LANDMARK = 33;
 const LEFT_EYE_LANDMARK = 263;
 
 /** Largest accepted distance between a mapped original landmark and the generated one, as a
- *  fraction of the eye distance (≈ a few millimetres on a real face). */
-const MAX_LANDMARK_ERROR = 0.18;
+ *  fraction of the eye distance. The nose tip shows the head pose: it must line up closely, or the
+ *  head is turned differently and the face is left alone. The mouth corners are allowed more: the
+ *  chained try-on steps drift exactly there (that drift IS the deformed face to repair), and the
+ *  paste covers the inner face only, so the generated jaw and chin are not replaced. The chin is not
+ *  checked for the same reason. With every point held to 0.18 the restore was refused on the very
+ *  faces it exists for, and a reshaped face reached the result. */
+const MAX_NOSE_ERROR = 0.18;
+const MAX_MOUTH_ERROR = 0.3;
 
 let landmarkerPromise: Promise<FaceLandmarker> | null = null;
 function getFaceLandmarker(): Promise<FaceLandmarker> {
@@ -92,26 +98,48 @@ function loadImageEl(dataUrl: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Worst distance (px, in the generated image) between the original's nose / mouth / chin mapped by
- *  the eye-based similarity transform and the same landmarks detected in the generated image. */
-export function landmarkAlignmentError(
+/** Distance (px, in the generated image) between each of the original's nose / mouth / chin points
+ *  mapped by the eye-based similarity transform and the same landmark detected in the generated
+ *  image, in CHECK_LANDMARKS order. */
+export function landmarkErrors(
   orig: { rightEye: Pt; leftEye: Pt; checks: Pt[] },
   gen: { rightEye: Pt; leftEye: Pt; checks: Pt[] },
-): number {
+): number[] {
   const mid = (a: Pt, b: Pt) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
   const oMid = mid(orig.leftEye, orig.rightEye), gMid = mid(gen.leftEye, gen.rightEye);
   const oDist = Math.hypot(orig.leftEye.x - orig.rightEye.x, orig.leftEye.y - orig.rightEye.y);
   const gDist = Math.hypot(gen.leftEye.x - gen.rightEye.x, gen.leftEye.y - gen.rightEye.y);
-  if (oDist < 1 || gDist < 1) return Infinity;
+  if (oDist < 1 || gDist < 1) return orig.checks.map(() => Infinity);
   const scale = gDist / oDist;
   const rot = Math.atan2(gen.leftEye.y - gen.rightEye.y, gen.leftEye.x - gen.rightEye.x)
     - Math.atan2(orig.leftEye.y - orig.rightEye.y, orig.leftEye.x - orig.rightEye.x);
-  return Math.max(...orig.checks.map((p, i) => {
+  return orig.checks.map((p, i) => {
     const dx = (p.x - oMid.x) * scale, dy = (p.y - oMid.y) * scale;
     const m = { x: gMid.x + dx * Math.cos(rot) - dy * Math.sin(rot), y: gMid.y + dx * Math.sin(rot) + dy * Math.cos(rot) };
     const g = gen.checks[i];
     return g ? Math.hypot(m.x - g.x, m.y - g.y) : Infinity;
-  }));
+  });
+}
+
+/** Worst of landmarkErrors. */
+export function landmarkAlignmentError(
+  orig: { rightEye: Pt; leftEye: Pt; checks: Pt[] },
+  gen: { rightEye: Pt; leftEye: Pt; checks: Pt[] },
+): number {
+  return Math.max(...landmarkErrors(orig, gen));
+}
+
+/** Whether the original face can be laid over the generated one: same head pose (nose tip) and
+ *  features drifted no further than the inner-face paste can cover (mouth corners). */
+export function canRestoreFace(
+  orig: { rightEye: Pt; leftEye: Pt; checks: Pt[] },
+  gen: { rightEye: Pt; leftEye: Pt; checks: Pt[] },
+): { ok: boolean; reason?: "pose" | "mouth" } {
+  const gDist = Math.hypot(gen.leftEye.x - gen.rightEye.x, gen.leftEye.y - gen.rightEye.y);
+  const [nose, mouthR, mouthL] = landmarkErrors(orig, gen);
+  if (!(nose <= gDist * MAX_NOSE_ERROR)) return { ok: false, reason: "pose" };
+  if (!(Math.max(mouthR, mouthL) <= gDist * MAX_MOUTH_ERROR)) return { ok: false, reason: "mouth" };
+  return { ok: true };
 }
 
 /** Overlays the ORIGINAL avatar photo's real face onto a FASHN result,
@@ -164,9 +192,9 @@ export async function restoreOriginalFaceAligned(originalDataUrl: string, genera
     // "align"; if the head is turned or tilted differently, or the face shape differs, the pasted
     // face sat on the wrong jaw and mouth — the deformed look reported. Then the generated face is
     // left as it is.
-    const worst = landmarkAlignmentError(originalEyes, generatedEyes);
-    if (worst > genEyeDist * MAX_LANDMARK_ERROR) {
-      console.warn("[AURA face-restore] faces don't line up (pose differs) — leaving the generated face as it is", { worst, genEyeDist });
+    const verdict = canRestoreFace(originalEyes, generatedEyes);
+    if (!verdict.ok) {
+      console.warn("[AURA face-restore] faces don't line up — leaving the generated face as it is", verdict.reason);
       return generatedDataUrl;
     }
 
@@ -198,23 +226,32 @@ export async function restoreOriginalFaceAligned(originalDataUrl: string, genera
     faceCtx.drawImage(originalImg, 0, 0, originalImg.naturalWidth, originalImg.naturalHeight);
     faceCtx.restore();
 
-    // Soft radial feather so the composited region blends rather than
-    // showing a hard-edged cutout — centered on the GENERATED midpoint
-    // (post-transform, in the base canvas's coordinate space), sized
-    // off the GENERATED eye distance so the feather radius matches the
-    // actual scale of the result, not the original's.
-    faceCtx.globalCompositeOperation = "destination-in";
-    // Face only (forehead to chin), not hair and neck: a wide paste carried the original's hair
-    // and jawline over the new image.
-    const featherRadius = genEyeDist * 1.7;
-    const gradient = faceCtx.createRadialGradient(
-      genMid.x, genMid.y, featherRadius * 0.55,
-      genMid.x, genMid.y, featherRadius,
-    );
+    // Soft feather so the composited region blends rather than showing a hard-edged cutout, sized
+    // off the GENERATED face so it matches the scale of the result.
+    // Inner face only — brows, eyes, nose, mouth — as a soft ellipse: the generated hair, jaw and
+    // chin stay, so a jaw that differs slightly from the original's never meets a pasted mouth
+    // edge. Centred between the eyes and the mouth in the generated image. Drawn on a full-size
+    // mask so that destination-in clears everything outside it.
+    const mouth = { x: (generatedEyes.checks[1].x + generatedEyes.checks[2].x) / 2, y: (generatedEyes.checks[1].y + generatedEyes.checks[2].y) / 2 };
+    const centre = { x: (genMid.x + mouth.x) / 2, y: (genMid.y + mouth.y) / 2 };
+    const faceAngle = Math.atan2(mouth.y - genMid.y, mouth.x - genMid.x) - Math.PI / 2;
+    const rx = genEyeDist * 1.05;
+    const ry = Math.hypot(mouth.x - genMid.x, mouth.y - genMid.y) * 0.5 + genEyeDist * 0.6;
+    const mask = document.createElement("canvas");
+    mask.width = w;
+    mask.height = h;
+    const maskCtx = mask.getContext("2d");
+    if (!maskCtx) return generatedDataUrl;
+    maskCtx.translate(centre.x, centre.y);
+    maskCtx.rotate(faceAngle);
+    maskCtx.scale(1, ry / rx);
+    const gradient = maskCtx.createRadialGradient(0, 0, rx * 0.6, 0, 0, rx);
     gradient.addColorStop(0, "rgba(255,255,255,1)");
     gradient.addColorStop(1, "rgba(255,255,255,0)");
-    faceCtx.fillStyle = gradient;
-    faceCtx.fillRect(0, 0, w, h);
+    maskCtx.fillStyle = gradient;
+    maskCtx.fillRect(-rx, -rx, rx * 2, rx * 2);
+    faceCtx.globalCompositeOperation = "destination-in";
+    faceCtx.drawImage(mask, 0, 0);
 
     baseCtx.drawImage(faceLayer, 0, 0);
     // JPEG, not PNG: a PNG of the 2k try-on result runs past 10 MB and the save step refused it,

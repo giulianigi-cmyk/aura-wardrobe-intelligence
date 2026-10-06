@@ -9,8 +9,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { resolveWardrobeUrls } from "@/lib/wardrobe-image";
 import { prepareAvatarTryOn, startTryOnStep, checkTryOnStep, finalizeAvatarTryOn } from "@/lib/avatar-tryon.functions";
 import { restoreOriginalFaceAligned } from "@/lib/face-restore";
+import { FramedPhoto, PhotoFramingEditor } from "../FramedPhoto";
+import type { PhotoFraming } from "@/lib/photo-framing";
 import { saveOutfitPlan } from "@/lib/outfit-plan.functions";
-import { isNotWornOnAvatar, orderForTryOn, selectTryOnItems, underLayerFor } from "@/lib/tryon-select";
+import { isNotWornOnAvatar, orderForTryOn, selectTryOnItems, underLayerFor, type UnderLayer } from "@/lib/tryon-select";
 import { classifyTryOnError, type TryOnErrorKind } from "@/lib/tryon-error";
 import { PiecePicker } from "../PiecePicker";
 import type { WardrobeItem as FullWardrobeItem } from "@/lib/aura-types";
@@ -73,6 +75,9 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
   const [selected, setSelected] = useState<string[]>(initialItemIds ?? []);
 
   const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [resultFraming, setResultFraming] = useState<PhotoFraming | null>(null);
+  const [zooming, setZooming] = useState(false);
+  useEffect(() => { setResultFraming(null); }, [resultUrl]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   // Why it failed (tryon-error.ts) and at which piece — shown so a failure that can't succeed on retry
@@ -112,7 +117,7 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
   /** Runs one chained garment step to completion: submit, then poll every
    *  ~2s until FASHN reports done or failed. Never a single long-held
    *  request — see avatar-tryon.functions.ts for why that mattered. */
-  const runOneStep = async (modelImageDataUrl: string, itemId: string, hasDressInOutfit: boolean, underLayer: "dress" | "top" | null = null): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string }> => {
+  const runOneStep = async (modelImageDataUrl: string, itemId: string, hasDressInOutfit: boolean, underLayer: UnderLayer | null = null): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string }> => {
     // One retry: a single try-on step occasionally fails or times out at the provider, and that
     // used to throw away the whole look.
     const first = await runOneStepOnce(modelImageDataUrl, itemId, hasDressInOutfit, underLayer);
@@ -121,7 +126,7 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
     return runOneStepOnce(modelImageDataUrl, itemId, hasDressInOutfit, underLayer);
   };
 
-  const runOneStepOnce = async (modelImageDataUrl: string, itemId: string, hasDressInOutfit: boolean, underLayer: "dress" | "top" | null): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string }> => {
+  const runOneStepOnce = async (modelImageDataUrl: string, itemId: string, hasDressInOutfit: boolean, underLayer: UnderLayer | null): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string }> => {
     const started = await startStep({ data: { modelImageDataUrl, itemId, hasDressInOutfit, underLayer } });
     if (!started.ok) return { ok: false, error: started.error };
 
@@ -147,7 +152,7 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
       // The avatar wears clothes and shoes only, at most 6 (one try-on step each, tryon-select.ts):
       // bags and accessories are never tried on, and the person is told so.
       let itemIds = allItemIds;
-      const underLayerById: Record<string, "dress" | "top" | null> = {};
+      const underLayerById: Record<string, UnderLayer | null> = {};
       {
         const { data: rows } = await supabase.from("wardrobe_items").select("id, category, subcategory, style_tags, material").in("id", allItemIds);
         type Row = { id: string; category: string | null; subcategory: string | null; style_tags: string[] | null; material: string[] | null };
@@ -376,6 +381,14 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
 
       {stage === "result" && (
         <div className="px-6 mt-2 animate-fade-up">
+          {zooming && resultUrl && (
+            <PhotoFramingEditor
+              src={resultUrl}
+              initial={resultFraming}
+              onCancel={() => setZooming(false)}
+              onConfirm={(f) => { setResultFraming(f); setZooming(false); }}
+            />
+          )}
           <div className="flex items-center justify-center gap-1 rounded-full border border-border p-1 w-fit mx-auto">
             <button
               onClick={() => setView("person")}
@@ -389,7 +402,12 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
 
           <div className="mt-4 rounded-3xl overflow-hidden bg-secondary/40 aspect-[4/5]">
             {view === "person" ? (
-              resultUrl && <img src={resultUrl} alt="" className="h-full w-full object-contain" />
+              resultUrl && (
+                // Whole look by default; a tap opens zoom / centre to look closer.
+                <button onClick={() => setZooming(true)} aria-label={t("photoFraming.title")} className="block h-full w-full">
+                  <FramedPhoto src={resultUrl} framing={resultFraming} />
+                </button>
+              )
             ) : (
               <div className="grid grid-cols-3 gap-1 h-full p-1">
                 {(selected.length ? selected : (initialItemIds ?? [])).map((id) => {

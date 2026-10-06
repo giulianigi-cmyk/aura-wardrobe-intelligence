@@ -80,8 +80,13 @@ const KEEP_PERSON_HINT = "Change only the garment. Keep the person's face, facia
 
 /** A shirt/blouse/cardigan worn over a dress or a base top (t-shirt, tank, camisole): reported as
  *  coming out buttoned closed over the dress, hiding it. Styled the way it is actually worn. */
-function openLayerHint(underLayer: "dress" | "top" | null | undefined, category?: string | null): string {
+function openLayerHint(underLayer: "dress" | "top" | "shirt" | null | undefined, category?: string | null): string {
   if (!underLayer) return "";
+  // A waistcoat or sweater vest put on over a shirt replaced it, or the shirt came out on top of
+  // the vest: the shirt stays on underneath, its collar and sleeves showing.
+  if (underLayer === "shirt") {
+    return "Sleeveless vest worn over the shirt. Keep the shirt on underneath: its collar and full sleeves stay visible; the vest goes on top of it. Do not remove, replace or cover the vest with the shirt.";
+  }
   const under = underLayer === "dress" ? "the dress" : "the top";
   // A blazer or jacket over a t-shirt came out buttoned closed, hiding the top entirely (a step paid
   // for and then invisible): worn open, the way it is styled.
@@ -249,9 +254,10 @@ async function signPrediction(userId: string, predictionId: string): Promise<str
 const StepInput = z.object({
   modelImageDataUrl: z.string().min(1),
   itemId: z.string(),
-  // What this step's open-front top (shirt, blouse, cardigan) is worn over, when the outfit has one
-  // (tryon-select.ts underLayerFor): it must stay open or knotted so that piece remains visible.
-  underLayer: z.enum(["dress", "top"]).nullable().optional(),
+  // What this step's open-front top (shirt, blouse, cardigan) or jacket is worn over, when the outfit
+  // has one (tryon-select.ts underLayerFor): it stays open so that piece remains visible. "shirt":
+  // this step is a waistcoat or sweater vest, worn over the shirt already on.
+  underLayer: z.enum(["dress", "top", "shirt"]).nullable().optional(),
   // Whether this outfit ALSO includes a dress/jumpsuit elsewhere in the
   // chain — the client knows the full item list, this step only ever
   // sees one item at a time, so it can't work this out on its own. Only
