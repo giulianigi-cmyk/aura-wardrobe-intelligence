@@ -228,10 +228,11 @@ export function Avatar({ go }: { go: (s: Screen) => void }) {
 
           <button
             onClick={() => fileRef.current?.click()}
-            className="mt-6 w-full rounded-3xl overflow-hidden bg-secondary/40 aspect-[4/5] flex items-center justify-center relative"
+            // [&>img]:object-contain: the full-length preview is shown whole, not cropped at the feet.
+            className="mt-6 w-full rounded-3xl overflow-hidden bg-secondary/40 aspect-[4/5] flex items-center justify-center relative [&>img]:object-contain"
           >
             {preview ? (
-              <img src={preview} alt="" className="h-full w-full object-contain" />
+              <img src={preview} alt="" className="h-full w-full object-cover" />
             ) : (
               <div className="text-center text-muted-foreground">
                 <Camera size={28} className="mx-auto" />
