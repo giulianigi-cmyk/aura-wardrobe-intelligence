@@ -121,7 +121,9 @@
     "sharingWhatIsNeverSharedDesc": "Tu nombre, cuenta, ciudad, con qué frecuencia usas algo, cuándo lo compraste y dónde lo guardas. El vínculo entre una prenda y tú se sustituye por un código irreversible guardado en el servidor.",
     "sharingTurningOffTerm": "Desactivarlo",
     "sharingTurningOffDesc": "Tus prendas desaparecen de futuras búsquedas y las copias anónimas de las fotos se eliminan. Las prendas que otros miembros ya importaron permanecen en su armario como copias independientes — no se eliminan.",
-    "fromYourWardrobe": "De tu armario"
+    "fromYourWardrobe": "De tu armario",
+    "usage": "Plan y uso",
+    "usageSub": "Tu plan y cuánto has usado"
   },
   "community": {
     "chooseUsername": "Elige un nombre de usuario",
@@ -2386,5 +2388,41 @@
     "openAura": "Abrir Aura",
     "member": "Miembro de Aura",
     "add": "Añadir a amigos"
+  },
+  "usage": {
+    "title": "Plan y uso",
+    "loadFailed": "No se pudo cargar tu uso. Inténtalo más tarde.",
+    "yourPlan": "Tu plan",
+    "plan": {
+      "free": "Free",
+      "plus": "Plus",
+      "ultra": "Ultra",
+      "owner": "Owner"
+    },
+    "trialUntil": "Prueba Ultra hasta el {{date}}",
+    "ownerNote": "Cuenta propietaria: sin límites.",
+    "notIncluded": "No incluido",
+    "unlimited": "Ilimitado",
+    "perRequest": "Hasta {{max}} días",
+    "usedOf_day": "{{used}} de {{max}} hoy",
+    "usedOf_month": "{{used}} de {{max}} este mes",
+    "usedUnlimited_day": "{{used}} hoy · ilimitado",
+    "usedUnlimited_month": "{{used}} este mes · ilimitado",
+    "observeNote": "Los límites aún no están activos: por ahora no se bloquea nada.",
+    "limit": {
+      "new_items": "Prendas nuevas",
+      "stylist": "Consultas al Stylist",
+      "daily_look_regen": "Nuevos looks del día",
+      "weekly_plan": "Planes semanales",
+      "trip": "Planes de viaje",
+      "trip_days": "Duración del viaje",
+      "outfit_scan": "Escaneos de outfit",
+      "gap_analysis": "Análisis del armario",
+      "advisor": "Consejos de compra",
+      "tryon": "Pruebas en el avatar",
+      "reconstruction": "Reconstrucciones de prendas",
+      "voice_minutes": "Minutos de voz",
+      "voice_replies": "Respuestas de voz"
+    }
   }
 }

@@ -4,10 +4,18 @@
 import { createMiddleware } from "@tanstack/react-start";
 import type { UsageFeature } from "./ai-usage.server";
 
-export function usageFeature(feature: UsageFeature, action?: string) {
+/** observe: false on status-polling endpoints (called every ~2 s while a job runs), where checking
+ *  the plan limits again would only repeat the same reads. */
+export function usageFeature(feature: UsageFeature, action?: string, opts: { observe?: boolean } = {}) {
   return createMiddleware({ type: "function" }).server(async ({ next, context }) => {
     const { runInUsageScope } = await import("./ai-usage.server");
     const userId = (context as { userId?: string } | undefined)?.userId ?? null;
-    return runInUsageScope(feature, userId, () => next(), action ?? null);
+    const result = await runInUsageScope(feature, userId, () => next(), action ?? null);
+    // Plan limits, observe-only (plans.server.ts): never blocks, never fails the request.
+    if (opts.observe !== false) {
+      const { observeLimitsAfter } = await import("./plans.server");
+      await observeLimitsAfter(feature, userId);
+    }
+    return result;
   });
 }

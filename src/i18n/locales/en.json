@@ -121,7 +121,9 @@
     "sharingWhatIsNeverSharedDesc": "Your name, account, city, how often you wear something, when you bought it and where you keep it. The link between a piece and you is replaced by an irreversible code held on the server.",
     "sharingTurningOffTerm": "Turning it off",
     "sharingTurningOffDesc": "Your pieces disappear from future searches and the anonymous photo copies are deleted. Pieces other members already imported remain in their closet as independent copies — they are not removed.",
-    "fromYourWardrobe": "From your wardrobe"
+    "fromYourWardrobe": "From your wardrobe",
+    "usage": "Plan and usage",
+    "usageSub": "Your plan and how much you have used"
   },
   "community": {
     "chooseUsername": "Choose a username",
@@ -2386,5 +2388,41 @@
     "openAura": "Open Aura",
     "member": "Aura member",
     "add": "Add friend"
+  },
+  "usage": {
+    "title": "Plan and usage",
+    "loadFailed": "Your usage could not be loaded. Please try again later.",
+    "yourPlan": "Your plan",
+    "plan": {
+      "free": "Free",
+      "plus": "Plus",
+      "ultra": "Ultra",
+      "owner": "Owner"
+    },
+    "trialUntil": "Ultra trial until {{date}}",
+    "ownerNote": "Owner account: no limits.",
+    "notIncluded": "Not included",
+    "unlimited": "Unlimited",
+    "perRequest": "Up to {{max}} days",
+    "usedOf_day": "{{used}} of {{max}} today",
+    "usedOf_month": "{{used}} of {{max}} this month",
+    "usedUnlimited_day": "{{used}} today · unlimited",
+    "usedUnlimited_month": "{{used}} this month · unlimited",
+    "observeNote": "Limits are not active yet: nothing is blocked for now.",
+    "limit": {
+      "new_items": "New pieces",
+      "stylist": "Stylist requests",
+      "daily_look_regen": "New looks of the day",
+      "weekly_plan": "Weekly plans",
+      "trip": "Trip plans",
+      "trip_days": "Trip length",
+      "outfit_scan": "Outfit scans",
+      "gap_analysis": "Wardrobe analyses",
+      "advisor": "Purchase advice",
+      "tryon": "Avatar try-ons",
+      "reconstruction": "Piece reconstructions",
+      "voice_minutes": "Voice minutes",
+      "voice_replies": "Voice replies"
+    }
   }
 }

@@ -121,7 +121,9 @@
     "sharingWhatIsNeverSharedDesc": "Il tuo nome, account, città, quanto spesso indossi qualcosa, quando l'hai comprato e dove lo tieni. Il legame tra un capo e te viene sostituito da un codice irreversibile conservato sul server.",
     "sharingTurningOffTerm": "Disattivarlo",
     "sharingTurningOffDesc": "I tuoi capi spariscono dalle ricerche future e le copie anonime delle foto vengono eliminate. I capi che altri membri hanno già importato restano nel loro guardaroba come copie indipendenti — non vengono rimossi.",
-    "fromYourWardrobe": "Dal tuo guardaroba"
+    "fromYourWardrobe": "Dal tuo guardaroba",
+    "usage": "Piano e utilizzo",
+    "usageSub": "Il tuo piano e quanto hai usato"
   },
   "community": {
     "chooseUsername": "Scegli uno username",
@@ -2386,5 +2388,41 @@
     "openAura": "Apri Aura",
     "member": "Membro Aura",
     "add": "Aggiungi agli amici"
+  },
+  "usage": {
+    "title": "Piano e utilizzo",
+    "loadFailed": "Non è stato possibile caricare il tuo utilizzo. Riprova più tardi.",
+    "yourPlan": "Il tuo piano",
+    "plan": {
+      "free": "Free",
+      "plus": "Plus",
+      "ultra": "Ultra",
+      "owner": "Owner"
+    },
+    "trialUntil": "Prova Ultra fino al {{date}}",
+    "ownerNote": "Account proprietario: nessun limite.",
+    "notIncluded": "Non incluso",
+    "unlimited": "Illimitato",
+    "perRequest": "Fino a {{max}} giorni",
+    "usedOf_day": "{{used}} di {{max}} oggi",
+    "usedOf_month": "{{used}} di {{max}} questo mese",
+    "usedUnlimited_day": "{{used}} oggi · illimitato",
+    "usedUnlimited_month": "{{used}} questo mese · illimitato",
+    "observeNote": "I limiti non sono ancora attivi: per ora nulla viene bloccato.",
+    "limit": {
+      "new_items": "Nuovi capi",
+      "stylist": "Richieste allo Stylist",
+      "daily_look_regen": "Nuovi look del giorno",
+      "weekly_plan": "Piani settimanali",
+      "trip": "Piani di viaggio",
+      "trip_days": "Durata del viaggio",
+      "outfit_scan": "Scansioni outfit",
+      "gap_analysis": "Analisi del guardaroba",
+      "advisor": "Consigli d'acquisto",
+      "tryon": "Prove sull'avatar",
+      "reconstruction": "Ricostruzioni dei capi",
+      "voice_minutes": "Minuti di voce",
+      "voice_replies": "Risposte vocali"
+    }
   }
 }

@@ -66,6 +66,7 @@ const screenLoaders = {
   SettingsDressPreferences: () => import("./screens/SettingsDressPreferences"),
   NotificationSettings: () => import("./screens/NotificationSettings"),
   SettingsCalendar: () => import("./screens/SettingsCalendar"),
+  SettingsUsage: () => import("./screens/SettingsUsage"),
   PrivacySettings: () => import("./screens/PrivacySettings"),
   Notifications: () => import("./screens/Notifications"),
   Invite: () => import("./screens/Invite"),
@@ -104,6 +105,7 @@ const SettingsWardrobeLocations = lazyScreen(screenLoaders.SettingsWardrobeLocat
 const SettingsDressPreferences = lazyScreen(screenLoaders.SettingsDressPreferences, "SettingsDressPreferences");
 const NotificationSettings = lazyScreen(screenLoaders.NotificationSettings, "NotificationSettings");
 const SettingsCalendar = lazyScreen(screenLoaders.SettingsCalendar, "SettingsCalendar");
+const SettingsUsage = lazyScreen(screenLoaders.SettingsUsage, "SettingsUsage");
 const PrivacySettings = lazyScreen(screenLoaders.PrivacySettings, "PrivacySettings");
 const Notifications = lazyScreen(screenLoaders.Notifications, "Notifications");
 const Invite = lazyScreen(screenLoaders.Invite, "Invite");
@@ -135,7 +137,7 @@ export type Screen =
       | "trips" | "trip-create" | "trip-detail" | "essential-presets"
             | "chats" | "chat-thread" | "user-profile"
       | "settings" | "settings-personal" | "settings-sizes" | "settings-style-prefs" | "settings-language"
-      | "settings-wardrobe-locations" | "settings-dress-preferences" | "settings-notifications" | "settings-calendar" | "settings-privacy"
+      | "settings-wardrobe-locations" | "settings-dress-preferences" | "settings-notifications" | "settings-calendar" | "settings-privacy" | "settings-usage"
       | "avatar" | "avatar-tryon" | "log-wear";
 
 
@@ -503,6 +505,7 @@ function Inner() {
           {screen === "settings-dress-preferences" && <SettingsDressPreferences go={go} />}
           {screen === "settings-notifications" && <NotificationSettings go={go} />}
           {screen === "settings-calendar" && <SettingsCalendar go={go} />}
+          {screen === "settings-usage" && <SettingsUsage go={go} />}
           {screen === "settings-privacy" && <PrivacySettings go={go} />}
 
                     {screen === "insights" && <Insights go={go} openWardrobeGap={(f) => { setWardrobeGapFilter(f); go("wardrobe"); }} openBuilder={openBuilder} />}
