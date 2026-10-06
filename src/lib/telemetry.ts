@@ -4,7 +4,9 @@
 
 // Sign-ups, pieces added, outfits saved and AI use are already in the database (auth.users,
 // wardrobe_items, outfits, ai_usage_ledger) and are not sent again as events.
-export const EVENT_NAMES = ["app_open", "screen_view", "profile_setup_completed", "problem_reported"] as const;
+// flow_step: one timed step of a flow (e.g. adding a piece: picked, analysis, cutout, saved,
+// abandoned), with its duration in ms — where people wait and where they give up.
+export const EVENT_NAMES = ["app_open", "screen_view", "profile_setup_completed", "problem_reported", "flow_step"] as const;
 export type EventName = (typeof EVENT_NAMES)[number];
 
 export const ERROR_KINDS = ["crash", "unhandled", "rejection", "logged"] as const;

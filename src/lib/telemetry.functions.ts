@@ -17,6 +17,8 @@ const Props = z.object({
   feature: z.string().max(30).regex(/^[a-z0-9_-]+$/).optional(),
   outcome: z.enum(["ok", "error", "cancelled"]).optional(),
   count: z.number().int().min(0).max(100_000).optional(),
+  step: z.string().max(30).regex(/^[a-z0-9_-]+$/).optional(),
+  ms: z.number().int().min(0).max(3_600_000).optional(),
 }).strict();
 
 const EventsInput = z.object({
