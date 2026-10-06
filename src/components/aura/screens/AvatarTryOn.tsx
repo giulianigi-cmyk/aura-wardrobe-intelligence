@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { resolveWardrobeUrls } from "@/lib/wardrobe-image";
 import { prepareAvatarTryOn, startTryOnStep, checkTryOnStep, finalizeAvatarTryOn } from "@/lib/avatar-tryon.functions";
 import { restoreOriginalFaceAligned } from "@/lib/face-restore";
+import { FramedPhoto, PhotoFramingEditor } from "../FramedPhoto";
+import type { PhotoFraming } from "@/lib/photo-framing";
 import { saveOutfitPlan } from "@/lib/outfit-plan.functions";
 import { isNotWornOnAvatar, orderForTryOn, selectTryOnItems, underLayerFor, type UnderLayer } from "@/lib/tryon-select";
 import { classifyTryOnError, type TryOnErrorKind } from "@/lib/tryon-error";
@@ -73,6 +75,9 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
   const [selected, setSelected] = useState<string[]>(initialItemIds ?? []);
 
   const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [resultFraming, setResultFraming] = useState<PhotoFraming | null>(null);
+  const [zooming, setZooming] = useState(false);
+  useEffect(() => { setResultFraming(null); }, [resultUrl]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   // Why it failed (tryon-error.ts) and at which piece — shown so a failure that can't succeed on retry
@@ -376,6 +381,14 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
 
       {stage === "result" && (
         <div className="px-6 mt-2 animate-fade-up">
+          {zooming && resultUrl && (
+            <PhotoFramingEditor
+              src={resultUrl}
+              initial={resultFraming}
+              onCancel={() => setZooming(false)}
+              onConfirm={(f) => { setResultFraming(f); setZooming(false); }}
+            />
+          )}
           <div className="flex items-center justify-center gap-1 rounded-full border border-border p-1 w-fit mx-auto">
             <button
               onClick={() => setView("person")}
@@ -389,7 +402,12 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
 
           <div className="mt-4 rounded-3xl overflow-hidden bg-secondary/40 aspect-[4/5]">
             {view === "person" ? (
-              resultUrl && <img src={resultUrl} alt="" className="h-full w-full object-contain" />
+              resultUrl && (
+                // Whole look by default; a tap opens zoom / centre to look closer.
+                <button onClick={() => setZooming(true)} aria-label={t("photoFraming.title")} className="block h-full w-full">
+                  <FramedPhoto src={resultUrl} framing={resultFraming} />
+                </button>
+              )
             ) : (
               <div className="grid grid-cols-3 gap-1 h-full p-1">
                 {(selected.length ? selected : (initialItemIds ?? [])).map((id) => {
