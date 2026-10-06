@@ -204,6 +204,13 @@ export const prepareAvatarTryOn = createServerFn({ method: "POST" })
       return { ok: false as const, error: "avatar_photo_missing", message: e instanceof Error ? e.message : "Could not load avatar photo." };
     }
 
+    // Consumption ledger: one look about to be generated (the FASHN steps are recorded one by one
+    // as they finish). Counts the looks for the plan's monthly Try-On limit; no cost of its own.
+    {
+      const { recordUsage } = await import("./ai-usage.server");
+      await recordUsage({ provider: "fashn", model: "tryon-max", operation: "prepare", units: 0, unitType: "credit", costUsd: 0, success: true, cached: false });
+    }
+
     // Preserve the order the caller asked for (outfits.item_ids already
     // encodes a sensible layering order from the outfit engine; the
     // direct-selection picker is responsible for its own ordering).
@@ -313,7 +320,7 @@ const CheckInput = z.object({ predictionId: z.string(), predictionToken: z.strin
  *  internal wait. Requires the token issued by startTryOnStep so a caller
  *  can only poll predictions they themselves started. */
 export const checkTryOnStep = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth, usageFeature("tryon")])
+  .middleware([requireSupabaseAuth, usageFeature("tryon", undefined, { observe: false })])
   .inputValidator((input: unknown) => CheckInput.parse(input))
   .handler(async ({ data, context }) => {
     const expected = await signPrediction(context.userId, data.predictionId);

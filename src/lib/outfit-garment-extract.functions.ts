@@ -139,6 +139,6 @@ export const startGarmentExtraction = createServerFn({ method: "POST" })
 const CheckInput = z.object({ predictionId: z.string().min(1) });
 
 export const checkGarmentExtraction = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth, usageFeature("reconstruction", "extract")])
+  .middleware([requireSupabaseAuth, usageFeature("reconstruction", "extract", { observe: false })])
   .inputValidator((input: unknown) => CheckInput.parse(input))
   .handler(async ({ data }) => checkFashnStatus(data.predictionId, "edit"));

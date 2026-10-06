@@ -121,7 +121,9 @@
     "sharingWhatIsNeverSharedDesc": "Votre nom, votre compte, votre ville, la fréquence à laquelle vous portez un article, la date d'achat et l'endroit où vous le rangez. Le lien entre une pièce et vous est remplacé par un code irréversible conservé sur le serveur.",
     "sharingTurningOffTerm": "Désactivation",
     "sharingTurningOffDesc": "Vos pièces disparaissent des futures recherches et les copies anonymes des photos sont supprimées. Les pièces déjà importées par d'autres membres restent dans leur garde-robe comme des copies indépendantes — elles ne sont pas retirées.",
-    "fromYourWardrobe": "De votre garde-robe"
+    "fromYourWardrobe": "De votre garde-robe",
+    "usage": "Forfait et utilisation",
+    "usageSub": "Votre forfait et votre utilisation"
   },
   "community": {
     "chooseUsername": "Choisissez un nom d'utilisateur",
@@ -2386,5 +2388,41 @@
     "openAura": "Ouvrir Aura",
     "member": "Membre Aura",
     "add": "Ajouter en ami"
+  },
+  "usage": {
+    "title": "Forfait et utilisation",
+    "loadFailed": "Impossible de charger votre utilisation. Réessayez plus tard.",
+    "yourPlan": "Votre forfait",
+    "plan": {
+      "free": "Free",
+      "plus": "Plus",
+      "ultra": "Ultra",
+      "owner": "Owner"
+    },
+    "trialUntil": "Essai Ultra jusqu'au {{date}}",
+    "ownerNote": "Compte propriétaire : aucune limite.",
+    "notIncluded": "Non inclus",
+    "unlimited": "Illimité",
+    "perRequest": "Jusqu'à {{max}} jours",
+    "usedOf_day": "{{used}} sur {{max}} aujourd'hui",
+    "usedOf_month": "{{used}} sur {{max}} ce mois-ci",
+    "usedUnlimited_day": "{{used}} aujourd'hui · illimité",
+    "usedUnlimited_month": "{{used}} ce mois-ci · illimité",
+    "observeNote": "Les limites ne sont pas encore actives : rien n'est bloqué pour l'instant.",
+    "limit": {
+      "new_items": "Nouvelles pièces",
+      "stylist": "Demandes au Stylist",
+      "daily_look_regen": "Nouveaux looks du jour",
+      "weekly_plan": "Plans hebdomadaires",
+      "trip": "Plans de voyage",
+      "trip_days": "Durée du voyage",
+      "outfit_scan": "Scans de tenue",
+      "gap_analysis": "Analyses de la garde-robe",
+      "advisor": "Conseils d'achat",
+      "tryon": "Essais sur l'avatar",
+      "reconstruction": "Reconstructions de pièces",
+      "voice_minutes": "Minutes de voix",
+      "voice_replies": "Réponses vocales"
+    }
   }
 }

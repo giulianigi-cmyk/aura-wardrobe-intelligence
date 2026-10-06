@@ -70,6 +70,7 @@ export function Settings({ go }: { go: (s: Screen) => void }) {
         <Row label={t("settings.sizes")} onClick={() => go("settings-sizes")} />
         <Row label={t("settings.stylePrefs")} sub={t("settings.stylePrefsSub")} onClick={() => go("settings-style-prefs")} />
         <Row label={t("settings.language")} sub={LANGUAGE_LABELS[currentLanguage]} onClick={() => go("settings-language")} />
+        <Row label={t("settings.usage")} sub={t("settings.usageSub")} onClick={() => go("settings-usage")} />
       </Group>
 
       <GroupLabel>{t("settings.groupWardrobe")}</GroupLabel>
