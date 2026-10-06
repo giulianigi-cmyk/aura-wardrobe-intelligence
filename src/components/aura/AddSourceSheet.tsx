@@ -6,7 +6,7 @@ export type AddSourceChoice = "add" | "batch-scan" | "outfit-scan";
 
 /**
  * Unified entry point for adding pieces to the closet: one piece with full
- * detail, a batch of up to 150 photos processed in the background, or one
+ * detail, a batch of up to 50 photos or links processed in the background, or one
  * photo of a full outfit with several pieces detected together and
  * reviewed right away. Kept as three flat, clearly-labelled choices
  * (icon + one-line hint each) rather than folding the outfit-photo option

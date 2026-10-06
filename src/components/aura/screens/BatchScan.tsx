@@ -15,6 +15,7 @@ import {
   triggerScanWorker,
   type UrlCandidateResult,
 } from "@/lib/batch-scan.functions";
+import { MAX_BATCH_ITEMS } from "@/lib/batch-scan-schemas";
 import { compressImageForUpload } from "@/lib/image-compress";
 import i18n from "@/i18n/config";
 type JobCounts = { queued: number; processing: number; done: number; failed: number };
@@ -26,7 +27,6 @@ type ScanRow = {
   jobCounts: JobCounts;
 };
 
-const MAX_BATCH_PHOTOS = 150;
 
 type PhotoStatus = "queued" | "compressing" | "uploading" | "uploaded" | "failed";
 type PhotoState = { name: string; status: PhotoStatus; error?: string };
@@ -141,6 +141,10 @@ export function BatchScan({ go, openReview }: { go: (s: Screen) => void; openRev
       ),
     );
     if (!urls.length) return;
+    if (urls.length > MAX_BATCH_ITEMS) {
+      urls.splice(MAX_BATCH_ITEMS);
+      toast.warning(t("batchScan.onlyFirstNLinksUsed", { count: MAX_BATCH_ITEMS }));
+    }
     setBusy(true);
     setLabel(t("batchScan.lookingForPhotosOnLinks", { count: urls.length }));
     try {
@@ -204,9 +208,9 @@ export function BatchScan({ go, openReview }: { go: (s: Screen) => void; openRev
   const onPick = async (files: FileList | null) => {
     if (!files?.length || !user) return;
     const all = Array.from(files);
-    const picked = all.slice(0, MAX_BATCH_PHOTOS);
-    if (all.length > MAX_BATCH_PHOTOS) {
-      toast.warning(t("batchScan.onlyFirstNPhotosUsed", { count: MAX_BATCH_PHOTOS }));
+    const picked = all.slice(0, MAX_BATCH_ITEMS);
+    if (all.length > MAX_BATCH_ITEMS) {
+      toast.warning(t("batchScan.onlyFirstNPhotosUsed", { count: MAX_BATCH_ITEMS }));
     }
 
     setBusy(true);

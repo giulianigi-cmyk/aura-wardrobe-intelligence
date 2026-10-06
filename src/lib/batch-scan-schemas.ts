@@ -1,17 +1,22 @@
 // Client-safe zod schemas for batch scan server functions.
 import { z } from "zod";
 
+/** Most pieces one batch takes, photos or links alike. Every piece is cut out (remove.bg, the
+ *  dearest step of the import) because the canvas needs it, so the batch is kept to what a person
+ *  realistically adds at once. */
+export const MAX_BATCH_ITEMS = 50;
+
 export const CreateBatchScanSchema = z.object({
-  paths: z.array(z.string().min(3)).min(1).max(200),
+  paths: z.array(z.string().min(3)).min(1).max(MAX_BATCH_ITEMS),
 });
 
 export const CreateBatchScanFromUrlsSchema = z.object({
-  urls: z.array(z.string().trim().min(5)).min(1).max(150),
+  urls: z.array(z.string().trim().min(5)).min(1).max(MAX_BATCH_ITEMS),
   accessToken: z.string().optional(),
 });
 
 export const ResolveBatchUrlCandidatesSchema = z.object({
-  urls: z.array(z.string().trim().min(5)).min(1).max(150),
+  urls: z.array(z.string().trim().min(5)).min(1).max(MAX_BATCH_ITEMS),
   accessToken: z.string().optional(),
 });
 
@@ -25,7 +30,7 @@ export const UrlSelectionSchema = z.object({
 });
 
 export const CreateBatchScanFromSelectionsSchema = z.object({
-  selections: z.array(UrlSelectionSchema).min(1).max(150),
+  selections: z.array(UrlSelectionSchema).min(1).max(MAX_BATCH_ITEMS),
 });
 
 export const ScanIdSchema = z.object({ scanId: z.string().uuid() });
