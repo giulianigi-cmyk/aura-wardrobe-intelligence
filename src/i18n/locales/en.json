@@ -2441,5 +2441,22 @@
       "fixed": "Fixed",
       "wontfix": "Closed"
     }
+  },
+  "firstSteps": {
+    "eyebrow": "First steps",
+    "title": "Start with the pieces you wear most",
+    "subtitle": "3 pieces are enough for your first look of the day, 10 for the week's outfits.",
+    "subtitleLookReady": "Your first look of the day is below. Reach 10 pieces for the week's outfits.",
+    "progress": "{{count}} of {{target}} pieces",
+    "group": {
+      "tops": "{{count}} tops or knits",
+      "bottoms": "{{count}} trousers, skirts or dresses",
+      "outerwear": "{{count}} jacket or coat",
+      "shoes": "{{count}} pairs of shoes",
+      "bags": "{{count}} bag"
+    },
+    "addMany": "Several photos",
+    "addOne": "One piece",
+    "tip": "Tip: photograph pieces laid flat on a light background, one per photo. We remove the background."
   }
 }

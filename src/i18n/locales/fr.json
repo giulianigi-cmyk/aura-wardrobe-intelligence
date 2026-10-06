@@ -2441,5 +2441,22 @@
       "fixed": "Résolu",
       "wontfix": "Clôturé"
     }
+  },
+  "firstSteps": {
+    "eyebrow": "Premiers pas",
+    "title": "Commencez par les pièces que vous portez le plus",
+    "subtitle": "3 pièces suffisent pour votre premier look du jour, 10 pour les tenues de la semaine.",
+    "subtitleLookReady": "Votre premier look du jour est juste en dessous. Atteignez 10 pièces pour les tenues de la semaine.",
+    "progress": "{{count}} sur {{target}} pièces",
+    "group": {
+      "tops": "{{count}} hauts ou mailles",
+      "bottoms": "{{count}} pantalons, jupes ou robes",
+      "outerwear": "{{count}} veste ou manteau",
+      "shoes": "{{count}} paires de chaussures",
+      "bags": "{{count}} sac"
+    },
+    "addMany": "Plusieurs photos",
+    "addOne": "Une pièce",
+    "tip": "Conseil : photographiez les pièces à plat sur un fond clair, une par photo. Nous retirons le fond."
   }
 }

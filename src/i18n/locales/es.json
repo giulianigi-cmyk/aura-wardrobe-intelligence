@@ -2441,5 +2441,22 @@
       "fixed": "Resuelto",
       "wontfix": "Cerrado"
     }
+  },
+  "firstSteps": {
+    "eyebrow": "Primeros pasos",
+    "title": "Empieza por las prendas que más usas",
+    "subtitle": "Con 3 prendas tienes tu primer look del día y con 10 los outfits de la semana.",
+    "subtitleLookReady": "Tu primer look del día está aquí abajo. Llega a 10 prendas para los outfits de la semana.",
+    "progress": "{{count}} de {{target}} prendas",
+    "group": {
+      "tops": "{{count}} tops o jerséis",
+      "bottoms": "{{count}} pantalones, faldas o vestidos",
+      "outerwear": "{{count}} chaqueta o abrigo",
+      "shoes": "{{count}} pares de zapatos",
+      "bags": "{{count}} bolso"
+    },
+    "addMany": "Varias fotos",
+    "addOne": "Una prenda",
+    "tip": "Consejo: fotografía las prendas extendidas sobre un fondo claro, una por foto. El fondo lo quitamos nosotros."
   }
 }
