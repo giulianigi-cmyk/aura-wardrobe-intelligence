@@ -26,6 +26,7 @@ import { searchSharedLibrary, syncMySharedLibrary, type SharedLibraryItem } from
 import { buildProductSearchQuery, buildGoogleSearchUrl, buildGoogleLensUrl } from "@/lib/search-online";
 
 import { compressImageForUpload } from "@/lib/image-compress";
+import { track } from "@/lib/telemetry-client";
 import { sizeEquivalences, isShoeCategory } from "@/lib/size-conversion";
 import { trimFileMargins } from "@/lib/auto-crop";
 
@@ -195,6 +196,26 @@ function getImageDimensions(file: File): Promise<{ width: number; height: number
 // one; adjust it if it flags too often or too rarely once live.
 const LOW_RESOLUTION_THRESHOLD = 700;
 
+/** Durations sent with the usage statistics: whole ms, at most an hour (the server's limit). */
+const clampMs = (ms: number) => Math.max(0, Math.min(3_600_000, Math.round(ms)));
+
+/** The free, in-browser cutout with up to 3 attempts, and whether it passed the quality check
+ *  (cutout-quality.ts). No paid call here: it runs as soon as a photo is picked, also for photos
+ *  the person then abandons. */
+type FreeCutout = { bg: { ok: true; imageDataUrl: string } | { ok: false; error: string }; qualityOk: boolean; reason?: string };
+async function freeCutout(targetDataUrl: string): Promise<FreeCutout> {
+  let bg = await removeBackgroundClient(targetDataUrl);
+  let attempt = 1;
+  while (!bg.ok && attempt < 3) {
+    await new Promise((r) => setTimeout(r, 800 * attempt));
+    bg = await removeBackgroundClient(targetDataUrl);
+    attempt++;
+  }
+  if (!bg.ok) return { bg, qualityOk: false };
+  const quality = await analyzeCutoutQuality(bg.imageDataUrl);
+  return { bg, qualityOk: quality.ok, reason: quality.ok ? undefined : quality.reason };
+}
+
 type Stage = "idle" | "bgremove" | "analyze";
 
 function colorOf(it: ProductLibraryItem | SharedLibraryItem): string | null {
@@ -259,6 +280,22 @@ export function AddItem({ onClose, initialGarment }: {
   const fileRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<"capture" | "url" | "library" | "details">("capture");
   const [file, setFile] = useState<File | null>(null);
+  // The cutout of the photo just picked, started right away (in parallel with the AI analysis,
+  // while the person checks the fields) so that Save no longer waits for it.
+  const cutoutRef = useRef<{ file: File; dataUrl: Promise<string>; result: Promise<FreeCutout> } | null>(null);
+  // Timing of the add-a-piece flow for the usage statistics (telemetry-client.ts): only durations
+  // and outcomes, never the photo or what was typed.
+  const flowRef = useRef<{ start: number; source: string; saved: boolean } | null>(null);
+  const flowStep = (step: string, extra: { ms?: number; outcome?: "ok" | "error" | "cancelled" } = {}) => {
+    const f = flowRef.current;
+    if (!f) return;
+    track("flow_step", { feature: "add_item", source: f.source, step, ...(extra.ms != null ? { ms: clampMs(extra.ms) } : {}), ...(extra.outcome ? { outcome: extra.outcome } : {}) });
+  };
+  useEffect(() => () => {
+    // Left the screen with a photo picked and not saved.
+    const f = flowRef.current;
+    if (f && !f.saved) track("flow_step", { feature: "add_item", source: f.source, step: "abandoned", ms: clampMs(performance.now() - f.start) });
+  }, []);
   const [preview, setPreview] = useState<string | null>(null);
   const [transparent, setTransparent] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -353,6 +390,12 @@ export function AddItem({ onClose, initialGarment }: {
     historicalRetailPrice?: string; historicalRetailFromImport?: boolean;
   }) => {
 
+    {
+      const prev = flowRef.current;
+      if (prev && !prev.saved) flowStep("abandoned", { ms: performance.now() - prev.start });
+      flowRef.current = { start: performance.now(), source: opts?.source ?? "photo", saved: false };
+      flowStep("picked");
+    }
     const compressedFile = await compressImageForUpload(initialFile);
     setFile(compressedFile);
     setPreview(URL.createObjectURL(compressedFile));
@@ -388,7 +431,23 @@ export function AddItem({ onClose, initialGarment }: {
 
     setStage("analyze");
     const fromLibrary = opts?.source === "library";
-    await analyze({ data: { imageDataUrl: dataUrl } })
+    const analysisStart = performance.now();
+    const analysis = analyze({ data: { imageDataUrl: dataUrl } });
+    void analysis.then(
+      () => flowStep("analysis", { ms: performance.now() - analysisStart, outcome: "ok" }),
+      () => flowStep("analysis", { ms: performance.now() - analysisStart, outcome: "error" }),
+    );
+    {
+      const cutoutStart = performance.now();
+      const result = freeCutout(dataUrl)
+        .catch((e): FreeCutout => ({ bg: { ok: false, error: e instanceof Error ? e.message : String(e) }, qualityOk: false }))
+        .then((r) => {
+          flowStep("cutout", { ms: performance.now() - cutoutStart, outcome: r.bg.ok ? "ok" : "error" });
+          return r;
+        });
+      cutoutRef.current = { file: compressedFile, dataUrl: Promise.resolve(dataUrl), result };
+    }
+    await analysis
       .then(result => {
         if (result.category && !fromLibrary) setCategory(result.category);
         if (result.subcategory && !fromLibrary) setSubcategory(result.subcategory);
@@ -747,19 +806,17 @@ export function AddItem({ onClose, initialGarment }: {
   const save = async () => {
     if (!file) return;
     setSaving(true); setErr(null);
+    const saveStart = performance.now();
     try {
       let fileToSave = file;
       if (!transparent) {
         setStage("bgremove");
         try {
-          const targetDataUrl = await readFileAsDataUrl(file);
-          let bg = await removeBackgroundClient(targetDataUrl);
-          let attempt = 1;
-          while (!bg.ok && attempt < 3) {
-            await new Promise((r) => setTimeout(r, 800 * attempt));
-            bg = await removeBackgroundClient(targetDataUrl);
-            attempt++;
-          }
+          // Started when the photo was picked (runPipeline); started now only if it wasn't.
+          const pre = cutoutRef.current?.file === file ? cutoutRef.current : null;
+          const targetDataUrl = pre ? await pre.dataUrl : await readFileAsDataUrl(file);
+          const free = pre ? await pre.result : await freeCutout(targetDataUrl);
+          let bg = free.bg;
           // The free, client-side model occasionally erases part of the
           // garment or leaves it partly see-through — see
           // cutout-quality.ts for exactly what this checks for. Only
@@ -767,11 +824,12 @@ export function AddItem({ onClose, initialGarment }: {
           // a normal, clean result never reaches this branch, so this
           // adds no cost for the common case.
           if (bg.ok) {
-            const quality = await analyzeCutoutQuality(bg.imageDataUrl);
-            if (!quality.ok) {
-              console.warn(`[AURA bg-removal] free result failed quality check (${quality.reason}), trying remove.bg`);
+            if (!free.qualityOk) {
+              console.warn(`[AURA bg-removal] free result failed quality check (${free.reason}), trying remove.bg`);
               try {
+                const premiumStart = performance.now();
                 const premium = await removeBackgroundPremium({ data: { imageDataUrl: targetDataUrl } });
+                flowStep("cutout_premium", { ms: performance.now() - premiumStart, outcome: premium.ok ? "ok" : "error" });
                 if (premium.ok) bg = premium;
                 // If remove.bg also fails or errors, the original free
                 // result (however imperfect) is kept rather than
@@ -877,6 +935,12 @@ export function AddItem({ onClose, initialGarment }: {
           .from("wardrobe_items").insert(payloadWithoutComposition as never).select("*").single());
       }
       if (insErr) throw insErr;
+      // Wait after pressing Save, then the whole time from the photo picked to the piece saved.
+      flowStep("saved", { ms: performance.now() - saveStart, outcome: "ok" });
+      if (flowRef.current) {
+        flowStep("total", { ms: performance.now() - flowRef.current.start });
+        flowRef.current.saved = true;
+      }
       toast.success(t("addItem.toastAddedToCloset"));
       void syncMySharedLibrary().catch(() => {});
       // Fire-and-forget, same as syncMySharedLibrary above — the wardrobe
@@ -914,6 +978,7 @@ export function AddItem({ onClose, initialGarment }: {
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : (typeof e === "object" && e !== null && "message" in e ? String((e as { message: unknown }).message) : t("addItem.errFailedToSave"));
       console.error("[AURA wardrobe] save failed", e);
+      flowStep("saved", { ms: performance.now() - saveStart, outcome: "error" });
       setErr(msg);
       toast.error(msg);
     } finally {

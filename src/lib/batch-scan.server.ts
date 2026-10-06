@@ -33,6 +33,9 @@ export type WorkerResult = {
   scans: string[];
 };
 
+/** Jobs processed at the same time by one worker run. */
+export const JOB_CONCURRENCY = 4;
+
 export async function runScanWorker(limit = 5): Promise<WorkerResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -46,7 +49,7 @@ export async function runScanWorker(limit = 5): Promise<WorkerResult> {
   const touchedScans = new Set<string>();
 
   // Each job's paid calls are attributed to its owner in the consumption ledger (ai-usage.server.ts).
-  for (const job of claimed) await runInUsageScope("batch_scan", job.user_id, async () => {
+  const processJob = (job: (typeof claimed)[number]) => runInUsageScope("batch_scan", job.user_id, async () => {
     touchedScans.add(job.scan_id);
     try {
       const { data: blob, error: dlErr } = await supabaseAdmin.storage.from(BUCKET).download(job.image_path);
@@ -194,6 +197,13 @@ export async function runScanWorker(limit = 5): Promise<WorkerResult> {
       else result.requeued++;
     }
   }, "worker");
+
+  // JOB_CONCURRENCY jobs at a time instead of one after the other: each job mostly waits on
+  // remove.bg and the AI analysis (~13 s), so 50 photos took ~11 minutes in a row.
+  let nextJob = 0;
+  await Promise.all(Array.from({ length: Math.min(JOB_CONCURRENCY, claimed.length) }, async () => {
+    while (nextJob < claimed.length) await processJob(claimed[nextJob++]);
+  }));
 
   for (const scanId of touchedScans) {
     await finalizeScan(scanId);
