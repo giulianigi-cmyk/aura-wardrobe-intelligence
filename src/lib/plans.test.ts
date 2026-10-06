@@ -45,3 +45,16 @@ test("over the limit: NULL never, 0 on any use, otherwise only past the number",
   assert.equal(isOver(10, 10), false);
   assert.equal(isOver(11, 10), true);
 });
+
+test("time zone: first one stored; a trip changes it; back-and-forth within 24 h does not", async () => {
+  const { shouldUpdateTimeZone } = await import("./plans");
+  const now = new Date("2026-10-06T12:00:00Z");
+  assert.equal(shouldUpdateTimeZone(null, "Europe/Rome", now), true);
+  const rome = { plan: "free" as const, trial_ends_at: null, time_zone: "Europe/Rome", updated_at: "2026-10-01T12:00:00Z" };
+  assert.equal(shouldUpdateTimeZone(rome, "America/New_York", now), true);
+  assert.equal(shouldUpdateTimeZone(rome, "Europe/Rome", now), false);
+  assert.equal(shouldUpdateTimeZone(rome, "Bad/Zone", now), false);
+  const justChanged = { ...rome, time_zone: "America/New_York", updated_at: "2026-10-06T02:00:00Z" };
+  assert.equal(shouldUpdateTimeZone(justChanged, "Asia/Tokyo", now), false);
+  assert.equal(shouldUpdateTimeZone(justChanged, "Asia/Tokyo", new Date("2026-10-07T02:00:00Z")), true);
+});

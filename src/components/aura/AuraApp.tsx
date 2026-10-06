@@ -124,6 +124,7 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { PhoneFrame } from "./PhoneFrame";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useWardrobeCompletion } from "@/hooks/use-wardrobe-completion";
+import { useTimeZoneSync } from "@/hooks/use-time-zone-sync";
 import { useProfile } from "@/hooks/use-profile";
 import { useChatNotifications } from "@/hooks/use-chat-notifications";
 import { useQueryClient } from "@tanstack/react-query";
@@ -193,6 +194,8 @@ function Inner() {
   // Fills missing type / attributes / details of the wardrobe pieces from their photos, in the
   // background (use-wardrobe-completion.ts).
   useWardrobeCompletion(user?.id);
+  // Daily plan counters follow the phone's time zone (e.g. on a trip), at most one change a day.
+  useTimeZoneSync(user?.id);
   const { profile, loading: profileLoading, settled: profileSettled } = useProfile();
   const [screen, setScreen] = useState<Screen>("splash");
   const [builderInit, setBuilderInit] = useState<BuilderInit>(null);
