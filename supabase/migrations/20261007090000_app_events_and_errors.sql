@@ -1,11 +1,11 @@
--- Product usage events and app errors, kept in AURA's own database.
+-- Product usage events, app errors and problem reports, kept in AURA's own database.
 --
 -- Why: AURA has no usage statistics (where people stop: signing up, first pieces, first outfit…)
 -- and no error monitoring (errors in production are only known when someone reports them). Kept
 -- here rather than in an external analytics / error service: no new dependency, no data leaves the
 -- project, and the same database already holds the consumption ledger to read them alongside.
 --
--- What (two new tables, nothing existing changes):
+-- What (three new tables, nothing existing changes):
 --   app_events   one row per product event: who, which event (a fixed list checked by the server),
 --                a few small fields (screen, source, feature, outcome, count), app version, when.
 --                No free text, no photo, no item name, no content.
@@ -16,7 +16,8 @@
 --                characters), the screen they came from, app version, when, and a status the owner
 --                updates (open / fixed / wontfix). The person can read their own reports.
 -- Written only by the server (service role), through validated server functions; events and errors
--- are not readable through the API (RLS on, no policies); a person can read their own reports. Read by the owner in the SQL editor / reports.
+-- are not readable through the API (RLS on, no policies); a person can read their own reports.
+-- Read by the owner in the SQL editor and in the daily report.
 --
 -- Risks (checked before applying): new tables only; the app sends events in small batches after
 -- the fact, so a failure never affects a screen; growth of a few hundred rows per active person per
