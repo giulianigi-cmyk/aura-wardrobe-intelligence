@@ -20,7 +20,7 @@ export const INTERNAL_LIMITS = new Set<LimitKey>(["cost_cap_eur"]);
 
 export type PlanLimit = { plan: Exclude<Plan, "owner">; limit_key: LimitKey; period: LimitPeriod; max_value: number | null; enforced: boolean };
 
-export type PlanRow = { plan: Plan; trial_ends_at: string | null; time_zone: string | null } | null;
+export type PlanRow = { plan: Plan; trial_ends_at: string | null; time_zone: string | null; updated_at?: string | null } | null;
 
 export const DEFAULT_TIME_ZONE = "Europe/Rome";
 
@@ -39,6 +39,18 @@ export function isValidTimeZone(tz: string | null | undefined): tz is string {
   } catch {
     return false;
   }
+}
+
+/** Shortest time between two time-zone changes. A trip moves the daily counters to local midnight;
+ *  switching the phone's zone back and forth can't restart the day more than once in 24 hours. */
+export const TIME_ZONE_CHANGE_MIN_MS = 24 * 60 * 60 * 1000;
+
+/** Whether the zone the app reports should replace the stored one: a valid zone that differs, the
+ *  first one ever, or a change at least TIME_ZONE_CHANGE_MIN_MS after the row was last updated. */
+export function shouldUpdateTimeZone(row: PlanRow, reported: string | null | undefined, now: Date = new Date()): boolean {
+  if (!isValidTimeZone(reported) || row?.time_zone === reported) return false;
+  if (!row?.time_zone || !row.updated_at) return true;
+  return now.getTime() - new Date(row.updated_at).getTime() >= TIME_ZONE_CHANGE_MIN_MS;
 }
 
 /** Calendar date (y, m 1-12, d) of an instant in a time zone. */

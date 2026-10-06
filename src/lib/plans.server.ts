@@ -5,7 +5,7 @@
 // the feature that was used.
 import {
   DEFAULT_TIME_ZONE, EUR_PER_USD, INTERNAL_LIMITS, LIMIT_FOR_FEATURE, LIMIT_KEYS, effectivePlan, isOver,
-  isValidTimeZone, periodStart, type LimitKey, type Plan, type PlanLimit, type PlanRow,
+  isValidTimeZone, periodStart, shouldUpdateTimeZone, type LimitKey, type Plan, type PlanLimit, type PlanRow,
 } from "./plans";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -17,7 +17,7 @@ async function admin(): Promise<Admin> {
 }
 
 export async function loadPlanRow(db: Admin, userId: string): Promise<PlanRow> {
-  const { data, error } = await db.from("user_plans").select("plan, trial_ends_at, time_zone").eq("user_id", userId).maybeSingle();
+  const { data, error } = await db.from("user_plans").select("plan, trial_ends_at, time_zone, updated_at").eq("user_id", userId).maybeSingle();
   if (error) throw new Error(error.code ?? "user_plans read failed");
   return (data as PlanRow) ?? null;
 }
@@ -122,6 +122,25 @@ export async function observeLimitsAfter(feature: string, userId: string | null)
   }
 }
 
+/** Stores the zone the app reports when shouldUpdateTimeZone allows it (plans.ts); returns the row
+ *  as it now stands. A failed write keeps the old zone. */
+async function applyTimeZone(db: Admin, userId: string, row: PlanRow, timeZone: string | null): Promise<PlanRow> {
+  if (!shouldUpdateTimeZone(row, timeZone)) return row;
+  const updatedAt = new Date().toISOString();
+  const { error } = await db.from("user_plans").upsert({ user_id: userId, time_zone: timeZone, updated_at: updatedAt }, { onConflict: "user_id" });
+  if (error) {
+    console.warn("[AURA plans] time zone not saved", error.code ?? "error");
+    return row;
+  }
+  return { plan: row?.plan ?? "free", trial_ends_at: row?.trial_ends_at ?? null, time_zone: timeZone, updated_at: updatedAt };
+}
+
+/** On app open: the phone's time zone, so the daily counters follow the person on a trip. */
+export async function syncTimeZone(userId: string, timeZone: string | null): Promise<void> {
+  const db = await admin();
+  await applyTimeZone(db, userId, await loadPlanRow(db, userId), timeZone);
+}
+
 export type UsageLine = { key: LimitKey; period: "day" | "month" | "request"; used: number | null; max: number | null };
 export type UsageSummary = { plan: Plan; inTrial: boolean; trialEndsAt: string | null; enforced: boolean; lines: UsageLine[] };
 
@@ -129,11 +148,7 @@ export type UsageSummary = { plan: Plan; inTrial: boolean; trialEndsAt: string |
  *  zone the app reports is stored for the daily counters (only a valid IANA zone is kept). */
 export async function usageSummary(userId: string, timeZone: string | null): Promise<UsageSummary> {
   const db = await admin();
-  let row = await loadPlanRow(db, userId);
-  if (isValidTimeZone(timeZone) && row?.time_zone !== timeZone) {
-    const { error } = await db.from("user_plans").upsert({ user_id: userId, time_zone: timeZone, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-    if (!error) row = { plan: row?.plan ?? "free", trial_ends_at: row?.trial_ends_at ?? null, time_zone: timeZone };
-  }
+  const row = await applyTimeZone(db, userId, await loadPlanRow(db, userId), timeZone);
   const { plan, inTrial } = effectivePlan(row);
   const tz = isValidTimeZone(row?.time_zone) ? row!.time_zone! : DEFAULT_TIME_ZONE;
   const limits = plan === "owner" ? [] : (await loadLimits(db)).filter((l) => l.plan === plan);
