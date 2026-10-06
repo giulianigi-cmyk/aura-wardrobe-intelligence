@@ -49,3 +49,27 @@ test("a jacket or blazer over a top is worn open; over a dress its own hint appl
   assert.equal(underLayerFor(blazer, [blazer, it("dress", "Dresses")]), null);
   assert.equal(underLayerFor(blazer, [blazer, it("trousers", "Bottoms", "Trousers")]), null);
 });
+
+test("a waistcoat or sweater vest goes over the shirt, and under the jacket", () => {
+  const vest = { id: "vest", category: "Tops", subcategory: "Vest Top", style_tags: ["Tailored"], material: ["Wool"] };
+  const shirt = it("shirt", "Tops", "Shirt");
+  const outfit = [vest, it("shoes", "Shoes", "Sneakers"), it("trousers", "Bottoms", "Trousers"), shirt];
+  assert.deepEqual(orderForTryOn(outfit).map((x) => x.id), ["trousers", "shirt", "vest", "shoes"]);
+  assert.equal(underLayerFor(vest, outfit), "shirt");
+  assert.equal(underLayerFor(shirt, outfit), null); // the shirt is worn normally, not open over the vest
+  const blazer = it("blazer", "Outerwear", "Blazer");
+  const gilet = it("gilet", "Outerwear", "Vest");
+  const layered = [blazer, gilet, shirt, it("trousers", "Bottoms", "Trousers")];
+  assert.deepEqual(orderForTryOn(layered).map((x) => x.id), ["trousers", "shirt", "gilet", "blazer"]);
+  assert.equal(underLayerFor(gilet, layered), "shirt");
+  assert.equal(underLayerFor(blazer, layered), "top");
+});
+
+test("a jersey vest top is a tank: base layer, the shirt worn open over it", () => {
+  const tank = { id: "tank", category: "Tops", subcategory: "Vest Top", style_tags: ["Casual"], material: ["Cotton"] };
+  const shirt = it("shirt", "Tops", "Shirt");
+  const outfit = [shirt, tank, it("jeans", "Bottoms", "Jeans")];
+  assert.deepEqual(orderForTryOn(outfit).map((x) => x.id), ["tank", "jeans", "shirt"]);
+  assert.equal(underLayerFor(shirt, outfit), "top");
+  assert.equal(underLayerFor(tank, outfit), null);
+});

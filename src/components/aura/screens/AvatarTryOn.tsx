@@ -10,7 +10,7 @@ import { resolveWardrobeUrls } from "@/lib/wardrobe-image";
 import { prepareAvatarTryOn, startTryOnStep, checkTryOnStep, finalizeAvatarTryOn } from "@/lib/avatar-tryon.functions";
 import { restoreOriginalFaceAligned } from "@/lib/face-restore";
 import { saveOutfitPlan } from "@/lib/outfit-plan.functions";
-import { isNotWornOnAvatar, orderForTryOn, selectTryOnItems, underLayerFor } from "@/lib/tryon-select";
+import { isNotWornOnAvatar, orderForTryOn, selectTryOnItems, underLayerFor, type UnderLayer } from "@/lib/tryon-select";
 import { classifyTryOnError, type TryOnErrorKind } from "@/lib/tryon-error";
 import { PiecePicker } from "../PiecePicker";
 import type { WardrobeItem as FullWardrobeItem } from "@/lib/aura-types";
@@ -112,7 +112,7 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
   /** Runs one chained garment step to completion: submit, then poll every
    *  ~2s until FASHN reports done or failed. Never a single long-held
    *  request — see avatar-tryon.functions.ts for why that mattered. */
-  const runOneStep = async (modelImageDataUrl: string, itemId: string, hasDressInOutfit: boolean, underLayer: "dress" | "top" | null = null): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string }> => {
+  const runOneStep = async (modelImageDataUrl: string, itemId: string, hasDressInOutfit: boolean, underLayer: UnderLayer | null = null): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string }> => {
     // One retry: a single try-on step occasionally fails or times out at the provider, and that
     // used to throw away the whole look.
     const first = await runOneStepOnce(modelImageDataUrl, itemId, hasDressInOutfit, underLayer);
@@ -121,7 +121,7 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
     return runOneStepOnce(modelImageDataUrl, itemId, hasDressInOutfit, underLayer);
   };
 
-  const runOneStepOnce = async (modelImageDataUrl: string, itemId: string, hasDressInOutfit: boolean, underLayer: "dress" | "top" | null): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string }> => {
+  const runOneStepOnce = async (modelImageDataUrl: string, itemId: string, hasDressInOutfit: boolean, underLayer: UnderLayer | null): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string }> => {
     const started = await startStep({ data: { modelImageDataUrl, itemId, hasDressInOutfit, underLayer } });
     if (!started.ok) return { ok: false, error: started.error };
 
@@ -147,7 +147,7 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
       // The avatar wears clothes and shoes only, at most 6 (one try-on step each, tryon-select.ts):
       // bags and accessories are never tried on, and the person is told so.
       let itemIds = allItemIds;
-      const underLayerById: Record<string, "dress" | "top" | null> = {};
+      const underLayerById: Record<string, UnderLayer | null> = {};
       {
         const { data: rows } = await supabase.from("wardrobe_items").select("id, category, subcategory, style_tags, material").in("id", allItemIds);
         type Row = { id: string; category: string | null; subcategory: string | null; style_tags: string[] | null; material: string[] | null };
