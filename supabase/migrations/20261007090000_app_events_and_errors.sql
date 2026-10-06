@@ -12,8 +12,11 @@
 --   app_errors   one row per error seen in the app (crash, failed request, unhandled error): kind,
 --                a short message and stack with e-mail addresses, tokens and URL query strings
 --                removed, screen, app version, when. Same error repeated in a burst is sent once.
--- Written only by the server (service role), through validated server functions; nobody reads or
--- writes them through the API (RLS on, no policies). Read by the owner in the SQL editor / reports.
+--   app_problem_reports  "Segnala un problema": what the person writes themselves (up to 1000
+--                characters), the screen they came from, app version, when, and a status the owner
+--                updates (open / fixed / wontfix). The person can read their own reports.
+-- Written only by the server (service role), through validated server functions; events and errors
+-- are not readable through the API (RLS on, no policies); a person can read their own reports. Read by the owner in the SQL editor / reports.
 --
 -- Risks (checked before applying): new tables only; the app sends events in small batches after
 -- the fact, so a failure never affects a screen; growth of a few hundred rows per active person per
@@ -50,3 +53,21 @@ CREATE INDEX app_errors_fingerprint_idx ON public.app_errors (fingerprint, creat
 
 ALTER TABLE public.app_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_errors ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE public.app_problem_reports (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  user_id uuid REFERENCES auth.users (id) ON DELETE CASCADE,
+  message text NOT NULL CHECK (char_length(message) BETWEEN 1 AND 1000),
+  screen text,
+  app_version text,
+  platform text,
+  status text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'fixed', 'wontfix'))
+);
+CREATE INDEX app_problem_reports_status_time_idx ON public.app_problem_reports (status, created_at);
+
+ALTER TABLE public.app_problem_reports ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users read their own problem reports"
+  ON public.app_problem_reports FOR SELECT TO authenticated
+  USING (auth.uid() = user_id);
