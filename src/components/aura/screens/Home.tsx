@@ -20,6 +20,8 @@ import { suggestDailyLooks, type DailyLook } from "@/lib/suggest-daily-looks.fun
 import { tempBucket } from "@/lib/outfit-weather-rules";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 import { WardrobeLocationExpiryBanner } from "@/components/aura/WardrobeLocationExpiryBanner";
+import { FirstSteps } from "@/components/aura/FirstSteps";
+import { FIRST_STEPS_TARGET } from "@/lib/first-steps";
 import i18n, { type SupportedLanguage } from "@/i18n/config";
 
 function todayISO(): string {
@@ -471,6 +473,9 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
         )}
       </div>
 
+
+      {/* A new wardrobe: which pieces to photograph first, and the fastest way to add them. */}
+      {itemsLoaded && activeItems.length < FIRST_STEPS_TARGET && <FirstSteps items={activeItems} go={go} />}
 
             {/* Today's edit */}
       <section className="px-6 mt-8 animate-fade-up">

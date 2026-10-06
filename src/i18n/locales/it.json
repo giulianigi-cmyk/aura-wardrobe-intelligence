@@ -2441,5 +2441,22 @@
       "fixed": "Risolta",
       "wontfix": "Chiusa"
     }
+  },
+  "firstSteps": {
+    "eyebrow": "Primi passi",
+    "title": "Inizia dai capi che metti di più",
+    "subtitle": "Bastano 3 capi per il primo look del giorno e 10 per gli outfit della settimana.",
+    "subtitleLookReady": "Il tuo primo look del giorno è qui sotto. Arriva a 10 capi per gli outfit della settimana.",
+    "progress": "{{count}} di {{target}} capi",
+    "group": {
+      "tops": "{{count}} top o maglie",
+      "bottoms": "{{count}} pantaloni, gonne o abiti",
+      "outerwear": "{{count}} giacca o cappotto",
+      "shoes": "{{count}} paia di scarpe",
+      "bags": "{{count}} borsa"
+    },
+    "addMany": "Più foto insieme",
+    "addOne": "Un capo",
+    "tip": "Consiglio: fotografa i capi stesi su un fondo chiaro, uno per foto. Lo sfondo lo togliamo noi."
   }
 }
