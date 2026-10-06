@@ -5,6 +5,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { USERNAME_RE } from "@/lib/community";
+import { track } from "@/lib/telemetry-client";
 import i18n, { SUPPORTED_LANGUAGES, LANGUAGE_LABELS, type SupportedLanguage } from "@/i18n/config";
 
 const STYLES = [
@@ -151,6 +152,7 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
     const { error } = await update(patch);
     if (error) { setErr(error); setSaving(false); return; }
     if (avatar) await uploadAvatar(avatar);
+    track("profile_setup_completed");
     setSaving(false);
     onDone();
   };

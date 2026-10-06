@@ -84,6 +84,7 @@ export function Settings({ go }: { go: (s: Screen) => void }) {
         <Row label={t("settings.notifications")} onClick={() => go("settings-notifications")} />
         <Row label={t("settings.calendar")} onClick={() => go("settings-calendar")} />
         <Row label={t("settings.privacy")} onClick={() => go("settings-privacy")} />
+        <Row label={t("settings.reportProblem")} sub={t("settings.reportProblemSub")} onClick={() => go("settings-report-problem")} />
       </Group>
 
       <Group>

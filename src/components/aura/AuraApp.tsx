@@ -67,6 +67,7 @@ const screenLoaders = {
   NotificationSettings: () => import("./screens/NotificationSettings"),
   SettingsCalendar: () => import("./screens/SettingsCalendar"),
   SettingsUsage: () => import("./screens/SettingsUsage"),
+  SettingsReportProblem: () => import("./screens/SettingsReportProblem"),
   PrivacySettings: () => import("./screens/PrivacySettings"),
   Notifications: () => import("./screens/Notifications"),
   Invite: () => import("./screens/Invite"),
@@ -106,6 +107,7 @@ const SettingsDressPreferences = lazyScreen(screenLoaders.SettingsDressPreferenc
 const NotificationSettings = lazyScreen(screenLoaders.NotificationSettings, "NotificationSettings");
 const SettingsCalendar = lazyScreen(screenLoaders.SettingsCalendar, "SettingsCalendar");
 const SettingsUsage = lazyScreen(screenLoaders.SettingsUsage, "SettingsUsage");
+const SettingsReportProblem = lazyScreen(screenLoaders.SettingsReportProblem, "SettingsReportProblem");
 const PrivacySettings = lazyScreen(screenLoaders.PrivacySettings, "PrivacySettings");
 const Notifications = lazyScreen(screenLoaders.Notifications, "Notifications");
 const Invite = lazyScreen(screenLoaders.Invite, "Invite");
@@ -125,6 +127,7 @@ import { PhoneFrame } from "./PhoneFrame";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useWardrobeCompletion } from "@/hooks/use-wardrobe-completion";
 import { useTimeZoneSync } from "@/hooks/use-time-zone-sync";
+import { setScreen as setTelemetryScreen, setSignedIn as setTelemetrySignedIn, startTelemetry, track } from "@/lib/telemetry-client";
 import { useProfile } from "@/hooks/use-profile";
 import { useChatNotifications } from "@/hooks/use-chat-notifications";
 import { useQueryClient } from "@tanstack/react-query";
@@ -138,7 +141,7 @@ export type Screen =
       | "trips" | "trip-create" | "trip-detail" | "essential-presets"
             | "chats" | "chat-thread" | "user-profile"
       | "settings" | "settings-personal" | "settings-sizes" | "settings-style-prefs" | "settings-language"
-      | "settings-wardrobe-locations" | "settings-dress-preferences" | "settings-notifications" | "settings-calendar" | "settings-privacy" | "settings-usage"
+      | "settings-wardrobe-locations" | "settings-dress-preferences" | "settings-notifications" | "settings-calendar" | "settings-privacy" | "settings-usage" | "settings-report-problem"
       | "avatar" | "avatar-tryon" | "log-wear";
 
 
@@ -198,6 +201,13 @@ function Inner() {
   useTimeZoneSync(user?.id);
   const { profile, loading: profileLoading, settled: profileSettled } = useProfile();
   const [screen, setScreen] = useState<Screen>("splash");
+  // Usage statistics and error monitoring (telemetry-client.ts): screens seen, app opens, errors.
+  useEffect(() => { startTelemetry(); }, []);
+  useEffect(() => {
+    setTelemetrySignedIn(!!user);
+    if (user) track("app_open");
+  }, [user?.id]);
+  useEffect(() => { setTelemetryScreen(screen); }, [screen]);
   const [builderInit, setBuilderInit] = useState<BuilderInit>(null);
   const [stylistChatInit, setStylistChatInit] = useState<StylistChatInit>(null);
   const [reviewScanId, setReviewScanId] = useState<string | null>(null);
@@ -509,6 +519,7 @@ function Inner() {
           {screen === "settings-notifications" && <NotificationSettings go={go} />}
           {screen === "settings-calendar" && <SettingsCalendar go={go} />}
           {screen === "settings-usage" && <SettingsUsage go={go} />}
+          {screen === "settings-report-problem" && <SettingsReportProblem go={go} />}
           {screen === "settings-privacy" && <PrivacySettings go={go} />}
 
                     {screen === "insights" && <Insights go={go} openWardrobeGap={(f) => { setWardrobeGapFilter(f); go("wardrobe"); }} openBuilder={openBuilder} />}

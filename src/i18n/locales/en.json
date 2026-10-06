@@ -123,7 +123,9 @@
     "sharingTurningOffDesc": "Your pieces disappear from future searches and the anonymous photo copies are deleted. Pieces other members already imported remain in their closet as independent copies — they are not removed.",
     "fromYourWardrobe": "From your wardrobe",
     "usage": "Plan and usage",
-    "usageSub": "Your plan and how much you have used"
+    "usageSub": "Your plan and how much you have used",
+    "reportProblem": "Report a problem",
+    "reportProblemSub": "Something not working? Tell us"
   },
   "community": {
     "chooseUsername": "Choose a username",
@@ -2423,6 +2425,21 @@
       "reconstruction": "Piece reconstructions",
       "voice_minutes": "Voice minutes",
       "voice_replies": "Voice replies"
+    }
+  },
+  "reportProblem": {
+    "title": "Report a problem",
+    "intro": "Tell us what happened: what you were doing, what you expected and what happened instead. We read it and fix it.",
+    "placeholder": "E.g. In the avatar try-on the shirt ends up over the vest…",
+    "privacy": "Do not include passwords or sensitive data.",
+    "send": "Send",
+    "thanks": "Thank you! We received your report.",
+    "failed": "Your report could not be sent. Please try again.",
+    "yourReports": "Your reports",
+    "status": {
+      "open": "Received",
+      "fixed": "Fixed",
+      "wontfix": "Closed"
     }
   }
 }

@@ -123,7 +123,9 @@
     "sharingTurningOffDesc": "Vos pièces disparaissent des futures recherches et les copies anonymes des photos sont supprimées. Les pièces déjà importées par d'autres membres restent dans leur garde-robe comme des copies indépendantes — elles ne sont pas retirées.",
     "fromYourWardrobe": "De votre garde-robe",
     "usage": "Forfait et utilisation",
-    "usageSub": "Votre forfait et votre utilisation"
+    "usageSub": "Votre forfait et votre utilisation",
+    "reportProblem": "Signaler un problème",
+    "reportProblemSub": "Quelque chose ne marche pas ? Dites-le-nous"
   },
   "community": {
     "chooseUsername": "Choisissez un nom d'utilisateur",
@@ -2423,6 +2425,21 @@
       "reconstruction": "Reconstructions de pièces",
       "voice_minutes": "Minutes de voix",
       "voice_replies": "Réponses vocales"
+    }
+  },
+  "reportProblem": {
+    "title": "Signaler un problème",
+    "intro": "Racontez-nous ce qui s'est passé : ce que vous faisiez, ce que vous attendiez et ce qui s'est produit. Nous le lisons et le corrigeons.",
+    "placeholder": "Ex. Dans l'essai sur l'avatar, la chemise passe par-dessus le gilet…",
+    "privacy": "N'indiquez ni mot de passe ni données sensibles.",
+    "send": "Envoyer",
+    "thanks": "Merci ! Nous avons bien reçu votre signalement.",
+    "failed": "Impossible d'envoyer le signalement. Réessayez.",
+    "yourReports": "Vos signalements",
+    "status": {
+      "open": "Reçu",
+      "fixed": "Résolu",
+      "wontfix": "Clôturé"
     }
   }
 }
