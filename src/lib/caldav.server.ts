@@ -197,7 +197,20 @@ export async function syncAppleCalendar(userId: string): Promise<{ ok: boolean; 
   if (!conn) return { ok: false, error: "Not connected" };
 
   try {
-    const events = await fetchAppleEvents(conn.calendar_id as string, conn.account_email as string, conn.access_token as string);
+    // Stored encrypted (secret-box.server.ts). A password saved before encryption existed is read as
+    // it is and re-saved encrypted here, once.
+    const { isSealed, openSecret, sealSecret } = await import("./secret-box.server");
+    const stored = conn.access_token as string;
+    const appPassword = await openSecret(stored);
+    if (!isSealed(stored)) {
+      try {
+        await (supabaseAdmin.from("calendar_connections" as never) as any)
+          .update({ access_token: await sealSecret(appPassword) }).eq("id", conn.id);
+      } catch (e) {
+        console.warn("[AURA calendar] iCloud password not re-saved encrypted yet", e instanceof Error ? e.name : "error");
+      }
+    }
+    const events = await fetchAppleEvents(conn.calendar_id as string, conn.account_email as string, appPassword);
     const rows = events.map((e) => ({
       user_id: userId,
       connection_id: conn.id,

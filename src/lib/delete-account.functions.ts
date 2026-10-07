@@ -2,7 +2,10 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createServerFn } from "@tanstack/react-start";
 import type { supabaseAdmin as SupabaseAdmin } from "@/integrations/supabase/client.server";
 
-const STORAGE_BUCKETS = ["avatars", "outfits", "wardrobe"] as const;
+// Every bucket whose files sit under "{userId}/". avatar-private holds the avatar's body and face
+// photos and the try-on results; outfit-photos the photos of outfits worn. shared-library is not
+// here: its files are product photos filed by product, not by person.
+const STORAGE_BUCKETS = ["avatars", "outfits", "wardrobe", "avatar-private", "outfit-photos"] as const;
 
 /** Best-effort recursive delete of every object under `{userId}/` in a
  *  bucket. DB rows cascade-delete automatically (every foreign key to

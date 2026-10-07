@@ -64,13 +64,26 @@ export const connectAppleCalendar = createServerFn({ method: "POST" })
     const verified = await verifyAppleCredentials(data.email, data.appPassword);
     if (!verified.ok) return { ok: false as const, error: verified.error };
 
+    // The app-specific password is stored encrypted (secret-box.server.ts), never readable.
+    const { sealSecret, MissingEncryptionKeyError } = await import("@/lib/secret-box.server");
+    let sealedPassword: string;
+    try {
+      sealedPassword = await sealSecret(data.appPassword);
+    } catch (e) {
+      if (e instanceof MissingEncryptionKeyError) {
+        console.error("[AURA calendar] iCloud not connected: the server encryption key is missing");
+        return { ok: false as const, error: "Il collegamento a iCloud non è disponibile in questo momento." };
+      }
+      throw e;
+    }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await (supabaseAdmin.from("calendar_connections" as never) as any).upsert(
       {
         user_id: context.userId,
         provider: "apple",
         account_email: data.email,
-        access_token: data.appPassword,
+        access_token: sealedPassword,
         calendar_id: verified.homeUrl,
         connected_at: new Date().toISOString(),
         last_sync_error: null,
