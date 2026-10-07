@@ -546,20 +546,8 @@ export function AddItem({ onClose, initialGarment }: {
     }
   };
 
-  useEffect(() => {
-    if (step !== "url") return;
-    if (urlInput.trim()) return;
-    let cancelled = false;
-    navigator.clipboard?.readText?.()
-      .then((text) => {
-        if (cancelled) return;
-        const trimmed = text.trim();
-        if (trimmed && /^https?:\/\//i.test(trimmed)) setUrlInput(trimmed);
-      })
-      .catch(() => { /* no permission / unsupported — the manual button still works */ });
-    return () => { cancelled = true; };
-  }, [step]);
-
+  // The clipboard is read only when the person taps "Incolla dagli appunti": reading it on its own
+  // when this page opens made iOS show its "Incolla" prompt over the page.
   const pasteFromClipboard = async () => {
     try {
       const text = await navigator.clipboard.readText();
@@ -1278,6 +1266,13 @@ export function AddItem({ onClose, initialGarment }: {
               <input
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && urlInput.trim() && !importing) void handleImportUrl(); }}
+                type="url"
+                inputMode="url"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="go"
                 placeholder="https://www…"
                 className="flex-1 ml-2 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
               />
