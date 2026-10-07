@@ -39,7 +39,7 @@ export type Profile = {
     language: string | null;
   // In-app notification toggles by type. Defaulted in the DB (see
   // migration), always present once the column exists.
-  notification_preferences: { outfit_share: boolean; weather_change: boolean; system: boolean } | null;
+  notification_preferences: { outfit_share: boolean; weather_change: boolean; system: boolean; morning_look?: boolean; morning_look_time?: string } | null;
 };
 
 

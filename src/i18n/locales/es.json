@@ -2505,5 +2505,22 @@
     "visual": {
       "mic": "Micrófono"
     }
+  },
+  "morningLook": {
+    "title": "Look de la mañana",
+    "sub": "Una notificación a la hora que elijas, con el tiempo del día",
+    "time": "Hora",
+    "enabled": "Listo: cada mañana a las {{time}}",
+    "testSent": "Notificación de prueba enviada",
+    "sendTest": "Enviar una notificación de prueba",
+    "enableThisDevice": "Activar las notificaciones también en este dispositivo",
+    "permissionDenied": "Las notificaciones están bloqueadas para AURA. Puedes reactivarlas en los ajustes del teléfono.",
+    "enableFailed": "No se han podido activar las notificaciones. Inténtalo de nuevo en un momento.",
+    "installTitle": "En iPhone las notificaciones solo llegan si AURA está en la pantalla de inicio:",
+    "installStep1": "abre AURA en Safari y toca Compartir",
+    "installStep2": "elige «Añadir a pantalla de inicio»",
+    "installStep3": "abre AURA desde el icono y vuelve aquí.",
+    "deniedHelp": "Las notificaciones están bloqueadas para AURA en este dispositivo: reactívalas en los ajustes del teléfono (Notificaciones › AURA) y vuelve aquí.",
+    "unsupported": "Este navegador no recibe notificaciones. Prueba con Safari en iPhone (añadiendo AURA a la pantalla de inicio) o con Chrome."
   }
 }

@@ -2505,5 +2505,22 @@
     "visual": {
       "mic": "Microphone"
     }
+  },
+  "morningLook": {
+    "title": "Morning look",
+    "sub": "A notification at the time you choose, with the day's weather",
+    "time": "Time",
+    "enabled": "Done: every morning at {{time}}",
+    "testSent": "Test notification sent",
+    "sendTest": "Send a test notification",
+    "enableThisDevice": "Turn on notifications on this device too",
+    "permissionDenied": "Notifications are blocked for AURA. You can turn them back on in your phone's settings.",
+    "enableFailed": "Notifications couldn't be turned on. Try again shortly.",
+    "installTitle": "On iPhone, notifications only arrive when AURA is on your Home Screen:",
+    "installStep1": "open AURA in Safari and tap Share",
+    "installStep2": "choose “Add to Home Screen”",
+    "installStep3": "open AURA from the icon and come back here.",
+    "deniedHelp": "Notifications are blocked for AURA on this device: turn them back on in your phone's settings (Notifications › AURA), then come back here.",
+    "unsupported": "This browser can't receive notifications. Try Safari on iPhone (with AURA added to the Home Screen) or Chrome."
   }
 }

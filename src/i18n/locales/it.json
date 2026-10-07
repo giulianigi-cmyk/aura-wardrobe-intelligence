@@ -2505,5 +2505,22 @@
     "visual": {
       "mic": "Microfono"
     }
+  },
+  "morningLook": {
+    "title": "Look del mattino",
+    "sub": "Una notifica all'ora che scegli, con il meteo del giorno",
+    "time": "Orario",
+    "enabled": "Fatto: ogni mattina alle {{time}}",
+    "testSent": "Notifica di prova inviata",
+    "sendTest": "Invia una notifica di prova",
+    "enableThisDevice": "Attiva le notifiche anche su questo dispositivo",
+    "permissionDenied": "Le notifiche sono bloccate per AURA. Puoi riattivarle dalle impostazioni del telefono.",
+    "enableFailed": "Non è stato possibile attivare le notifiche. Riprova tra poco.",
+    "installTitle": "Su iPhone le notifiche arrivano solo se AURA è nella schermata Home:",
+    "installStep1": "apri AURA in Safari e tocca Condividi",
+    "installStep2": "scegli «Aggiungi alla schermata Home»",
+    "installStep3": "apri AURA dall'icona e torna qui.",
+    "deniedHelp": "Le notifiche sono bloccate per AURA su questo dispositivo: riattivale dalle impostazioni del telefono (Notifiche › AURA), poi torna qui.",
+    "unsupported": "Questo browser non riceve notifiche. Prova da Safari su iPhone (aggiungendo AURA alla schermata Home) o da Chrome."
   }
 }
