@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useState, type ComponentType } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { Splash } from "./screens/Splash";
 import { Onboarding } from "./screens/Onboarding";
 import { Auth } from "./screens/Auth";
@@ -68,6 +68,7 @@ const screenLoaders = {
   SettingsCalendar: () => import("./screens/SettingsCalendar"),
   SettingsUsage: () => import("./screens/SettingsUsage"),
   SettingsReportProblem: () => import("./screens/SettingsReportProblem"),
+  SettingsGuide: () => import("./screens/SettingsGuide"),
   PrivacySettings: () => import("./screens/PrivacySettings"),
   Notifications: () => import("./screens/Notifications"),
   Invite: () => import("./screens/Invite"),
@@ -108,6 +109,7 @@ const NotificationSettings = lazyScreen(screenLoaders.NotificationSettings, "Not
 const SettingsCalendar = lazyScreen(screenLoaders.SettingsCalendar, "SettingsCalendar");
 const SettingsUsage = lazyScreen(screenLoaders.SettingsUsage, "SettingsUsage");
 const SettingsReportProblem = lazyScreen(screenLoaders.SettingsReportProblem, "SettingsReportProblem");
+const SettingsGuide = lazyScreen(screenLoaders.SettingsGuide, "SettingsGuide");
 const PrivacySettings = lazyScreen(screenLoaders.PrivacySettings, "PrivacySettings");
 const Notifications = lazyScreen(screenLoaders.Notifications, "Notifications");
 const Invite = lazyScreen(screenLoaders.Invite, "Invite");
@@ -122,6 +124,8 @@ const LogWear = lazyScreen(screenLoaders.LogWear, "LogWear");
 const UserProfile = lazyScreen(screenLoaders.UserProfile, "UserProfile");
 
 import { TabBar } from "./TabBar";
+import { GuidedTour } from "./GuidedTour";
+import { shouldAutoStartTour, tourSeenKey } from "@/lib/guided-tour";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { PhoneFrame } from "./PhoneFrame";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
@@ -141,7 +145,7 @@ export type Screen =
       | "trips" | "trip-create" | "trip-detail" | "essential-presets"
             | "chats" | "chat-thread" | "user-profile"
       | "settings" | "settings-personal" | "settings-sizes" | "settings-style-prefs" | "settings-language"
-      | "settings-wardrobe-locations" | "settings-dress-preferences" | "settings-notifications" | "settings-calendar" | "settings-privacy" | "settings-usage" | "settings-report-problem"
+      | "settings-wardrobe-locations" | "settings-dress-preferences" | "settings-notifications" | "settings-calendar" | "settings-privacy" | "settings-usage" | "settings-report-problem" | "settings-guide"
       | "avatar" | "avatar-tryon" | "log-wear";
 
 
@@ -293,6 +297,24 @@ function Inner() {
 
   useChatNotifications(openConversation);
 
+  // Guided tour (guided-tour.ts): starts on its own the first time a new account reaches Home with
+  // a wardrobe still being built; the Guide reopens it. Seen once per account on this device.
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [tourOpen, setTourOpen] = useState(false);
+  const tourSeen = (): boolean => {
+    if (!user) return true;
+    try { return localStorage.getItem(tourSeenKey(user.id)) === "1"; } catch { return true; }
+  };
+  const markTourSeen = () => {
+    if (!user) return;
+    try { localStorage.setItem(tourSeenKey(user.id), "1"); } catch { /* storage unavailable: shown again next time */ }
+  };
+  const onWardrobeKnown = useCallback((pieces: number) => {
+    if (shouldAutoStartTour({ seen: tourSeen(), pieces })) setTourOpen(true);
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const startTour = () => { setScreen("home"); setTourOpen(true); };
+  const closeTour = () => { markTourSeen(); setTourOpen(false); };
+
   // Once a signed-in user is on a main tab and the browser is idle, download the screens people
   // open most often, so tapping into them doesn't wait on the network. Screens that pull in
   // heavy on-device models (colour analysis, avatar, try-on, batch review, outfit scan) are
@@ -440,11 +462,11 @@ function Inner() {
 
   return (
     <PhoneFrame>
-      <div className="relative h-full w-full overflow-hidden bg-background">
+      <div ref={frameRef} className="relative h-full w-full overflow-hidden bg-background">
         {mountedTabs.has("home") && (
           <div className={`absolute inset-0 ${screen === "home" ? "" : "hidden"}`}>
             <ErrorBoundary onReset={() => go("home")}>
-              <Home go={go} openAvatarTryOn={openAvatarTryOn} openBuilder={openBuilder} active={screen === "home"} />
+              <Home go={go} openAvatarTryOn={openAvatarTryOn} openBuilder={openBuilder} active={screen === "home"} onWardrobeKnown={onWardrobeKnown} />
             </ErrorBoundary>
           </div>
         )}
@@ -520,6 +542,7 @@ function Inner() {
           {screen === "settings-calendar" && <SettingsCalendar go={go} />}
           {screen === "settings-usage" && <SettingsUsage go={go} />}
           {screen === "settings-report-problem" && <SettingsReportProblem go={go} />}
+          {screen === "settings-guide" && <SettingsGuide go={go} replayTour={startTour} />}
           {screen === "settings-privacy" && <PrivacySettings go={go} />}
 
                     {screen === "insights" && <Insights go={go} openWardrobeGap={(f) => { setWardrobeGapFilter(f); go("wardrobe"); }} openBuilder={openBuilder} />}
@@ -551,6 +574,7 @@ function Inner() {
         </div>
         )}
         {showTabs && <TabBar current={screen} go={go} />}
+        {tourOpen && screen === "home" && <GuidedTour container={frameRef} onClose={closeTour} />}
       </div>
     </PhoneFrame>
   );

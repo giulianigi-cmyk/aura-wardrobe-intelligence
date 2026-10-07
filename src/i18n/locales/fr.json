@@ -2464,5 +2464,46 @@
     "addMany": "Plusieurs photos",
     "addOne": "Une pièce",
     "tip": "Conseil : photographiez les pièces à plat sur un fond clair, une par photo. Nous retirons le fond."
+  },
+  "tour": {
+    "stepOf": "{{current}} sur {{total}}",
+    "next": "Suivant",
+    "back": "Retour",
+    "skip": "Fermer le guide",
+    "done": "Commencer",
+    "steps": {
+      "home": {
+        "title": "Accueil",
+        "body": "Chaque jour, vous trouvez ici le look du jour, pensé pour la météo de votre ville, et des raccourcis vers le reste de l'app."
+      },
+      "wardrobe": {
+        "title": "Garde-robe",
+        "body": "Toutes vos pièces. Avec le bouton +, vous en ajoutez : une photo, jusqu'à 50 photos ou liens à la fois, ou la photo d'une tenue entière."
+      },
+      "stylist": {
+        "title": "Styliste",
+        "body": "Créez des tenues sur la toile, demandez conseil à votre styliste et retrouvez vos looks à venir, portés et enregistrés."
+      },
+      "calendar": {
+        "title": "Calendrier",
+        "body": "Planifiez quoi porter jour après jour, notez ce que vous avez porté et préparez votre valise pour vos voyages."
+      },
+      "you": {
+        "title": "Vous",
+        "body": "Profil, avatar pour l'essayage virtuel, analyse des couleurs et statistiques. De là, vous accédez aux Paramètres, où se trouve le Guide complet d'AURA."
+      },
+      "start": {
+        "title": "Commencez ici",
+        "body": "Photographiez les pièces que vous portez le plus : 3 pièces pour votre premier look, 10 pour les tenues de la semaine. Plusieurs photos à la fois, c'est le plus rapide."
+      }
+    }
+  },
+  "guide": {
+    "settingsRow": "Guide d'AURA",
+    "settingsRowSub": "Comment utiliser l'app, étape par étape",
+    "loadFailed": "Impossible d'ouvrir le guide. Vérifiez votre connexion et réessayez.",
+    "visual": {
+      "mic": "Micro"
+    }
   }
 }

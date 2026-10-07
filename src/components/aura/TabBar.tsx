@@ -21,6 +21,7 @@ export function TabBar({ current, go }: { current: Screen; go: (s: Screen) => vo
             <li key={id}>
               <button
                 onClick={() => go(id)}
+                data-tour={`tab-${id}`}
                 className="flex flex-col items-center gap-1 px-3 py-1.5 transition-all active:scale-90"
               >
                 <Icon

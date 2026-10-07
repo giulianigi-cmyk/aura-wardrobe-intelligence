@@ -15,7 +15,7 @@ export function FirstSteps({ items, go }: { items: { category: string | null }[]
     go(to);
   };
   return (
-    <section className="px-6 mt-6 animate-fade-up" aria-labelledby="first-steps-title">
+    <section className="px-6 mt-6 animate-fade-up" aria-labelledby="first-steps-title" data-tour="first-steps">
       <div className="rounded-[2rem] border border-border p-5">
         <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("firstSteps.eyebrow")}</p>
         <h2 id="first-steps-title" className="font-serif text-2xl italic mt-1">{t("firstSteps.title")}</h2>
