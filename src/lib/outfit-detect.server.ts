@@ -141,6 +141,9 @@ export async function detectOutfitItems(imageDataUrl: string, opts: { detailed?:
     try {
       text = (await generateText({ model, abortSignal: AbortSignal.timeout(25_000), messages: buildMessages() })).text;
     } catch (err) {
+      // Out of AI credit: the follow-up call would be refused too.
+      const { isServiceOutOfCredits } = await import("./ai-unavailable");
+      if (isServiceOutOfCredits(err)) throw err;
       console.error("[AURA analyze-outfit] first call failed", err);
       text = "";
     }

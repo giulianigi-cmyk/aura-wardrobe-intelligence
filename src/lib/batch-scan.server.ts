@@ -7,6 +7,7 @@ import { detectOutfitItems } from "./outfit-detect.server";
 import { analyzeWardrobeImageCore } from "./ai-analyze.functions";
 import { removeBackgroundCore } from "./ai-bgremove.functions";
 import { runInUsageScope } from "./ai-usage.server";
+import { isServiceOutOfCredits, SERVICE_UNAVAILABLE } from "./ai-unavailable";
 
 const MAX_ATTEMPTS = 3;
 const BUCKET = "wardrobe";
@@ -47,11 +48,15 @@ export async function runScanWorker(limit = 5): Promise<WorkerResult> {
     claimed: claimed.length, done: 0, failed: 0, requeued: 0, detected: 0, scans: [],
   };
   const touchedScans = new Set<string>();
+  // Set when the AI service answers "out of credit": the remaining jobs of this run are stopped
+  // without calling it again (each would be refused the same way).
+  let outOfCredits = false;
 
   // Each job's paid calls are attributed to its owner in the consumption ledger (ai-usage.server.ts).
   const processJob = (job: (typeof claimed)[number]) => runInUsageScope("batch_scan", job.user_id, async () => {
     touchedScans.add(job.scan_id);
     try {
+      if (outOfCredits) throw new Error(`${SERVICE_UNAVAILABLE}: AI credit exhausted`);
       const { data: blob, error: dlErr } = await supabaseAdmin.storage.from(BUCKET).download(job.image_path);
       if (dlErr || !blob) throw new Error(dlErr?.message ?? "download failed");
 
@@ -182,9 +187,14 @@ export async function runScanWorker(limit = 5): Promise<WorkerResult> {
         .eq("id", job.id);
       result.done++;
     } catch (err) {
-      const message = err instanceof Error ? err.message : "unknown error";
+      const raw = err instanceof Error ? err.message : "unknown error";
+      // Out of AI credit: stopped now instead of retried (a retry is refused the same way), and
+      // marked so the app can say the service is temporarily unavailable.
+      const unavailable = isServiceOutOfCredits(err);
+      if (unavailable) outOfCredits = true;
+      const message = unavailable && !raw.startsWith(SERVICE_UNAVAILABLE) ? `${SERVICE_UNAVAILABLE}: ${raw}` : raw;
       console.error("[AURA batch-scan] job failed", job.id, message);
-      const giveUp = (job.attempts ?? 1) >= MAX_ATTEMPTS;
+      const giveUp = unavailable || (job.attempts ?? 1) >= MAX_ATTEMPTS;
       await supabaseAdmin
         .from("scan_jobs")
         .update({
