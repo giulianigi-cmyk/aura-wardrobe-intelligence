@@ -19,10 +19,17 @@
 --                       device subscribed, calls /api/public/hooks/send-morning-looks with the
 --                       worker secret from Vault (same pattern as recheck_plan_weather_if_needed).
 --
--- Risks (checked before applying): new tables only, all with RLS on; rows are removed with the
+--   sync_calendars_if_needed()  twice a day (04:30 and 15:30 UTC: early morning and late afternoon in
+--                       Europe, before the evening reminders), if any calendar is connected, calls
+--                       /api/public/hooks/sync-calendars: every connected Google, Outlook and iCloud
+--                       calendar is read again (the same sync as the "Sync now" button, which stays).
+--
+-- Risks (checked before applying): new tables and functions only, all tables with RLS on; rows are removed with the
 -- account (ON DELETE CASCADE); the schedule does nothing (no HTTP call) while nobody has turned the
 -- notification on; no AI cost — the messages only carry the day's temperatures (Open-Meteo) or the
--- titles and times of tomorrow's appointments already in calendar_events_cache.
+-- titles and times of tomorrow's appointments already in calendar_events_cache. The calendar sync
+-- reads each connected calendar twice a day, the same requests as a manual sync; a calendar whose
+-- access was revoked is marked "reconnect" exactly as a manual sync does.
 CREATE TABLE public.push_subscriptions (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id uuid NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
@@ -99,3 +106,38 @@ $function$;
 REVOKE EXECUTE ON FUNCTION public.send_morning_looks_if_needed() FROM PUBLIC, anon, authenticated;
 
 SELECT cron.schedule('send-morning-looks', '*/15 * * * *', $$ select public.send_morning_looks_if_needed(); $$);
+
+CREATE OR REPLACE FUNCTION public.sync_calendars_if_needed()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+declare
+  secret text;
+begin
+  if not exists (select 1 from public.calendar_connections) then
+    return;
+  end if;
+
+  select decrypted_secret into secret
+  from vault.decrypted_secrets
+  where name = 'scan_worker_secret';
+
+  if secret is null then
+    raise warning '[AURA] scan_worker_secret not found in Vault — calendar sync skipped';
+    return;
+  end if;
+
+  perform net.http_post(
+    url := 'https://aura-wardrobe-intelligence.lovable.app/api/public/hooks/sync-calendars',
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-worker-secret', secret),
+    body := '{}'::jsonb,
+    timeout_milliseconds := 120000
+  );
+end;
+$function$;
+
+REVOKE EXECUTE ON FUNCTION public.sync_calendars_if_needed() FROM PUBLIC, anon, authenticated;
+
+SELECT cron.schedule('sync-calendars', '30 4,15 * * *', $$ select public.sync_calendars_if_needed(); $$);

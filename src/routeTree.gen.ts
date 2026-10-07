@@ -22,6 +22,7 @@ import { Route as ApiPublicHooksOutlookCalendarCallbackRouteImport } from './rou
 import { Route as ApiPublicHooksProcessScanJobsRouteImport } from './routes/api/public/hooks/process-scan-jobs'
 import { Route as ApiPublicHooksRecheckPlanWeatherRouteImport } from './routes/api/public/hooks/recheck-plan-weather'
 import { Route as ApiPublicHooksSendMorningLooksRouteImport } from './routes/api/public/hooks/send-morning-looks'
+import { Route as ApiPublicHooksSyncCalendarsRouteImport } from './routes/api/public/hooks/sync-calendars'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -96,6 +97,12 @@ const ApiPublicHooksSendMorningLooksRoute =
     path: '/api/public/hooks/send-morning-looks',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksSyncCalendarsRoute =
+  ApiPublicHooksSyncCalendarsRouteImport.update({
+    id: '/api/public/hooks/sync-calendars',
+    path: '/api/public/hooks/sync-calendars',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -111,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/process-scan-jobs': typeof ApiPublicHooksProcessScanJobsRoute
   '/api/public/hooks/recheck-plan-weather': typeof ApiPublicHooksRecheckPlanWeatherRoute
   '/api/public/hooks/send-morning-looks': typeof ApiPublicHooksSendMorningLooksRoute
+  '/api/public/hooks/sync-calendars': typeof ApiPublicHooksSyncCalendarsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -126,6 +134,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/process-scan-jobs': typeof ApiPublicHooksProcessScanJobsRoute
   '/api/public/hooks/recheck-plan-weather': typeof ApiPublicHooksRecheckPlanWeatherRoute
   '/api/public/hooks/send-morning-looks': typeof ApiPublicHooksSendMorningLooksRoute
+  '/api/public/hooks/sync-calendars': typeof ApiPublicHooksSyncCalendarsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -142,6 +151,7 @@ export interface FileRoutesById {
   '/api/public/hooks/process-scan-jobs': typeof ApiPublicHooksProcessScanJobsRoute
   '/api/public/hooks/recheck-plan-weather': typeof ApiPublicHooksRecheckPlanWeatherRoute
   '/api/public/hooks/send-morning-looks': typeof ApiPublicHooksSendMorningLooksRoute
+  '/api/public/hooks/sync-calendars': typeof ApiPublicHooksSyncCalendarsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/process-scan-jobs'
     | '/api/public/hooks/recheck-plan-weather'
     | '/api/public/hooks/send-morning-looks'
+    | '/api/public/hooks/sync-calendars'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/process-scan-jobs'
     | '/api/public/hooks/recheck-plan-weather'
     | '/api/public/hooks/send-morning-looks'
+    | '/api/public/hooks/sync-calendars'
   id:
     | '__root__'
     | '/'
@@ -189,6 +201,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/process-scan-jobs'
     | '/api/public/hooks/recheck-plan-weather'
     | '/api/public/hooks/send-morning-looks'
+    | '/api/public/hooks/sync-calendars'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -205,6 +218,7 @@ export interface RootRouteChildren {
   ApiPublicHooksProcessScanJobsRoute: typeof ApiPublicHooksProcessScanJobsRoute
   ApiPublicHooksRecheckPlanWeatherRoute: typeof ApiPublicHooksRecheckPlanWeatherRoute
   ApiPublicHooksSendMorningLooksRoute: typeof ApiPublicHooksSendMorningLooksRoute
+  ApiPublicHooksSyncCalendarsRoute: typeof ApiPublicHooksSyncCalendarsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -300,6 +314,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksSendMorningLooksRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/sync-calendars': {
+      id: '/api/public/hooks/sync-calendars'
+      path: '/api/public/hooks/sync-calendars'
+      fullPath: '/api/public/hooks/sync-calendars'
+      preLoaderRoute: typeof ApiPublicHooksSyncCalendarsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -320,6 +341,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksProcessScanJobsRoute: ApiPublicHooksProcessScanJobsRoute,
   ApiPublicHooksRecheckPlanWeatherRoute: ApiPublicHooksRecheckPlanWeatherRoute,
   ApiPublicHooksSendMorningLooksRoute: ApiPublicHooksSendMorningLooksRoute,
+  ApiPublicHooksSyncCalendarsRoute: ApiPublicHooksSyncCalendarsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

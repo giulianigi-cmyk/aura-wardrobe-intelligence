@@ -197,7 +197,7 @@ const text: GuideText = {
         "Touchez « Calendrier ».",
         "Connectez Google, Outlook ou iCloud. Pour iCloud, il faut un mot de passe pour app, créé sur appleid.apple.com.",
       ],
-      tip: "AURA lit seulement vos événements et ne les modifie jamais. Les identifiants sont enregistrés chiffrés.",
+      tip: "AURA lit seulement vos événements et ne les modifie jamais : elle les met à jour deux fois par jour, et vous pouvez synchroniser quand vous voulez. Les identifiants sont enregistrés chiffrés.",
     },
     trips: {
       title: "Préparer un voyage",
