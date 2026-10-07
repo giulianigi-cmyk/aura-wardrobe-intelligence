@@ -37,13 +37,15 @@ export const Route = createFileRoute("/api/public/hooks/outlook-calendar-callbac
 
           const { exchangeCodeForTokens, syncOutlookCalendar } = await import("@/lib/outlook-calendar.server");
           const tokens = await exchangeCodeForTokens(code);
+          // Stored encrypted (secret-box.server.ts); without the server key nothing is saved.
+          const { sealSecret } = await import("@/lib/secret-box.server");
 
           await (supabaseAdmin.from("calendar_connections" as never) as any).upsert(
             {
               user_id: userId,
               provider: "outlook",
-              access_token: tokens.access_token,
-              ...(tokens.refresh_token ? { refresh_token: tokens.refresh_token } : {}),
+              access_token: await sealSecret(tokens.access_token),
+              ...(tokens.refresh_token ? { refresh_token: await sealSecret(tokens.refresh_token) } : {}),
               token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
               connected_at: new Date().toISOString(),
               last_sync_error: null,
