@@ -542,7 +542,8 @@
     },
     "historicalRetailPriceFromImportHint": "Estimated from the original price found on the page — please check it.",
     "lowResolutionWarning": "This photo is {{width}}×{{height}}px — a bit low-resolution. You can still add it as-is.",
-    "toastAnalysisFailed": "Couldn’t analyze the photo. You can fill in the details by hand."
+    "toastAnalysisFailed": "Couldn’t analyze the photo. You can fill in the details by hand.",
+    "toastServiceUnavailable": "Service temporarily unavailable, please try again later. You can fill in the details by hand meanwhile."
   },
   "stylistChat": {
     "feedbackLiked": "I like this outfit",
@@ -1469,6 +1470,7 @@
     "queuedCount_other": "{{count}} queued",
     "failedCount_one": "{{count}} failed",
     "failedCount_other": "{{count}} failed",
+    "serviceUnavailable": "Service temporarily unavailable, please try again later.",
     "review": "Review",
     "removeBatchAria": "Remove this batch"
   },

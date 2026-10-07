@@ -542,7 +542,8 @@
     },
     "historicalRetailPriceFromImportHint": "Stima dal prezzo originale trovato sulla pagina — verificalo.",
     "lowResolutionWarning": "Questa foto è {{width}}×{{height}}px — una risoluzione un po' bassa. Puoi comunque aggiungerla così.",
-    "toastAnalysisFailed": "Non sono riuscita ad analizzare la foto. Puoi compilare i dettagli a mano."
+    "toastAnalysisFailed": "Non sono riuscita ad analizzare la foto. Puoi compilare i dettagli a mano.",
+    "toastServiceUnavailable": "Servizio momentaneamente non disponibile, riprova più tardi. Intanto puoi compilare i dettagli a mano."
   },
   "stylistChat": {
     "feedbackLiked": "Mi piace questo outfit",
@@ -1469,6 +1470,7 @@
     "queuedCount_other": "{{count}} in coda",
     "failedCount_one": "{{count}} non riuscita",
     "failedCount_other": "{{count}} non riuscite",
+    "serviceUnavailable": "Servizio momentaneamente non disponibile, riprova più tardi.",
     "review": "Rivedi",
     "removeBatchAria": "Rimuovi questo batch"
   },

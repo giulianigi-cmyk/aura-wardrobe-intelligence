@@ -18,7 +18,7 @@ import {
 import { MAX_BATCH_ITEMS } from "@/lib/batch-scan-schemas";
 import { compressImageForUpload } from "@/lib/image-compress";
 import i18n from "@/i18n/config";
-type JobCounts = { queued: number; processing: number; done: number; failed: number };
+type JobCounts = { queued: number; processing: number; done: number; failed: number; unavailable?: number };
 type ScanRow = {
   id: string;
   status: string;
@@ -472,6 +472,9 @@ export function BatchScan({ go, openReview }: { go: (s: Screen) => void; openRev
                     <p className="text-[11px] text-muted-foreground mt-0.5">
                       ✓ {t("batchScan.doneCount", { count: c.done })}{c.processing ? ` · ⏳ ${t("batchScan.processingCount", { count: c.processing })}` : ""}{c.queued ? ` · ${t("batchScan.queuedCount", { count: c.queued })}` : ""}{c.failed ? ` · ⚠ ${t("batchScan.failedCount", { count: c.failed })}` : ""}
                     </p>
+                  )}
+                  {(c.unavailable ?? 0) > 0 && (
+                    <p className="text-[11px] text-destructive mt-0.5">{t("batchScan.serviceUnavailable")}</p>
                   )}
                 </button>
                 {!ready && <Loader2 size={14} className="animate-spin text-muted-foreground shrink-0" />}

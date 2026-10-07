@@ -542,7 +542,8 @@
     },
     "historicalRetailPriceFromImportHint": "Estimado a partir del precio original encontrado en la página — verifícalo.",
     "lowResolutionWarning": "Esta foto es de {{width}}×{{height}}px — una resolución algo baja. Puedes añadirla igualmente.",
-    "toastAnalysisFailed": "No he podido analizar la foto. Puedes rellenar los detalles a mano."
+    "toastAnalysisFailed": "No he podido analizar la foto. Puedes rellenar los detalles a mano.",
+    "toastServiceUnavailable": "Servicio no disponible temporalmente, inténtalo más tarde. Mientras tanto puedes completar los detalles a mano."
   },
   "stylistChat": {
     "feedbackLiked": "Me gusta este outfit",
@@ -1469,6 +1470,7 @@
     "queuedCount_other": "{{count}} en cola",
     "failedCount_one": "{{count}} fallida",
     "failedCount_other": "{{count}} fallidas",
+    "serviceUnavailable": "Servicio no disponible temporalmente, inténtalo más tarde.",
     "review": "Revisar",
     "removeBatchAria": "Eliminar este lote"
   },

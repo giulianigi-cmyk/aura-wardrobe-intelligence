@@ -542,7 +542,8 @@
     },
     "historicalRetailPriceFromImportHint": "Estimé à partir du prix d'origine trouvé sur la page — veuillez le vérifier.",
     "lowResolutionWarning": "Cette photo fait {{width}}×{{height}}px — une résolution un peu basse. Vous pouvez quand même l'ajouter.",
-    "toastAnalysisFailed": "Impossible d’analyser la photo. Vous pouvez remplir les détails à la main."
+    "toastAnalysisFailed": "Impossible d’analyser la photo. Vous pouvez remplir les détails à la main.",
+    "toastServiceUnavailable": "Service momentanément indisponible, réessaie plus tard. En attendant, tu peux remplir les détails à la main."
   },
   "stylistChat": {
     "feedbackLiked": "J'aime cette tenue",
@@ -1913,6 +1914,7 @@
     "queuedCount_other": "{{count}} en file",
     "failedCount_one": "{{count}} échouée",
     "failedCount_other": "{{count}} échouées",
+    "serviceUnavailable": "Service momentanément indisponible, réessaie plus tard.",
     "review": "Examiner",
     "removeBatchAria": "Retirer ce lot"
   },

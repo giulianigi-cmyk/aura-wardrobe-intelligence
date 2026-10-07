@@ -153,6 +153,9 @@ export async function analyzeWardrobeImageCore(imageDataUrl: string): Promise<Wa
     try {
       text = (await call()).text;
     } catch (err) {
+      // Out of AI credit: a retry is refused the same way, so stop here.
+      const { isServiceOutOfCredits } = await import("./ai-unavailable");
+      if (isServiceOutOfCredits(err)) throw new AiCallFailedError(err instanceof Error ? err.message : "Payment Required");
       console.error("[AURA analyze] first call failed, retrying once", err);
       try {
         text = (await call()).text;

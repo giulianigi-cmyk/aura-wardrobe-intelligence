@@ -4,6 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { checkPublicUrl } from "./safe-url";
 import { fetchImageAsDataUrl } from "./fetch-image";
 import { resolveProductImageUrl } from "./import-url.functions";
+import { isServiceOutOfCredits } from "./ai-unavailable";
 import {
   ConfirmDetectedItemsSchema,
   CreateBatchScanSchema,
@@ -262,21 +263,25 @@ export const listBatchScans = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
 
     const ids = (scans ?? []).map((s) => s.id);
-    type Counts = { queued: number; processing: number; done: number; failed: number };
+    // unavailable: failed jobs stopped because the AI service was out of credit (ai-unavailable.ts).
+    type Counts = { queued: number; processing: number; done: number; failed: number; unavailable: number };
     const countsByScan: Record<string, Counts> = {};
 
     if (ids.length) {
       const { data: jobs, error: jobErr } = await context.supabase
         .from("scan_jobs")
-        .select("scan_id, status")
+        .select("scan_id, status, error_message")
         .in("scan_id", ids);
       if (jobErr) throw new Error(jobErr.message);
       for (const j of jobs ?? []) {
-        const c = (countsByScan[j.scan_id] ??= { queued: 0, processing: 0, done: 0, failed: 0 });
+        const c = (countsByScan[j.scan_id] ??= { queued: 0, processing: 0, done: 0, failed: 0, unavailable: 0 });
         if (j.status === "queued") c.queued++;
         else if (j.status === "processing") c.processing++;
         else if (j.status === "done") c.done++;
-        else if (j.status === "failed") c.failed++;
+        else if (j.status === "failed") {
+          c.failed++;
+          if (isServiceOutOfCredits(j.error_message ?? "")) c.unavailable++;
+        }
       }
     }
 
@@ -303,12 +308,14 @@ export const listBatchScans = createServerFn({ method: "GET" })
     return (scans ?? [])
       .map((s) => ({
         ...s,
-        jobCounts: countsByScan[s.id] ?? { queued: 0, processing: 0, done: 0, failed: 0 },
+        jobCounts: countsByScan[s.id] ?? { queued: 0, processing: 0, done: 0, failed: 0, unavailable: 0 },
         pendingReviewCount: pendingByScan[s.id] ?? 0,
       }))
       .filter((s) => {
         const stillProcessing = s.jobCounts.queued > 0 || s.jobCounts.processing > 0;
-        return stillProcessing || s.pendingReviewCount > 0;
+        // Kept while photos stopped for an unavailable AI service, so the person sees why (and can
+        // remove the batch with ✕).
+        return stillProcessing || s.pendingReviewCount > 0 || s.jobCounts.unavailable > 0;
       });
   });
 

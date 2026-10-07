@@ -29,6 +29,7 @@ import { compressImageForUpload } from "@/lib/image-compress";
 import { track } from "@/lib/telemetry-client";
 import { sizeEquivalences, isShoeCategory } from "@/lib/size-conversion";
 import { trimFileMargins } from "@/lib/auto-crop";
+import { isServiceOutOfCredits } from "@/lib/ai-unavailable";
 
 
 import {
@@ -473,7 +474,7 @@ export function AddItem({ onClose, initialGarment }: {
       })
       .catch(e => {
         console.warn("[AURA] AI analysis failed", e);
-        toast.error(t("addItem.toastAnalysisFailed"));
+        toast.error(t(isServiceOutOfCredits(e) ? "addItem.toastServiceUnavailable" : "addItem.toastAnalysisFailed"));
       });
     setStage((s) => (s === "analyze" ? "idle" : s));
   };
