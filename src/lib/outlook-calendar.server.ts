@@ -107,20 +107,43 @@ export async function syncOutlookCalendar(userId: string): Promise<{ ok: boolean
     .select("*").eq("user_id", userId).eq("provider", "outlook").maybeSingle();
   if (!conn) return { ok: false, error: "Not connected" };
 
-  let accessToken = conn.access_token as string;
+  // Tokens are stored encrypted (secret-box.server.ts). Tokens saved before encryption existed are
+  // read as they are and re-saved encrypted here, once.
+  const { isSealed, openSecret, sealSecret } = await import("./secret-box.server");
+  let accessToken: string;
+  let refreshToken: string | null;
+  try {
+    accessToken = await openSecret(conn.access_token as string);
+    refreshToken = conn.refresh_token ? await openSecret(conn.refresh_token as string) : null;
+  } catch (e) {
+    console.error("[AURA calendar] Outlook token unreadable", e instanceof Error ? e.name : "error");
+    await (supabaseAdmin.from("calendar_connections" as never) as any)
+      .update({ last_sync_error: "RECONNECT_REQUIRED: stored calendar access is unreadable — please reconnect." }).eq("id", conn.id);
+    return { ok: false, error: "Please reconnect your calendar." };
+  }
+  if (!isSealed(conn.access_token as string) || (refreshToken && !isSealed(conn.refresh_token as string))) {
+    try {
+      await (supabaseAdmin.from("calendar_connections" as never) as any).update({
+        access_token: await sealSecret(accessToken),
+        ...(refreshToken ? { refresh_token: await sealSecret(refreshToken) } : {}),
+      }).eq("id", conn.id);
+    } catch (e) {
+      console.warn("[AURA calendar] Outlook tokens not re-saved encrypted yet", e instanceof Error ? e.name : "error");
+    }
+  }
   const expiresAt = conn.token_expires_at ? new Date(conn.token_expires_at as string) : null;
 
   if (expiresAt && expiresAt.getTime() < Date.now() + 60_000) {
-    if (!conn.refresh_token) {
+    if (!refreshToken) {
       await (supabaseAdmin.from("calendar_connections" as never) as any)
         .update({ last_sync_error: "Token expired, no refresh token — reconnect required." }).eq("id", conn.id);
       return { ok: false, error: "Token expired — please reconnect your calendar." };
     }
     try {
-      const refreshed = await refreshAccessToken(conn.refresh_token as string);
+      const refreshed = await refreshAccessToken(refreshToken);
       accessToken = refreshed.access_token;
       await (supabaseAdmin.from("calendar_connections" as never) as any).update({
-        access_token: accessToken,
+        access_token: await sealSecret(accessToken),
         token_expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
       }).eq("id", conn.id);
     } catch (e) {

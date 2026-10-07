@@ -1,5 +1,6 @@
-// Encryption at rest for credentials AURA must keep in readable form to use them later — today the
-// iCloud app-specific password a person enters to connect their calendar (calendar_connections).
+// Encryption at rest for credentials AURA must keep in readable form to use them later — the
+// calendar credentials in calendar_connections: the iCloud app-specific password a person enters,
+// and the Google / Outlook access and refresh tokens.
 // AES-256-GCM through Web Crypto (native on Cloudflare Workers), with the key derived (HKDF) from the
 // CALENDAR_ENCRYPTION_KEY secret, which lives only in the server's environment.
 //
