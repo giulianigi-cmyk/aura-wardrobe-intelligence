@@ -794,7 +794,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
   const wLabel = w ? describeWeather(w.weatherCode, w.isDay) : null;
 
   return (
-    <div className="h-full overflow-y-auto no-scrollbar pb-28">
+    <div className="h-full overflow-y-auto no-scrollbar pb-[calc(7rem+env(safe-area-inset-bottom))]">
       <header className="px-6 pt-14 pb-2 flex items-end justify-between">
         <div>
           <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("wardrobe.piecesCount", { count: items.length })}</p>

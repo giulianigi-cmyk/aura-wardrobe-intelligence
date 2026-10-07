@@ -14,7 +14,7 @@ export function TabBar({ current, go }: { current: Screen; go: (s: Screen) => vo
   const { t } = useTranslation();
   return (
     <nav className="absolute bottom-0 left-0 right-0 z-40 glass border-t border-border/60">
-      <ul className="flex items-end justify-around px-2 pt-2 pb-5">
+      <ul className="flex items-end justify-around px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
         {tabs.map(({ id, labelKey, Icon }) => {
           const active = current === id;
           return (

@@ -163,7 +163,7 @@ export function Profile({ go: _go, openConversation, openUserProfile }: { go: (s
   }
 
   return (
-    <div className="h-full overflow-y-auto no-scrollbar pb-28">
+    <div className="h-full overflow-y-auto no-scrollbar pb-[calc(7rem+env(safe-area-inset-bottom))]">
       {qrOpen && <QrFullscreen userId={user?.id} onClose={() => setQrOpen(false)} />}
       {cropSrc && (
         <Suspense fallback={null}>

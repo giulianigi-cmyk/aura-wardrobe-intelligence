@@ -1402,6 +1402,84 @@ export type Database = {
           },
         ]
       }
+      push_send_log: {
+        Row: {
+          kind: string
+          local_date: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          kind: string
+          local_date: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          kind?: string
+          local_date?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          failure_count: number
+          id: number
+          last_sent_at: string | null
+          p256dh: string
+          platform: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          failure_count?: number
+          id?: never
+          last_sent_at?: string | null
+          p256dh: string
+          platform?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          failure_count?: number
+          id?: never
+          last_sent_at?: string | null
+          p256dh?: string
+          platform?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      push_vapid_keys: {
+        Row: {
+          created_at: string
+          id: number
+          private_key_sealed: string
+          public_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          private_key_sealed: string
+          public_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          private_key_sealed?: string
+          public_key?: string
+        }
+        Relationships: []
+      }
       scan_detected_items: {
         Row: {
           bbox: Json | null
@@ -3200,7 +3278,9 @@ export type Database = {
           username: string
         }[]
       }
+      send_morning_looks_if_needed: { Args: never; Returns: undefined }
       shared_library_owner_hash: { Args: { _user_id: string }; Returns: string }
+      sync_calendars_if_needed: { Args: never; Returns: undefined }
       unfriend: { Args: { _other: string }; Returns: undefined }
       upsert_style_memory: {
         Args: {

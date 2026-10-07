@@ -718,7 +718,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
 
   const dateLabel = (d: string) => new Date(d + "T00:00:00").toLocaleDateString(i18n.language, { weekday: "short", month: "short", day: "numeric" });
     return (
-    <div className="h-full overflow-y-auto no-scrollbar pb-28">
+    <div className="h-full overflow-y-auto no-scrollbar pb-[calc(7rem+env(safe-area-inset-bottom))]">
       <header className="px-6 pt-14">
         <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("aiStylist.atelier")}</p>
         <h1 className="font-serif text-4xl mt-1 italic">{t("aiStylist.stylist")}</h1>

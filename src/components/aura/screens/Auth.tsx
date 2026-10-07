@@ -109,7 +109,7 @@ export function Auth() {
           <div>
             <label className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("auth.email")}</label>
             <input
-              type="email" required value={email} onChange={e => setEmail(e.target.value)}
+              type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)}
               className="mt-1 w-full bg-transparent border-b border-border py-2 outline-none focus:border-foreground transition"
             />
           </div>
@@ -126,14 +126,16 @@ export function Auth() {
               </div>
               <div className="relative">
                 <input
-                  type={showPassword ? "text" : "password"} required minLength={6} value={password} onChange={e => setPassword(e.target.value)}
-                  className="mt-1 w-full bg-transparent border-b border-border py-2 pr-8 outline-none focus:border-foreground transition"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  required minLength={6} value={password} onChange={e => setPassword(e.target.value)}
+                  className="mt-1 w-full bg-transparent border-b border-border py-2 pr-12 outline-none focus:border-foreground transition"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(v => !v)}
                   aria-label={showPassword ? t("auth.hidePasswordAria") : t("auth.showPasswordAria")}
-                  className="absolute right-0 top-2.5 text-muted-foreground active:scale-90"
+                  className="absolute right-0 top-[calc(50%+0.125rem)] -translate-y-1/2 h-11 w-11 -mr-2.5 flex items-center justify-center text-muted-foreground active:scale-90"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
