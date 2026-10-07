@@ -11,6 +11,9 @@ type AuthCtx = {
   recovery: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  /** Google / Apple through Lovable Cloud's managed sign-in (the providers are switched on in
+   *  Lovable Cloud's authentication settings). Usually leaves the page and comes back signed in. */
+  signInWithProvider: (provider: "google" | "apple") => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: string | null }>;
@@ -61,6 +64,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         options: { emailRedirectTo: APP_URL },
       });
       return { error: error?.message ?? null };
+    },
+    signInWithProvider: async (provider) => {
+      try {
+        // Loaded on tap: only the sign-in screen needs it.
+        const { createLovableAuth } = await import("@lovable.dev/cloud-auth-js");
+        const result = await createLovableAuth().signInWithOAuth(provider, { redirect_uri: window.location.origin });
+        if (result.redirected) return { error: null };
+        if (result.error) return { error: result.error.message };
+        const { error } = await supabase.auth.setSession(result.tokens);
+        return { error: error?.message ?? null };
+      } catch (e) {
+        return { error: e instanceof Error ? e.message : String(e) };
+      }
     },
     signOut: async () => { await supabase.auth.signOut(); },
     resetPassword: async (email) => {
