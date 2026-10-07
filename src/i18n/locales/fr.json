@@ -665,7 +665,11 @@
     "createAccount": "Créer un compte",
     "sendResetLink": "Envoyer le lien de réinitialisation",
     "newToAura": "Nouveau sur AURA ? Créer un compte",
-    "alreadyMember": "Déjà membre ? Se connecter"
+    "alreadyMember": "Déjà membre ? Se connecter",
+    "continueWithApple": "Continuer avec Apple",
+    "continueWithGoogle": "Continuer avec Google",
+    "orWithEmail": "ou par e-mail",
+    "providerFailed": "Échec de la connexion. Réessayez ou utilisez e-mail et mot de passe."
   },
   "userProfile": {
     "toastRequestAlreadySent": "Demande déjà envoyée",
