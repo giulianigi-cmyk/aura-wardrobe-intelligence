@@ -14,6 +14,189 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage_ledger: {
+        Row: {
+          attempt: number
+          cached: boolean
+          cached_input_tokens: number | null
+          cost_usd_estimate: number | null
+          created_at: string
+          duration_ms: number | null
+          feature: string
+          id: number
+          input_tokens: number | null
+          model: string | null
+          operation: string | null
+          output_tokens: number | null
+          price_version: string | null
+          provider: string
+          provider_request_id: string | null
+          reasoning_tokens: number | null
+          success: boolean
+          unit_type: string | null
+          units: number | null
+          user_id: string | null
+          user_request_id: string | null
+        }
+        Insert: {
+          attempt?: number
+          cached?: boolean
+          cached_input_tokens?: number | null
+          cost_usd_estimate?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          feature: string
+          id?: never
+          input_tokens?: number | null
+          model?: string | null
+          operation?: string | null
+          output_tokens?: number | null
+          price_version?: string | null
+          provider: string
+          provider_request_id?: string | null
+          reasoning_tokens?: number | null
+          success: boolean
+          unit_type?: string | null
+          units?: number | null
+          user_id?: string | null
+          user_request_id?: string | null
+        }
+        Update: {
+          attempt?: number
+          cached?: boolean
+          cached_input_tokens?: number | null
+          cost_usd_estimate?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          feature?: string
+          id?: never
+          input_tokens?: number | null
+          model?: string | null
+          operation?: string | null
+          output_tokens?: number | null
+          price_version?: string | null
+          provider?: string
+          provider_request_id?: string | null
+          reasoning_tokens?: number | null
+          success?: boolean
+          unit_type?: string | null
+          units?: number | null
+          user_id?: string | null
+          user_request_id?: string | null
+        }
+        Relationships: []
+      }
+      app_errors: {
+        Row: {
+          app_version: string | null
+          created_at: string
+          fingerprint: string | null
+          id: number
+          kind: string
+          message: string
+          platform: string | null
+          screen: string | null
+          session_id: string | null
+          stack: string | null
+          user_id: string | null
+        }
+        Insert: {
+          app_version?: string | null
+          created_at?: string
+          fingerprint?: string | null
+          id?: never
+          kind: string
+          message: string
+          platform?: string | null
+          screen?: string | null
+          session_id?: string | null
+          stack?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          app_version?: string | null
+          created_at?: string
+          fingerprint?: string | null
+          id?: never
+          kind?: string
+          message?: string
+          platform?: string | null
+          screen?: string | null
+          session_id?: string | null
+          stack?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      app_events: {
+        Row: {
+          app_version: string | null
+          created_at: string
+          id: number
+          name: string
+          platform: string | null
+          props: Json
+          screen: string | null
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          app_version?: string | null
+          created_at?: string
+          id?: never
+          name: string
+          platform?: string | null
+          props?: Json
+          screen?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          app_version?: string | null
+          created_at?: string
+          id?: never
+          name?: string
+          platform?: string | null
+          props?: Json
+          screen?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      app_problem_reports: {
+        Row: {
+          app_version: string | null
+          created_at: string
+          id: number
+          message: string
+          platform: string | null
+          screen: string | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          app_version?: string | null
+          created_at?: string
+          id?: never
+          message: string
+          platform?: string | null
+          screen?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          app_version?: string | null
+          created_at?: string
+          id?: never
+          message?: string
+          platform?: string | null
+          screen?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       avatar_tryon_cache: {
         Row: {
           cache_key: string
@@ -329,6 +512,24 @@ export type Database = {
           notes?: string | null
           updated_at?: string
           weight?: number
+        }
+        Relationships: []
+      }
+      firecrawl_daily_usage: {
+        Row: {
+          day: string
+          used: number
+          user_id: string
+        }
+        Insert: {
+          day: string
+          used?: number
+          user_id: string
+        }
+        Update: {
+          day?: string
+          used?: number
+          user_id?: string
         }
         Relationships: []
       }
@@ -742,8 +943,8 @@ export type Database = {
           created_at: string
           detections: Json
           id: string
-          photo_hash: string
           photo_framing: Json | null
+          photo_hash: string
           photo_path: string | null
           status: string
           target_person: string
@@ -757,8 +958,8 @@ export type Database = {
           created_at?: string
           detections?: Json
           id?: string
-          photo_hash: string
           photo_framing?: Json | null
+          photo_hash: string
           photo_path?: string | null
           status?: string
           target_person?: string
@@ -772,8 +973,8 @@ export type Database = {
           created_at?: string
           detections?: Json
           id?: string
-          photo_hash?: string
           photo_framing?: Json | null
+          photo_hash?: string
           photo_path?: string | null
           status?: string
           target_person?: string
@@ -992,6 +1193,30 @@ export type Database = {
           season?: string[]
           thumbnail_path?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      plan_limits: {
+        Row: {
+          enforced: boolean
+          limit_key: string
+          max_value: number | null
+          period: string
+          plan: string
+        }
+        Insert: {
+          enforced?: boolean
+          limit_key: string
+          max_value?: number | null
+          period: string
+          plan: string
+        }
+        Update: {
+          enforced?: boolean
+          limit_key?: string
+          max_value?: number | null
+          period?: string
+          plan?: string
         }
         Relationships: []
       }
@@ -1793,6 +2018,36 @@ export type Database = {
         }
         Relationships: []
       }
+      usage_limit_observations: {
+        Row: {
+          first_seen_at: string
+          limit_key: string
+          max_value: number
+          period_start: string
+          plan: string
+          used: number
+          user_id: string
+        }
+        Insert: {
+          first_seen_at?: string
+          limit_key: string
+          max_value: number
+          period_start: string
+          plan: string
+          used: number
+          user_id: string
+        }
+        Update: {
+          first_seen_at?: string
+          limit_key?: string
+          max_value?: number
+          period_start?: string
+          plan?: string
+          used?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_avatar: {
         Row: {
           avatar_image_path: string | null
@@ -1864,6 +2119,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_plans: {
+        Row: {
+          billing_source: string | null
+          plan: string
+          time_zone: string | null
+          trial_ends_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          billing_source?: string | null
+          plan?: string
+          time_zone?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          billing_source?: string | null
+          plan?: string
+          time_zone?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_style_memory: {
         Row: {
@@ -2223,6 +2505,50 @@ export type Database = {
           },
         ]
       }
+      wardrobe_feedback: {
+        Row: {
+          category: string | null
+          colors: string[]
+          created_at: string
+          id: string
+          kind: string
+          owned_item_id: string | null
+          product_key: string | null
+          subcategory: string | null
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          colors?: string[]
+          created_at?: string
+          id?: string
+          kind: string
+          owned_item_id?: string | null
+          product_key?: string | null
+          subcategory?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          colors?: string[]
+          created_at?: string
+          id?: string
+          kind?: string
+          owned_item_id?: string | null
+          product_key?: string | null
+          subcategory?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wardrobe_feedback_owned_item_id_fkey"
+            columns: ["owned_item_id"]
+            isOneToOne: false
+            referencedRelation: "wardrobe_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wardrobe_item_valuations: {
         Row: {
           anchor_type: string | null
@@ -2302,42 +2628,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      wardrobe_feedback: {
-        Row: {
-          category: string | null
-          colors: string[]
-          created_at: string
-          id: string
-          kind: string
-          owned_item_id: string | null
-          product_key: string | null
-          subcategory: string | null
-          user_id: string
-        }
-        Insert: {
-          category?: string | null
-          colors?: string[]
-          created_at?: string
-          id?: string
-          kind: string
-          owned_item_id?: string | null
-          product_key?: string | null
-          subcategory?: string | null
-          user_id: string
-        }
-        Update: {
-          category?: string | null
-          colors?: string[]
-          created_at?: string
-          id?: string
-          kind?: string
-          owned_item_id?: string | null
-          product_key?: string | null
-          subcategory?: string | null
-          user_id?: string
-        }
-        Relationships: []
       }
       wardrobe_items: {
         Row: {
@@ -2718,6 +3008,13 @@ export type Database = {
           _worn_at: string
         }
         Returns: string
+      }
+      consume_firecrawl_credit: {
+        Args: { p_daily_limit: number }
+        Returns: {
+          allowed: boolean
+          remaining: number
+        }[]
       }
       correct_wear_event_item: {
         Args: {
