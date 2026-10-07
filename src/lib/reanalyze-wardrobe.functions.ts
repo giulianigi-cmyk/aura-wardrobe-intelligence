@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { usageFeature } from "@/lib/ai-usage";
 import { analyzeWardrobeImageCore } from "./ai-analyze.functions";
 
 const BUCKET = "wardrobe";
@@ -132,7 +133,10 @@ export function completionPatch(item: CandidateRow, result: Awaited<ReturnType<t
  * manuale già fatta su un campo che aveva già un valore).
  */
 export const reanalyzeWardrobeBatch = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  // Consumption ledger: background completion of the person's own pieces, counted as item analysis
+  // (it was recorded with no feature and no person). Not checked against the plan limits: nobody
+  // asked for it.
+  .middleware([requireSupabaseAuth, usageFeature("item_analysis", "reanalyze", { observe: false })])
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
