@@ -405,7 +405,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
   const greeting = fullName ? t("home.greetingWithName", { name: fullName }) : t("home.greetingNoName");
   const today = new Date().toLocaleDateString(i18n.language, { weekday: "long", month: "long", day: "numeric" });
   return (
-    <div className="h-full overflow-y-auto no-scrollbar pb-28">
+    <div className="h-full overflow-y-auto no-scrollbar pb-[calc(7rem+env(safe-area-inset-bottom))]">
       {/* Header */}
       <header className="px-6 pt-14 pb-4 flex items-center justify-between">
         <div>

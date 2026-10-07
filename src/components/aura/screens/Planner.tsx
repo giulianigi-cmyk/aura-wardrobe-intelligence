@@ -261,7 +261,7 @@ export function Planner({ go, openStylistChat, openBuilder, openAvatarTryOn, foc
   if (!user) return null;
 
   return (
-    <div className="h-full overflow-y-auto no-scrollbar pb-28">
+    <div className="h-full overflow-y-auto no-scrollbar pb-[calc(7rem+env(safe-area-inset-bottom))]">
       <header className="px-6 pt-14 pb-3">
         <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("planner.calendar")}</p>
         <div className="flex items-center justify-between mt-1">
