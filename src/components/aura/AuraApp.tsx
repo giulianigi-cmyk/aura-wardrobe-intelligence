@@ -297,6 +297,33 @@ function Inner() {
 
   useChatNotifications(openConversation);
 
+  // A tapped notification: "/?day=YYYY-MM-DD" (tomorrow's appointments) opens Calendar on that day.
+  // Arrives in the URL when the app starts from the notification, or as a message from the service
+  // worker (public/sw.js) when the app was already open.
+  const openFromNotification = useCallback((url: string) => {
+    try {
+      const day = new URL(url, window.location.origin).searchParams.get("day");
+      if (day && /^\d{4}-\d{2}-\d{2}$/.test(day)) {
+        track("flow_step", { feature: "event_reminder", step: "opened" });
+        openPlanner(day);
+      }
+    } catch { /* not a link of ours */ }
+  }, [openPlanner]);
+  useEffect(() => {
+    if (!user || !["home", "wardrobe", "ai", "planner", "profile"].includes(screen)) return;
+    if (!window.location.search.includes("day=")) return;
+    openFromNotification(window.location.href);
+    window.history.replaceState(null, "", window.location.pathname);
+  }, [user, screen, openFromNotification]);
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const onMessage = (e: MessageEvent) => {
+      if (e.data?.type === "aura-open" && typeof e.data.url === "string") openFromNotification(e.data.url);
+    };
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+  }, [openFromNotification]);
+
   // Guided tour (guided-tour.ts): starts on its own the first time a new account reaches Home with
   // a wardrobe still being built; the Guide reopens it. Seen once per account on this device.
   const frameRef = useRef<HTMLDivElement>(null);

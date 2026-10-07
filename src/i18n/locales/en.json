@@ -2522,5 +2522,10 @@
     "installStep3": "open AURA from the icon and come back here.",
     "deniedHelp": "Notifications are blocked for AURA on this device: turn them back on in your phone's settings (Notifications › AURA), then come back here.",
     "unsupported": "This browser can't receive notifications. Try Safari on iPhone (with AURA added to the Home Screen) or Chrome."
+  },
+  "eventReminder": {
+    "title": "Plans reminder",
+    "sub": "The evening before, tomorrow's plans from your connected calendar",
+    "enabled": "Done: the evening before at {{time}}, when you have plans"
   }
 }

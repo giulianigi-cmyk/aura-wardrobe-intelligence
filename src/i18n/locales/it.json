@@ -2522,5 +2522,10 @@
     "installStep3": "apri AURA dall'icona e torna qui.",
     "deniedHelp": "Le notifiche sono bloccate per AURA su questo dispositivo: riattivale dalle impostazioni del telefono (Notifiche › AURA), poi torna qui.",
     "unsupported": "Questo browser non riceve notifiche. Prova da Safari su iPhone (aggiungendo AURA alla schermata Home) o da Chrome."
+  },
+  "eventReminder": {
+    "title": "Promemoria impegni",
+    "sub": "La sera prima, gli impegni di domani dal tuo calendario collegato",
+    "enabled": "Fatto: la sera prima alle {{time}}, se domani hai impegni"
   }
 }

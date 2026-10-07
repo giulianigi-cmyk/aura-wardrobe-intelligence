@@ -1,4 +1,4 @@
-// Morning look notifications, every 15 minutes. Called by pg_cron (send_morning_looks_if_needed)
+// Scheduled notifications (morning look, evening reminder of tomorrow's appointments), every 15 minutes. Called by pg_cron (send_morning_looks_if_needed)
 // with the shared worker secret — same pattern as recheck-plan-weather.
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -15,8 +15,8 @@ export const Route = createFileRoute("/api/public/hooks/send-morning-looks")({
           return Response.json({ error: "Unauthorized" }, { status: 401 });
         }
         try {
-          const { runMorningPush } = await import("@/lib/morning-push.server");
-          return Response.json({ ok: true, ...(await runMorningPush()) });
+          const { runScheduledPush } = await import("@/lib/morning-push.server");
+          return Response.json({ ok: true, ...(await runScheduledPush()) });
         } catch (err) {
           console.error("[AURA morning-push] worker failed", err instanceof Error ? err.message : "error");
           return Response.json({ ok: false }, { status: 500 });

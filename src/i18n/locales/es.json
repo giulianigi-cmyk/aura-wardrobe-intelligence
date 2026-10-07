@@ -2522,5 +2522,10 @@
     "installStep3": "abre AURA desde el icono y vuelve aquí.",
     "deniedHelp": "Las notificaciones están bloqueadas para AURA en este dispositivo: reactívalas en los ajustes del teléfono (Notificaciones › AURA) y vuelve aquí.",
     "unsupported": "Este navegador no recibe notificaciones. Prueba con Safari en iPhone (añadiendo AURA a la pantalla de inicio) o con Chrome."
+  },
+  "eventReminder": {
+    "title": "Recordatorio de planes",
+    "sub": "La noche anterior, los planes de mañana de tu calendario conectado",
+    "enabled": "Listo: la noche anterior a las {{time}}, si mañana tienes planes"
   }
 }

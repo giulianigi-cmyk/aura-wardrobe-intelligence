@@ -2522,5 +2522,10 @@
     "installStep3": "ouvrez AURA depuis l'icône et revenez ici.",
     "deniedHelp": "Les notifications sont bloquées pour AURA sur cet appareil : réactivez-les dans les réglages du téléphone (Notifications › AURA), puis revenez ici.",
     "unsupported": "Ce navigateur ne reçoit pas de notifications. Essayez Safari sur iPhone (avec AURA sur l'écran d'accueil) ou Chrome."
+  },
+  "eventReminder": {
+    "title": "Rappel des rendez-vous",
+    "sub": "La veille, les rendez-vous du lendemain de votre calendrier connecté",
+    "enabled": "C'est fait : la veille à {{time}}, si vous avez des rendez-vous"
   }
 }

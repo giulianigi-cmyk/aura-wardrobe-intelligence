@@ -1,4 +1,5 @@
--- Morning look notification: a push at the time each person chooses (Settings › Notifiche).
+-- Morning look notification and evening reminder of tomorrow's appointments: pushes at the times
+-- each person chooses (Settings › Notifiche).
 --
 -- Why: AURA has no way to reach people outside the app, so nothing brings them back each morning.
 -- The person's choice (on/off and time) is stored in the existing profiles.notification_preferences
@@ -20,7 +21,8 @@
 --
 -- Risks (checked before applying): new tables only, all with RLS on; rows are removed with the
 -- account (ON DELETE CASCADE); the schedule does nothing (no HTTP call) while nobody has turned the
--- notification on; no AI cost — the message only carries the day's temperatures (Open-Meteo).
+-- notification on; no AI cost — the messages only carry the day's temperatures (Open-Meteo) or the
+-- titles and times of tomorrow's appointments already in calendar_events_cache.
 CREATE TABLE public.push_subscriptions (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id uuid NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
@@ -70,6 +72,7 @@ begin
     select 1 from public.push_subscriptions s
     join public.profiles p on p.id = s.user_id
     where (p.notification_preferences ->> 'morning_look') = 'true'
+       or (p.notification_preferences ->> 'event_reminder') = 'true'
   ) into has_work;
 
   if not has_work then
@@ -81,7 +84,7 @@ begin
   where name = 'scan_worker_secret';
 
   if secret is null then
-    raise warning '[AURA] scan_worker_secret not found in Vault — morning looks skipped';
+    raise warning '[AURA] scan_worker_secret not found in Vault — scheduled notifications skipped';
     return;
   end if;
 
