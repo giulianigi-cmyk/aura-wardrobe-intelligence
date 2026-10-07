@@ -18,6 +18,7 @@
 //    and keeps updating the same open notification instead of piling up.
 
 import { suggestOutfitCore, type SuggestOutfitItem } from "./ai-suggest-outfit.functions";
+import { runInUsageScope } from "./ai-usage.server";
 import { describeWeather, classifyTemp } from "./weather";
 import {
   SIGNIFICANT_TEMP_DELTA,
@@ -219,7 +220,9 @@ export async function runPlanWeatherRecheck(limit = 200): Promise<RecheckResult>
     if (!items.length) { result.skipped++; continue; }
 
     const prof = profiles.get(plan.user_id);
-    const suggestion = await suggestOutfitCore({
+    // Consumption ledger: the AI call is attributed to the plan's owner (it was recorded with no
+    // feature and no person, as this runs from the scheduled hook, outside any request).
+    const suggestion = await runInUsageScope("suggest_outfit", plan.user_id, () => suggestOutfitCore({
       supabase: db,
       userId: plan.user_id,
       temperature: day.tempMax,
@@ -233,7 +236,7 @@ export async function runPlanWeatherRecheck(limit = 200): Promise<RecheckResult>
       // A trip plan builds from what's packed for that destination, not
       // from the home location, so don't force the active location here.
       locationIdOverride: activity ? null : undefined,
-    });
+    }), "weather_recheck");
     if (!suggestion.ok || !suggestion.item_ids.length) { result.errors++; continue; }
 
     await upsertWeatherNotification(db, {
