@@ -81,6 +81,7 @@ export function Settings({ go }: { go: (s: Screen) => void }) {
 
       <GroupLabel>{t("settings.groupApp")}</GroupLabel>
       <Group>
+        <Row label={t("guide.settingsRow")} sub={t("guide.settingsRowSub")} onClick={() => go("settings-guide")} />
         <Row label={t("settings.notifications")} onClick={() => go("settings-notifications")} />
         <Row label={t("settings.calendar")} onClick={() => go("settings-calendar")} />
         <Row label={t("settings.privacy")} onClick={() => go("settings-privacy")} />

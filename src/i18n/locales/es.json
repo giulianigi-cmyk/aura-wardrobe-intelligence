@@ -2464,5 +2464,46 @@
     "addMany": "Varias fotos",
     "addOne": "Una prenda",
     "tip": "Consejo: fotografía las prendas extendidas sobre un fondo claro, una por foto. El fondo lo quitamos nosotros."
+  },
+  "tour": {
+    "stepOf": "{{current}} de {{total}}",
+    "next": "Siguiente",
+    "back": "Atrás",
+    "skip": "Cerrar la guía",
+    "done": "Empezar",
+    "steps": {
+      "home": {
+        "title": "Inicio",
+        "body": "Cada día encontrarás aquí el look de hoy, pensado para el tiempo de tu ciudad, y atajos al resto de la app."
+      },
+      "wardrobe": {
+        "title": "Armario",
+        "body": "Todas tus prendas. Con el botón + añades nuevas: una foto, hasta 50 fotos o enlaces a la vez, o la foto de un outfit completo."
+      },
+      "stylist": {
+        "title": "Estilista",
+        "body": "Crea outfits en el lienzo, pide consejo a tu estilista y encuentra tus looks próximos, usados y guardados."
+      },
+      "calendar": {
+        "title": "Calendario",
+        "body": "Planifica qué ponerte día a día, registra lo que llevaste y prepara la maleta para tus viajes."
+      },
+      "you": {
+        "title": "Tú",
+        "body": "Perfil, avatar para la prueba virtual, análisis de color y estadísticas. Desde aquí entras en Ajustes, donde está la Guía completa de AURA."
+      },
+      "start": {
+        "title": "Empieza aquí",
+        "body": "Fotografía las prendas que más usas: con 3 llega tu primer look, con 10 los outfits de la semana. Varias fotos a la vez es lo más rápido."
+      }
+    }
+  },
+  "guide": {
+    "settingsRow": "Guía de AURA",
+    "settingsRowSub": "Cómo usar la app, paso a paso",
+    "loadFailed": "No se ha podido abrir la guía. Comprueba la conexión e inténtalo de nuevo.",
+    "visual": {
+      "mic": "Micrófono"
+    }
   }
 }

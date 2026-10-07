@@ -2464,5 +2464,46 @@
     "addMany": "Più foto insieme",
     "addOne": "Un capo",
     "tip": "Consiglio: fotografa i capi stesi su un fondo chiaro, uno per foto. Lo sfondo lo togliamo noi."
+  },
+  "tour": {
+    "stepOf": "{{current}} di {{total}}",
+    "next": "Avanti",
+    "back": "Indietro",
+    "skip": "Chiudi la guida",
+    "done": "Inizia",
+    "steps": {
+      "home": {
+        "title": "Home",
+        "body": "Ogni giorno qui trovi il look di oggi, pensato per il meteo della tua città, e le scorciatoie per il resto dell'app."
+      },
+      "wardrobe": {
+        "title": "Guardaroba",
+        "body": "Tutti i tuoi capi. Con il tasto + ne aggiungi di nuovi: una foto, fino a 50 foto o link insieme, o la foto di un outfit intero."
+      },
+      "stylist": {
+        "title": "Stylist",
+        "body": "Crea outfit sulla tela, chiedi consiglio al tuo stylist e ritrova i look in arrivo, indossati e salvati."
+      },
+      "calendar": {
+        "title": "Calendario",
+        "body": "Pianifica cosa indossare giorno per giorno, segna cosa hai indossato e prepara la valigia per i viaggi."
+      },
+      "you": {
+        "title": "Tu",
+        "body": "Profilo, avatar per la prova virtuale, analisi del colore e statistiche. Da qui entri in Impostazioni, dove trovi la Guida completa di AURA."
+      },
+      "start": {
+        "title": "Inizia da qui",
+        "body": "Fotografa i capi che metti di più: con 3 capi arriva il primo look, con 10 gli outfit della settimana. Più foto insieme è il modo più veloce."
+      }
+    }
+  },
+  "guide": {
+    "settingsRow": "Guida di AURA",
+    "settingsRowSub": "Come usare l'app, passo per passo",
+    "loadFailed": "Non è stato possibile aprire la guida. Controlla la connessione e riprova.",
+    "visual": {
+      "mic": "Microfono"
+    }
   }
 }

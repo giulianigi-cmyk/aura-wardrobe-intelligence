@@ -35,7 +35,7 @@ const CURATED_OCCASION_KEYS: Record<string, string> = {
   Evening: "home.occasionEvening",
 };
 
-export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Screen) => void; openAvatarTryOn: (itemIds?: string[]) => void; openBuilder: (init: BuilderInit) => void; active?: boolean }) {
+export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown }: { go: (s: Screen) => void; openAvatarTryOn: (itemIds?: string[]) => void; openBuilder: (init: BuilderInit) => void; active?: boolean; onWardrobeKnown?: (pieces: number) => void }) {
   const { t } = useTranslation();
   const unreadCount = useUnreadNotifications();
   const { user } = useAuth();
@@ -475,6 +475,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
 
 
       {/* A new wardrobe: which pieces to photograph first, and the fastest way to add them. */}
+      {itemsLoaded && active && onWardrobeKnown && <WardrobeKnown pieces={activeItems.length} onKnown={onWardrobeKnown} />}
       {itemsLoaded && activeItems.length < FIRST_STEPS_TARGET && <FirstSteps items={activeItems} go={go} />}
 
             {/* Today's edit */}
@@ -684,4 +685,11 @@ export function Home({ go, openAvatarTryOn, openBuilder, active }: { go: (s: Scr
     </div>
 
   );
+}
+
+/** Tells AuraApp how many pieces the wardrobe has once it is known (it decides whether the guided
+ *  tour starts on its own — guided-tour.ts). Once per Home visit. */
+function WardrobeKnown({ pieces, onKnown }: { pieces: number; onKnown: (pieces: number) => void }) {
+  useEffect(() => { onKnown(pieces); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
 }

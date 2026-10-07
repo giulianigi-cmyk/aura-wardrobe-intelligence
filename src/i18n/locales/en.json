@@ -2464,5 +2464,46 @@
     "addMany": "Several photos",
     "addOne": "One piece",
     "tip": "Tip: photograph pieces laid flat on a light background, one per photo. We remove the background."
+  },
+  "tour": {
+    "stepOf": "{{current}} of {{total}}",
+    "next": "Next",
+    "back": "Back",
+    "skip": "Close the tour",
+    "done": "Get started",
+    "steps": {
+      "home": {
+        "title": "Home",
+        "body": "Every day you'll find today's look here, chosen for the weather where you are, plus shortcuts to the rest of the app."
+      },
+      "wardrobe": {
+        "title": "Closet",
+        "body": "All your pieces. Tap + to add new ones: one photo, up to 50 photos or links at once, or a photo of a whole outfit."
+      },
+      "stylist": {
+        "title": "Stylist",
+        "body": "Build outfits on the canvas, ask your stylist for advice, and find your upcoming, worn and saved looks."
+      },
+      "calendar": {
+        "title": "Calendar",
+        "body": "Plan what to wear day by day, log what you wore, and pack for your trips."
+      },
+      "you": {
+        "title": "You",
+        "body": "Profile, avatar for virtual try-on, colour analysis and insights. From here you reach Settings, where the full AURA Guide lives."
+      },
+      "start": {
+        "title": "Start here",
+        "body": "Photograph the pieces you wear most: 3 pieces unlock your first look, 10 your outfits for the week. Several photos at once is the fastest way."
+      }
+    }
+  },
+  "guide": {
+    "settingsRow": "AURA Guide",
+    "settingsRowSub": "How to use the app, step by step",
+    "loadFailed": "The guide couldn't be opened. Check your connection and try again.",
+    "visual": {
+      "mic": "Microphone"
+    }
   }
 }
