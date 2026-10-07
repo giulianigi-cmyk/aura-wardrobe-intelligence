@@ -197,7 +197,7 @@ const text: GuideText = {
         "Tap “Calendar”.",
         "Connect Google, Outlook or iCloud. iCloud needs an app-specific password, created at appleid.apple.com.",
       ],
-      tip: "AURA only reads your events and never changes them. Credentials are stored encrypted.",
+      tip: "AURA only reads your events and never changes them: it refreshes them twice a day on its own, and you can sync whenever you like. Credentials are stored encrypted.",
     },
     trips: {
       title: "Getting ready for a trip",

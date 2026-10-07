@@ -197,7 +197,7 @@ const text: GuideText = {
         "Tocca «Calendario».",
         "Collega Google, Outlook o iCloud. Per iCloud serve una password specifica per app, creata su appleid.apple.com.",
       ],
-      tip: "AURA legge soltanto i tuoi impegni e non li modifica. Le credenziali sono salvate cifrate.",
+      tip: "AURA legge soltanto i tuoi impegni e non li modifica: li aggiorna da sola due volte al giorno, e puoi sincronizzarli quando vuoi. Le credenziali sono salvate cifrate.",
     },
     trips: {
       title: "Preparare un viaggio",
