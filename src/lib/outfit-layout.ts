@@ -52,7 +52,10 @@ const LONG_BOTTOM_MAX_W = 0.56;
  *  three quarters. They keep at least OUTER_MIN_H × (real length / 100 cm) of the height, widening
  *  up to OUTER_MAX_W of the canvas to get there (they sit behind the other pieces). */
 const OUTER_MIN_H = 0.66;
-const OUTER_MAX_W = 0.56;
+const OUTER_MAX_W = 0.64;
+/** A jacket or coat is worn OVER the top, so it is drawn wider than it — a quilted jacket with wide
+ *  sleeves used to come out the same size as the T-shirt under it. */
+const OUTER_OVER_TOP = 1.3;
 /** Tall shoes (knee or over-the-knee boots, height > 1.3 × width): sized by a tall box so the shaft
  *  reads at its real length instead of being squeezed into the box of a pair of pumps. */
 const TALL_SHOES_BOX = { w: 0.24, h: 0.32 };
@@ -249,6 +252,11 @@ if (it.bucket === "bottom" && cm != null && cm >= 90) {
 if (it.bucket === "outer" && cm != null) {
   const minH = Math.min(OUTER_MIN_H * (cm / 100), BOX.outer.h) * H * shrink;
   if (w * aspect < minH) w = Math.max(w, Math.min(minH / aspect, OUTER_MAX_W * W * shrink));
+}
+const topUnder = it.bucket === "outer" ? by.get("top")?.[0] : undefined;
+if (topUnder) {
+  const t = sizeOf(topUnder, BOX.top, shrink);
+  w = Math.max(w, Math.min(t.w * OUTER_OVER_TOP, OUTER_MAX_W * W * shrink, (BOX.outer.h * H * shrink) / aspect));
 }
 
 return { w, h: w * aspect };
