@@ -36,13 +36,12 @@ export async function composeOutfitCanvasForItems(
   const items = await loadItems(userId, itemIds);
   if (!items.length) return null;
   const signed = await resolveWardrobeUrls(items as unknown as WardrobeItem[]);
-  const compose: ComposeItem[] = items
-    .map((it) => {
-      const path = toStoragePath(it.image_url);
-      const url = path ? signed[path] : null;
-      return url ? { id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length ?? null } : null;
-    })
-    .filter((x): x is ComposeItem => x != null);
+  const compose: ComposeItem[] = [];
+  for (const it of items) {
+    const path = toStoragePath(it.image_url);
+    const url = path ? signed[path] : null;
+    if (url) compose.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length ?? null });
+  }
   if (!compose.length) return null;
 
   const blob = await composeOutfitImage(compose);

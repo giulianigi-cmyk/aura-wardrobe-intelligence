@@ -369,7 +369,7 @@ function Inner() {
       idle(next);
     }, 1500);
     return () => { cancelled = true; clearTimeout(t); };
-  }, [user, queryClient]);
+  }, [user]);
 
   useEffect(() => {
     if (recovery) setScreen("reset");

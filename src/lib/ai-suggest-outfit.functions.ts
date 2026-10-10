@@ -8,7 +8,7 @@ import { isItemAtAnyLocation } from "./wardrobe-location";
 import { isItemAllowedByDressPreferences, hasAnyPreference, coversShoulders, coversArms, coversLegs, type DressPreferences } from "./dress-preferences";
 import { anyItemViolatesWeather, violatesSleeveClimate, violatesWeatherRule, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, rainLayerFor, RAIN_PROMPT_RULE } from "./rain-rules";
-import { isDayOnlyBag, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
+import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
 import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
 import { loadWearHistory, recentlyWornIds, rotationOrder, seededRandom, wearFields, withoutRecentPerCategory, ROTATION_PROMPT_RULE } from "./outfit-rotation";
@@ -496,6 +496,7 @@ export async function suggestOutfitCore(params: {
     "Color palette by occasion, when choosing between otherwise-equal options: 'Formal'/'Business Formal' favors navy, grey, black, black-and-white; 'Work'/'Business Casual' favors khaki, light grey, navy, brown as a base with bordeaux, olive, camel, or light blue as accents; 'Smart Casual'/'Weekend' allows one clearly colorful statement piece against a simple base. This is a preference between similarly-fitting options, not a hard exclusion — don't reject an otherwise great outfit purely for using an off-palette color.",
     "Sequins, sparkle, or lurex/metallic fabric are for evening only — never pick a sequinned or sparkly piece for a Day segment, regardless of occasion, even outside a Work context specifically.",
     EMBELLISHED_EVENING_PROMPT_RULE,
+    EVENING_ONLY_PROMPT_RULE,
     WORK_ACCESSORY_PROMPT_RULE,
     "Use each item's subcategory when present to judge fit-for-purpose: e.g. in hot weather prefer sandals/flats over boots; in rain or cold prefer boots over sandals; for formal occasions prefer pumps/heels over sneakers. When subcategory is empty, judge from category alone.",
     "A 'Running Shoes' subcategory item is built for running, not for everyday city walking — never pick it for a non-Sport occasion unless it is the only shoe available in the catalog. For a Sport/gym/running occasion specifically, it's the right choice.",
@@ -668,9 +669,17 @@ export async function suggestOutfitCore(params: {
   // shouldn't be penalized for it.
   const targetOccasionBase = (params.occasion ?? "").split(/[·-]/)[0].trim();
   const eveningLook = params.daySegment === "evening" || /evening|sera|cena|dinner|cocktail|gala|party|festa|wedding|matrimonio|black tie|formal/i.test(params.occasion ?? "");
+  // A daytime look: an occasion or day segment was given and it is not an evening one. With
+  // neither (an open-ended request) nothing is assumed.
+  // "Business Formal" matches the evening pattern above but is a daytime work setting.
+  const dayLook = params.daySegment !== "evening"
+    && (!eveningLook || /work|business|lavoro|office|ufficio/i.test(params.occasion ?? ""))
+    && Boolean((params.occasion ?? "").trim() || params.daySegment);
   const violatesOccasionTag = (ids: string[]): boolean =>
     ids.some((id) => {
       const item = catalog.find((c) => c.id === id);
+      // An evening-only piece (evening earrings, an evening bag…) never goes into a daytime look.
+      if (dayLook && item && isEveningOnlyPiece(item)) return true;
       if (!item?.occasion) return false;
       // A day bag (tagged Everyday / Work / Weekend… and nothing evening) never goes out at night.
       if (eveningLook && isDayOnlyBag(item)) return true;
