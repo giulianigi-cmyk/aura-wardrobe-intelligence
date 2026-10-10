@@ -78,12 +78,19 @@ export const reportProblem = createServerFn({ method: "POST" })
   }).parse(input))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await (supabaseAdmin.from("app_problem_reports" as never) as any).insert({
+    const { data: row, error } = await (supabaseAdmin.from("app_problem_reports" as never) as any).insert({
       user_id: context.userId, message: data.message, screen: data.screen ?? null, platform: data.platform ?? null,
-    });
+    }).select("id, user_id, message, screen, platform, created_at").single();
     if (error) {
       console.warn("[AURA telemetry] problem report insert failed", error.code ?? "error");
       return { ok: false as const };
+    }
+    // Whoever manages the reports hears about it (email + push); never blocks the person's report.
+    try {
+      const { notifyNewReport } = await import("./problem-reports.server");
+      await notifyNewReport(supabaseAdmin, row);
+    } catch (e) {
+      console.warn("[AURA telemetry] report notification failed", e instanceof Error ? e.name : "error");
     }
     return { ok: true as const };
   });

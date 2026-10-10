@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { deleteProblemReport, reportProblem, updateProblemReport } from "@/lib/telemetry.functions";
 import { lastScreenOutsideSettings, telemetryPlatform, track } from "@/lib/telemetry-client";
 
-type Report = { id: number; created_at: string; message: string; status: "open" | "fixed" | "wontfix" };
+type Report = { id: number; created_at: string; message: string; status: "open" | "in_progress" | "fixed" | "wontfix"; admin_reply?: string | null };
 const MAX = 1000;
 
 /** "Segnala un problema": the person describes what went wrong, in their own words. Their past
@@ -62,11 +62,14 @@ export function SettingsReportProblem({ go }: { go: (s: Screen) => void }) {
 
   const load = async () => {
     if (!user) return;
-    const { data } = await (supabase.from("app_problem_reports" as never) as any)
-      .select("id, created_at, message, status")
+    const query = (cols: string) => (supabase.from("app_problem_reports" as never) as any)
+      .select(cols)
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(20);
+    // The reply column arrives with the reports migration; until then the list loads without it.
+    let { data, error } = await query("id, created_at, message, status, admin_reply");
+    if (error) ({ data } = await query("id, created_at, message, status"));
     setReports((data ?? []) as Report[]);
   };
   useEffect(() => { void load(); }, [user?.id]);
@@ -151,6 +154,12 @@ export function SettingsReportProblem({ go }: { go: (s: Screen) => void }) {
                     </div>
                   ) : (
                     <p className="mt-1 text-sm whitespace-pre-wrap">{r.message}</p>
+                  )}
+                  {r.admin_reply && (
+                    <div className="mt-2 rounded-2xl bg-secondary/50 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{t("reportProblem.adminReply")}</p>
+                      <p className="mt-0.5 text-sm whitespace-pre-wrap">{r.admin_reply}</p>
+                    </div>
                   )}
                   {editingId !== r.id && (
                     <div className="mt-2 flex justify-end gap-2">

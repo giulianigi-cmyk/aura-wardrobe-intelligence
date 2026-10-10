@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, ChevronRight, LogOut, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -7,6 +7,7 @@ import type { Screen } from "../AuraApp";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
 import { deleteMyAccount } from "@/lib/delete-account.functions";
+import { amIReportAdmin } from "@/lib/problem-reports.functions";
 import i18n, { LANGUAGE_LABELS, type SupportedLanguage } from "@/i18n/config";
 
 function Row({ label, sub, onClick }: { label: string; sub?: string; onClick: () => void }) {
@@ -37,6 +38,14 @@ export function Settings({ go }: { go: (s: Screen) => void }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const callDeleteMyAccount = useServerFn(deleteMyAccount);
+  // "Gestione segnalazioni" only for the accounts that manage reports (checked on the server).
+  const checkAdmin = useServerFn(amIReportAdmin);
+  const [reportAdmin, setReportAdmin] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    checkAdmin().then((r) => { if (alive) setReportAdmin(r.admin); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const confirmDelete = async () => {
     setDeleting(true);
@@ -86,6 +95,7 @@ export function Settings({ go }: { go: (s: Screen) => void }) {
         <Row label={t("settings.calendar")} onClick={() => go("settings-calendar")} />
         <Row label={t("settings.privacy")} onClick={() => go("settings-privacy")} />
         <Row label={t("settings.reportProblem")} sub={t("settings.reportProblemSub")} onClick={() => go("settings-report-problem")} />
+        {reportAdmin && <Row label={t("adminReports.settingsRow")} sub={t("adminReports.settingsRowSub")} onClick={() => go("settings-admin-reports")} />}
       </Group>
 
       <Group>

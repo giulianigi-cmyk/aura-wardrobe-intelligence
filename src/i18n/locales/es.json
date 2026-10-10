@@ -2436,6 +2436,7 @@
     }
   },
   "reportProblem": {
+    "adminReply": "Respuesta de AURA",
     "edit": "Editar",
     "delete": "Eliminar",
     "save": "Guardar",
@@ -2453,9 +2454,23 @@
     "yourReports": "Tus informes",
     "status": {
       "open": "Recibido",
+      "in_progress": "En curso",
       "fixed": "Resuelto",
       "wontfix": "No resuelto"
     }
+  },
+  "adminReports": {
+    "title": "Gestión de reportes",
+    "all": "Todos",
+    "empty": "No hay reportes aquí.",
+    "notAllowed": "No disponible para esta cuenta.",
+    "noUsername": "sin nombre de usuario",
+    "replyPlaceholder": "Respuesta para la persona (opcional)",
+    "saveAndNotify": "Guardar y avisar",
+    "saved": "Guardado. Se ha avisado a la persona.",
+    "failed": "No se pudo guardar.",
+    "settingsRow": "Gestión de reportes",
+    "settingsRowSub": "Los reportes de todos los usuarios"
   },
   "firstSteps": {
     "eyebrow": "Primeros pasos",
