@@ -2460,7 +2460,10 @@
       "bottoms": "{{count}} trousers, skirts or dresses",
       "outerwear": "{{count}} jacket or coat",
       "shoes": "{{count}} pairs of shoes",
-      "bags": "{{count}} bag"
+      "bags": "{{count}} bag",
+      "topsMan": "{{count}} T-shirts, shirts or sweaters",
+      "bottomsMan": "{{count}} trousers or jeans",
+      "accessoriesMan": "{{count}} accessory: belt, watch or backpack"
     },
     "addMany": "Several photos",
     "addOne": "One piece",

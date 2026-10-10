@@ -9,6 +9,7 @@ import { parseAiJson } from "./ai-json";
 import { ownedEquivalent } from "./gap-ownership";
 import { alreadyOwnedPieces, loadWardrobeFeedback } from "./wardrobe-feedback";
 import { currentSeason } from "./wardrobe-image";
+import { suggestableForGender, suggestableTypes } from "./gender-scope";
 
 const ItemSchema = z.object({
   id: z.string(),
@@ -139,8 +140,12 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { data: profileRow } = await (context.supabase.from("profiles" as never) as any)
-      .select("language").eq("id", context.userId).maybeSingle();
+      .select("language, gender").eq("id", context.userId).maybeSingle();
     const langCode = (profileRow as { language?: string | null } | null)?.language ?? "en";
+    // Only kinds of piece that suit the person's profile are proposed (gender-scope.ts).
+    const gender = (profileRow as { gender?: string | null } | null)?.gender ?? null;
+    const typeOptions = suggestableTypes(gender, SUBCATEGORY_OPTIONS);
+    const categoryOptions = ITEM_CATEGORIES.filter((c) => typeOptions[c]);
     const langName = LANGUAGE_NAMES[langCode] ?? "English";
 
     if (data.items.length < 5) {
@@ -182,14 +187,15 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
       `Respond in ${langName} for "title" and "reason" only — "category", "subcategory" and "colors" must stay in the exact fixed English vocabulary given below (the app matches them against the wardrobe's own data and displays them as-is).`,
       "\"title\": a short, natural, editorial name for the piece — e.g. \"Décolleté nude\" — written the way a stylist would say it out loud, NOT a literal word-for-word translation of the English category/subcategory/color (never \"Scarpe nude decollete\" as a mechanical concatenation).",
       "\"reason\": one concrete sentence following this shape — [che cosa aggiungerebbe al guardaroba] + [per quali occasioni/outfit sarebbe utile] — grounded in what's actually missing from the catalog. Calibration example (Italian, for tone and structure only — write naturally in the target language above, never a word-for-word translation of this exact sentence): \"Un paio di décolleté nude aggiungerebbe eleganza e versatilità al tuo guardaroba, completando facilmente outfit formali e semi-formali.\"",
-      `Category must be EXACTLY one of: ${ITEM_CATEGORIES.join(", ")}.`,
+      ...(gender === "Man" ? ["The person is a man: suggest menswear only — never a dress, skirt, heels or a handbag."] : gender === "Woman" ? ["The person is a woman."] : []),
+      `Category must be EXACTLY one of: ${categoryOptions.join(", ")}.`,
       // Free text here used to be the reason a real gap could go undetected: the wardrobe's own
       // items are tagged with one of these fixed subcategories, but the model could write anything
       // ("a standard pair of boots") — text that never exact-matches "Knee Boots"/"Over-the-Knee
       // Boots" the person already owns, so the ownership check below silently let the redundant
       // suggestion through. Constrained to the same fixed vocabulary the wardrobe itself uses, so
       // the check can actually catch it.
-      `Subcategory must be EXACTLY one value from the list for the chosen category, verbatim: ${JSON.stringify(SUBCATEGORY_OPTIONS)}.`,
+      `Subcategory must be EXACTLY one value from the list for the chosen category, verbatim: ${JSON.stringify(typeOptions)}.`,
       `Colors: 1-2 items picked EXACTLY from this fixed palette (verbatim): ${COLOR_NAMES.join(", ")}.`,
       "Do not invent a brand, product name, or price - you have no way of knowing what's for sale.",
       "Base the suggestion strictly on real gaps in the provided catalog (e.g. many tops and bottoms but no outerwear at all, or no neutral shoes to anchor bright pieces).",
@@ -243,6 +249,13 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
         const owner = ownedEquivalent({ category: candCategory, subcategory: candSubcategory, colors: candColors }, data.items, { season })
           ?? ownedEquivalent({ category: candCategory, subcategory: candSubcategory, colors: candColors }, saidOwned);
         const alreadyOwned = !!owner;
+
+        // A kind of piece that doesn't suit the profile (a dress for a man) is never proposed.
+        if (!suggestableForGender(gender, candCategory, candSubcategory)) {
+          messages.push({ role: "assistant", content: text });
+          messages.push({ role: "user", content: `${candCategory} / ${candSubcategory} does not suit this person's profile. Pick a different, currently missing piece from the allowed lists. Reply again with ONLY the JSON object.` });
+          continue;
+        }
 
         if (!alreadyOwned) {
           accepted = candidate;

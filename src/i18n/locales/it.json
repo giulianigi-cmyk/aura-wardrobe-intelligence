@@ -2460,7 +2460,10 @@
       "bottoms": "{{count}} pantaloni, gonne o abiti",
       "outerwear": "{{count}} giacca o cappotto",
       "shoes": "{{count}} paia di scarpe",
-      "bags": "{{count}} borsa"
+      "bags": "{{count}} borsa",
+      "topsMan": "{{count}} t-shirt, camicie o maglie",
+      "bottomsMan": "{{count}} pantaloni o jeans",
+      "accessoriesMan": "{{count}} accessorio: cintura, orologio o zaino"
     },
     "addMany": "Più foto insieme",
     "addOne": "Un capo",

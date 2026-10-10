@@ -60,6 +60,8 @@ import {
   type Iconicity,
 } from "@/lib/wardrobe-value-engine";
 import { useValuationConfig } from "@/lib/valuation-query";
+import { suggestableForGender } from "@/lib/gender-scope";
+import { useProfile } from "@/hooks/use-profile";
 import { garmentName, garmentWithColor, matchesSearch, optionLabel, optionList, searchableText } from "@/lib/garment-names";
 
 const categories = ["All", ...ITEM_CATEGORIES];
@@ -82,6 +84,10 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
   const queryClient = useQueryClient();
   const itemsQuery = useWardrobeItems();
   const items = itemsQuery.data ?? [];
+  // A category that doesn't suit the profile (Dresses for a man) is shown only if it holds pieces.
+  const genderForChips = useProfile().profile?.gender ?? null;
+  const visibleCategories = categories.filter((c) =>
+    c === "All" || suggestableForGender(genderForChips, c, null) || items.some((it) => it.category === c));
   const setItems = useCallback(
     (updater: WardrobeItem[] | ((prev: WardrobeItem[]) => WardrobeItem[])) => {
       queryClient.setQueryData<WardrobeItem[]>(
@@ -901,7 +907,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
       </div>
 
       <div className="mt-5 flex gap-2 overflow-x-auto no-scrollbar px-6">
-        {categories.map(c => (
+        {visibleCategories.map(c => (
           <button
             key={c} onClick={() => setCat(c)}
             className={`shrink-0 rounded-full px-4 py-2 text-xs tracking-wide transition ${

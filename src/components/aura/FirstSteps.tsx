@@ -3,12 +3,14 @@ import { Camera, Check, Images } from "lucide-react";
 import type { Screen } from "./AuraApp";
 import { FIRST_LOOK_MIN, FIRST_STEPS_TARGET, starterProgress } from "@/lib/first-steps";
 import { track } from "@/lib/telemetry-client";
+import { useProfile } from "@/hooks/use-profile";
 
 /** "Primi passi": shown on Home while the wardrobe has fewer than FIRST_STEPS_TARGET pieces. Says
  *  which pieces to photograph first and opens the fastest way to add them. */
 export function FirstSteps({ items, go }: { items: { category: string | null }[]; go: (s: Screen) => void }) {
   const { t } = useTranslation();
-  const p = starterProgress(items);
+  const { profile } = useProfile();
+  const p = starterProgress(items, profile?.gender);
   const pct = Math.min(100, (p.total / FIRST_STEPS_TARGET) * 100);
   const open = (to: "batch-scan" | "add") => {
     track("flow_step", { feature: "first_steps", step: to === "add" ? "add_one" : "add_batch", count: p.total });
@@ -38,7 +40,7 @@ export function FirstSteps({ items, go }: { items: { category: string | null }[]
                 <span className={`h-5 w-5 rounded-full flex items-center justify-center shrink-0 ${done ? "bg-foreground text-background" : "border border-border"}`}>
                   {done && <Check size={11} />}
                 </span>
-                <span className={done ? "text-muted-foreground line-through" : ""}>{t(`firstSteps.group.${g.key}`, { count: g.want })}</span>
+                <span className={done ? "text-muted-foreground line-through" : ""}>{t(`firstSteps.group.${g.label}`, { count: g.want })}</span>
                 <span className="ml-auto text-xs text-muted-foreground">{Math.min(g.have, g.want)}/{g.want}</span>
               </li>
             );
