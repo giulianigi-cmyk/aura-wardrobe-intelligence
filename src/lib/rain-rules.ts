@@ -27,6 +27,8 @@ export function isWetCondition(condition: string | null | undefined): boolean {
 }
 
 const DELICATE = /suede|camoscio|scamosciat|nubuck|velvet|velluto|terciopelo|velours|silk|seta|seda|soie|satin|raso|chiffon|organza|tulle|mohair/i;
+// Linen wrinkles, turns see-through and stays wet: a linen shirt or top is a dry-day piece.
+const LINEN = /linen|\blino\b|\blin\b/i;
 export const RAIN_READY_OUTER = /rain|impermeabil|trench|parka|puffer|piumino|windbreaker|anorak|k-?way|cerata/i;
 // Open at the heel or the toe: the foot gets wet and the shoe slips on a wet street.
 const OPEN_OR_CANVAS_SHOE = /sandal|espadrill|slide|flip.?flop|infradito|ciabatt|canvas|tela|raffia|jute|slingback|mule|sabot|peep.?toe|open.?toe/i;
@@ -54,6 +56,9 @@ export function rainReason(it: RainCheckable): RainReason | null {
     if (OPEN_OR_CANVAS_SHOE.test(t) || it.toeShape === "Open Toe") return "openOrCanvasShoe";
     if (isLight(it)) return "lightColour";
   }
+  // Tops sit under the coat (a silk blouse is fine) — except linen, which shows every drop.
+  if (cat === "Tops" && LINEN.test(t)) return "delicateFabric";
+  if (["Bottoms", "Dresses", "Jumpsuits"].includes(cat) && LINEN.test(t)) return "delicateFabric";
   if (cat === "Bags" && PRECIOUS_OR_STAINABLE.test(t)) return "preciousBag";
   if (["Bottoms", "Dresses", "Jumpsuits"].includes(cat)) {
     if (it.length === "Maxi" || FLOOR_LENGTH.test(t)) return "floorLength";

@@ -227,7 +227,10 @@ function Inner() {
     typeof window !== "undefined" && localStorage.getItem("aura.onboarded") === "1"
   );
 
+  // Community opens on Friends when reached from a friend-request notification, on Chat otherwise.
+  const [communityTab, setCommunityTab] = useState<"chat" | "friends">("chat");
   const go = (s: Screen) => {
+    if (s === "community") setCommunityTab("chat");
     if (s !== "builder") setBuilderInit(null);
     else if (s === "builder") {
       setBuilderInit(null);
@@ -235,6 +238,11 @@ function Inner() {
     if (s !== "stylist-chat") setStylistChatInit(null);
     if (s !== "avatar-tryon") setAvatarTryOnItemIds(undefined);
     setScreen(s);
+  };
+
+  const openFriends = () => {
+    setCommunityTab("friends");
+    setScreen("community");
   };
 
   const openBatchReview = (scanId: string) => {
@@ -561,7 +569,7 @@ function Inner() {
           {screen === "essential-presets" && <EssentialPresets go={go} />}
           {screen === "shop" && <Shop go={go} />}
           {screen === "color-lab" && <ColorLab go={go} />}
-          {screen === "community" && <Community go={go} openConversation={openConversation} openUserProfile={openUserProfile} />}
+          {screen === "community" && <Community key={communityTab} initialTab={communityTab} go={go} openConversation={openConversation} openUserProfile={openUserProfile} />}
           {screen === "settings" && <Settings go={go} />}
           {screen === "settings-personal" && <PersonalInfo go={go} />}
           {screen === "settings-style-prefs" && <StylePreferences go={go} />}
@@ -580,7 +588,8 @@ function Inner() {
 
                         {screen === "saved-outfits" && <AIStylist go={go} openBuilder={openBuilder} openAvatarTryOn={openAvatarTryOn} active={screen === "saved-outfits"} />}
           {screen === "notifications" && (
-            <Notifications go={go} openThread={openConversation} openPlanner={openPlanner} openTripActivity={openTripActivity} />
+            <Notifications go={go} openThread={openConversation} openPlanner={openPlanner} openTripActivity={openTripActivity}
+              openBatchReview={openBatchReview} openFriends={openFriends} openUserProfile={openUserProfile} />
           )}
           {screen === "invite" && <Invite go={go} />}
           {screen === "storage-debug" && <StorageDebug go={go} />}

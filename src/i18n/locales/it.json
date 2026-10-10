@@ -198,6 +198,7 @@
     "toastCouldNotCreate": "Impossibile creare la conversazione"
   },
   "notifications": {
+    "open": "Apri",
     "title": "Notifiche",
     "empty": "Ancora niente qui. Inizia aggiungendo qualche capo al guardaroba.",
     "deleteAria": "Elimina notifica",
