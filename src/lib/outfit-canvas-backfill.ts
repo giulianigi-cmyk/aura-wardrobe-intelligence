@@ -32,6 +32,7 @@ async function loadItems(userId: string, ids: string[]): Promise<ItemRow[]> {
 export async function composeOutfitCanvasForItems(
   userId: string,
   itemIds: string[],
+  opts: { light?: boolean } = {},
 ): Promise<{ canvasPath: string; thumbPath: string | null } | null> {
   const items = await loadItems(userId, itemIds);
   if (!items.length) return null;
@@ -39,7 +40,10 @@ export async function composeOutfitCanvasForItems(
   const compose: ComposeItem[] = [];
   for (const it of items) {
     const path = toStoragePath(it.image_url);
-    const url = path ? signed[path] : null;
+    // Light mode (background backfill): the small thumbnail, not the full-size photo — decoding
+    // several originals at once is what crashed Safari on iPhone.
+    const thumb = opts.light ? it.thumbnail_path : null;
+    const url = (thumb && signed[thumb]) || (path ? signed[path] : null);
     if (url) compose.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length ?? null });
   }
   if (!compose.length) return null;
@@ -66,12 +70,26 @@ export async function composeOutfitCanvasForItems(
 }
 
 let backfillRan = false;
+const TRIED_KEY = "aura.canvasBackfill.tried";
 
-/** Once per session: gives a canvas image to the user's outfits saved without
- *  one. Small batch, newest first; returns how many outfits were updated. */
-export async function backfillOutfitCanvases(userId: string, batch = 10): Promise<number> {
+function triedIds(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(TRIED_KEY) ?? "[]") as string[]); } catch { return new Set(); }
+}
+function markTried(id: string) {
+  try {
+    const ids = [...triedIds(), id].slice(-200);
+    localStorage.setItem(TRIED_KEY, JSON.stringify(ids));
+  } catch { /* storage unavailable: at worst it is tried again next session */ }
+}
+
+/** Once per session, ONE outfit saved without a canvas image gets one (newest first). Light on
+ *  purpose: thumbnails instead of originals, one outfit per app open, and each outfit is tried at
+ *  most once on this device — marked BEFORE composing, so if the page ever dies mid-way the next
+ *  launch skips it instead of crashing again. */
+export async function backfillOutfitCanvases(userId: string): Promise<number> {
   if (backfillRan) return 0;
   backfillRan = true;
+  if (typeof document !== "undefined" && document.visibilityState !== "visible") return 0;
   try {
     const { data, error } = await supabase
       .from("outfits")
@@ -79,25 +97,21 @@ export async function backfillOutfitCanvases(userId: string, batch = 10): Promis
       .eq("user_id", userId)
       .is("canvas_image_url", null)
       .order("created_at", { ascending: false })
-      .limit(batch);
+      .limit(20);
     if (error || !data?.length) return 0;
-    let done = 0;
-    for (const row of data as { id: string; item_ids: string[] | null }[]) {
-      try {
-        const made = await composeOutfitCanvasForItems(userId, row.item_ids ?? []);
-        if (!made) continue;
-        const { error: updErr } = await supabase
-          .from("outfits")
-          .update({ canvas_image_url: made.canvasPath, ...(made.thumbPath ? { thumbnail_path: made.thumbPath } : {}) } as never)
-          .eq("id", row.id)
-          .eq("user_id", userId)
-          .is("canvas_image_url", null);
-        if (!updErr) done++;
-      } catch (e) {
-        console.warn("[AURA] outfit canvas backfill item failed", row.id, e);
-      }
-    }
-    return done;
+    const tried = triedIds();
+    const row = (data as { id: string; item_ids: string[] | null }[]).find((r) => !tried.has(r.id));
+    if (!row) return 0;
+    markTried(row.id);
+    const made = await composeOutfitCanvasForItems(userId, row.item_ids ?? [], { light: true });
+    if (!made) return 0;
+    const { error: updErr } = await supabase
+      .from("outfits")
+      .update({ canvas_image_url: made.canvasPath, ...(made.thumbPath ? { thumbnail_path: made.thumbPath } : {}) } as never)
+      .eq("id", row.id)
+      .eq("user_id", userId)
+      .is("canvas_image_url", null);
+    return updErr ? 0 : 1;
   } catch (e) {
     console.warn("[AURA] outfit canvas backfill failed", e);
     return 0;

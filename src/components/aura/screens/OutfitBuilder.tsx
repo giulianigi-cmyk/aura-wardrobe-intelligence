@@ -777,7 +777,10 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
     }
     ctx.drawImage(bitmap, 0, 0, targetW, targetH);
     bitmap.close();
-    return off.toDataURL("image/png");
+    const out = off.toDataURL("image/png");
+    off.width = 0; // free the backing store now (Safari keeps it until GC otherwise)
+    off.height = 0;
+    return out;
   }
 
     const exportCanvas = useCallback(async (): Promise<{ blob: Blob; dataUrl: string } | null> => {
@@ -807,8 +810,10 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
       // gone stale (e.g. only the shoes showing). Get a FRESH signed URL
       // per item right before export instead of trusting what's on screen.
       let anyFailed = false;
-      await Promise.all(
-        imgs.map(async (img) => {
+      // One piece at a time: decoding every full-size photo at once (some are several MB, up to
+      // ~19 MB) ran an iPhone out of memory and Safari reloaded the page mid-save.
+      for (const img of imgs) {
+        await (async () => {
           const key = img.dataset.itemKey;
           const placedItem = placed.find((p) => p.key === key);
           const wardrobeItem = placedItem ? items.find((i) => i.id === placedItem.itemId) : null;
@@ -832,8 +837,8 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
             console.error("[AURA export] failed to inline image", img.src, e);
             anyFailed = true;
           }
-        }),
-      );
+        })();
+      }
 
       if (anyFailed) {
         toast.error(t("outfitBuilder.couldntLoadPieceForShare"));
