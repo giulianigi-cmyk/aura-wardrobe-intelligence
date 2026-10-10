@@ -2436,6 +2436,7 @@
     }
   },
   "reportProblem": {
+    "adminReply": "Risposta di AURA",
     "edit": "Modifica",
     "delete": "Elimina",
     "save": "Salva",
@@ -2453,9 +2454,23 @@
     "yourReports": "Le tue segnalazioni",
     "status": {
       "open": "Ricevuta",
+      "in_progress": "In lavorazione",
       "fixed": "Risolta",
       "wontfix": "Non risolta"
     }
+  },
+  "adminReports": {
+    "title": "Gestione segnalazioni",
+    "all": "Tutte",
+    "empty": "Nessuna segnalazione qui.",
+    "notAllowed": "Non disponibile per questo account.",
+    "noUsername": "senza username",
+    "replyPlaceholder": "Risposta per l'utente (facoltativa)",
+    "saveAndNotify": "Salva e avvisa l'utente",
+    "saved": "Salvato. L'utente è stato avvisato.",
+    "failed": "Non è stato possibile salvare.",
+    "settingsRow": "Gestione segnalazioni",
+    "settingsRowSub": "Le segnalazioni di tutti gli utenti"
   },
   "firstSteps": {
     "eyebrow": "Primi passi",

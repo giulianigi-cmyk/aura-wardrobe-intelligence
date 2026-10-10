@@ -2436,6 +2436,7 @@
     }
   },
   "reportProblem": {
+    "adminReply": "Réponse d'AURA",
     "edit": "Modifier",
     "delete": "Supprimer",
     "save": "Enregistrer",
@@ -2453,9 +2454,23 @@
     "yourReports": "Vos signalements",
     "status": {
       "open": "Reçu",
+      "in_progress": "En cours",
       "fixed": "Résolu",
       "wontfix": "Non résolu"
     }
+  },
+  "adminReports": {
+    "title": "Gestion des signalements",
+    "all": "Tous",
+    "empty": "Aucun signalement ici.",
+    "notAllowed": "Non disponible pour ce compte.",
+    "noUsername": "sans nom d'utilisateur",
+    "replyPlaceholder": "Réponse à la personne (facultative)",
+    "saveAndNotify": "Enregistrer et prévenir",
+    "saved": "Enregistré. La personne a été prévenue.",
+    "failed": "Impossible d'enregistrer.",
+    "settingsRow": "Gestion des signalements",
+    "settingsRowSub": "Les signalements de tous les utilisateurs"
   },
   "firstSteps": {
     "eyebrow": "Premiers pas",

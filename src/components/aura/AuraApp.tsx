@@ -68,6 +68,7 @@ const screenLoaders = {
   SettingsCalendar: () => import("./screens/SettingsCalendar"),
   SettingsUsage: () => import("./screens/SettingsUsage"),
   SettingsReportProblem: () => import("./screens/SettingsReportProblem"),
+  SettingsAdminReports: () => import("./screens/SettingsAdminReports"),
   SettingsGuide: () => import("./screens/SettingsGuide"),
   PrivacySettings: () => import("./screens/PrivacySettings"),
   Notifications: () => import("./screens/Notifications"),
@@ -109,6 +110,7 @@ const NotificationSettings = lazyScreen(screenLoaders.NotificationSettings, "Not
 const SettingsCalendar = lazyScreen(screenLoaders.SettingsCalendar, "SettingsCalendar");
 const SettingsUsage = lazyScreen(screenLoaders.SettingsUsage, "SettingsUsage");
 const SettingsReportProblem = lazyScreen(screenLoaders.SettingsReportProblem, "SettingsReportProblem");
+const SettingsAdminReports = lazyScreen(screenLoaders.SettingsAdminReports, "SettingsAdminReports");
 const SettingsGuide = lazyScreen(screenLoaders.SettingsGuide, "SettingsGuide");
 const PrivacySettings = lazyScreen(screenLoaders.PrivacySettings, "PrivacySettings");
 const Notifications = lazyScreen(screenLoaders.Notifications, "Notifications");
@@ -145,7 +147,7 @@ export type Screen =
       | "trips" | "trip-create" | "trip-detail" | "essential-presets"
             | "chats" | "chat-thread" | "user-profile"
       | "settings" | "settings-personal" | "settings-sizes" | "settings-style-prefs" | "settings-language"
-      | "settings-wardrobe-locations" | "settings-dress-preferences" | "settings-notifications" | "settings-calendar" | "settings-privacy" | "settings-usage" | "settings-report-problem" | "settings-guide"
+      | "settings-wardrobe-locations" | "settings-dress-preferences" | "settings-notifications" | "settings-calendar" | "settings-privacy" | "settings-usage" | "settings-report-problem" | "settings-admin-reports" | "settings-guide"
       | "avatar" | "avatar-tryon" | "log-wear";
 
 
@@ -310,16 +312,21 @@ function Inner() {
   // worker (public/sw.js) when the app was already open.
   const openFromNotification = useCallback((url: string) => {
     try {
-      const day = new URL(url, window.location.origin).searchParams.get("day");
+      const params = new URL(url, window.location.origin).searchParams;
+      const day = params.get("day");
       if (day && /^\d{4}-\d{2}-\d{2}$/.test(day)) {
         track("flow_step", { feature: "event_reminder", step: "opened" });
         openPlanner(day);
+      } else if (params.get("open") === "report-problem") {
+        setScreen("settings-report-problem"); // an update on the person's own report
+      } else if (params.get("admin") === "reports") {
+        setScreen("settings-admin-reports"); // a new report, for whoever manages them
       }
     } catch { /* not a link of ours */ }
   }, [openPlanner]);
   useEffect(() => {
     if (!user || !["home", "wardrobe", "ai", "planner", "profile"].includes(screen)) return;
-    if (!window.location.search.includes("day=")) return;
+    if (!/[?&](day|open|admin)=/.test(window.location.search)) return;
     openFromNotification(window.location.href);
     window.history.replaceState(null, "", window.location.pathname);
   }, [user, screen, openFromNotification]);
@@ -581,6 +588,7 @@ function Inner() {
           {screen === "settings-calendar" && <SettingsCalendar go={go} />}
           {screen === "settings-usage" && <SettingsUsage go={go} />}
           {screen === "settings-report-problem" && <SettingsReportProblem go={go} />}
+          {screen === "settings-admin-reports" && <SettingsAdminReports go={go} />}
           {screen === "settings-guide" && <SettingsGuide go={go} replayTour={startTour} />}
           {screen === "settings-privacy" && <PrivacySettings go={go} />}
 
@@ -589,7 +597,8 @@ function Inner() {
                         {screen === "saved-outfits" && <AIStylist go={go} openBuilder={openBuilder} openAvatarTryOn={openAvatarTryOn} active={screen === "saved-outfits"} />}
           {screen === "notifications" && (
             <Notifications go={go} openThread={openConversation} openPlanner={openPlanner} openTripActivity={openTripActivity}
-              openBatchReview={openBatchReview} openFriends={openFriends} openUserProfile={openUserProfile} />
+              openBatchReview={openBatchReview} openFriends={openFriends} openUserProfile={openUserProfile}
+              openReportProblem={() => setScreen("settings-report-problem")} />
           )}
           {screen === "invite" && <Invite go={go} />}
           {screen === "storage-debug" && <StorageDebug go={go} />}

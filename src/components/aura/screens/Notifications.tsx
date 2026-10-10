@@ -28,7 +28,7 @@ type Notification = {
   } | null;
 };
 
-export function Notifications({ go, openThread, openPlanner, openTripActivity, openBatchReview, openFriends, openUserProfile }: {
+export function Notifications({ go, openThread, openPlanner, openTripActivity, openBatchReview, openFriends, openUserProfile, openReportProblem }: {
   go: (s: Screen) => void;
   openThread?: (id: string) => void;
   /** weather_change on a general/event plan → Planner day sheet. */
@@ -41,6 +41,8 @@ export function Notifications({ go, openThread, openPlanner, openTripActivity, o
   openFriends?: () => void;
   /** friend_accept → the new friend's profile. */
   openUserProfile?: (userId: string) => void;
+  /** problem_report_update → the person's own reports, with the status and the reply. */
+  openReportProblem?: () => void;
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -132,6 +134,7 @@ export function Notifications({ go, openThread, openPlanner, openTripActivity, o
                 ?? (scanId && openBatchReview ? () => openBatchReview(scanId)
                   : n.type === "friend_request" && openFriends ? () => openFriends()
                   : friendId && openUserProfile ? () => openUserProfile(friendId)
+                  : n.type === "problem_report_update" && openReportProblem ? () => openReportProblem()
                   : null);
             const clickable = Boolean(open);
             const Icon = isWeather ? CloudRain

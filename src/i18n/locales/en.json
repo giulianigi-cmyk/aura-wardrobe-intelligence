@@ -2436,6 +2436,7 @@
     }
   },
   "reportProblem": {
+    "adminReply": "AURA's reply",
     "edit": "Edit",
     "delete": "Delete",
     "save": "Save",
@@ -2453,9 +2454,23 @@
     "yourReports": "Your reports",
     "status": {
       "open": "Received",
+      "in_progress": "In progress",
       "fixed": "Fixed",
       "wontfix": "Not resolved"
     }
+  },
+  "adminReports": {
+    "title": "Manage reports",
+    "all": "All",
+    "empty": "No reports here.",
+    "notAllowed": "Not available for this account.",
+    "noUsername": "no username",
+    "replyPlaceholder": "Reply to the person (optional)",
+    "saveAndNotify": "Save and notify",
+    "saved": "Saved. The person has been notified.",
+    "failed": "Could not save.",
+    "settingsRow": "Manage reports",
+    "settingsRowSub": "Reports from every user"
   },
   "firstSteps": {
     "eyebrow": "First steps",
