@@ -37,19 +37,42 @@ function loadImageEl(url: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Fetches a (possibly cross-origin, signed) image URL and returns it as a
- *  data URL — sidesteps canvas tainting with Supabase signed URLs (same
- *  technique OutfitBuilder's export uses). */
-async function toDataUrl(url: string): Promise<string> {
-  const resp = await fetch(url, { mode: "cors", cache: "no-store" });
-  if (!resp.ok) throw new Error(`image fetch failed: ${resp.status}`);
-  const blob = await resp.blob();
-  return await new Promise<string>((resolve, reject) => {
+/** Longest side kept for composing: the canvas is 1080 px wide and no piece is ever drawn larger,
+ *  so decoding a 4000-px (up to ~19 MB) original only cost memory — on an iPhone, enough of them
+ *  at once made Safari reload the page. */
+export const COMPOSE_MAX_DIMENSION = 1080;
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(blob);
   });
+}
+
+/** Fetches a (possibly cross-origin, signed) image URL and returns it as a data URL, downscaled to
+ *  COMPOSE_MAX_DIMENSION — sidesteps canvas tainting with Supabase signed URLs (same technique
+ *  OutfitBuilder's export uses). Transparency is kept (PNG). */
+async function toDataUrl(url: string): Promise<string> {
+  const resp = await fetch(url, { mode: "cors", cache: "no-store" });
+  if (!resp.ok) throw new Error(`image fetch failed: ${resp.status}`);
+  const blob = await resp.blob();
+  const bitmap = await createImageBitmap(blob).catch(() => null);
+  if (!bitmap) return blobToDataUrl(blob);
+  const scale = Math.min(1, COMPOSE_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+  if (scale === 1) { bitmap.close(); return blobToDataUrl(blob); }
+  const off = document.createElement("canvas");
+  off.width = Math.max(1, Math.round(bitmap.width * scale));
+  off.height = Math.max(1, Math.round(bitmap.height * scale));
+  const ctx = off.getContext("2d");
+  if (!ctx) { bitmap.close(); return blobToDataUrl(blob); }
+  ctx.drawImage(bitmap, 0, 0, off.width, off.height);
+  bitmap.close();
+  const out = off.toDataURL("image/png");
+  off.width = 0; // free the backing store now rather than at the next GC
+  off.height = 0;
+  return out;
 }
 
 /** Loaded-image cache, keyed by signed URL. The same pieces are loaded again and
@@ -63,7 +86,7 @@ function loadCachedImage(url: string): Promise<HTMLImageElement> {
     p = toDataUrl(url).then(loadImageEl);
     imageCache.set(url, p);
     p.catch(() => imageCache.delete(url));
-    if (imageCache.size > 80) {
+    if (imageCache.size > 30) {
       const oldest = imageCache.keys().next().value;
       if (oldest !== undefined) imageCache.delete(oldest);
     }
