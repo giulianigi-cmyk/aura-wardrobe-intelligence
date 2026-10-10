@@ -2436,6 +2436,13 @@
     }
   },
   "reportProblem": {
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "updated": "Reporte actualizado.",
+    "deleted": "Reporte eliminado.",
+    "deleteConfirm": "¿Eliminar este reporte?",
     "title": "Informar de un problema",
     "intro": "Cuéntanos qué pasó: qué estabas haciendo, qué esperabas y qué ocurrió en cambio. Lo leemos y lo arreglamos.",
     "placeholder": "Ej. En la prueba en el avatar la camisa queda encima del chaleco…",
@@ -2447,7 +2454,7 @@
     "status": {
       "open": "Recibido",
       "fixed": "Resuelto",
-      "wontfix": "Cerrado"
+      "wontfix": "No resuelto"
     }
   },
   "firstSteps": {

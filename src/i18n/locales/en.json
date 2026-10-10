@@ -2436,6 +2436,13 @@
     }
   },
   "reportProblem": {
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "updated": "Report updated.",
+    "deleted": "Report deleted.",
+    "deleteConfirm": "Delete this report?",
     "title": "Report a problem",
     "intro": "Tell us what happened: what you were doing, what you expected and what happened instead. We read it and fix it.",
     "placeholder": "E.g. In the avatar try-on the shirt ends up over the vest…",
@@ -2447,7 +2454,7 @@
     "status": {
       "open": "Received",
       "fixed": "Fixed",
-      "wontfix": "Closed"
+      "wontfix": "Not resolved"
     }
   },
   "firstSteps": {

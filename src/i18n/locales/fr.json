@@ -2436,6 +2436,13 @@
     }
   },
   "reportProblem": {
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "updated": "Signalement mis à jour.",
+    "deleted": "Signalement supprimé.",
+    "deleteConfirm": "Supprimer ce signalement ?",
     "title": "Signaler un problème",
     "intro": "Racontez-nous ce qui s'est passé : ce que vous faisiez, ce que vous attendiez et ce qui s'est produit. Nous le lisons et le corrigeons.",
     "placeholder": "Ex. Dans l'essai sur l'avatar, la chemise passe par-dessus le gilet…",
@@ -2447,7 +2454,7 @@
     "status": {
       "open": "Reçu",
       "fixed": "Résolu",
-      "wontfix": "Clôturé"
+      "wontfix": "Non résolu"
     }
   },
   "firstSteps": {

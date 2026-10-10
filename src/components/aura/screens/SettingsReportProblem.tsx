@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
 import type { Screen } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { reportProblem } from "@/lib/telemetry.functions";
+import { deleteProblemReport, reportProblem, updateProblemReport } from "@/lib/telemetry.functions";
 import { lastScreenOutsideSettings, telemetryPlatform, track } from "@/lib/telemetry-client";
 
 type Report = { id: number; created_at: string; message: string; status: "open" | "fixed" | "wontfix" };
@@ -21,6 +21,44 @@ export function SettingsReportProblem({ go }: { go: (s: Screen) => void }) {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [reports, setReports] = useState<Report[]>([]);
+  const updateFn = useServerFn(updateProblemReport);
+  const deleteFn = useServerFn(deleteProblemReport);
+  // The report being edited (only an open one can be) and its draft text.
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [draft, setDraft] = useState("");
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const saveEdit = async (id: number) => {
+    const text = draft.trim();
+    if (!text) return;
+    setBusyId(id);
+    try {
+      const res = await updateFn({ data: { id, message: text } });
+      if (!res.ok) throw new Error("not saved");
+      setEditingId(null);
+      toast.success(t("reportProblem.updated"));
+      await load();
+    } catch {
+      toast.error(t("reportProblem.failed"));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const remove = async (id: number) => {
+    if (!window.confirm(t("reportProblem.deleteConfirm"))) return;
+    setBusyId(id);
+    try {
+      const res = await deleteFn({ data: { id } });
+      if (!res.ok) throw new Error("not deleted");
+      setReports((cur) => cur.filter((r) => r.id !== id));
+      toast.success(t("reportProblem.deleted"));
+    } catch {
+      toast.error(t("reportProblem.failed"));
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const load = async () => {
     if (!user) return;
@@ -91,7 +129,46 @@ export function SettingsReportProblem({ go }: { go: (s: Screen) => void }) {
                     <span>{new Date(r.created_at).toLocaleDateString(i18n.language, { day: "numeric", month: "short" })}</span>
                     <span className="uppercase tracking-[0.2em]">{t(`reportProblem.status.${r.status}`)}</span>
                   </div>
-                  <p className="mt-1 text-sm line-clamp-3 whitespace-pre-wrap">{r.message}</p>
+                  {editingId === r.id ? (
+                    <div className="mt-2 space-y-2">
+                      <textarea
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value.slice(0, MAX))}
+                        rows={4}
+                        className="w-full rounded-2xl border border-border bg-transparent p-3 text-sm leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-foreground/30"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => void saveEdit(r.id)}
+                          disabled={!draft.trim() || busyId === r.id}
+                          className="flex-1 h-9 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.25em] disabled:opacity-50"
+                        >{busyId === r.id ? <Loader2 size={12} className="animate-spin mx-auto" /> : t("reportProblem.save")}</button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.25em] text-muted-foreground"
+                        >{t("reportProblem.cancel")}</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-sm whitespace-pre-wrap">{r.message}</p>
+                  )}
+                  {editingId !== r.id && (
+                    <div className="mt-2 flex justify-end gap-2">
+                      {r.status === "open" && (
+                        <button
+                          onClick={() => { setEditingId(r.id); setDraft(r.message); }}
+                          aria-label={t("reportProblem.edit")}
+                          className="h-8 px-3 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5"
+                        ><Pencil size={11} /> {t("reportProblem.edit")}</button>
+                      )}
+                      <button
+                        onClick={() => void remove(r.id)}
+                        disabled={busyId === r.id}
+                        aria-label={t("reportProblem.delete")}
+                        className="h-8 px-3 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5 disabled:opacity-50"
+                      ><Trash2 size={11} /> {t("reportProblem.delete")}</button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
