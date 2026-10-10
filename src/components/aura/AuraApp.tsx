@@ -400,12 +400,16 @@ function Inner() {
     const t = setTimeout(() => {
       if (cancelled) return;
       void import("@/lib/outfit-thumb").then((m) => m.backfillOutfitThumbs(user.id));
-      // Outfits saved with only their pieces get their canvas image composed here.
+    }, 4000);
+    // Outfits saved with only their pieces get their canvas image, one per app open, well after
+    // start-up so it never competes with the first screen's own images for memory.
+    const t2 = setTimeout(() => {
+      if (cancelled) return;
       void import("@/lib/outfit-canvas-backfill")
         .then((m) => m.backfillOutfitCanvases(user.id))
         .then((n) => { if (n > 0) void import("@/lib/outfits-query").then((q) => q.invalidateOutfits(queryClient, user.id)); });
-    }, 4000);
-    return () => { cancelled = true; clearTimeout(t); };
+    }, 30_000);
+    return () => { cancelled = true; clearTimeout(t); clearTimeout(t2); };
   }, [user, queryClient]);
 
   // One-off thumbnail backfill for older wardrobe items (owner account only for now — see
