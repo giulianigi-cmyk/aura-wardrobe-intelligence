@@ -250,6 +250,13 @@ export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | n
   // canvas uses the same size and position (see its watermark), so every outfit
   // canvas — AI or manual, new or reopened — carries the same mark.
   // It sits inside the strip outfit-layout.ts keeps empty (BOTTOM_RESERVED).
+  await drawSignature(ctx, CANVAS_W, CANVAS_H);
+
+  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
+}
+
+/** The "aura" wordmark, bottom-right, at its reference size for a 1080-px-wide canvas. */
+async function drawSignature(ctx: CanvasRenderingContext2D, width: number, height: number): Promise<void> {
   try {
     await document.fonts.load(SIGNATURE_FONT);
   } catch {
@@ -262,11 +269,51 @@ export async function composeOutfitImage(items: ComposeItem[]): Promise<Blob | n
   ctx.textBaseline = "alphabetic";
   // tight tracking like the wordmark (tracking-tight); ignored where unsupported
   (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = "-2px";
-  ctx.fillText("aura", CANVAS_W - SIGNATURE_RIGHT_MARGIN, CANVAS_H - SIGNATURE_RIGHT_MARGIN);
+  ctx.fillText("aura", width - SIGNATURE_RIGHT_MARGIN, height - SIGNATURE_RIGHT_MARGIN);
   ctx.restore();
+}
 
+/** A piece as placed on the manual canvas editor (OutfitBuilder): centre and width as fractions of
+ *  the canvas, rotation in degrees, stacking order. */
+export type PlacedPiece = { imgUrl: string; x: number; y: number; scale: number; rotation: number; z: number };
 
-  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
+/** Draws the manual canvas exactly as laid out on screen, piece by piece, straight onto a canvas.
+ *  Replaces the DOM screenshot (html-to-image), which on iPhone Safari silently dropped pieces whose
+ *  image wasn't painted yet — saved outfits came out with only the bag, or the jeans and the bag.
+ *  Every image must load and decode, or nothing is returned: a partial canvas is never saved.
+ *  Mirrors the editor's CSS: box width = scale × canvas width, height from the image's proportions,
+ *  capped at 88% of the short side (object-fit: contain), centred on (x, y), rotated about its centre. */
+export async function renderPlacedCanvas(pieces: PlacedPiece[], width: number, height: number): Promise<Blob | null> {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.fillStyle = BACKGROUND;
+  ctx.fillRect(0, 0, width, height);
+  ctx.imageSmoothingQuality = "high";
+  const maxH = 0.88 * Math.min(width, height);
+
+  for (const p of [...pieces].sort((a, b) => a.z - b.z)) {
+    // One at a time (memory), each one checked: a "loaded" image with no size draws nothing.
+    const img = await loadCachedImage(p.imgUrl);
+    if (!img.naturalWidth || !img.naturalHeight) throw new Error("piece image is empty");
+    const boxW = p.scale * width;
+    const fullH = boxW * (img.naturalHeight / img.naturalWidth);
+    const drawH = Math.min(fullH, maxH);
+    const drawW = drawH < fullH ? drawH * (img.naturalWidth / img.naturalHeight) : boxW;
+    ctx.save();
+    ctx.translate(p.x * width, p.y * height);
+    ctx.rotate((p.rotation * Math.PI) / 180);
+    ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+    ctx.restore();
+  }
+
+  await drawSignature(ctx, width, height);
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), "image/png"));
+  canvas.width = 0; // release the backing store
+  canvas.height = 0;
+  return blob;
 }
 
 /** Composes and uploads in one step; returns the storage path (callers sign

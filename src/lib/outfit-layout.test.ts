@@ -58,3 +58,15 @@ test("with a coat, the shoes sit bottom-left and boots keep a readable size; sma
   const blazer = get("blazer"), trousers = get("trousers");
   assert.ok(blazer.h > 0.7 * trousers.h, "blazer in proportion with the trousers");
 });
+
+test("a jacket is drawn wider than the top worn under it (quilted jacket with wide sleeves)", () => {
+  const rects = layoutOutfit([
+    { id: "jacket", bucket: "outer", aspect: 0.75, subcategory: "Puffer Jacket" },
+    { id: "jeans", bucket: "bottom", aspect: 1.45, subcategory: "Jeans" },
+    { id: "tshirt", bucket: "top", aspect: 0.95, subcategory: "T-Shirt" },
+    { id: "boots", bucket: "shoes", aspect: 1.1, subcategory: "Chelsea Boots" },
+  ] as LayoutInput[]);
+  const get = (id: string) => rects.find((r) => r.id === id)!;
+  assert.ok(get("jacket").w >= 1.25 * get("tshirt").w, "jacket wider than the T-shirt");
+  assert.ok(get("jacket").x >= 0 && get("jacket").x + get("jacket").w <= W, "inside the canvas");
+});

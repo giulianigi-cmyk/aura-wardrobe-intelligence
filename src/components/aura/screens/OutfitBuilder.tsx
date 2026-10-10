@@ -3,7 +3,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useTranslation } from "react-i18next";
 import { uploadOutfitThumb } from "@/lib/outfit-thumb";
-import { toPng } from "html-to-image";
 import { toast } from "sonner";
 import {
   ArrowLeft, Sparkles, Save, Trash2, ChevronUp, ChevronDown, Plus, X,
@@ -25,12 +24,12 @@ import {
 import type { WardrobeItem } from "@/lib/aura-types";
 import { resolveWardrobeUrls, toStoragePath, currentSeason, itemMatchesSeason } from "@/lib/wardrobe-image";
 import {
-  AURA_APP_URL, AURA_SHARE_CAPTION, downloadBlob, dataUrlToBlob,
+  AURA_APP_URL, AURA_SHARE_CAPTION, downloadBlob,
   nativeShareFile, shareLinks,
 } from "@/lib/aura-share";
 import { suggestOutfitAI } from "@/lib/ai-suggest-outfit.functions";
 import { ANCHOR_UNAVAILABLE } from "@/lib/outfit-anchor";
-import { computeBuilderLayout, type ComposeItem } from "@/lib/compose-outfit-canvas";
+import { computeBuilderLayout, renderPlacedCanvas, type ComposeItem, type PlacedPiece } from "@/lib/compose-outfit-canvas";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { logWardrobeEvent } from "@/lib/wardrobe-events";
 import { submitOutfitFeedback } from "@/lib/outfit-feedback.functions";
@@ -725,144 +724,44 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
 
   // Export & save ---------------------------------------------------------
 
-  /** Fetch a (possibly cross-origin, signed) image URL and inline it as a
-   *  data URL. html-to-image's own cross-origin fetch is unreliable with
-   *  tokenised/signed URLs (silently drops the image instead of throwing),
-   *  so we do the fetch ourselves and hand toPng() a self-contained DOM. */
-  // Downscales a fetched image before embedding it as a data URL for
-  // export — wardrobe photos are often several MB at full camera
-  // resolution, but on the final 1080px canvas a single piece never
-  // occupies more than a few hundred pixels. Embedding at full size was
-  // the real cause of both symptoms reported: the export taking a long
-  // time (fetching + base64-encoding every full-resolution photo), and
-  // some pieces silently missing from the result (html-to-image's own
-  // internal image handling can drop an oversized embedded image without
-  // throwing, past a certain total payload size — which is exactly why
-  // it looked random rather than a clean failure). 900px on the longest
-  // side is comfortably more than the final composition ever needs.
-  const MAX_EXPORT_IMAGE_DIMENSION = 900;
-
-  async function toDataUrl(url: string): Promise<string> {
-    const resp = await fetch(url, { mode: "cors", cache: "no-store" });
-    if (!resp.ok) throw new Error(`image fetch failed: ${resp.status}`);
-    const blob = await resp.blob();
-
-    const bitmap = await createImageBitmap(blob).catch(() => null);
-    if (!bitmap) {
-      // Fallback for anything createImageBitmap can't decode — embed at
-      // full size rather than fail the whole export over it.
-      return await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(blob);
-      });
-    }
-
-    const scale = Math.min(1, MAX_EXPORT_IMAGE_DIMENSION / Math.max(bitmap.width, bitmap.height));
-    const targetW = Math.round(bitmap.width * scale);
-    const targetH = Math.round(bitmap.height * scale);
-    const off = document.createElement("canvas");
-    off.width = targetW;
-    off.height = targetH;
-    const ctx = off.getContext("2d");
-    if (!ctx) {
-      bitmap.close();
-      return await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(blob);
-      });
-    }
-    ctx.drawImage(bitmap, 0, 0, targetW, targetH);
-    bitmap.close();
-    const out = off.toDataURL("image/png");
-    off.width = 0; // free the backing store now (Safari keeps it until GC otherwise)
-    off.height = 0;
-    return out;
-  }
-
     const exportCanvas = useCallback(async (): Promise<{ blob: Blob; dataUrl: string } | null> => {
-    if (!canvasRef.current) return null;
-    // Deselect any active item first — otherwise its edit handles
-    // (delete/rotate/resize toolbar) get baked into the exported PNG.
-    // Two animation frames is enough for React to re-render without the
-    // selection overlay before we capture the DOM.
+    if (!placed.length) return null;
+    // Deselect first so the edit handles are gone from the screen while saving.
     setSelectedKey(null);
-    await new Promise<void>((resolve) =>
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-    );
 
-    const targetW = ratio === "1:1" ? 1080 : 1080;
+    const targetW = 1080;
     const targetH = ratio === "1:1" ? 1080 : 1920;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const pixelRatio = targetW / rect.width;
-
-        const imgs = Array.from(canvasRef.current.querySelectorAll<HTMLImageElement>("img[data-item-key]"));
-    const originalSrcs = imgs.map((img) => img.src);
 
     try {
-      // The signed URLs on screen were generated when the canvas first
-      // loaded — after a long editing/chatting session they can have
-      // expired by the time the person finally hits Share, which used to
-      // fail silently and produce an image missing whichever pieces had
-      // gone stale (e.g. only the shoes showing). Get a FRESH signed URL
-      // per item right before export instead of trusting what's on screen.
-      let anyFailed = false;
-      // One piece at a time: decoding every full-size photo at once (some are several MB, up to
-      // ~19 MB) ran an iPhone out of memory and Safari reloaded the page mid-save.
-      for (const img of imgs) {
-        await (async () => {
-          const key = img.dataset.itemKey;
-          const placedItem = placed.find((p) => p.key === key);
-          const wardrobeItem = placedItem ? items.find((i) => i.id === placedItem.itemId) : null;
-          const path = wardrobeItem ? toStoragePath(wardrobeItem.image_url) : null;
-
-          let freshUrl: string | null = null;
-          if (path) {
-            const { data } = await supabase.storage.from("wardrobe").createSignedUrl(path, 300);
-            freshUrl = data?.signedUrl ?? null;
-          }
-
-          try {
-            const dataUrl = await toDataUrl(freshUrl ?? img.src);
-            img.src = dataUrl;
-            await new Promise<void>((resolve) => {
-              if (img.complete) return resolve();
-              img.addEventListener("load", () => resolve(), { once: true });
-              img.addEventListener("error", () => resolve(), { once: true });
-            });
-          } catch (e) {
-            console.error("[AURA export] failed to inline image", img.src, e);
-            anyFailed = true;
-          }
-        })();
+      // The signed URLs on screen were generated when the canvas first loaded — after a long
+      // session they can have expired by the time the person saves. Get a FRESH signed URL per
+      // piece right before drawing instead of trusting what's on screen.
+      const pieces: PlacedPiece[] = [];
+      for (const p of placed) {
+        const wardrobeItem = items.find((i) => i.id === p.itemId);
+        const path = wardrobeItem ? toStoragePath(wardrobeItem.image_url) : null;
+        let freshUrl: string | null = null;
+        if (path) {
+          const { data } = await supabase.storage.from("wardrobe").createSignedUrl(path, 300);
+          freshUrl = data?.signedUrl ?? null;
+        }
+        pieces.push({ imgUrl: freshUrl ?? p.imgUrl, x: p.x, y: p.y, scale: p.scale, rotation: p.rotation, z: p.z });
       }
-
-      if (anyFailed) {
-        toast.error(t("outfitBuilder.couldntLoadPieceForShare"));
-        return null;
-      }
-
-      const dataUrl = await toPng(canvasRef.current, {
-        pixelRatio,
-        width: rect.width,
-        height: rect.height,
-        canvasWidth: targetW,
-        canvasHeight: targetH,
-        backgroundColor: "#FFFFFF",
+      // Drawn directly (renderPlacedCanvas), not a screenshot of the page: on iPhone the screenshot
+      // silently left pieces out. Throws if any piece can't be loaded — never a partial canvas.
+      const blob = await renderPlacedCanvas(pieces, targetW, targetH);
+      if (!blob) throw new Error("canvas not drawn");
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
       });
-      const blob = dataUrlToBlob(dataUrl);
       return { blob, dataUrl };
     } catch (e) {
       console.error("[AURA] export", e);
-      toast.error(t("outfitBuilder.couldntExportCanvas"));
+      toast.error(t("outfitBuilder.couldntLoadPieceForShare"));
       return null;
-    } finally {
-      // Restore original signed URLs so the live canvas keeps working
-      // normally (drag/resize/rotate) after export.
-      imgs.forEach((img, i) => { img.src = originalSrcs[i]; });
     }
   }, [ratio, placed, items]);
 
