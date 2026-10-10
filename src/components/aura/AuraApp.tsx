@@ -227,7 +227,10 @@ function Inner() {
     typeof window !== "undefined" && localStorage.getItem("aura.onboarded") === "1"
   );
 
+  // Community opens on Friends when reached from a friend-request notification, on Chat otherwise.
+  const [communityTab, setCommunityTab] = useState<"chat" | "friends">("chat");
   const go = (s: Screen) => {
+    if (s === "community") setCommunityTab("chat");
     if (s !== "builder") setBuilderInit(null);
     else if (s === "builder") {
       setBuilderInit(null);
@@ -235,6 +238,11 @@ function Inner() {
     if (s !== "stylist-chat") setStylistChatInit(null);
     if (s !== "avatar-tryon") setAvatarTryOnItemIds(undefined);
     setScreen(s);
+  };
+
+  const openFriends = () => {
+    setCommunityTab("friends");
+    setScreen("community");
   };
 
   const openBatchReview = (scanId: string) => {
@@ -375,6 +383,7 @@ function Inner() {
     if (recovery) setScreen("reset");
   }, [recovery]);
 
+  const queryClient = useQueryClient();
   // Backfill thumbnails for outfits saved before the thumbnail pipeline
   // existed. Idle, best-effort, once per session — the picker keeps
   // falling back to the original image for anything not yet processed.
@@ -384,14 +393,17 @@ function Inner() {
     const t = setTimeout(() => {
       if (cancelled) return;
       void import("@/lib/outfit-thumb").then((m) => m.backfillOutfitThumbs(user.id));
+      // Outfits saved with only their pieces get their canvas image composed here.
+      void import("@/lib/outfit-canvas-backfill")
+        .then((m) => m.backfillOutfitCanvases(user.id))
+        .then((n) => { if (n > 0) void import("@/lib/outfits-query").then((q) => q.invalidateOutfits(queryClient, user.id)); });
     }, 4000);
     return () => { cancelled = true; clearTimeout(t); };
-  }, [user]);
+  }, [user, queryClient]);
 
   // One-off thumbnail backfill for older wardrobe items (owner account only for now — see
   // wardrobe-thumb-backfill.ts). Starts after the outfit backfill, runs in batches in the
   // background, and refreshes the wardrobe list once it has written anything.
-  const queryClient = useQueryClient();
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -557,7 +569,7 @@ function Inner() {
           {screen === "essential-presets" && <EssentialPresets go={go} />}
           {screen === "shop" && <Shop go={go} />}
           {screen === "color-lab" && <ColorLab go={go} />}
-          {screen === "community" && <Community go={go} openConversation={openConversation} openUserProfile={openUserProfile} />}
+          {screen === "community" && <Community key={communityTab} initialTab={communityTab} go={go} openConversation={openConversation} openUserProfile={openUserProfile} />}
           {screen === "settings" && <Settings go={go} />}
           {screen === "settings-personal" && <PersonalInfo go={go} />}
           {screen === "settings-style-prefs" && <StylePreferences go={go} />}
@@ -576,7 +588,8 @@ function Inner() {
 
                         {screen === "saved-outfits" && <AIStylist go={go} openBuilder={openBuilder} openAvatarTryOn={openAvatarTryOn} active={screen === "saved-outfits"} />}
           {screen === "notifications" && (
-            <Notifications go={go} openThread={openConversation} openPlanner={openPlanner} openTripActivity={openTripActivity} />
+            <Notifications go={go} openThread={openConversation} openPlanner={openPlanner} openTripActivity={openTripActivity}
+              openBatchReview={openBatchReview} openFriends={openFriends} openUserProfile={openUserProfile} />
           )}
           {screen === "invite" && <Invite go={go} />}
           {screen === "storage-debug" && <StorageDebug go={go} />}

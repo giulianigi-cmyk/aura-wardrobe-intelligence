@@ -27,6 +27,7 @@ export function visualPrompt(product: { category: string | null; subcategory: st
   const kind = (product.subcategory || product.category || "piece").toLowerCase();
   return [
     `The first image (PRODUCT) is a ${kind} the person is thinking of buying${product.title ? ` ("${product.title}")` : ""}.`,
+    `The PRODUCT photo may also show other garments (a model wearing a top with the trousers on sale, for example): look only at the ${kind}.`,
     `The next ${refs.length} images are pieces the person already owns, labelled ${refs.join(", ")}.`,
     "For EACH owned piece, judge how similar it is to the PRODUCT as a wardrobe choice — would it do the same job in an outfit? Compare what you actually SEE: shape and cut (for trousers: leg shape, rise, length; for bags: shape, size, handles, strap; for shoes: heel, toe, straps; for tops: neckline, sleeves, fit), colour and shade (a darker or lighter wash, a different tone), material and finish, and distinctive details (logos, hardware, embellishment, pockets, prints).",
     "Each owned piece comes with what the person recorded about it (colours, materials, details). A photo shows one side only: a detail recorded for it (crystals on the back, a bow, a satin finish) is real even when the photo doesn't show it — never say it lacks that. Don't name a material (suede, satin, leather, patent) that is neither clearly visible nor recorded, and never call a different colour (teal, burgundy next to black) \"lighter\" or \"darker\": say it is a different colour.",

@@ -6,7 +6,7 @@ import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
-import { isDayOnlyBag, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, isSummerSeason } from "./outfit-styling-rules";
+import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, isSummerSeason } from "./outfit-styling-rules";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 import { explanationLanguageInstruction } from "./language_prompt";
 import { dressPreferencesToPrompt, hasAnyPreference, isItemAllowedByDressPreferences, type DressPreferences } from "./dress-preferences";
@@ -194,6 +194,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       ACCESSORY_OCCASION_PROMPT_RULE,
     OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
       EMBELLISHED_EVENING_PROMPT_RULE,
+      EVENING_ONLY_PROMPT_RULE,
       ROTATION_PROMPT_RULE,
       "",
       "You are a personal stylist. Compose REAL outfits using ONLY items from the",
@@ -414,6 +415,12 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     // exempt: it's not tied to one of the three named occasions, so
     // there's no specific occasion to check the tag against.
     const violatesOccasionTag = (occasion: string, ids: string[]): boolean => {
+      // An evening-only piece (Day/Evening = evening, or only evening tags) never goes into a
+      // daytime look — today's everyday look ("General") included.
+      if (occasion !== "Evening" && ids.some((id) => {
+        const item = catalog.find((c) => c.id === id);
+        return item ? isEveningOnlyPiece(item) : false;
+      })) return true;
       if (occasion === "General") return false;
       return ids.some((id) => {
         const item = catalog.find((c) => c.id === id);
@@ -613,6 +620,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
           if (violatesWeather([id]) || violatesStylingFootwear([id])) return false;
           if (violatesDressPrefs("General", [id])) return false; // the person's own dress preferences
           if (violatesEmbellishedByDay(r.today.occasion, [id])) return false; // today is an everyday look
+          if (violatesOccasionTag("General", [id])) return false; // no evening-only piece by day
           // If a dress/jumpsuit is present, drop any separate Bottoms item
           // instead of the whole look — a dress alone is still valid,
           // while removing it would leave an incomplete outfit.

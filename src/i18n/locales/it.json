@@ -198,6 +198,7 @@
     "toastCouldNotCreate": "Impossibile creare la conversazione"
   },
   "notifications": {
+    "open": "Apri",
     "title": "Notifiche",
     "empty": "Ancora niente qui. Inizia aggiungendo qualche capo al guardaroba.",
     "deleteAria": "Elimina notifica",
@@ -1307,6 +1308,7 @@
     "untitledPiece": "Capo senza titolo",
     "copyToPieces_one": "Copia su {{count}} capo",
     "copyToPieces_other": "Copia su {{count}} capi",
+    "saveCopy": "Salva",
     "removingBackgrounds": "Rimozione sfondi… {{done}}/{{total}}",
     "removeBackgroundFromAll": "Rimuovi sfondo da tutti",
     "onlyAppliesToPiecesWithout": "Si applica solo ai capi che non lo hanno ancora. Succede automaticamente quando tocchi \"Aggiungi\" qui sotto comunque, quindi questo serve solo per un'anteprima.",
@@ -2434,6 +2436,13 @@
     }
   },
   "reportProblem": {
+    "edit": "Modifica",
+    "delete": "Elimina",
+    "save": "Salva",
+    "cancel": "Annulla",
+    "updated": "Segnalazione aggiornata.",
+    "deleted": "Segnalazione eliminata.",
+    "deleteConfirm": "Eliminare questa segnalazione?",
     "title": "Segnala un problema",
     "intro": "Raccontaci cosa è successo: cosa stavi facendo, cosa ti aspettavi e cosa invece è successo. Lo leggiamo e lo sistemiamo.",
     "placeholder": "Es. Nella prova sull'avatar la camicia finisce sopra il gilet…",
@@ -2445,7 +2454,7 @@
     "status": {
       "open": "Ricevuta",
       "fixed": "Risolta",
-      "wontfix": "Chiusa"
+      "wontfix": "Non risolta"
     }
   },
   "firstSteps": {
@@ -2459,7 +2468,10 @@
       "bottoms": "{{count}} pantaloni, gonne o abiti",
       "outerwear": "{{count}} giacca o cappotto",
       "shoes": "{{count}} paia di scarpe",
-      "bags": "{{count}} borsa"
+      "bags": "{{count}} borsa",
+      "topsMan": "{{count}} t-shirt, camicie o maglie",
+      "bottomsMan": "{{count}} pantaloni o jeans",
+      "accessoriesMan": "{{count}} accessorio: cintura, orologio o zaino"
     },
     "addMany": "Più foto insieme",
     "addOne": "Un capo",

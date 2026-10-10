@@ -198,6 +198,7 @@
     "toastCouldNotCreate": "Impossible de créer la conversation"
   },
   "notifications": {
+    "open": "Ouvrir",
     "title": "Notifications",
     "empty": "Rien pour l'instant. Commencez par ajouter quelques pièces à votre garde-robe.",
     "deleteAria": "Supprimer la notification",
@@ -1962,6 +1963,7 @@
     "untitledPiece": "Pièce sans titre",
     "copyToPieces_one": "Copier vers {{count}} pièce",
     "copyToPieces_other": "Copier vers {{count}} pièces",
+    "saveCopy": "Enregistrer",
     "removingBackgrounds": "Retrait des arrière-plans… {{done}}/{{total}}",
     "removeBackgroundFromAll": "Retirer l'arrière-plan de toutes",
     "onlyAppliesToPiecesWithout": "S'applique uniquement aux pièces qui ne l'ont pas encore — et se produit automatiquement quand vous touchez « Ajouter » ci-dessous de toute façon, ceci n'est donc qu'un aperçu.",
@@ -2434,6 +2436,13 @@
     }
   },
   "reportProblem": {
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "updated": "Signalement mis à jour.",
+    "deleted": "Signalement supprimé.",
+    "deleteConfirm": "Supprimer ce signalement ?",
     "title": "Signaler un problème",
     "intro": "Racontez-nous ce qui s'est passé : ce que vous faisiez, ce que vous attendiez et ce qui s'est produit. Nous le lisons et le corrigeons.",
     "placeholder": "Ex. Dans l'essai sur l'avatar, la chemise passe par-dessus le gilet…",
@@ -2445,7 +2454,7 @@
     "status": {
       "open": "Reçu",
       "fixed": "Résolu",
-      "wontfix": "Clôturé"
+      "wontfix": "Non résolu"
     }
   },
   "firstSteps": {
@@ -2459,7 +2468,10 @@
       "bottoms": "{{count}} pantalons, jupes ou robes",
       "outerwear": "{{count}} veste ou manteau",
       "shoes": "{{count}} paires de chaussures",
-      "bags": "{{count}} sac"
+      "bags": "{{count}} sac",
+      "topsMan": "{{count}} t-shirts, chemises ou pulls",
+      "bottomsMan": "{{count}} pantalons ou jeans",
+      "accessoriesMan": "{{count}} accessoire : ceinture, montre ou sac à dos"
     },
     "addMany": "Plusieurs photos",
     "addOne": "Une pièce",

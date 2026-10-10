@@ -132,3 +132,21 @@ export function isDayOnlyBag(item: { category?: string | null; occasion?: string
   const tags = (item.occasion ?? "").split(",").map((t) => t.trim()).filter(Boolean);
   return tags.length > 0 && !tags.some((t) => EVENING_TAGS.has(t));
 }
+
+/** Occasion tags that only make sense after dark. */
+const EVENING_ONLY_OCCASION_TAGS = new Set(["Evening", "Cocktail", "Black Tie", "Gala", "Party"]);
+/** A piece meant for the evening only: its Day/Evening field says "evening", or every occasion tag
+ *  is an evening one (and Day/Evening does not say day or both). Such a piece — evening earrings, an
+ *  evening bag, a cocktail dress — never goes into a daytime look (everyday, Work, Weekend, Travel…),
+ *  whatever its stones or formality. A piece with neither field set is never excluded. */
+export function isEveningOnlyPiece(item: { dayEvening?: string | null; occasion?: string | null }): boolean {
+  const de = (item.dayEvening ?? "").trim().toLowerCase();
+  if (de === "evening") return true;
+  if (de === "day" || de === "both") return false;
+  const tags = (item.occasion ?? "").split(",").map((t) => t.trim()).filter(Boolean);
+  return tags.length > 0 && tags.every((t) => EVENING_ONLY_OCCASION_TAGS.has(t));
+}
+
+export const EVENING_ONLY_PROMPT_RULE =
+  "DAY vs EVENING: a piece whose dayEvening is \"evening\" (or whose occasion tags are only evening ones: Evening, Cocktail, Black Tie) is an evening piece \u2014 " +
+  "never put it in a daytime look (everyday, Work, Weekend, Travel, a daytime appointment), not even an accessory such as evening earrings or an evening bag.";

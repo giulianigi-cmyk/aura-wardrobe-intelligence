@@ -51,8 +51,15 @@ const LONG_BOTTOM_MAX_W = 0.56;
  *  box kept it at ~37% of the canvas height next to trousers at ~69% — half their size instead of
  *  three quarters. They keep at least OUTER_MIN_H × (real length / 100 cm) of the height, widening
  *  up to OUTER_MAX_W of the canvas to get there (they sit behind the other pieces). */
-const OUTER_MIN_H = 0.62;
-const OUTER_MAX_W = 0.5;
+const OUTER_MIN_H = 0.66;
+const OUTER_MAX_W = 0.56;
+/** Tall shoes (knee or over-the-knee boots, height > 1.3 × width): sized by a tall box so the shaft
+ *  reads at its real length instead of being squeezed into the box of a pair of pumps. */
+const TALL_SHOES_BOX = { w: 0.24, h: 0.32 };
+const isTallShoe = (it: LayoutInput) => it.bucket === "shoes" && it.aspect > 1.3;
+/** Small accessories in the right-hand column never shrink below this share of their own box:
+ *  at half size a watch or a belt became a smudge. */
+const SMALL_MIN_K = 0.8;
 
 /** Max box per bucket: [max width, max height], fractions of canvas W / H. */
 const BOX: Record<Bucket, { w: number; h: number }> = {
@@ -324,7 +331,8 @@ return { w, h: w * aspect };
   const aW = A.r - A.l, aH = A.b - A.t;
 
   // ── Outer: big, left, behind the anchor ──
-  if (outer) placeGroup(by.get("outer")!, "outer", BOX.outer, 0.22 * W, 0.50 * H);
+  // Raised a little when the shoes sit in the bottom-left corner under it, so they cover only its hem.
+  if (outer) placeGroup(by.get("outer")!, "outer", BOX.outer, 0.22 * W, (mh) => (has("shoes") ? Math.max(MY + mh / 2, 0.42 * H) : 0.50 * H));
 
   // ── Top: diagonal up-right, waist overlap ≈ 45% of its own height ──
   let topRects: LayoutRect[] = [];
@@ -387,7 +395,11 @@ return { w, h: w * aspect };
   // the boots), so they are STACKED top → bottom instead: necklace at the neckline, shoes
   // at the bottom, what is in between spread out, everything scaled down together if the
   // strip is too short — and never wider than the strip allows.
-  const shoeBox = outer ? { w: 0.32, h: 0.18 } : BOX.shoes; // narrower when the coat takes the left side
+  const tallShoes = (by.get("shoes") ?? []).some(isTallShoe);
+  // With a coat on the left, the shoes go in the bottom-left corner over the coat's hem (see below),
+  // not in the right-hand column, where they had to share the strip with the bag and came out tiny.
+  const shoeBox = tallShoes ? TALL_SHOES_BOX : BOX.shoes;
+  const shoesLeft = outer && has("shoes");
   const columnEntries: { list: LayoutInput[]; bucket: Bucket; box: Box; axis: "x" | "y" }[] = [];
   if (outer) {
     if (necklaceSide === "right") {
@@ -399,7 +411,6 @@ return { w, h: w * aspect };
     // and on each other, so with a coat they join the column too.
     if (has("acc")) columnEntries.push({ list: by.get("acc")!, bucket: "acc", box: BOX.acc, axis: "x" });
     if (beltList.length && beltBeside) columnEntries.push({ list: beltList, bucket: "belt", box: BOX.belt, axis: "y" });
-    if (has("shoes")) columnEntries.push({ list: by.get("shoes")!, bucket: "shoes", box: shoeBox, axis: by.get("shoes")!.length > 1 ? "y" : "x" });
   }
   const useColumn = columnEntries.length >= 2;
   // A coat with only a belt to place (no column): the belt keeps its bottom-left spot.
@@ -436,13 +447,14 @@ return { w, h: w * aspect };
     if (sum() > room) {
       const mainH = hs.reduce((a, h, i) => a + (isMain(columnEntries[i]) ? h : 0), 0);
       const smallH = sum() - mainH;
-      const kSmall = smallH > 0 ? Math.max(0.5, Math.min(1, (room - mainH) / smallH)) : 1;
+      const kSmall = smallH > 0 ? Math.max(SMALL_MIN_K, Math.min(1, (room - mainH) / smallH)) : 1;
       ks = ks.map((k, i) => (isMain(columnEntries[i]) ? k : k * kSmall));
       hs = columnEntries.map((e, i) => groupSize(e, ks[i]).h);
     }
     if (sum() > room) {
+      // Only the bag gives way now: small pieces keep at least SMALL_MIN_K of their size.
       const k = Math.max(0.6, room / sum());
-      ks = ks.map((x) => x * k);
+      ks = ks.map((x, i) => (isMain(columnEntries[i]) ? x * k : x));
       hs = columnEntries.map((e, i) => groupSize(e, ks[i]).h);
     }
     // 3) top-aligned with even gaps, last entry (shoes) sitting on the bottom line
@@ -458,8 +470,17 @@ return { w, h: w * aspect };
     });
   }
 
+  // ── Shoes with a coat: bottom-left corner, over the coat's hem (above it in z) ──
+  if (shoesLeft) {
+    const list = by.get("shoes")!;
+    const shrink = list.length > 1 ? GROUP_SHRINK : 1;
+    const sizes = list.map((it) => sizeOf(it, shoeBox, shrink));
+    const total = sizes.reduce((a, q) => a + q.w * spanKOf("shoes"), 0);
+    shoeRects = placeGroup(list, "shoes", shoeBox, MX + total / 2 + 0.01 * W, (mh) => H - MB - mh / 2, "x");
+  }
+
   // ── Shoes: free bottom-right corner, ≤ ~20% overlap with the anchor ──
-  if (has("shoes") && !useColumn) {
+  if (has("shoes") && !shoesLeft) {
     const shoeShrink = by.get("shoes")!.length > 1 ? GROUP_SHRINK : 1;
     const ws = Math.max(...by.get("shoes")!.map((it) => sizeOf(it, shoeBox, shoeShrink).w));
     const cx = Math.min(W - MX - ws / 2, A.r + ws / 2 - 0.2 * ws);

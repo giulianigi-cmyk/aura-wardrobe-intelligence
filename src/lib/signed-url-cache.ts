@@ -16,6 +16,9 @@ type Entry = { url: string; expiresAt: number };
  *  expires while it is on screen. */
 const MIN_REMAINING_MS = 10 * 60 * 1000;
 
+/** Paths per signing request (the storage API accepts at most 1000). */
+export const SIGN_BATCH = 500;
+
 export type SignResult = {
   /** path → signed URL, for every path that could be signed (cached or fresh). */
   urls: Record<string, string>;
@@ -45,21 +48,26 @@ export function createSignedUrlCache(sign: BatchSigner, now: () => number = Date
     }
     if (!missing.length) return { urls, error: null, failed: [] };
 
-    const { data, error } = await sign(bucket, missing, expiresInSeconds);
-    if (error || !data) return { urls, error: error ?? new Error("No signed URLs returned"), failed: [] };
-
+    // The storage API refuses a request with more than 1000 paths (a wardrobe of ~500 pieces has
+    // that many images + thumbnails), so they go in blocks; a block that fails leaves the others.
     const expiresAt = t + expiresInSeconds * 1000;
     const failed: SignResult["failed"] = [];
-    data.forEach((row, i) => {
-      const path = missing[i];
-      if (row.signedUrl) {
-        cache.set(`${bucket}/${path}`, { url: row.signedUrl, expiresAt });
-        urls[path] = row.signedUrl;
-      } else if (row.error) {
-        failed.push({ path, error: row.error });
-      }
-    });
-    return { urls, error: null, failed };
+    let batchError: unknown = null;
+    for (let start = 0; start < missing.length; start += SIGN_BATCH) {
+      const block = missing.slice(start, start + SIGN_BATCH);
+      const { data, error } = await sign(bucket, block, expiresInSeconds);
+      if (error || !data) { batchError = error ?? new Error("No signed URLs returned"); continue; }
+      data.forEach((row, i) => {
+        const path = block[i];
+        if (row.signedUrl) {
+          cache.set(`${bucket}/${path}`, { url: row.signedUrl, expiresAt });
+          urls[path] = row.signedUrl;
+        } else if (row.error) {
+          failed.push({ path, error: row.error });
+        }
+      });
+    }
+    return { urls, error: batchError, failed };
   };
 }
 

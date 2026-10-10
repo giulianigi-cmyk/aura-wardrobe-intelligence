@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Bell, CloudRain, Loader2, MessageCircle, X } from "lucide-react";
+import { ArrowLeft, Bell, ChevronRight, CloudRain, Loader2, MessageCircle, Shirt, UserPlus, X } from "lucide-react";
 import type { Screen } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -21,16 +21,26 @@ type Notification = {
     date?: string;
     trip_id?: string | null;
     trip_activity_id?: string | null;
+    scan_id?: string;
+    friendship_id?: string;
+    requester_id?: string;
+    addressee_id?: string;
   } | null;
 };
 
-export function Notifications({ go, openThread, openPlanner, openTripActivity }: {
+export function Notifications({ go, openThread, openPlanner, openTripActivity, openBatchReview, openFriends, openUserProfile }: {
   go: (s: Screen) => void;
   openThread?: (id: string) => void;
   /** weather_change on a general/event plan → Planner day sheet. */
   openPlanner?: (date: string, planId?: string | null) => void;
   /** weather_change on a trip plan → TripDetail, focused on the activity. */
   openTripActivity?: (tripId: string, activityId: string) => void;
+  /** batch_scan_ready → the review of that batch, to save the new pieces. */
+  openBatchReview?: (scanId: string) => void;
+  /** friend_request → Community › Friends, where it can be accepted or declined. */
+  openFriends?: () => void;
+  /** friend_accept → the new friend's profile. */
+  openUserProfile?: (userId: string) => void;
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -104,7 +114,7 @@ export function Notifications({ go, openThread, openPlanner, openTripActivity }:
             const conversationId = n.data?.conversation_id;
             // A weather proposal points at either the Planner day sheet or,
             // for a trip plan, the activity it dresses inside TripDetail.
-            const isWeather = n.type === "weather_change";
+            const isWeather = n.type === "weather_change" || n.type === "rain_alert";
             const tripId = n.data?.trip_id ?? null;
             const activityId = n.data?.trip_activity_id ?? null;
             const weatherTarget = isWeather
@@ -114,14 +124,25 @@ export function Notifications({ go, openThread, openPlanner, openTripActivity }:
                   ? () => openPlanner(n.data!.date!, n.data?.plan_id ?? null)
                   : null
               : null;
+            const scanId = n.type === "batch_scan_ready" ? n.data?.scan_id : undefined;
+            const friendId = n.type === "friend_accept" ? n.data?.addressee_id : undefined;
             const open = conversationId && openThread
               ? () => openThread(conversationId)
-              : weatherTarget;
+              : weatherTarget
+                ?? (scanId && openBatchReview ? () => openBatchReview(scanId)
+                  : n.type === "friend_request" && openFriends ? () => openFriends()
+                  : friendId && openUserProfile ? () => openUserProfile(friendId)
+                  : null);
             const clickable = Boolean(open);
+            const Icon = isWeather ? CloudRain
+              : scanId ? Shirt
+              : n.type.startsWith("friend_") ? UserPlus
+              : conversationId ? MessageCircle
+              : Bell;
             return (
             <div key={n.id} className="px-5 py-4 flex gap-3">
               <div className="h-9 w-9 rounded-full bg-secondary/60 flex items-center justify-center shrink-0">
-                {isWeather ? <CloudRain size={14} /> : clickable ? <MessageCircle size={14} /> : <Bell size={14} />}
+                <Icon size={14} />
               </div>
               <button
                 type="button"
@@ -132,8 +153,9 @@ export function Notifications({ go, openThread, openPlanner, openTripActivity }:
                 <p className="text-sm">{n.title}</p>
                 {n.body && <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-line">{n.body}</p>}
 
-                <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mt-2">
+                <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mt-2 flex items-center gap-1">
                   {new Date(n.created_at).toLocaleString(i18n.language)}
+                  {clickable && <span className="ml-auto flex items-center gap-0.5 normal-case tracking-normal text-[11px] text-foreground/80">{t("notifications.open")}<ChevronRight size={12} /></span>}
                 </p>
               </button>
               <button

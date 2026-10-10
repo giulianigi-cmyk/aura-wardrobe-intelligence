@@ -37,3 +37,24 @@ test("shorts and skirts are not stretched by the long-trousers rule", () => {
   const shorts = layoutOutfit([{ id: "s", bucket: "bottom", aspect: 0.8, subcategory: "Shorts", length: null }] as LayoutInput[])[0];
   assert.ok(shorts.h < 0.4 * H);
 });
+
+test("with a coat, the shoes sit bottom-left and boots keep a readable size; small accessories don't shrink to a dot", () => {
+  const rects = layoutOutfit([
+    { id: "blazer", bucket: "outer", aspect: 1.05, subcategory: "Blazer" },
+    { id: "trousers", bucket: "bottom", aspect: 2.3, subcategory: "Trousers" },
+    { id: "blouse", bucket: "top", aspect: 1.0, subcategory: "Blouse" },
+    { id: "watch", bucket: "wrist", aspect: 2.6, subcategory: "Watch" },
+    { id: "bag", bucket: "bag", aspect: 0.85, subcategory: "Top Handle", fill: 0.5 },
+    { id: "belt", bucket: "belt", aspect: 0.35, subcategory: "Belt" },
+    { id: "boots", bucket: "shoes", aspect: 2.1, subcategory: "Knee Boots" },
+  ]);
+  const get = (id: string) => rects.find((r) => r.id === id)!;
+  const boots = get("boots");
+  assert.ok(boots.x + boots.w / 2 < W / 2, "boots on the left");
+  assert.ok(boots.h > 0.25 * H, "knee boots tall enough to read");
+  assert.ok(boots.y + boots.h <= H * (1 - 0.115) + 1, "above the logo strip");
+  assert.ok(get("watch").h > 0.11 * H, "watch still visible");
+  assert.ok(get("belt").w > 0.15 * W, "belt still visible");
+  const blazer = get("blazer"), trousers = get("trousers");
+  assert.ok(blazer.h > 0.7 * trousers.h, "blazer in proportion with the trousers");
+});

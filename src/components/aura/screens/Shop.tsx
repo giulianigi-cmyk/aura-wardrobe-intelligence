@@ -193,6 +193,8 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
             brand: it.brand ?? null,
             model: (it as { model?: string | null }).model ?? null,
             details: (it as { details?: string[] | null }).details ?? null,
+            material: it.material ?? null,
+            season: it.season ?? null,
           })),
         },
       });

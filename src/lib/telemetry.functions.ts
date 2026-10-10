@@ -87,3 +87,37 @@ export const reportProblem = createServerFn({ method: "POST" })
     }
     return { ok: true as const };
   });
+
+/** The person edits their own report while it is still open (not once it has been handled). */
+export const updateProblemReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    id: z.number().int().positive(),
+    message: z.string().trim().min(1).max(1000),
+  }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await (supabaseAdmin.from("app_problem_reports" as never) as any)
+      .update({ message: data.message })
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .eq("status", "open")
+      .select("id");
+    if (error) console.warn("[AURA telemetry] problem report update failed", error.code ?? "error");
+    return { ok: !error && !!rows?.length };
+  });
+
+/** The person deletes their own report, whatever its status. */
+export const deleteProblemReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.number().int().positive() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await (supabaseAdmin.from("app_problem_reports" as never) as any)
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .select("id");
+    if (error) console.warn("[AURA telemetry] problem report delete failed", error.code ?? "error");
+    return { ok: !error && !!rows?.length };
+  });

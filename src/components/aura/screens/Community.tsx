@@ -95,12 +95,16 @@ function UsernameSheet({ onSaved }: { onSaved: (u: string) => void }) {
 
 /* ------------------------------------------------------------------ main */
 
-export function Community({ go, openConversation, openUserProfile }: { go: (s: Screen) => void; openConversation?: (id: string) => void; openUserProfile?: (id: string) => void }) {
+export function Community({ go, openConversation, openUserProfile, initialTab = "chat" }: {
+  go: (s: Screen) => void; openConversation?: (id: string) => void; openUserProfile?: (id: string) => void;
+  /** "friends" when opened from a friend-request notification: the requests are right there. */
+  initialTab?: "chat" | "friends";
+}) {
   const { t } = useTranslation();
   const { user } = useAuth();
   // The shared-outfit feed was removed from Community (product decision): chats and friends
   // remain. Existing outfit_shares rows are left untouched.
-  const [tab, setTab] = useState<"chat" | "friends">("chat");
+  const [tab, setTab] = useState<"chat" | "friends">(initialTab);
   const [username, setUsername] = useState<string | null>(null);
   const [profileReady, setProfileReady] = useState(false);
 

@@ -416,7 +416,8 @@ async function resolveProductAndWardrobeFacts(
       try {
         const imageDataUrl = await fetchAsDataUrl(resolved.imageUrl);
         productImageDataUrl = imageDataUrl;
-        const garment = await analyzeWardrobeImageCore(imageDataUrl);
+        // The shop photo often shows a model wearing other pieces too: analyze only the product named on the page.
+        const garment = await analyzeWardrobeImageCore(imageDataUrl, product.title);
         product.category = garment.category || null;
         product.subcategory = garment.subcategory || null;
         product.colors = garment.colors ?? [];
@@ -724,6 +725,8 @@ export const analyzePurchase = createServerFn({ method: "POST" })
         : "Keep it under 280 characters — that's the hard limit this app enforces, so a longer reason gets cut off mid-sentence rather than shown in full. Say less, not more, if there isn't room to finish a thought.",
       `The decided verdict is ${verdict.toUpperCase()}. ${verdictShape}`,
       "Facts:",
+      "Write ONLY about this product. The product photo may also show other garments (a model wearing a top over leggings, for example): never describe or name them.",
+      ...(product.title ? [`- Product name: "${product.title}".`] : []),
       `- Product: ${product.category ?? "unknown category"}${product.subcategory ? " / " + product.subcategory : ""}, colors: ${product.colors.join(", ") || "unclear"}, brand: ${product.brand || "unknown"}, price: ${product.price ?? "unknown"}.`,
       ...(product.description ? [`- Product's own description (from the retailer's page, use for fabric/fit/styling detail in your reason, but never to override the facts above): "${product.description}"`] : []),
       duplicate?.verdict === "certain"

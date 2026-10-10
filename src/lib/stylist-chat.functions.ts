@@ -6,7 +6,7 @@ import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { BLAZER_WARMTH_PROMPT_RULE, violatesWeatherRule } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
-import { isDayOnlyBag, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE } from "./outfit-styling-rules";
+import { isDayOnlyBag, isEveningOnlyPiece, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE } from "./outfit-styling-rules";
 import { isItemAllowedByDressPreferences, coversLegs, coversArms, coversShoulders, type DressPreferences } from "./dress-preferences";
 import { isItemAtLocation } from "./wardrobe-location";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
@@ -575,9 +575,14 @@ export const stylistChat = createServerFn({ method: "POST" })
       const isWorkContext = !isEveningContext && OCCASION_SIGNAL.Work.test(recentUserText);
       // Pieces the person named themselves are never swapped out for their tags (their request wins).
       const requestedIds = new Set([...(pinned ? [pinned.id] : []), ...(search && !search.negated ? searchAllowed.map((it) => it.id) : [])]);
+      // A daytime context: work, or an event that starts before 17:00.
+      const isDayContext = !isEveningContext && (isWorkContext || (Number.isFinite(eventHour) && eventHour < 17));
       const violatesOccasionTag = (id: string): boolean => {
         const item = catalog.find((c) => c.id === id);
-        if (!item?.occasion || requestedIds.has(id)) return false;
+        if (!item || requestedIds.has(id)) return false;
+        // An evening-only piece (Day/Evening = evening, or only evening tags) stays out of a day look.
+        if (isDayContext && isEveningOnlyPiece(item)) return true;
+        if (!item.occasion) return false;
         const tags = item.occasion.split(",").map((s) => s.trim()).filter(Boolean);
         if (isEveningContext && (isDayOnlyUsage(tags, item.dayEvening) || isDayOnlyBag(item))) return true;
         if (isWorkContext && isEveningOnlyUsage(tags, item.dayEvening)) return true;

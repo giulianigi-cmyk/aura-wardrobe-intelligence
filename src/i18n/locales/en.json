@@ -198,6 +198,7 @@
     "toastCouldNotCreate": "Could not create the conversation"
   },
   "notifications": {
+    "open": "Open",
     "title": "Notifications",
     "empty": "Nothing here yet. Start by adding a few wardrobe pieces.",
     "deleteAria": "Delete notification",
@@ -1307,6 +1308,7 @@
     "untitledPiece": "Untitled piece",
     "copyToPieces_one": "Copy to {{count}} piece",
     "copyToPieces_other": "Copy to {{count}} pieces",
+    "saveCopy": "Save",
     "removingBackgrounds": "Removing backgrounds… {{done}}/{{total}}",
     "removeBackgroundFromAll": "Remove background from all",
     "onlyAppliesToPiecesWithout": "Only applies to pieces that don't have it yet — and happens automatically when you tap \"Add\" below anyway, so this is just for previewing first.",
@@ -2434,6 +2436,13 @@
     }
   },
   "reportProblem": {
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "updated": "Report updated.",
+    "deleted": "Report deleted.",
+    "deleteConfirm": "Delete this report?",
     "title": "Report a problem",
     "intro": "Tell us what happened: what you were doing, what you expected and what happened instead. We read it and fix it.",
     "placeholder": "E.g. In the avatar try-on the shirt ends up over the vest…",
@@ -2445,7 +2454,7 @@
     "status": {
       "open": "Received",
       "fixed": "Fixed",
-      "wontfix": "Closed"
+      "wontfix": "Not resolved"
     }
   },
   "firstSteps": {
@@ -2459,7 +2468,10 @@
       "bottoms": "{{count}} trousers, skirts or dresses",
       "outerwear": "{{count}} jacket or coat",
       "shoes": "{{count}} pairs of shoes",
-      "bags": "{{count}} bag"
+      "bags": "{{count}} bag",
+      "topsMan": "{{count}} T-shirts, shirts or sweaters",
+      "bottomsMan": "{{count}} trousers or jeans",
+      "accessoriesMan": "{{count}} accessory: belt, watch or backpack"
     },
     "addMany": "Several photos",
     "addOne": "One piece",

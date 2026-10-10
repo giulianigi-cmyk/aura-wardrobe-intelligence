@@ -25,6 +25,8 @@ test("what is wrong in the rain", () => {
   assert.equal(rainReason({ category: "Shoes", subcategory: "Chelsea Boots", colors: ["Jet Black"], material: ["Leather"] }), null);
   // Tops sit under the coat: not filtered.
   assert.equal(rainReason({ category: "Tops", subcategory: "Blouse", colors: ["Pure White"], material: ["Silk"] }), null);
+  // …except linen: a linen shirt is a dry-day piece.
+  assert.equal(rainReason({ category: "Tops", subcategory: "Shirt", colors: ["Beige"], material: ["Linen"] }), "delicateFabric");
 });
 
 test("a wet day: unsuitable pieces give way only to a rain-proof piece just as dressy", () => {
