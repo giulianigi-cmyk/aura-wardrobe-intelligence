@@ -71,3 +71,17 @@ test("a failed batch request still returns cached URLs", async () => {
   assert.equal(r.urls["u1/h.png"], "u:u1/h.png");
   assert.ok(r.error);
 });
+
+test("more than 1000 paths are signed in blocks the storage API accepts", async () => {
+  const sizes: number[] = [];
+  const sign = createSignedUrlCache(async (_b, paths) => {
+    sizes.push(paths.length);
+    if (paths.length > 1000) return { data: null, error: new Error("must NOT have more than 1000 items") };
+    return { data: paths.map((p) => ({ signedUrl: `u:${p}`, error: null })), error: null };
+  });
+  const paths = Array.from({ length: 1201 }, (_, i) => `u1/${i}.png`);
+  const r = await sign("wardrobe", paths);
+  assert.equal(r.error, null);
+  assert.equal(Object.keys(r.urls).length, 1201);
+  assert.ok(sizes.every((n) => n <= 1000));
+});

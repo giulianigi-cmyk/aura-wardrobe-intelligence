@@ -273,7 +273,16 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
   const saveAsOutfit = async () => {
     if (!user) return;
     const ids = selected.length ? selected : (initialItemIds ?? []);
-    const { error } = await supabase.from("outfits").insert({ user_id: user.id, item_ids: ids } as never);
+    // Compose the canvas image too, so the outfit is never an empty tile in My Outfits.
+    // Best-effort: without it the outfit is still saved (and backfilled later).
+    const canvas = await import("@/lib/outfit-canvas-backfill")
+      .then((m) => m.composeOutfitCanvasForItems(user.id, ids))
+      .catch(() => null);
+    const { error } = await supabase.from("outfits").insert({
+      user_id: user.id,
+      item_ids: ids,
+      ...(canvas ? { canvas_image_url: canvas.canvasPath, thumbnail_path: canvas.thumbPath } : {}),
+    } as never);
     if (error) { toast.error(error.message); return; }
     setSaved(true);
     toast.success(t("avatar.savedToOutfits"));

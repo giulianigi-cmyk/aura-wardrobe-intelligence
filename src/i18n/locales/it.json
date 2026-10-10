@@ -1307,6 +1307,7 @@
     "untitledPiece": "Capo senza titolo",
     "copyToPieces_one": "Copia su {{count}} capo",
     "copyToPieces_other": "Copia su {{count}} capi",
+    "saveCopy": "Salva",
     "removingBackgrounds": "Rimozione sfondi… {{done}}/{{total}}",
     "removeBackgroundFromAll": "Rimuovi sfondo da tutti",
     "onlyAppliesToPiecesWithout": "Si applica solo ai capi che non lo hanno ancora. Succede automaticamente quando tocchi \"Aggiungi\" qui sotto comunque, quindi questo serve solo per un'anteprima.",

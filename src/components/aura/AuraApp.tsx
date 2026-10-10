@@ -369,12 +369,13 @@ function Inner() {
       idle(next);
     }, 1500);
     return () => { cancelled = true; clearTimeout(t); };
-  }, [user]);
+  }, [user, queryClient]);
 
   useEffect(() => {
     if (recovery) setScreen("reset");
   }, [recovery]);
 
+  const queryClient = useQueryClient();
   // Backfill thumbnails for outfits saved before the thumbnail pipeline
   // existed. Idle, best-effort, once per session — the picker keeps
   // falling back to the original image for anything not yet processed.
@@ -384,14 +385,17 @@ function Inner() {
     const t = setTimeout(() => {
       if (cancelled) return;
       void import("@/lib/outfit-thumb").then((m) => m.backfillOutfitThumbs(user.id));
+      // Outfits saved with only their pieces get their canvas image composed here.
+      void import("@/lib/outfit-canvas-backfill")
+        .then((m) => m.backfillOutfitCanvases(user.id))
+        .then((n) => { if (n > 0) void import("@/lib/outfits-query").then((q) => q.invalidateOutfits(queryClient, user.id)); });
     }, 4000);
     return () => { cancelled = true; clearTimeout(t); };
-  }, [user]);
+  }, [user, queryClient]);
 
   // One-off thumbnail backfill for older wardrobe items (owner account only for now — see
   // wardrobe-thumb-backfill.ts). Starts after the outfit backfill, runs in batches in the
   // background, and refreshes the wardrobe list once it has written anything.
-  const queryClient = useQueryClient();
   useEffect(() => {
     if (!user) return;
     let cancelled = false;

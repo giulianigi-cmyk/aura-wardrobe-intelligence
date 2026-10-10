@@ -1307,6 +1307,7 @@
     "untitledPiece": "Untitled piece",
     "copyToPieces_one": "Copy to {{count}} piece",
     "copyToPieces_other": "Copy to {{count}} pieces",
+    "saveCopy": "Save",
     "removingBackgrounds": "Removing backgrounds… {{done}}/{{total}}",
     "removeBackgroundFromAll": "Remove background from all",
     "onlyAppliesToPiecesWithout": "Only applies to pieces that don't have it yet — and happens automatically when you tap \"Add\" below anyway, so this is just for previewing first.",

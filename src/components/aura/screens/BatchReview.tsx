@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { parsePositivePrice } from "@/lib/price-parse";
 import { useServerFn } from "@tanstack/react-start";
@@ -636,12 +637,21 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
             const others = drafts.filter((d) => d.id !== copyFromId);
             const source = drafts.find((d) => d.id === copyFromId);
             const sourceLabel = source ? [source.colors[0], source.subcategory || source.category].filter(Boolean).join(" ") || t("batchReview.thisPiece") : t("batchReview.thisPiece");
-            return (
-              <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur flex items-end justify-center" onClick={() => setCopyFromId(null)}>
+            // Portalled to <body> so the sheet (and its Save button) is never
+            // clipped or pushed off-screen by a scrolling/transformed parent.
+            const sheet = (
+              <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur flex items-end justify-center" onClick={() => setCopyFromId(null)}>
                 <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-2xl max-h-[85dvh] bg-card rounded-t-3xl border-t border-border p-5 flex flex-col">
                   <div className="flex items-center justify-between shrink-0">
                     <p className="font-serif italic text-lg">{t("batchReview.copyDetailsToWhich")}</p>
-                    <button onClick={() => setCopyFromId(null)} aria-label={t("batchReview.closeAria")} className="h-8 w-8 rounded-full bg-secondary/60 flex items-center justify-center active:scale-90"><X size={14} /></button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={applyCopy}
+                        disabled={copyTargets.size === 0 || copyFields.size === 0}
+                        className="h-8 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.25em] disabled:opacity-40"
+                      >{t("batchReview.saveCopy")}</button>
+                      <button onClick={() => setCopyFromId(null)} aria-label={t("batchReview.closeAria")} className="h-8 w-8 rounded-full bg-secondary/60 flex items-center justify-center active:scale-90"><X size={14} /></button>
+                    </div>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground shrink-0">
                     {t("batchReview.copyingFrom")} <span className="font-medium text-foreground">{sourceLabel}</span> — {t("batchReview.copyingFromDetails")}
@@ -666,7 +676,7 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
                   </div>
 
                   {/* Same grid as the wardrobe: 3 columns from tablet/desktop width, 2 on a phone. */}
-                  <div className="mt-3 flex-1 min-h-0 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-3 content-start pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+                  <div className="mt-3 flex-1 min-h-0 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-3 content-start pb-3">
                     {others.map((d) => {
                       const on = copyTargets.has(d.id);
                       const label = [d.colors[0], d.subcategory || d.category].filter(Boolean).join(" ") || t("batchReview.untitledPiece");
@@ -695,11 +705,12 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
                   <button
                     onClick={applyCopy}
                     disabled={copyTargets.size === 0 || copyFields.size === 0}
-                    className="mt-1 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] disabled:opacity-50 shrink-0"
+                    className="mt-1 mb-[env(safe-area-inset-bottom)] w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] disabled:opacity-50 shrink-0"
                   >{t("batchReview.copyToPieces", { count: copyTargets.size })}</button>
                 </div>
               </div>
             );
+            return typeof document !== "undefined" ? createPortal(sheet, document.body) : sheet;
           })()}
 
           {!loading && drafts.some((d) => !d.bgRemoved) && (

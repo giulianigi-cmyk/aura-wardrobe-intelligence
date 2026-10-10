@@ -1307,6 +1307,7 @@
     "untitledPiece": "Prenda sin título",
     "copyToPieces_one": "Copiar a {{count}} prenda",
     "copyToPieces_other": "Copiar a {{count}} prendas",
+    "saveCopy": "Guardar",
     "removingBackgrounds": "Eliminando fondos… {{done}}/{{total}}",
     "removeBackgroundFromAll": "Eliminar fondo de todas",
     "onlyAppliesToPiecesWithout": "Solo se aplica a las prendas que aún no lo tienen. Ocurre automáticamente al tocar \"Añadir\" abajo de todos modos, así que esto es solo para previsualizar primero.",

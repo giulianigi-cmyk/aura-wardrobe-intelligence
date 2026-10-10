@@ -1962,6 +1962,7 @@
     "untitledPiece": "Pièce sans titre",
     "copyToPieces_one": "Copier vers {{count}} pièce",
     "copyToPieces_other": "Copier vers {{count}} pièces",
+    "saveCopy": "Enregistrer",
     "removingBackgrounds": "Retrait des arrière-plans… {{done}}/{{total}}",
     "removeBackgroundFromAll": "Retirer l'arrière-plan de toutes",
     "onlyAppliesToPiecesWithout": "S'applique uniquement aux pièces qui ne l'ont pas encore — et se produit automatiquement quand vous touchez « Ajouter » ci-dessous de toute façon, ceci n'est donc qu'un aperçu.",
