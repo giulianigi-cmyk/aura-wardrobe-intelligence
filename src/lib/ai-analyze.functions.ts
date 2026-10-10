@@ -77,7 +77,10 @@ function buildFallback() {
  * (reanalyzeWardrobe), che gira lato server con privilegi admin e non ha
  * bisogno di un token utente per ogni singola immagine.
  */
-export async function analyzeWardrobeImageCore(imageDataUrl: string): Promise<WardrobeAnalysis> {
+/** `focus`: the name of the one product to analyze (e.g. a shop page's title), for a photo that also
+ *  shows other pieces — a model wearing a top over the leggings being sold. Every field then
+ *  describes that product only. */
+export async function analyzeWardrobeImageCore(imageDataUrl: string, focus?: string | null): Promise<WardrobeAnalysis> {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) throw new Error("Missing LOVABLE_API_KEY");
 
@@ -128,6 +131,10 @@ export async function analyzeWardrobeImageCore(imageDataUrl: string): Promise<Wa
     // the whole invocation on its own execution-time limit — which never
     // reaches the catch blocks below, leaving a batch-scan job stuck at
     // "processing" forever instead of correctly failing and retrying.
+    const focusName = (focus ?? "").replace(/\s+/g, " ").trim().slice(0, 160);
+    const focusPart = focusName
+      ? [{ type: "text" as const, text: `TARGET PRODUCT: "${focusName}". The photo may show a model wearing other garments, shoes or bags as well — analyze ONLY this product. Category, subcategory, colors, materials, length, fit and every other field must describe it alone; ignore everything else in the photo.` }]
+      : [];
     const call = () => generateText({
       model,
       abortSignal: AbortSignal.timeout(25_000),
@@ -137,6 +144,7 @@ export async function analyzeWardrobeImageCore(imageDataUrl: string): Promise<Wa
           content: [
             { type: "text", text: systemPrompt },
             { type: "image", image: imageDataUrl },
+            ...focusPart,
           ],
         },
       ],
@@ -177,6 +185,7 @@ export async function analyzeWardrobeImageCore(imageDataUrl: string): Promise<Wa
             content: [
               { type: "text", text: systemPrompt },
               { type: "image", image: imageDataUrl },
+              ...focusPart,
             ],
           },
           { role: "assistant", content: text || "(no response)" },

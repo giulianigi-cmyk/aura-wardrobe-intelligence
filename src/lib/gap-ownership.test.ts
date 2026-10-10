@@ -30,3 +30,14 @@ test("a top-handle bag whose analysis says it has a crossbody strap covers 'cros
   assert.equal(ownedEquivalent({ category: "Bags", subcategory: "Crossbody", colors: ["Burgundy"] }, owned)?.id, "coco");
   assert.equal(ownedEquivalent({ category: "Bags", subcategory: "Crossbody", colors: ["Burgundy"] }, [{ ...owned[0], details: ["handheld"] }]), null);
 });
+
+test("knit dress in black or dark grey: covered by a wool dress wearable this season (reported case)", () => {
+  const dresses = [
+    { id: "wool", category: "Dresses", subcategory: "Wrap Dress", colors: ["Jet Black"], material: ["Wool"], season: "Autumn, Winter" },
+    { id: "summer", category: "Dresses", subcategory: "Sweater Dress", colors: ["Jet Black"], material: ["Cotton"], season: "Summer" },
+  ];
+  assert.equal(ownedEquivalent({ category: "Dresses", subcategory: "Sweater Dress", colors: ["Charcoal"] }, dresses, { season: "Autumn" })?.id, "wool");
+  // in winter a summer-only black dress does not count, so a black winter dress is a real gap
+  assert.equal(ownedEquivalent({ category: "Dresses", subcategory: "Sweater Dress", colors: ["Jet Black"] }, dresses.slice(1), { season: "Winter" }), null);
+  assert.equal(ownedEquivalent({ category: "Dresses", subcategory: "Sweater Dress", colors: ["Jet Black"] }, dresses.slice(1), { season: "Summer" })?.id, "summer");
+});

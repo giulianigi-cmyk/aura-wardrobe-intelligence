@@ -8,6 +8,7 @@ import { COLOR_NAMES, COLOR_PALETTE } from "./color-palette";
 import { parseAiJson } from "./ai-json";
 import { ownedEquivalent } from "./gap-ownership";
 import { alreadyOwnedPieces, loadWardrobeFeedback } from "./wardrobe-feedback";
+import { currentSeason } from "./wardrobe-image";
 
 const ItemSchema = z.object({
   id: z.string(),
@@ -18,6 +19,8 @@ const ItemSchema = z.object({
   brand: z.string().nullable().optional(),
   model: z.string().nullable().optional(),
   details: z.array(z.string()).nullable().optional(),
+  material: z.array(z.string()).nullable().optional(),
+  season: z.string().nullable().optional(),
 });
 
 // This engine had no language handling at all — every suggestion came out in English regardless
@@ -159,7 +162,11 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
       ...(it.brand ? { brand: it.brand } : {}),
       ...(it.model ? { model: it.model } : {}),
       ...(it.details?.length ? { details: it.details } : {}),
+      ...(it.material?.length ? { material: it.material } : {}),
+      ...(it.season ? { season: it.season } : {}),
     }));
+    // The suggestion is for now: only pieces wearable this season count as owned (gap-ownership.ts).
+    const season = currentSeason();
 
     // Ownership is checked in code after every suggestion (gap-ownership.ts): same category, a type
     // that does the same job (a shoulder bag is worn crossbody too) or no type on file, and a
@@ -186,7 +193,8 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
       `Colors: 1-2 items picked EXACTLY from this fixed palette (verbatim): ${COLOR_NAMES.join(", ")}.`,
       "Do not invent a brand, product name, or price - you have no way of knowing what's for sale.",
       "Base the suggestion strictly on real gaps in the provided catalog (e.g. many tops and bottoms but no outerwear at all, or no neutral shoes to anchor bright pieces).",
-      "CRITICAL: never suggest a category+subcategory+color the person already owns - check the catalog color by color, not just by category.",
+      "CRITICAL: never suggest a category+subcategory+color the person already owns - check the WHOLE catalog color by color, not just by category, and read each piece's material and details too: a wool or cashmere dress IS a knit dress whatever its subcategory, and Jet Black, Soft Black, Charcoal and Graphite all read as black / dark grey.",
+      `SEASON: it is ${season} now. Suggest a piece useful in ${season} (or the season right after it). A piece already owned counts only if it can be worn in ${season} (its season field says so, or "All Seasons"): a black summer dress does not cover a black dress for winter.`,
       "A piece with an empty subcategory may be ANY type of that category (read its brand and model): never suggest a type and colour such a piece could already be. Many bags are worn in more than one way — a shoulder bag usually also has a crossbody strap, a top-handle 'Bandoulière' has a shoulder strap — so a crossbody bag is not missing when a shoulder bag of that colour is owned.",
       "",
       "Respond with ONLY a single valid JSON object, no markdown fences, no extra text, in exactly this shape:",
@@ -231,7 +239,9 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
         const validSubcats = SUBCATEGORY_OPTIONS[candCategory] ?? [];
         const candSubcategory = validSubcats.includes(candidate.subcategory) ? candidate.subcategory : (validSubcats[0] ?? candidate.subcategory);
         const candColors = candidate.colors.filter((c) => COLOR_NAMES.includes(c));
-        const owner = ownedEquivalent({ category: candCategory, subcategory: candSubcategory, colors: candColors }, [...data.items, ...saidOwned]);
+        // "Ce l'ho già" answers count whatever the season; the wardrobe only with pieces wearable now.
+        const owner = ownedEquivalent({ category: candCategory, subcategory: candSubcategory, colors: candColors }, data.items, { season })
+          ?? ownedEquivalent({ category: candCategory, subcategory: candSubcategory, colors: candColors }, saidOwned);
         const alreadyOwned = !!owner;
 
         if (!alreadyOwned) {
