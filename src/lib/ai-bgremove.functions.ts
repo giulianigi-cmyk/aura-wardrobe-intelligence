@@ -22,9 +22,12 @@ function dataUrlToBlob(dataUrl: string): Blob {
  *  batch scan worker) without going through the client-facing serverFn
  *  wrapper below — the worker already runs with service-role privileges,
  *  it doesn't need a second auth layer around the same API call. */
-export async function removeBackgroundCore(imageDataUrl: string): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string }> {
+export async function removeBackgroundCore(imageDataUrl: string): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string; outOfCredits?: boolean }> {
   const key = process.env.REMOVEBG_API_KEY;
   if (!key) return { ok: false, error: "Missing REMOVEBG_API_KEY" };
+  // Out of credits recently: skip the call (callers keep the free cutout, as on any failure).
+  const credit = await import("./removebg-credit.server");
+  if (await credit.removeBgPaused()) return { ok: false, error: "remove.bg paused: no credits", outOfCredits: true };
 
   try {
     const form = new FormData();
@@ -51,6 +54,11 @@ export async function removeBackgroundCore(imageDataUrl: string): Promise<{ ok: 
       const credits = resp.ok ? (Number.isFinite(charged) && charged > 0 ? charged : 1) : 0;
       const { recordUsage, unitCost } = await import("./ai-usage.server");
       await recordUsage({ provider: "removebg", model: "removebg-v1", operation: "remove_background", units: credits, unitType: "credit", costUsd: unitCost.removebg(credits), success: resp.ok });
+    }
+
+    if (resp.status === 402) {
+      await credit.markRemoveBgOutOfCredits();
+      return { ok: false, error: "remove.bg 402", outOfCredits: true };
     }
 
     if (!resp.ok) {

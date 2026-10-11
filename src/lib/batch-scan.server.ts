@@ -71,7 +71,7 @@ export async function runScanWorker(limit = 5): Promise<WorkerResult> {
         // certainty. Retry before giving up.
         let bg = await removeBackgroundCore(dataUrl);
         let bgAttempt = 1;
-        while (!bg.ok && bgAttempt < 3) {
+        while (!bg.ok && !bg.outOfCredits && bgAttempt < 3) {
           await new Promise((r) => setTimeout(r, 800 * bgAttempt));
           bg = await removeBackgroundCore(dataUrl);
           bgAttempt++;
