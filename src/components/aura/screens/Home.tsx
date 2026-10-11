@@ -18,6 +18,7 @@ import { useWardrobeItems } from "@/lib/wardrobe-query";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { suggestDailyLooks, type DailyLook } from "@/lib/suggest-daily-looks.functions";
 import { tempBucket } from "@/lib/outfit-weather-rules";
+import { cachedLooksStillFresh, lookFingerprint } from "@/lib/daily-look-cache";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 import { WardrobeLocationExpiryBanner } from "@/components/aura/WardrobeLocationExpiryBanner";
 import { FirstSteps } from "@/components/aura/FirstSteps";
@@ -151,16 +152,12 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
       try {
         const today = todayISO();
 
-        const latestEdit = activeItems.reduce((max, it) => {
-          const t = (it as unknown as { updated_at?: string }).updated_at ?? it.created_at;
-          return t && t > max ? t : max;
-        }, "");
-                // The temperature BAND is part of the cache key: a look composed in the cool of the
-        // morning must not survive an afternoon that turned hot (a wool skirt with ankle
-        // boots on a 29°C day). It only changes when the day crosses a band, so it does not
-        // regenerate on every degree.
-        // Archiving or lending out the very piece a cached look used now correctly counts as a change.
-        const fingerprint = `${activeItems.length}:${latestEdit}:${tempBucket(weather?.current.temperature)}`;
+        // Cache key = wardrobe size + temperature BAND (daily-look-cache.ts). The band: a look
+        // composed in the cool of the morning must not survive an afternoon that turned hot. Adding
+        // or editing pieces no longer throws today's looks away (it regenerated on every Home visit
+        // while someone was uploading their wardrobe); a missing piece or a much bigger wardrobe does.
+        const tempBand = String(tempBucket(weather?.current.temperature));
+        const fingerprint = lookFingerprint(activeItems.length, tempBand);
 
 
         type CachedRow = {
@@ -178,10 +175,14 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
         }
 
         const realIds = new Set(allItems.map((it) => it.id));
+        const availableIds = new Set(activeItems.map((it) => it.id));
         const cacheStillValid = (row: CachedRow | null) => {
-          if (!row || row.date !== today || row.wardrobe_fingerprint !== fingerprint) return false;
+          if (!row) return false;
           const ids = [...(row.today_item_ids ?? []), ...((row.curated ?? []).flatMap((l) => l.item_ids))];
-          return ids.length > 0 && ids.every((id) => realIds.has(id));
+          return cachedLooksStillFresh(
+            { date: row.date, fingerprint: row.wardrobe_fingerprint, itemIds: ids },
+            { today, activeCount: activeItems.length, tempBand, availableIds },
+          );
         };
         const cacheItemsStillReal = (row: CachedRow | null) => {
           if (!row) return false;

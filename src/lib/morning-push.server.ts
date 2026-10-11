@@ -8,14 +8,22 @@ import { DEFAULT_TIME_ZONE, isValidTimeZone } from "./plans";
 import { isDue, localClock, morningMessage, morningTimeOf, type DayWeather, type MorningPrefs } from "./morning-look";
 import { eveningTimeOf, eventReminderMessage, eventsOn, nextDate, type CalendarEvent, type EventReminderPrefs } from "./event-reminder";
 import { sendPushToUser } from "./push.server";
+import { fetchMetnoDaily, utcOffsetSeconds } from "./weather-metno";
 
 type Candidate = { id: string; language: string | null; latitude: number | null; longitude: number | null; notification_preferences: (MorningPrefs & EventReminderPrefs) | null };
+
+/** Today from MET Norway, when Open-Meteo refuses the request (see weather-metno.ts). */
+async function metnoDayWeather(lat: number, lon: number, timeZone: string): Promise<DayWeather | null> {
+  const days = await fetchMetnoDaily(lat, lon, utcOffsetSeconds(timeZone));
+  const today = days?.[localClock(new Date(), timeZone).date];
+  return today ? { min: Math.round(today.tempMin), max: Math.round(today.tempMax), rainChance: today.precipitation } : null;
+}
 
 async function dayWeather(lat: number, lon: number, timeZone: string): Promise<DayWeather | null> {
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(2)}&longitude=${lon.toFixed(2)}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=1&timezone=${encodeURIComponent(timeZone)}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return null;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) }).catch(() => null);
+    if (!res || !res.ok) return metnoDayWeather(lat, lon, timeZone);
     const d = (await res.json()) as { daily?: { temperature_2m_max?: number[]; temperature_2m_min?: number[]; precipitation_probability_max?: (number | null)[] } };
     const max = d.daily?.temperature_2m_max?.[0];
     const min = d.daily?.temperature_2m_min?.[0];

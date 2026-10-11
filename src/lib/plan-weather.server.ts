@@ -20,6 +20,8 @@
 import { suggestOutfitCore, type SuggestOutfitItem } from "./ai-suggest-outfit.functions";
 import { runInUsageScope } from "./ai-usage.server";
 import { rainAlertFor, rainAlertMessage } from "./rain-alert";
+import { fetchMetnoDaily, utcOffsetSeconds } from "./weather-metno";
+import { DEFAULT_TIME_ZONE, isValidTimeZone } from "./plans";
 import { sendPushToUser } from "./push.server";
 import { describeWeather, classifyTemp } from "./weather";
 import {
@@ -72,9 +74,15 @@ async function fetchForecastOnce(lat: number, lon: number): Promise<Forecast | n
   }
 }
 
-/** One retry: a single timeout or a 5xx from the forecast service shouldn't skip the hour. */
-async function fetchForecast(lat: number, lon: number): Promise<Forecast | null> {
-  return (await fetchForecastOnce(lat, lon)) ?? (await fetchForecastOnce(lat, lon));
+/** One retry: a single timeout or a 5xx from the forecast service shouldn't skip the hour. When
+ *  Open-Meteo still refuses (it answered 503 to the server for days), MET Norway takes over. */
+async function fetchForecast(lat: number, lon: number, utcOffset: number): Promise<Forecast | null> {
+  const primary = (await fetchForecastOnce(lat, lon)) ?? (await fetchForecastOnce(lat, lon));
+  if (primary) return primary;
+  const days = await fetchMetnoDaily(lat, lon, utcOffset);
+  if (!days) { lastForecastError = `${lastForecastError ?? "open-meteo failed"}; met.no failed`; return null; }
+  lastForecastError = `${lastForecastError ?? "open-meteo failed"} (met.no used)`;
+  return { utcOffsetSeconds: utcOffset, days };
 }
 
 /** Local wall-clock time → epoch ms, using the location's UTC offset. */
@@ -117,6 +125,10 @@ export async function runPlanWeatherRecheck(limit = 200): Promise<RecheckResult>
   const { data: profileRows } = await db
     .from("profiles").select("id, latitude, longitude, gender, style_boldness, language, notification_preferences").in("id", userIds);
   const profiles = new Map<string, any>((profileRows ?? []).map((p: any) => [p.id, p]));
+  // The person's time zone (synced from the phone): only needed by the MET Norway fallback, whose
+  // data is in UTC. Trip plans use an estimate from the destination's longitude.
+  const { data: tzRows } = await db.from("user_plans").select("user_id, time_zone").in("user_id", userIds);
+  const tzOf = new Map<string, string>(((tzRows ?? []) as any[]).map((r) => [r.user_id, r.time_zone]));
 
   const activityIds = plans.map((p) => p.trip_activity_id).filter(Boolean);
   const activities = new Map<string, any>();
@@ -225,7 +237,11 @@ export async function runPlanWeatherRecheck(limit = 200): Promise<RecheckResult>
     if (lat == null || lon == null || Number.isNaN(lat) || Number.isNaN(lon)) { result.skipped++; continue; }
 
     const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
-    if (!forecastCache.has(key)) forecastCache.set(key, await fetchForecast(lat, lon));
+    const tz = tzOf.get(plan.user_id);
+    const utcOffset = activity
+      ? Math.round(lon / 15) * 3600
+      : utcOffsetSeconds(tz && isValidTimeZone(tz) ? tz : DEFAULT_TIME_ZONE);
+    if (!forecastCache.has(key)) forecastCache.set(key, await fetchForecast(lat, lon, utcOffset));
     const forecast = forecastCache.get(key) ?? null;
     if (!forecast) { result.errors++; continue; } // no fetch → no weather_checked_at update
 
