@@ -16,6 +16,19 @@ export async function notifyNewReport(admin: any, report: { id: number; user_id:
     username: (prof as { username?: string | null } | null)?.username ?? null, createdAt: report.created_at,
   });
 
+  await emailAdmins(mail.subject, mail.text);
+
+  for (const adminId of reportAdminIds()) {
+    try {
+      await sendPushToUser(adminId, { title: `Nuova segnalazione #${report.id}`, body: mail.subject.replace(/^AURA · nuova segnalazione #\d+: /, ""), url: "/?admin=reports", tag: "report" });
+    } catch {
+      /* push is a bonus; the email and the admin page are the record */
+    }
+  }
+}
+
+/** Email to REPORTS_NOTIFY_EMAIL through Resend. Optional and best-effort, never throws. */
+export async function emailAdmins(subject: string, text: string): Promise<void> {
   const key = process.env.RESEND_API_KEY;
   const to = process.env.REPORTS_NOTIFY_EMAIL;
   if (key && to) {
@@ -25,7 +38,7 @@ export async function notifyNewReport(admin: any, report: { id: number; user_id:
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         // Without a verified domain Resend sends only from onboarding@resend.dev, and only to the
         // address the Resend account was created with.
-        body: JSON.stringify({ from: process.env.REPORTS_FROM_EMAIL || "AURA <onboarding@resend.dev>", to: [to], subject: mail.subject, text: mail.text }),
+        body: JSON.stringify({ from: process.env.REPORTS_FROM_EMAIL || "AURA <onboarding@resend.dev>", to: [to], subject, text }),
         signal: AbortSignal.timeout(8000),
       });
       if (!res.ok) console.warn("[AURA reports] email not sent", res.status);
@@ -33,12 +46,16 @@ export async function notifyNewReport(admin: any, report: { id: number; user_id:
       console.warn("[AURA reports] email failed", e instanceof Error ? e.name : "error");
     }
   }
+}
 
+/** A service alert (not a user report) to the admins: one email and a push. Best-effort. */
+export async function alertAdmins(subject: string, text: string): Promise<void> {
+  await emailAdmins(subject, text);
   for (const adminId of reportAdminIds()) {
     try {
-      await sendPushToUser(adminId, { title: `Nuova segnalazione #${report.id}`, body: mail.subject.replace(/^AURA · nuova segnalazione #\d+: /, ""), url: "/?admin=reports", tag: "report" });
+      await sendPushToUser(adminId, { title: subject, body: text.split("\n")[0], url: "/", tag: "service-alert" });
     } catch {
-      /* push is a bonus; the email and the admin page are the record */
+      /* push is a bonus */
     }
   }
 }
