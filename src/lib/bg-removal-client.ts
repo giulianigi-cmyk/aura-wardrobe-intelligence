@@ -1,3 +1,44 @@
+import { cleanCutout, estimateBackground } from "@/lib/cutout-cleanup";
+
+/** Above this many pixels the clean-up is skipped (memory on phones): the raw cutout is used. */
+const CLEANUP_MAX_PIXELS = 6_000_000;
+
+async function pixelsOf(source: Blob, w?: number, h?: number) {
+  const bmp = await createImageBitmap(source);
+  try {
+    const cw = w ?? bmp.width, ch = h ?? bmp.height;
+    const canvas = document.createElement("canvas");
+    canvas.width = cw;
+    canvas.height = ch;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(bmp, 0, 0, cw, ch);
+    return { canvas, ctx, data: ctx.getImageData(0, 0, cw, ch) };
+  } finally {
+    bmp.close();
+  }
+}
+
+/** The cutout with background residue removed (cutout-cleanup.ts); the raw cutout on any failure. */
+async function cleanCutoutBlob(cutout: Blob, originalDataUrl: string): Promise<Blob> {
+  try {
+    const cut = await pixelsOf(cutout);
+    if (!cut) return cutout;
+    const { width: w, height: h } = cut.data;
+    if (w * h > CLEANUP_MAX_PIXELS) return cutout;
+    const original = await pixelsOf(await (await fetch(originalDataUrl)).blob(), w, h);
+    const bg = original ? estimateBackground(original.data.data, w, h) : null;
+    const cleared = cleanCutout(cut.data.data, w, h, bg);
+    if (cleared === 0) return cutout;
+    cut.ctx.putImageData(cut.data, 0, 0);
+    const out = await new Promise<Blob | null>((resolve) => cut.canvas.toBlob(resolve, "image/png"));
+    return out ?? cutout;
+  } catch (e) {
+    console.warn("[AURA bg-removal] cutout clean-up skipped", e instanceof Error ? e.message : String(e));
+    return cutout;
+  }
+}
+
 export async function removeBackgroundClient(
   imageDataUrl: string,
 ): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string } > {
@@ -17,7 +58,9 @@ export async function removeBackgroundClient(
     // Loaded on first use: the library is only needed when a cutout is actually being made,
     // so it stays out of the bundle every screen pays for at startup.
     const { removeBackground } = await import("@imgly/background-removal");
-    const blob = await removeBackground(imageDataUrl, { model: "isnet" });
+    const raw = await removeBackground(imageDataUrl, { model: "isnet" });
+    // Pieces of floor, shadows and haze the model kept: removed before the cutout is used.
+    const blob = await cleanCutoutBlob(raw, imageDataUrl);
     const dataUrl: string = await new Promise((resolve, reject) => {
       const r = new FileReader();
       r.onload = () => resolve(r.result as string);
