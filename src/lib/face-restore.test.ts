@@ -1,7 +1,7 @@
 // Run with: bun test src/lib/face-restore.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { landmarkAlignmentError } from "./face-restore";
+import { FACE_SEARCH_AREAS, fromSearchArea, landmarkAlignmentError } from "./face-restore";
 
 const face = (ox: number, oy: number, k = 1, mouthShift = 0) => ({
   rightEye: { x: ox, y: oy }, leftEye: { x: ox + 60 * k, y: oy },
@@ -36,4 +36,12 @@ test("restore decision: same pose with drifted mouth/jaw → restored; turned he
   assert.deepEqual(canRestoreFace(face(100, 100), turned), { ok: false, reason: "pose" });
   // Mouth moved further than the inner-face paste can hide.
   assert.deepEqual(canRestoreFace(face(100, 100), face(100, 100, 1, 25)), { ok: false, reason: "mouth" });
+});
+
+test("a landmark found in an enlarged search area maps back to the full image", () => {
+  const area = { x: 0.2, y: 0, w: 0.6, h: 0.3 };
+  // centre of the top-centre area of a 1000×2000 photo
+  assert.deepEqual(fromSearchArea({ x: 0.5, y: 0.5 }, area, 1000, 2000), { x: 500, y: 300 });
+  // the whole-image area is the identity
+  assert.deepEqual(fromSearchArea({ x: 0.25, y: 0.75 }, FACE_SEARCH_AREAS[0], 1000, 2000), { x: 250, y: 1500 });
 });

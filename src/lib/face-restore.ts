@@ -65,24 +65,51 @@ type EyeAnchors = { rightEye: Pt; leftEye: Pt; imgWidth: number; imgHeight: numb
 // Nose tip, mouth corners, chin: used to VERIFY an eye-based alignment before pasting a face.
 const CHECK_LANDMARKS = [1, 61, 291, 152];
 
+/** The image areas searched for a face, in order, as fractions of the image: the whole image, then
+ *  the top of it enlarged. In a full-length photo the face is small, and the face model (built for
+ *  close-up faces) often misses it on the whole image; the head of a standing person is in the top
+ *  part of the frame, so that part is searched again at a size the model can see. */
+export const FACE_SEARCH_AREAS: { x: number; y: number; w: number; h: number }[] = [
+  { x: 0, y: 0, w: 1, h: 1 },
+  { x: 0, y: 0, w: 1, h: 0.45 },
+  { x: 0.2, y: 0, w: 0.6, h: 0.3 },
+];
+/** Long side of an enlarged search area, in pixels. */
+const SEARCH_SIZE = 1024;
+
+/** A landmark found in a search area (0–1 inside that area) back in full-image pixels. */
+export function fromSearchArea(p: { x: number; y: number }, area: { x: number; y: number; w: number; h: number }, imgWidth: number, imgHeight: number): Pt {
+  return { x: (area.x + p.x * area.w) * imgWidth, y: (area.y + p.y * area.h) * imgHeight };
+}
+
 async function detectEyeAnchors(img: HTMLImageElement): Promise<EyeAnchors | null> {
   try {
     const landmarker = await getFaceLandmarker();
-    const result = landmarker.detect(img);
-    const lm = result.faceLandmarks?.[0];
-    if (!lm) return null;
-    const right = lm[RIGHT_EYE_LANDMARK];
-    const left = lm[LEFT_EYE_LANDMARK];
-    if (!right || !left) return null;
-    const checks = CHECK_LANDMARKS.map((i) => lm[i]).filter(Boolean).map((p) => ({ x: p.x * img.naturalWidth, y: p.y * img.naturalHeight }));
-    if (checks.length !== CHECK_LANDMARKS.length) return null;
-    return {
-      rightEye: { x: right.x * img.naturalWidth, y: right.y * img.naturalHeight },
-      leftEye: { x: left.x * img.naturalWidth, y: left.y * img.naturalHeight },
-      imgWidth: img.naturalWidth,
-      imgHeight: img.naturalHeight,
-      checks,
-    };
+    const W = img.naturalWidth, H = img.naturalHeight;
+    for (const area of FACE_SEARCH_AREAS) {
+      const whole = area.w === 1 && area.h === 1;
+      let source: HTMLImageElement | HTMLCanvasElement = img;
+      if (!whole) {
+        const sw = area.w * W, sh = area.h * H;
+        const k = SEARCH_SIZE / Math.max(sw, sh);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(sw * k));
+        canvas.height = Math.max(1, Math.round(sh * k));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) continue;
+        ctx.drawImage(img, area.x * W, area.y * H, sw, sh, 0, 0, canvas.width, canvas.height);
+        source = canvas;
+      }
+      const lm = landmarker.detect(source).faceLandmarks?.[0];
+      if (!lm) continue;
+      const at = (i: number) => (lm[i] ? fromSearchArea(lm[i], area, W, H) : null);
+      const right = at(RIGHT_EYE_LANDMARK);
+      const left = at(LEFT_EYE_LANDMARK);
+      const checks = CHECK_LANDMARKS.map(at);
+      if (!right || !left || checks.some((c) => !c)) continue;
+      return { rightEye: right, leftEye: left, imgWidth: W, imgHeight: H, checks: checks as Pt[] };
+    }
+    return null;
   } catch (e) {
     console.error("[AURA face-restore] face detection failed", e);
     return null;
@@ -150,12 +177,22 @@ export function canRestoreFace(
  *  confidence) is common enough that guessing would reintroduce the
  *  exact risk this was built to avoid. */
 export async function restoreOriginalFaceAligned(originalDataUrl: string, generatedDataUrl: string): Promise<string> {
+  return (await restoreOriginalFace(originalDataUrl, generatedDataUrl)).dataUrl;
+}
+
+/** Why the person's own face was, or was not, put back on a try-on result. */
+export type FaceRestoreOutcome = "restored" | "no_face_original" | "no_face_generated" | "pose" | "mouth" | "error";
+
+/** restoreOriginalFaceAligned, also saying whether the face was restored and if not why (for the
+ *  usage statistics: how often a result still shows the generated face). */
+export async function restoreOriginalFace(originalDataUrl: string, generatedDataUrl: string): Promise<{ dataUrl: string; outcome: FaceRestoreOutcome }> {
+  const keep = (outcome: FaceRestoreOutcome) => ({ dataUrl: generatedDataUrl, outcome });
   try {
     const [originalImg, generatedImg] = await Promise.all([loadImageEl(originalDataUrl), loadImageEl(generatedDataUrl)]);
     const [originalEyes, generatedEyes] = await Promise.all([detectEyeAnchors(originalImg), detectEyeAnchors(generatedImg)]);
     if (!originalEyes || !generatedEyes) {
       console.warn("[AURA face-restore] face not detected in original or generated image — leaving result untouched");
-      return generatedDataUrl;
+      return keep(!originalEyes ? "no_face_original" : "no_face_generated");
     }
 
     const origMid = {
@@ -174,7 +211,7 @@ export async function restoreOriginalFaceAligned(originalDataUrl: string, genera
       generatedEyes.leftEye.x - generatedEyes.rightEye.x,
       generatedEyes.leftEye.y - generatedEyes.rightEye.y,
     );
-    if (origEyeDist < 1 || genEyeDist < 1) return generatedDataUrl; // degenerate detection, bail out safely
+    if (origEyeDist < 1 || genEyeDist < 1) return keep("no_face_generated"); // degenerate detection, bail out safely
 
     const scale = genEyeDist / origEyeDist;
     const origAngle = Math.atan2(
@@ -195,7 +232,7 @@ export async function restoreOriginalFaceAligned(originalDataUrl: string, genera
     const verdict = canRestoreFace(originalEyes, generatedEyes);
     if (!verdict.ok) {
       console.warn("[AURA face-restore] faces don't line up — leaving the generated face as it is", verdict.reason);
-      return generatedDataUrl;
+      return keep(verdict.reason ?? "pose");
     }
 
     const w = generatedImg.naturalWidth;
@@ -204,14 +241,14 @@ export async function restoreOriginalFaceAligned(originalDataUrl: string, genera
     base.width = w;
     base.height = h;
     const baseCtx = base.getContext("2d");
-    if (!baseCtx) return generatedDataUrl;
+    if (!baseCtx) return keep("error");
     baseCtx.drawImage(generatedImg, 0, 0, w, h);
 
     const faceLayer = document.createElement("canvas");
     faceLayer.width = w;
     faceLayer.height = h;
     const faceCtx = faceLayer.getContext("2d");
-    if (!faceCtx) return generatedDataUrl;
+    if (!faceCtx) return keep("error");
 
     // Transform order: move to the generated midpoint, rotate, scale,
     // then draw the original image offset so its OWN midpoint lands at
@@ -241,7 +278,7 @@ export async function restoreOriginalFaceAligned(originalDataUrl: string, genera
     mask.width = w;
     mask.height = h;
     const maskCtx = mask.getContext("2d");
-    if (!maskCtx) return generatedDataUrl;
+    if (!maskCtx) return keep("error");
     maskCtx.translate(centre.x, centre.y);
     maskCtx.rotate(faceAngle);
     maskCtx.scale(1, ry / rx);
@@ -256,9 +293,9 @@ export async function restoreOriginalFaceAligned(originalDataUrl: string, genera
     baseCtx.drawImage(faceLayer, 0, 0);
     // JPEG, not PNG: a PNG of the 2k try-on result runs past 10 MB and the save step refused it,
     // so every look whose face restore succeeded failed at the very end.
-    return base.toDataURL("image/jpeg", 0.92);
+    return { dataUrl: base.toDataURL("image/jpeg", 0.92), outcome: "restored" };
   } catch (e) {
     console.error("[AURA face-restore] alignment failed, using generated result as-is", e);
-    return generatedDataUrl;
+    return keep("error");
   }
 }

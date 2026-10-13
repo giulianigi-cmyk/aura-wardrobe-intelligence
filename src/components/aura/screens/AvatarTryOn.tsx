@@ -8,7 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { resolveWardrobeUrls } from "@/lib/wardrobe-image";
 import { prepareAvatarTryOn, startTryOnStep, checkTryOnStep, finalizeAvatarTryOn } from "@/lib/avatar-tryon.functions";
-import { restoreOriginalFaceAligned } from "@/lib/face-restore";
+import { restoreOriginalFace } from "@/lib/face-restore";
+import { track } from "@/lib/telemetry-client";
 import { FramedPhoto, PhotoFramingEditor } from "../FramedPhoto";
 import type { PhotoFraming } from "@/lib/photo-framing";
 import { saveOutfitPlan } from "@/lib/outfit-plan.functions";
@@ -224,7 +225,10 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
         // and only when the alignment checks out.
         currentModelImage = stepResult.imageDataUrl;
       }
-      currentModelImage = await restoreOriginalFaceAligned(originalAvatarImage, currentModelImage);
+      const face = await restoreOriginalFace(originalAvatarImage, currentModelImage);
+      currentModelImage = face.dataUrl;
+      // Usage statistics only (no image): how often the person's own face could be put back.
+      track("flow_step", { feature: "avatar_tryon", step: `face_${face.outcome}`, outcome: face.outcome === "restored" ? "ok" : "error" });
 
       const final = await finalize({ data: { itemIds, finalImageDataUrl: await fitForUpload(currentModelImage) } });
       if (myRun !== runToken.current) return; // superseded
