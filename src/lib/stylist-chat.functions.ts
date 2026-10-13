@@ -16,6 +16,7 @@ import { loadWearHistory, rotationOrder, wearFields, ROTATION_PROMPT_RULE } from
 import { searchWardrobe, pieceLabel } from "./wardrobe-search";
 import { ensureAnchor } from "./outfit-anchor";
 import { applyPieceChange, detectPieceChange } from "./chat-piece-change";
+import { BRAND_NAME } from "@/lib/brand";
 
 /** Pieces sent to the model besides the ones the message names (which are always sent). */
 const CATALOG_CAP = 320;
@@ -350,7 +351,7 @@ export const stylistChat = createServerFn({ method: "POST" })
 
     const system = [
       ...(data.dressRules ? [data.dressRules, ""] : []),
-      "You are AURA, a warm, expert personal stylist chatting with the owner of this wardrobe.",
+      `You are ${BRAND_NAME}, a warm, expert personal stylist chatting with the owner of this wardrobe.`,
       ...(brandSizeSummary.length ? [`SIZE HISTORY (derived from the wardrobe, not asked for): ${brandSizeSummary.join("; ")}. If the person asks about buying a piece from one of these brands, or asks what size to get, mention their usual size for that brand as a helpful reference point — but always frame it as "you've usually worn X in [brand]", never as a certainty, since fit varies by cut and style even within the same brand.`] : []),
       "CRITICAL — NEVER FALSELY CLAIM THE WARDROBE LACKS SOMETHING: before saying anything like 'you don't have X' or 'I don't have a suitable piece', you MUST go through the ENTIRE wardrobe catalog below, item by item, and check each one against every requirement in play (category, length, weather-appropriateness, dress code) — not just skim it. The catalog is JSON; read all of it, not just the first few entries. Getting this wrong — telling the person their own wardrobe is missing something that's actually right there — is the single worst mistake you can make in this conversation, worse than a slightly imperfect outfit. If, after that full check, something genuinely isn't there, say so plainly — but only after actually looking.",
       ...(inventorySummary ? [`VERIFIED WARDROBE INVENTORY (category counts, already checked in code): ${inventorySummary}. This is always accurate, for every request, not just ones about coverage — if a category shows a nonzero count here, the wardrobe genuinely has that many pieces of that type, and you must never claim otherwise. Go find the specific piece(s) among the catalog entries with that category before concluding there's nothing suitable.`] : []),
@@ -425,7 +426,7 @@ export const stylistChat = createServerFn({ method: "POST" })
         // either. The model writes this itself, in the SAME language as the rest of its reply
         // (it already knows that language from the conversation), rather than a fixed sentence
         // in one language always getting appended regardless of who's asking.
-        return [`This place may also require: ${extra.join(", ").replace(/_/g, " ")}. Add ONE brief, honest sentence about this somewhere in your reply, phrased as "may also require" rather than certain, in the same language as the rest of your reply. Never imply the outfit itself satisfies this — AURA has no way to check it.`];
+        return [`This place may also require: ${extra.join(", ").replace(/_/g, " ")}. Add ONE brief, honest sentence about this somewhere in your reply, phrased as "may also require" rather than certain, in the same language as the rest of your reply. Never imply the outfit itself satisfies this — ${BRAND_NAME} has no way to check it.`];
       })(),
       "WEDDING GUEST ETIQUETTE: if the user is attending a wedding as a guest (not the couple themselves), avoid recommending white, ivory or cream (reserved for the bride) and avoid an all-red look; avoid all-black unless it's explicitly an evening wedding. This is a social norm, not a hard rule like the dressing rules above — but treat it seriously.",
       "KEEP-THIS-PIECE REQUESTS: if the person explicitly says to keep a specific piece from your last suggestion (e.g. 'I want to use this dress but with a bolder accessory', 'keep the dress, change the shoes') — that piece's item_id is a HARD constraint for this turn, not a preference to weigh against other options. Re-read your own previous message to find the exact item_id for the piece they mean, and always include that exact item_id again in this reply's item_ids. Only change the category(ies) they actually asked to change; never swap out the piece they explicitly said to keep, even if a different piece would otherwise look better.",

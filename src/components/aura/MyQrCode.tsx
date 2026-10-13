@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AURA_APP_URL, dataUrlToBlob, downloadBlob, nativeShareFile, nativeShareText } from "@/lib/aura-share";
 import i18n from "@/i18n/config";
+import { BRAND_NAME } from "@/lib/brand";
 
 export function addFriendUrl(username: string) {
   const origin = typeof window !== "undefined" && window.location.origin.includes("lovable.app")
@@ -54,9 +55,9 @@ function useQrDataUrl(username: string | null) {
 async function shareQr(dataUrl: string, username: string) {
   const blob = dataUrlToBlob(dataUrl);
   const file = new File([blob], `aura-${username}.png`, { type: "image/png" });
-  const text = `Add me on AURA — @${username}`;
+  const text = `Add me on ${BRAND_NAME} — @${username}`;
   if (await nativeShareFile(file, `${text}\n${addFriendUrl(username)}`)) return;
-  const res = await nativeShareText({ title: "AURA", text, url: addFriendUrl(username) });
+  const res = await nativeShareText({ title: BRAND_NAME, text, url: addFriendUrl(username) });
   if (res === "copied") toast.success(i18n.t("myQrCode.linkCopied"));
   if (res === "failed") toast.error(i18n.t("myQrCode.couldntShareRightNow"));
 }

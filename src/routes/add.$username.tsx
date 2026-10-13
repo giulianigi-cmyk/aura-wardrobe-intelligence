@@ -8,16 +8,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { PhoneFrame } from "@/components/aura/PhoneFrame";
 import { initials } from "@/lib/community";
+import { BRAND_NAME } from "@/lib/brand";
 
 export const Route = createFileRoute("/add/$username")({
   head: () => ({
     meta: [
-      { title: "Add a friend on AURA" },
-      { name: "description", content: "Scan an AURA QR code to open a profile and send a friend request in one tap." },
+      { title: `Add a friend on ${BRAND_NAME}` },
+      { name: "description", content: `Scan an ${BRAND_NAME} QR code to open a profile and send a friend request in one tap.` },
       { name: "robots", content: "noindex" },
       { property: "og:type", content: "profile" },
-      { property: "og:title", content: "Add a friend on AURA" },
-      { property: "og:description", content: "Open this AURA profile and send a friend request." },
+      { property: "og:title", content: `Add a friend on ${BRAND_NAME}` },
+      { property: "og:description", content: `Open this ${BRAND_NAME} profile and send a friend request.` },
     ],
   }),
   component: AddFriendPage,

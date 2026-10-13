@@ -15,6 +15,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { bucketOf, layoutOutfit, CANVAS_W, CANVAS_H, type Bucket, type LayoutRect } from "@/lib/outfit-layout";
+import { BRAND_WORDMARK } from "@/lib/brand";
 
 export { bucketOf };
 export type { Bucket };
@@ -269,7 +270,7 @@ async function drawSignature(ctx: CanvasRenderingContext2D, width: number, heigh
   ctx.textBaseline = "alphabetic";
   // tight tracking like the wordmark (tracking-tight); ignored where unsupported
   (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = "-2px";
-  ctx.fillText("aura", width - SIGNATURE_RIGHT_MARGIN, height - SIGNATURE_RIGHT_MARGIN);
+  ctx.fillText(BRAND_WORDMARK, width - SIGNATURE_RIGHT_MARGIN, height - SIGNATURE_RIGHT_MARGIN);
   ctx.restore();
 }
 

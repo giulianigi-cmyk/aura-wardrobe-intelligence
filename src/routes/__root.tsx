@@ -9,6 +9,7 @@ import {
 import { Toaster } from "@/components/ui/sonner";
 
 import appCss from "../styles.css?url";
+import { BRAND_NAME } from "@/lib/brand";
 
 function NotFoundComponent() {
   return (
@@ -57,25 +58,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "google-site-verification", content: "7TkfNyEP6vqwtTnXjrdNwlHrH6SerKwUHA864Mu_eFs" },
       { name: "google", content: "notranslate" },
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" },
-      { title: "AURA — Your wardrobe, intelligently styled" },
-      { name: "description", content: "AURA is the luxury fashion intelligence app. Digitize your wardrobe, generate editorial outfits with AI, plan your style, and discover what suits you." },
+      { title: `${BRAND_NAME} — Your wardrobe, intelligently styled` },
+      { name: "description", content: `${BRAND_NAME} is the luxury fashion intelligence app. Digitize your wardrobe, generate editorial outfits with AI, plan your style, and discover what suits you.` },
       { name: "theme-color", content: "#f5efe6" },
       { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "AURA" },
-      { property: "og:title", content: "AURA — Your wardrobe, intelligently styled" },
-      { property: "og:description", content: "AURA is the luxury fashion intelligence app. Digitize your wardrobe, generate editorial outfits with AI, plan your style, and discover what suits you." },
+      { property: "og:site_name", content: `${BRAND_NAME}` },
+      { property: "og:title", content: `${BRAND_NAME} — Your wardrobe, intelligently styled` },
+      { property: "og:description", content: `${BRAND_NAME} is the luxury fashion intelligence app. Digitize your wardrobe, generate editorial outfits with AI, plan your style, and discover what suits you.` },
       { property: "og:url", content: "https://aura-wardrobe-intelligence.lovable.app/" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "AURA — Your wardrobe, intelligently styled" },
+      { name: "twitter:title", content: `${BRAND_NAME} — Your wardrobe, intelligently styled` },
       { name: "twitter:description", content: "Digitize your wardrobe, generate editorial outfits with AI, and plan your style." },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       // Installable app (Add to Home Screen) — needed on iPhone for the morning notification.
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "icon", href: "/favicon.ico?v=4", sizes: "16x16 32x32 48x48" },
-      { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png?v=4" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=4" },
+      { rel: "icon", href: "/favicon.ico?v=5", sizes: "16x16 32x32 48x48" },
+      { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png?v=5" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=5" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap" },
@@ -86,7 +87,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "WebSite",
-          name: "AURA",
+          name: `${BRAND_NAME}`,
           url: "https://aura-wardrobe-intelligence.lovable.app/",
         }),
       },
@@ -95,9 +96,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "Organization",
-          name: "AURA",
+          name: `${BRAND_NAME}`,
           url: "https://aura-wardrobe-intelligence.lovable.app/",
-          description: "AURA is a wardrobe intelligence and AI styling service that digitizes your closet, generates outfits, and plans what to wear.",
+          description: `${BRAND_NAME} is a wardrobe intelligence and AI styling service that digitizes your closet, generates outfits, and plans what to wear.`,
         }),
       },
     ],

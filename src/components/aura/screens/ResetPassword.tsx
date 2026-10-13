@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Sparkles, Check, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { BRAND_NAME, BRAND_WORDMARK } from "@/lib/brand";
 
 export function ResetPassword({ onDone }: { onDone: () => void }) {
   const { t } = useTranslation();
@@ -33,7 +34,7 @@ export function ResetPassword({ onDone }: { onDone: () => void }) {
       <div className="flex-1 flex flex-col justify-center animate-fade-up">
         <div className="flex items-center gap-2 mb-6">
           <Sparkles size={14} />
-          <span className="text-[10px] uppercase tracking-[0.4em] text-muted-foreground">AURA</span>
+          <span className="text-[10px] uppercase tracking-[0.4em] text-muted-foreground">{BRAND_NAME}</span>
         </div>
         <h1 className="font-serif text-4xl italic leading-tight">{t("resetPassword.title")}</h1>
         <p className="mt-2 text-sm text-muted-foreground">

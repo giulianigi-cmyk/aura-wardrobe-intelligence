@@ -37,6 +37,7 @@ import { normalizeOccasionForFeedback } from "@/lib/activity-kind";
 import { resolvePlanSlot } from "@/lib/outfit-plan-slot";
 import i18n from "@/i18n/config";
 import { garmentWithColor } from "@/lib/garment-names";
+import { BRAND_NAME, BRAND_WORDMARK } from "@/lib/brand";
 
 // Stored value (English: the outfit engine, dress preferences and feedback all read it) → label key.
 // The first eight are the ones offered when an outfit starts from a chosen piece ("Per quale
@@ -1124,7 +1125,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
             <span
               className="font-serif italic tracking-tight text-muted-foreground"
               style={{ fontSize: "9.25cqmin", lineHeight: 1 }}
-            >aura</span>
+            >{BRAND_WORDMARK}</span>
           </div>
 
           {placed.length === 0 && (
