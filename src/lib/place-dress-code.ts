@@ -58,31 +58,60 @@ export type PlaceProfile = {
 // belongs to matters here.
 
 export const PLACE_PROFILES: PlaceProfile[] = [
+  // Places of worship are split by how much coverage they really ask for. One profile for all of
+  // them applied a mosque's rules (legs covered to the ankle, nothing fitted, head covered) to a
+  // church: a midi dress or slim trousers for a church wedding were thrown out.
   {
+    // Churches and synagogues: shoulders and knees covered, no plunging neckline, no shorts. A midi
+    // dress, a knee-length skirt and fitted trousers are all fine.
+    id: "sacred_church",
+    category: "sacred_religious",
+    keywords: [
+      // Italiano
+      "chiesa", "basilica", "cattedrale", "duomo", "santuario", "cappella", "convento",
+      "monastero", "abbazia", "sinagoga", "tempio ebraico", "luogo di pellegrinaggio",
+      "sito religioso", "cimitero religioso", "sacrario", "memoriale religioso",
+      // English
+      "church", "cathedral", "chapel", "convent", "monastery", "abbey", "synagogue",
+      "pilgrimage site", "place of worship", "religious site",
+      // Español
+      "iglesia", "basílica", "catedral", "capilla", "monasterio", "sinagoga", "templo judío",
+      "lugar de peregrinación", "cementerio religioso", "monumento conmemorativo religioso",
+      // Français
+      "église", "basilique", "cathédrale", "chapelle", "couvent", "monastère", "synagogue",
+      "temple juif", "lieu de pèlerinage", "site religieux", "cimetière religieux", "mémorial religieux",
+    ],
+    requirements: ["cover_shoulders", "cover_knees", "no_shorts", "avoid_low_neckline"],
+    obligation: "mandatory",
+  },
+  {
+    // Buddhist and Shinto temples, and a temple of unstated faith: shoulders and knees covered,
+    // shoes off at the entrance.
+    id: "sacred_temple",
+    category: "sacred_religious",
+    keywords: [
+      "tempio buddhista", "tempio shintoista", "pagoda", "stupa", "tempio",
+      "temple", "templo budista", "templo sintoísta", "templo",
+      "temple bouddhiste", "temple shintoïste",
+    ],
+    requirements: ["cover_shoulders", "cover_knees", "no_shorts", "avoid_low_neckline", "remove_shoes"],
+    obligation: "mandatory",
+  },
+  {
+    // Mosques, Hindu, Sikh and Jain temples: the full rules — legs covered to the ankle, nothing
+    // fitted, head and hair covered, shoes off.
     id: "sacred_religious",
     category: "sacred_religious",
     keywords: [
       // Italiano
-      "moschea", "chiesa", "basilica", "cattedrale", "duomo", "santuario", "cappella", "convento",
-      "monastero", "abbazia", "sinagoga", "tempio ebraico", "tempio induista", "tempio buddhista",
-      "tempio sikh", "gurdwara", "tempio jainista", "tempio shintoista", "pagoda", "stupa", "ashram",
-      "mandir", "gurudwara", "zawiya", "zāwiya", "dargah", "santuario islamico",
-      "luogo di pellegrinaggio", "sito religioso", "cimitero religioso", "sacrario", "memoriale religioso",
-      "tempio",
+      "moschea", "tempio induista", "tempio sikh", "gurdwara", "gurudwara", "tempio jainista",
+      "mandir", "ashram", "zawiya", "zāwiya", "dargah", "santuario islamico",
       // English
-      "mosque", "church", "cathedral", "shrine", "chapel", "convent", "monastery", "abbey",
-      "synagogue", "gurdwara", "pagoda", "stupa", "ashram", "mandir", "pilgrimage site",
-      "place of worship", "religious site", "temple",
+      "mosque", "hindu temple", "sikh temple", "jain temple", "mandir", "ashram",
       // Español
-      "mezquita", "iglesia", "basílica", "catedral", "capilla", "monasterio", "sinagoga",
-      "templo judío", "templo hindú", "templo budista", "templo sij", "templo jainista",
-      "templo sintoísta", "santuario islámico", "lugar de peregrinación", "cementerio religioso",
-      "monumento conmemorativo religioso", "templo",
+      "mezquita", "templo hindú", "templo sij", "templo jainista", "santuario islámico",
       // Français
-      "mosquée", "église", "basilique", "cathédrale", "chapelle", "couvent", "monastère",
-      "synagogue", "temple juif", "temple hindou", "temple bouddhiste", "temple sikh",
-      "temple jaïn", "temple shintoïste", "zaouïa", "sanctuaire islamique", "lieu de pèlerinage",
-      "site religieux", "cimetière religieux", "mémorial religieux", "temple",
+      "mosquée", "temple hindou", "temple sikh", "temple jaïn", "zaouïa", "sanctuaire islamique",
     ],
     requirements: ["cover_shoulders", "cover_knees", "cover_legs", "avoid_tight", "no_shorts", "cover_head", "cover_hair", "remove_shoes", "avoid_low_neckline"],
     obligation: "mandatory",
