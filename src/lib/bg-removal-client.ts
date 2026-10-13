@@ -1,4 +1,4 @@
-import { cleanCutout, estimateBackground } from "@/lib/cutout-cleanup";
+import { cleanCutout, colorKeyCutout, estimateBackground, keptForegroundRatio, MIN_KEPT_FOREGROUND } from "@/lib/cutout-cleanup";
 
 /** Above this many pixels the clean-up is skipped (memory on phones): the raw cutout is used. */
 const CLEANUP_MAX_PIXELS = 6_000_000;
@@ -19,7 +19,10 @@ async function pixelsOf(source: Blob, w?: number, h?: number) {
   }
 }
 
-/** The cutout with background residue removed (cutout-cleanup.ts); the raw cutout on any failure. */
+/** The cutout with background residue removed (cutout-cleanup.ts); the raw cutout on any failure.
+ *  On a plain background it is also checked against the original photo: when the model erased
+ *  most of the garment (a dark sweater of which only the light motif survived), the cutout is
+ *  rebuilt from the background colour instead. */
 async function cleanCutoutBlob(cutout: Blob, originalDataUrl: string): Promise<Blob> {
   try {
     const cut = await pixelsOf(cutout);
@@ -28,8 +31,13 @@ async function cleanCutoutBlob(cutout: Blob, originalDataUrl: string): Promise<B
     if (w * h > CLEANUP_MAX_PIXELS) return cutout;
     const original = await pixelsOf(await (await fetch(originalDataUrl)).blob(), w, h);
     const bg = original ? estimateBackground(original.data.data, w, h) : null;
-    const cleared = cleanCutout(cut.data.data, w, h, bg);
-    if (cleared === 0) return cutout;
+    const kept = original && bg ? keptForegroundRatio(original.data.data, cut.data.data, w, h, bg) : null;
+    if (original && bg && kept != null && kept < MIN_KEPT_FOREGROUND) {
+      console.warn("[AURA bg-removal] model erased part of the garment, using colour cutout", { kept: Math.round(kept * 100) });
+      cut.data.data.set(colorKeyCutout(original.data.data, w, h, bg));
+    } else if (cleanCutout(cut.data.data, w, h, bg) === 0) {
+      return cutout;
+    }
     cut.ctx.putImageData(cut.data, 0, 0);
     const out = await new Promise<Blob | null>((resolve) => cut.canvas.toBlob(resolve, "image/png"));
     return out ?? cutout;
