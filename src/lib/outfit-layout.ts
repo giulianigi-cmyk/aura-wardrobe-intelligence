@@ -64,6 +64,10 @@ const isTallShoe = (it: LayoutInput) => it.bucket === "shoes" && it.aspect > 1.3
  *  at half size a watch or a belt became a smudge. */
 const SMALL_MIN_K = 0.8;
 
+/** Right-hand column beside a coat: its minimum width, and the belt's box in it. */
+const COLUMN_MIN_W = 0.26;
+const COLUMN_BELT_BOX = { w: 0.30, h: 0.09 };
+
 /** Max box per bucket: [max width, max height], fractions of canvas W / H. */
 const BOX: Record<Bucket, { w: number; h: number }> = {
   dress: { w: 0.46, h: 0.80 },
@@ -338,9 +342,11 @@ return { w, h: w * aspect };
   const A = union(anchorRects);
   const aW = A.r - A.l, aH = A.b - A.t;
 
-  // ── Outer: big, left, behind the anchor ──
-  // Raised a little when the shoes sit in the bottom-left corner under it, so they cover only its hem.
-  if (outer) placeGroup(by.get("outer")!, "outer", BOX.outer, 0.22 * W, (mh) => (has("shoes") ? Math.max(MY + mh / 2, 0.42 * H) : 0.50 * H));
+  // ── Outer: big, left, behind the anchor, starting at the top of the board ──
+  // It used to be centred lower (42–50% of the height): a jacket shorter than the trousers left an
+  // empty band above it, top-left, while the top sat up-right. Top-aligned like the top, the board
+  // is balanced and the shoes in the bottom-left corner get their own room under its hem.
+  if (outer) placeGroup(by.get("outer")!, "outer", BOX.outer, 0.22 * W, (mh) => MY + mh / 2 + 0.02 * H);
 
   // ── Top: diagonal up-right, waist overlap ≈ 45% of its own height ──
   let topRects: LayoutRect[] = [];
@@ -418,7 +424,9 @@ return { w, h: w * aspect };
     // Scarf / other accessories and the belt: in the bottom-left corner they landed on the coat
     // and on each other, so with a coat they join the column too.
     if (has("acc")) columnEntries.push({ list: by.get("acc")!, bucket: "acc", box: BOX.acc, axis: "x" });
-    if (beltList.length && beltBeside) columnEntries.push({ list: beltList, bucket: "belt", box: BOX.belt, axis: "y" });
+    // In the column a belt is laid out at its real length: in the 20%-wide box beside the trousers
+    // it came out as a thin smudge next to the bag.
+    if (beltList.length && beltBeside) columnEntries.push({ list: beltList, bucket: "belt", box: COLUMN_BELT_BOX, axis: "y" });
   }
   const useColumn = columnEntries.length >= 2;
   // A coat with only a belt to place (no column): the belt keeps its bottom-left spot.
@@ -435,8 +443,9 @@ return { w, h: w * aspect };
         ? { w: Math.max(...sz.map((q) => q.w)), h: sz.reduce((a, q) => a + q.h * sk, 0) }
         : { w: sz.reduce((a, q) => a + q.w * sk, 0), h: Math.max(...sz.map((q) => q.h)) };
     };
-    // 1) fit the strip's width (≤ ~25% overlap with the anchor)
-    const stripW = Math.max(0.16 * W, (W - MX - A.r) / 0.75);
+    // 1) fit the strip's width (≤ ~40% overlap with the anchor, at least COLUMN_MIN_W of the canvas):
+    //    at ≤ 25% and 16% the bag and the belt beside wide trousers came out too small.
+    const stripW = Math.max(COLUMN_MIN_W * W, (W - MX - A.r) / 0.6);
     // Bag and shoes share one scale (each used to be shrunk on its own to fit the strip, so a large
     // bag came out smaller than the shoes under it); small accessories (watch, scarf, belt…) fit on
     // their own and are the first to give way when the column is too short.

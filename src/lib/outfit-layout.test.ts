@@ -70,3 +70,20 @@ test("a jacket is drawn wider than the top worn under it (quilted jacket with wi
   assert.ok(get("jacket").w >= 1.25 * get("tshirt").w, "jacket wider than the T-shirt");
   assert.ok(get("jacket").x >= 0 && get("jacket").x + get("jacket").w <= W, "inside the canvas");
 });
+
+test("a jacket starts at the top of the board, and the bag and belt beside it keep a readable size", () => {
+  const rects = layoutOutfit([
+    { id: "jacket", bucket: "outer", aspect: 1.1, subcategory: "Shacket" },
+    { id: "jeans", bucket: "bottom", aspect: 1.42, subcategory: "Jeans" },
+    { id: "body", bucket: "top", aspect: 1.26, subcategory: "Bodysuit" },
+    { id: "bag", bucket: "bag", aspect: 0.9, subcategory: "Top Handle Bag", fill: 0.7 },
+    { id: "belt", bucket: "belt", aspect: 0.21, subcategory: "Belt" },
+    { id: "shoes", bucket: "shoes", aspect: 0.9, subcategory: "Flats", fill: 0.35 },
+  ]);
+  const r = (id: string) => rects.find((x) => x.id === id)!;
+  assert.ok(r("jacket").y / H < 0.1, "jacket top-aligned");
+  assert.ok(r("bag").w / W >= 0.3, "bag at least 30% wide");
+  assert.ok(r("belt").w / W >= 0.28, "belt at least 28% wide");
+  // nothing overlaps in the right-hand column
+  assert.ok(r("bag").y + r("bag").h <= r("belt").y);
+});
