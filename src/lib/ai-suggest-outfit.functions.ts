@@ -15,6 +15,7 @@ import { loadWearHistory, recentlyWornIds, rotationOrder, seededRandom, wearFiel
 import { ensureAnchor, ANCHOR_UNAVAILABLE } from "./outfit-anchor";
 import { explanationLanguageInstruction } from "./language_prompt";
 import { BRAND_NAME } from "@/lib/brand";
+import { isLogoOrGraphicTop } from "./work-dress";
 
 const ItemSchema = z.object({
   id: z.string(),
@@ -36,6 +37,8 @@ const ItemSchema = z.object({
   closure: z.string().nullable().optional(),
   gender: z.string().nullable().optional(),
   styleTags: z.array(z.string()).nullable().optional(),
+  // Visible details from the photo analysis (garment-details.ts keys: "logo", "patent", …).
+  details: z.array(z.string()).nullable().optional(),
   // The piece's OWN occasion tags (from Wardrobe → edit → Occasion), as
   // opposed to params.occasion which is the TARGET occasion being
   // generated for. Previously never sent to this engine at all, so an
@@ -358,6 +361,7 @@ export async function suggestOutfitCore(params: {
     gender: it.gender ?? "",
     styleTags: it.styleTags ?? [],
     occasion: it.occasion ?? "",
+    ...(it.details?.length ? { details: it.details } : {}),
     ...wearFields(wearHistory.get(it.id), todayIso),
   }));
 
@@ -493,7 +497,7 @@ export async function suggestOutfitCore(params: {
     BELT_BODYCON_PROMPT_RULE,
     ACCESSORY_OCCASION_PROMPT_RULE,
     OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
-    "For a 'Work' occasion specifically, exclude anything sequinned, sparkly, feathered, fringed, or overtly evening/party-coded (check the material and styleTags fields), exclude cocktail or evening dresses, and exclude very short skirts (mini-length). Separately, exclude genuinely bare-shoulder construction — off-shoulder, bardot, halter, strapless, one-shoulder, bandeau (check subcategory and styleTags for these terms) — but a plain sleeveless top or dress (sleeveLength: Sleeveless, no other bare-shoulder signal) is completely normal workwear and must NOT be excluded just for having no sleeves; judge it on formality/coverage like any other piece. Also treat dayEvening \"evening\" or formality 4-5 as a strong signal the piece belongs in an Evening look, not Work — these read as going-out wear, not workwear, even if the color looks fine on paper.",
+    "For a 'Work' occasion specifically, exclude anything sequinned, sparkly, feathered, fringed, or overtly evening/party-coded (check the material and styleTags fields), exclude cocktail or evening dresses, and exclude very short skirts (mini-length). Separately, exclude genuinely bare-shoulder construction — off-shoulder, bardot, halter, strapless, one-shoulder, bandeau (check subcategory and styleTags for these terms) — but a plain sleeveless top or dress (sleeveLength: Sleeveless, no other bare-shoulder signal) is completely normal workwear and must NOT be excluded just for having no sleeves; judge it on formality/coverage like any other piece. Also treat dayEvening \"evening\" or formality 4-5 as a strong signal the piece belongs in an Evening look, not Work — these read as going-out wear, not workwear, even if the color looks fine on paper. Exclude logo, slogan or graphic-print T-shirts and sweatshirts too (a \"logo\" entry in details, or a graphic/print in subcategory or styleTags) — they read as weekend, not work; a plain T-shirt is fine.",
     "Color palette by occasion, when choosing between otherwise-equal options: 'Formal'/'Business Formal' favors navy, grey, black, black-and-white; 'Work'/'Business Casual' favors khaki, light grey, navy, brown as a base with bordeaux, olive, camel, or light blue as accents; 'Smart Casual'/'Weekend' allows one clearly colorful statement piece against a simple base. This is a preference between similarly-fitting options, not a hard exclusion — don't reject an otherwise great outfit purely for using an off-palette color.",
     "Sequins, sparkle, or lurex/metallic fabric are for evening only — never pick a sequinned or sparkly piece for a Day segment, regardless of occasion, even outside a Work context specifically.",
     EMBELLISHED_EVENING_PROMPT_RULE,
@@ -565,6 +569,8 @@ export async function suggestOutfitCore(params: {
       if (item.category === "Bottoms" && /shorts/i.test(item.subcategory ?? "")) return true;
       const isSkirtOrDress = item.category === "Dresses" || (item.category === "Bottoms" && item.subcategory === "Skirt");
       if (isSkirtOrDress && (item.length ?? "") === "Mini") return true;
+      // a logo or graphic T-shirt/sweatshirt reads as weekend, not work
+      if (isLogoOrGraphicTop(item)) return true;
       return false;
     });
 

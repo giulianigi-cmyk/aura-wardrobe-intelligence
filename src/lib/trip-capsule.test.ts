@@ -11,7 +11,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildCapsule, type PoolItem, type Requirement, climateSuitability, isSweatConsumable, applyHardDressCodeFilter, isTransportActivity, applyTransportPracticalityFilter, isAccommodationActivity, changeAssumedPossible, isTravelSuitable, outfitIsTravelSuitable, isConcertFootwearSuitable, applyConcertFootwearFilter, activityKind } from "./trip-capsule.server";
+import { buildCapsule, type PoolItem, type Requirement, climateSuitability, isSweatConsumable, applyHardDressCodeFilter, isTransportActivity, applyTransportPracticalityFilter, isAccommodationActivity, changeAssumedPossible, isTravelSuitable, outfitIsTravelSuitable, isConcertFootwearSuitable, applyConcertFootwearFilter, activityKind, isWorkRequirement, engineOccasionText } from "./trip-capsule.server";
 
 function item(overrides: Partial<PoolItem> & { id: string }): PoolItem {
   return {
@@ -1041,4 +1041,45 @@ test("Riconoscimento concerto: multilingua e nomi di locale, senza falsi positiv
   for (const label of ["Cena El Porteño", "Serata relax in hotel", "Live meeting con il team", "Riunione di lavoro", "Visita Duomo"]) {
     assert.notEqual(isConcert(label), "concert", `falso positivo: ${label}`);
   }
+});
+
+test("work trip: two jackets and one more work bottom and top than working days are packed", () => {
+  const pool: PoolItem[] = [
+    item({ id: "blazer-navy", category: "Outerwear", subcategory: "Blazer", formality: 4 }),
+    item({ id: "blazer-grey", category: "Outerwear", subcategory: "Blazer", formality: 3 }),
+    item({ id: "puffer", category: "Outerwear", subcategory: "Puffer Jacket", formality: 2 }),
+    item({ id: "trousers-navy", category: "Bottoms", subcategory: "Trousers", formality: 3 }),
+    item({ id: "trousers-black", category: "Bottoms", subcategory: "Trousers", formality: 4 }),
+    item({ id: "skirt-midi", category: "Bottoms", subcategory: "Skirt", length: "Midi", formality: 3 }),
+    item({ id: "jeans", category: "Bottoms", subcategory: "Jeans", formality: 2 }),
+    item({ id: "shirt-white", category: "Tops", subcategory: "Shirt", formality: 3 }),
+    item({ id: "knit", category: "Tops", subcategory: "Knit Top", formality: 3 }),
+    item({ id: "logo-tee", category: "Tops", subcategory: "T-Shirt", formality: 1, details: ["logo"] }),
+    item({ id: "pumps", category: "Shoes", subcategory: "Pumps", formality: 4 }),
+    item({ id: "bag", category: "Bags", formality: 3 }),
+  ];
+  const requirements: Requirement[] = [
+    { activityId: "fair-1", date: "2026-10-22", daySegment: "day", dressCode: "Business Casual", label: "Gimav con Barbara" },
+    { activityId: "fair-2", date: "2026-10-23", daySegment: "day", dressCode: null, label: "Fiera GIMAV" },
+    { activityId: "flight", date: "2026-10-24", daySegment: "day", dressCode: null, label: "Volo DUS-ZRH" },
+  ];
+  const capsule = buildCapsule(pool, requirements, new Map(), []);
+  assert.ok(capsule.has("blazer-navy") && capsule.has("blazer-grey"), `two blazers expected: ${[...capsule].join(", ")}`);
+  assert.ok(!capsule.has("puffer"), "the work jackets are tailored ones, not a puffer");
+  const workBottoms = ["trousers-navy", "trousers-black", "skirt-midi"].filter((id) => capsule.has(id));
+  assert.equal(workBottoms.length, 3, `three work bottoms expected for two working days: ${workBottoms.join(", ")}`);
+  assert.ok(capsule.has("shirt-white") && capsule.has("knit"), "the work tops are the shirt and the knit, not the logo tee");
+});
+
+test("a trade fair is sent to the engine as Work, a flight as Travel, and on a work trip the flight is presentable", () => {
+  const fair: Requirement = { activityId: "a", date: "2026-10-22", daySegment: "day", dressCode: "Business Casual", label: "Gimav con Barbara" };
+  const flight: Requirement = { activityId: "b", date: "2026-10-23", daySegment: "day", dressCode: null, label: "Volo DUS-ZRH" };
+  const evening: Requirement = { activityId: "c", date: "2026-10-22", daySegment: "evening", dressCode: null, label: "Cena di lavoro" };
+  assert.equal(isWorkRequirement(fair), true);
+  assert.equal(isWorkRequirement(flight), false);
+  assert.equal(isWorkRequirement(evening), false);
+  assert.ok(engineOccasionText(fair, true).startsWith("Work · Gimav con Barbara"));
+  assert.ok(engineOccasionText(flight, false).startsWith("Travel · Volo"));
+  assert.match(engineOccasionText(flight, true), /business trip.*no logo/);
+  assert.equal(engineOccasionText(evening, true), "Cena di lavoro");
 });

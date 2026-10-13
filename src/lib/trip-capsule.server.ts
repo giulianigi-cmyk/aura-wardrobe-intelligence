@@ -5,6 +5,7 @@ import { dressPreferencesToPrompt, type DressPreferences } from "./dress-prefere
 import { resolvePlanSlot } from "./outfit-plan-slot";
 import { getTripWeatherMap, weatherKey } from "./trip-weather.server";
 import { describeWeather } from "./weather";
+import { isLogoOrGraphicTop, isWorkActivityText } from "./work-dress";
 import { computeCapsuleSeedAndExclusions } from "./trip-capsule-persistence";
 import { violatesWeatherRule, HEAVY_SIGNAL, LIGHT_SIGNAL, MILD_WARM_THRESHOLD_C, MILD_COOL_THRESHOLD_C, type WeatherCheckableItem } from "./outfit-weather-rules";
 import type { StyleMemoryRow } from "./style-memory-prompt";
@@ -78,6 +79,7 @@ const SHOE_ROLE = new Set(["Shoes"]);
 const SWIM_ROLE = new Set(["Swimwear"]);
 const ACTIVE_ROLE = new Set(["Activewear"]);
 const BAG_ROLE = new Set(["Bags"]);
+const OUTER_ROLE = new Set(["Outerwear"]);
 // Categories worn directly against skin, where a hot day's sweat makes
 // same-day reuse a hygiene question, not just a styling one — a blazer
 // or a pair of jeans worn all day is still perfectly fine that evening,
@@ -230,6 +232,27 @@ function isWalkingDay(req: Requirement): boolean {
   return !/formal|cocktail|elegant|elegante|black tie|gala|wedding|matrimonio|business|meeting|work|lavoro/i.test(text);
 }
 
+/** A daytime working activity — a trade fair, a meeting, a conference, a "Business Casual" day. The
+ *  evening after it (even a business dinner, which has its own rules) and the journey are not. */
+export function isWorkRequirement(req: Requirement): boolean {
+  return req.daySegment === "day" && !isTransportActivity(req.label) && isWorkActivityText(req.label, req.dressCode);
+}
+
+/** The occasion as the outfit engine reads it. The engine keys its rules on the start of the text
+ *  ("Work…" turns on the work rules and the person's work dress code; the piece's own occasion tags
+ *  are matched against it), so a trade fair is sent as "Work · …" and a flight or a train as
+ *  "Travel · …" — a Travel-only bag belongs on the plane, never at the fair. On a work trip the
+ *  journey still has to look presentable. */
+export function engineOccasionText(req: Requirement, workTrip: boolean): string {
+  const text = occasionText(req);
+  if (isTransportActivity(req.label)) {
+    return workTrip
+      ? `Travel · ${text} — a business trip: a smart, presentable travel look (trousers or dark jeans, a plain top, shirt or knit); no logo or graphic T-shirts or sweatshirts`
+      : `Travel · ${text}`;
+  }
+  return isWorkRequirement(req) ? `Work · ${text}` : text;
+}
+
 function occasionText(req: Requirement): string {
   const parts = [req.label, req.dressCode].filter(Boolean) as string[];
   const base = !parts.length ? "Trip" : parts.length === 2 && parts[0] !== parts[1] ? `${parts[0]} (${parts[1]})` : parts[0];
@@ -340,6 +363,14 @@ export type PoolItem = {
   length?: string | null;
   fit?: string | null;
   styleTags?: string[] | null;
+  // Passed on to the outfit engine, whose rules read them (heels on a travel day, the piece's own
+  // occasion tags, a logo T-shirt on a work day). Optional for the same reason as above.
+  heelHeight?: string | null;
+  toeShape?: string | null;
+  closure?: string | null;
+  gender?: string | null;
+  occasion?: string | null;
+  details?: string[] | null;
 };
 
 export type Requirement = {
@@ -817,7 +848,57 @@ export function buildCapsule(
     }
   }
 
+  // Reserved slots for working days (a trade fair, meetings, a conference). The role targets above
+  // pack no jacket at all and only two bottoms for a short trip, often casual ones — so every work
+  // day, and the journey between them, came out in the one suit in the suitcase. A work trip packs
+  // two jackets and one more work bottom and top than it has working days, so no two looks in a row
+  // repeat the same suit (the variety window in the generation loop then alternates them).
+  const workReqs = requirements.filter(isWorkRequirement);
+  if (workReqs.length) {
+    const workDays = new Set(workReqs.map((r) => r.date)).size;
+    const repReq = workReqs[0];
+    const repTemp = tempByActivity.get(repReq.activityId) ?? null;
+    const repSeason = seasonByDate.get(repReq.date) ?? "";
+    const wanted = [
+      { role: OUTER_ROLE, count: 2 },
+      { role: BOTTOM_ROLE, count: Math.min(workDays + 1, 3) },
+      { role: TOP_ROLE, count: Math.min(workDays + 1, 3) },
+    ];
+    for (const { role, count } of wanted) {
+      const inCapsule = Array.from(capsule).filter((id) => {
+        const it = pool.find((p) => p.id === id);
+        return it && role.has(it.category ?? "") && isWorkPiece(it);
+      }).length;
+      const missing = count - inCapsule;
+      if (missing <= 0) continue;
+      pool
+        .filter((it) => role.has(it.category ?? "") && !capsule.has(it.id) && isWorkPiece(it)
+          && climateSuitability(it, repTemp, repSeason) !== "inappropriate")
+        // A blazer first among jackets, then the best match for the day.
+        .map((it) => ({ it, score: (/blazer/i.test(it.subcategory ?? "") ? 10 : 0) + versatility(it, repReq, repTemp, styleMemory) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, missing)
+        .forEach(({ it }) => capsule.add(it.id));
+    }
+  }
+
   return capsule;
+}
+
+// A tailored jacket rather than a puffer, a parka or a denim jacket.
+const CASUAL_OUTER = /puffer|piumino|parka|windbreaker|rain|anorak|denim|bomber|shacket|vest|gilet|fleece|pile/i;
+
+/** A piece that can be worn on a working day: polished enough (formality 3+ for jackets and
+ *  bottoms, 2+ for tops), daytime, and no logo or graphic T-shirt. */
+export function isWorkPiece(it: PoolItem): boolean {
+  if (it.dayEvening === "evening") return false;
+  if (it.category === "Outerwear") return it.formality >= 3 && !CASUAL_OUTER.test(it.subcategory ?? "");
+  if (TOP_ROLE.has(it.category ?? "")) return it.formality >= 2 && !isLogoOrGraphicTop(it);
+  if (BOTTOM_ROLE.has(it.category ?? "")) {
+    if (/shorts|jogger|legging|cargo/i.test(it.subcategory ?? "") || it.length === "Mini") return false;
+    return it.formality >= 3;
+  }
+  return false;
 }
 
 // Formal and Sport are the only dress codes strong enough to be a real
@@ -1229,6 +1310,8 @@ export async function generateTripCapsuleCore({ data, context }: {
     // down to 25 outfit-states should still generate all 25, not an
     // arbitrary 30-activities'-worth that happens to land on fewer groups.
     const capped = requirementsForGeneration.slice(0, 30);
+    // A trip with at least one working day (already planned or not): its journeys must look presentable.
+    const workTrip = allRequirements.some(isWorkRequirement);
     // One catalog order for the whole trip, so the requests share a cacheable opening (rotationSeed).
     const tripSeed = Math.floor(Math.random() * 2 ** 31);
 
@@ -1310,7 +1393,8 @@ export async function generateTripCapsuleCore({ data, context }: {
         season: it.season, brand: it.brand, material: Array.isArray(it.material) ? it.material : [],
         locationId: it.location_id ?? null, formality, dayEvening, sleeveLength: it.sleeve_length ?? null,
         length: it.length ?? null, fit: it.fit ?? null, styleTags: Array.isArray(it.style_tags) ? it.style_tags : [],
-
+        heelHeight: it.heel_height ?? null, toeShape: it.toe_shape ?? null, closure: it.closure ?? null,
+        gender: it.gender ?? null, occasion: it.occasion ?? null, details: Array.isArray(it.details) ? it.details : [],
       });
     }
 
@@ -1489,9 +1573,16 @@ export async function generateTripCapsuleCore({ data, context }: {
       // back to the unfiltered candidates rather than failing the day.
       const finalPool = weatherFiltered.length > 0 ? weatherFiltered : candidatePool;
 
+      // Every attribute the engine's rules read. Only the basics used to be passed, so formality,
+      // day/evening, the piece's own occasion tags and its details never reached it: a travel-only
+      // bag, an evening piece or a logo T-shirt could land in a trade-fair look.
       const items: SuggestOutfitItem[] = finalPool.map((it) => ({
         id: it.id, category: it.category, subcategory: it.subcategory, colors: it.colors,
         style: it.style, season: it.season, brand: it.brand, material: it.material, locationId: it.locationId,
+        formality: it.formality, dayEvening: it.dayEvening, sleeveLength: it.sleeveLength,
+        length: it.length ?? null, fit: it.fit ?? null, styleTags: it.styleTags ?? [],
+        heelHeight: it.heelHeight ?? null, toeShape: it.toeShape ?? null, closure: it.closure ?? null,
+        gender: it.gender ?? null, occasion: it.occasion ?? null, details: it.details ?? [],
       }));
 
       // Variety (Level 6) is sought only within what reuse (Level 4)
@@ -1543,10 +1634,10 @@ export async function generateTripCapsuleCore({ data, context }: {
         // above — this line only widens what's stylistically allowed,
         // it can't let anything unsafe through.
         occasion: activityKind(req) === "concert"
-          ? `${occasionText(req)} — a concert/DJ set: hours on your feet, dancing, in a crowd, often outdoors. Dress for a party or festival, NOT for a formal dinner: crop tops, fitted or cut-out tops, mini skirts, short shorts, bodysuits, mesh, metallic or leather details and bold accessories are all appropriate. Comfort and freedom of movement matter more than formality.`
+          ? `${engineOccasionText(req, workTrip)} — a concert/DJ set: hours on your feet, dancing, in a crowd, often outdoors. Dress for a party or festival, NOT for a formal dinner: crop tops, fitted or cut-out tops, mini skirts, short shorts, bodysuits, mesh, metallic or leather details and bold accessories are all appropriate. Comfort and freedom of movement matter more than formality.`
           : isWalkingDay(req)
-          ? `${occasionText(req)} — a day out on a trip, likely walking a lot: comfortable shoes (clean sneakers or flat walking shoes) are a good choice; mules and heels only if the day involves little walking.`
-          : occasionText(req),
+          ? `${engineOccasionText(req, workTrip)} — a day out on a trip, likely walking a lot: comfortable shoes (clean sneakers or flat walking shoes) are a good choice; mules and heels only if the day involves little walking.`
+          : engineOccasionText(req, workTrip),
         dressRules,
         gender: profile?.gender ?? null,
         styleBoldness: profile?.style_boldness ?? null,
@@ -1591,8 +1682,10 @@ export async function generateTripCapsuleCore({ data, context }: {
         // explicitly so suggestOutfitCore's last-resort completion steps
         // can't reach around the filter and put a mini skirt or a pair of
         // ankle boots back into a train outfit.
+        // On a work trip the journey also leaves out logo and graphic T-shirts: travelling to or
+        // from a trade fair with the blazer over a big-logo tee is not presentable.
         hardExcludedItemIds: isTransportActivity(req.label)
-          ? pool.filter((it) => !isTravelSuitable(it, tempByActivity.get(req.activityId) ?? null)).map((it) => it.id)
+          ? pool.filter((it) => !isTravelSuitable(it, tempByActivity.get(req.activityId) ?? null) || (workTrip && isLogoOrGraphicTop(it))).map((it) => it.id)
           : [],
       });
 
