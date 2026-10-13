@@ -3,6 +3,7 @@ import listWardrobeItems from "./tools/list-wardrobe-items";
 import getProfile from "./tools/get-profile";
 import listOutfitPlans from "./tools/list-outfit-plans";
 import createOutfitPlan from "./tools/create-outfit-plan";
+import { BRAND_NAME } from "@/lib/brand";
 
 // The OAuth issuer MUST be the direct Supabase host (RFC 8414 issuer match).
 // Read the project ref from Vite's inlined env; the fallback keeps the
@@ -11,10 +12,10 @@ const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unse
 
 export default defineMcp({
   name: "aura-mcp",
-  title: "AURA Wardrobe",
+  title: `${BRAND_NAME} Wardrobe`,
   version: "0.1.0",
   instructions:
-    "Tools to read a user's AURA wardrobe, style profile, and outfit calendar, and to plan outfits on their behalf. All data is scoped to the signed-in AURA user.",
+    `Tools to read a user's ${BRAND_NAME} wardrobe, style profile, and outfit calendar, and to plan outfits on their behalf. All data is scoped to the signed-in ${BRAND_NAME} user.`,
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",

@@ -4,6 +4,7 @@
 // person is logged.
 import { newReportEmail, parseAdminIds } from "./problem-reports";
 import { sendPushToUser } from "./push.server";
+import { BRAND_NAME } from "./brand";
 
 export function reportAdminIds(): Set<string> {
   return parseAdminIds(process.env.AURA_ADMIN_USER_IDS);
@@ -20,7 +21,7 @@ export async function notifyNewReport(admin: any, report: { id: number; user_id:
 
   for (const adminId of reportAdminIds()) {
     try {
-      await sendPushToUser(adminId, { title: `Nuova segnalazione #${report.id}`, body: mail.subject.replace(/^AURA · nuova segnalazione #\d+: /, ""), url: "/?admin=reports", tag: "report" });
+      await sendPushToUser(adminId, { title: `Nuova segnalazione #${report.id}`, body: mail.subject.replace(/^.* · nuova segnalazione #\d+: /, ""), url: "/?admin=reports", tag: "report" });
     } catch {
       /* push is a bonus; the email and the admin page are the record */
     }
@@ -38,7 +39,7 @@ export async function emailAdmins(subject: string, text: string): Promise<void> 
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         // Without a verified domain Resend sends only from onboarding@resend.dev, and only to the
         // address the Resend account was created with.
-        body: JSON.stringify({ from: process.env.REPORTS_FROM_EMAIL || "AURA <onboarding@resend.dev>", to: [to], subject, text }),
+        body: JSON.stringify({ from: process.env.REPORTS_FROM_EMAIL || `${BRAND_NAME} <onboarding@resend.dev>`, to: [to], subject, text }),
         signal: AbortSignal.timeout(8000),
       });
       if (!res.ok) console.warn("[AURA reports] email not sent", res.status);

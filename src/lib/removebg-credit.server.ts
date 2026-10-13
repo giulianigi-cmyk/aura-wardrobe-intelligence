@@ -2,6 +2,7 @@
 // role only, not readable through the API) so every server instance sees the pause, and alerts
 // the admins once. Best-effort throughout: any failure here just means remove.bg is tried.
 import { REMOVEBG_NO_CREDIT, REMOVEBG_PAUSE_MS, removeBgPausedAt, removeBgShouldAlert } from "./removebg-credit";
+import { BRAND_NAME } from "./brand";
 
 // Per-instance copy of the marker, so a paused instance does not query the table on every photo.
 let knownNoCreditAt: number | null = null;
@@ -47,7 +48,7 @@ export async function markRemoveBgOutOfCredits(now = Date.now()): Promise<void> 
     if (removeBgShouldAlert(previous, now)) {
       const { alertAdmins } = await import("./problem-reports.server");
       await alertAdmins(
-        "AURA · remove.bg ha finito i crediti",
+        `${BRAND_NAME} · remove.bg ha finito i crediti`,
         "remove.bg ha risposto che il credito è esaurito. I capi nuovi si salvano comunque con il ritaglio gratuito; remove.bg resta in pausa e viene ritentato ogni 6 ore.\nPer riattivarlo ricarica i crediti su remove.bg. Questo avviso arriva al massimo una volta a settimana.",
       );
     }

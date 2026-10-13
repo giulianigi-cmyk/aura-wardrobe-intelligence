@@ -14,6 +14,7 @@ import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, typ
 import { loadWearHistory, recentlyWornIds, rotationOrder, seededRandom, wearFields, withoutRecentPerCategory, ROTATION_PROMPT_RULE } from "./outfit-rotation";
 import { ensureAnchor, ANCHOR_UNAVAILABLE } from "./outfit-anchor";
 import { explanationLanguageInstruction } from "./language_prompt";
+import { BRAND_NAME } from "@/lib/brand";
 
 const ItemSchema = z.object({
   id: z.string(),
@@ -430,7 +431,7 @@ export async function suggestOutfitCore(params: {
       // understanding) and asking IT to mention them is better than a fixed sentence appended
       // after the fact: the note comes out in whatever language the explanation itself is already
       // written in, instead of always Italian regardless of who's asking.
-      return [`This place may also require: ${extra.join(", ").replace(/_/g, " ")}. Add ONE brief, honest sentence about this to your explanation, phrased as "may also require" rather than certain, in the same language as the rest of your explanation — AURA has no way to check these against the wardrobe, so never imply the outfit satisfies them.`];
+      return [`This place may also require: ${extra.join(", ").replace(/_/g, " ")}. Add ONE brief, honest sentence about this to your explanation, phrased as "may also require" rather than certain, in the same language as the rest of your explanation — ${BRAND_NAME} has no way to check these against the wardrobe, so never imply the outfit satisfies them.`];
     })(),
     ...(detectActivityKind({ label: params.occasion, dressCode: null, minFormality: null }) === "concert"
       ? ["If the occasion is a concert, festival, DJ set or club night: NEVER include heels (pumps, stilettos, high sandals) — this is a physically demanding activity (hours standing, dancing, often outdoors), not an elegant sit-down evening. Sneakers, flat boots, or a low ankle boot are the right footwear; an ankle boot is fine in cool weather but should be avoided if it's genuinely hot instead. Build the rest of the outfit for a stylish-but-comfortable going-out look, not a black-tie dinner."]

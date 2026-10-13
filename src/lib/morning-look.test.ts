@@ -1,6 +1,7 @@
 // Run with: bun test src/lib/morning-look.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
+import { BRAND_NAME } from "./brand";
 import { MORNING_TIMES, isDue, localClock, morningMessage, morningTimeOf } from "./morning-look";
 
 test("times every 15 minutes from 05:00 to 12:00; anything else falls back to 07:30", () => {
@@ -27,8 +28,8 @@ test("due from the chosen time for half an hour", () => {
 });
 
 test("the message is in the person's language, with the day's weather when known", () => {
-  assert.deepEqual(morningMessage("it", { min: 9, max: 16, rainChance: 70 }), { title: "Il tuo look di oggi è pronto", body: "Oggi tra 9° e 16°, possibile pioggia. Apri AURA per vedere cosa indossare." });
-  assert.equal(morningMessage("fr", { min: 9, max: 16, rainChance: 10 }).body, "Aujourd'hui entre 9° et 16°. Ouvrez AURA pour voir quoi porter.");
+  assert.deepEqual(morningMessage("it", { min: 9, max: 16, rainChance: 70 }), { title: "Il tuo look di oggi è pronto", body: `Oggi tra 9° e 16°, possibile pioggia. Apri ${BRAND_NAME} per vedere cosa indossare.` });
+  assert.equal(morningMessage("fr", { min: 9, max: 16, rainChance: 10 }).body, `Aujourd'hui entre 9° et 16°. Ouvrez ${BRAND_NAME} pour voir quoi porter.`);
   assert.equal(morningMessage("de", null).title, "Today's look is ready");
-  assert.equal(morningMessage(null, null).body, "Open AURA to see what to wear.");
+  assert.equal(morningMessage(null, null).body, `Open ${BRAND_NAME} to see what to wear.`);
 });

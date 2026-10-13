@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { BRAND_NAME } from "@/lib/brand";
 
 type OAuthNs = {
   getAuthorizationDetails: (id: string) => Promise<{ data: AuthorizationDetails | null; error: { message: string } | null }>;
@@ -24,10 +25,10 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Authorize Access — AURA" },
-      { name: "description", content: "Review and approve third-party access to your AURA style profile and wardrobe before granting permission." },
-      { property: "og:title", content: "Authorize Access — AURA" },
-      { property: "og:description", content: "Review and approve third-party access to your AURA style profile and wardrobe before granting permission." },
+      { title: `Authorize Access — ${BRAND_NAME}` },
+      { name: "description", content: `Review and approve third-party access to your ${BRAND_NAME} style profile and wardrobe before granting permission.` },
+      { property: "og:title", content: `Authorize Access — ${BRAND_NAME}` },
+      { property: "og:description", content: `Review and approve third-party access to your ${BRAND_NAME} style profile and wardrobe before granting permission.` },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -88,7 +89,7 @@ function Consent() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
       <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Authorize access</p>
-      <h1 className="mt-4 font-serif text-3xl italic">Connect {clientName} to your AURA</h1>
+      <h1 className="mt-4 font-serif text-3xl italic">Connect {clientName} to your {BRAND_NAME}</h1>
       <p className="mt-4 text-sm text-muted-foreground">
         {clientName} will be able to read your wardrobe, style profile, and outfit calendar,
         and plan outfits on your behalf. You can revoke access anytime from your account.

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight } from "lucide-react";
+import { BRAND_WORDMARK } from "@/lib/brand";
 
 type Slide = { intro?: boolean; eyebrowKey?: string; titleKey?: string; bodyKey?: string };
 
@@ -24,7 +25,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {slide.intro && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center animate-scale-in">
             <p className="font-serif text-[96px] leading-none italic text-foreground/85 tracking-tight">
-              aura
+              {BRAND_WORDMARK}
             </p>
             <div className="mx-auto mt-5 h-px w-16 bg-foreground/30" />
             <p className="mt-5 text-[10px] uppercase tracking-[0.45em] text-muted-foreground">

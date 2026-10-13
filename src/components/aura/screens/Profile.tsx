@@ -13,6 +13,7 @@ import { AURA_APP_URL, nativeShareText } from "@/lib/aura-share";
 import { QrFullscreen } from "../MyQrCode";
 import { ProfileSocial } from "../ProfileSocial";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
+import { BRAND_NAME } from "@/lib/brand";
 
 // The cropper (react-easy-crop) is only needed while a new profile photo is being cropped.
 const AvatarCropper = lazy(() => import("../AvatarCropper").then((m) => ({ default: m.AvatarCropper })));
@@ -178,8 +179,8 @@ export function Profile({ go: _go, openConversation, openUserProfile }: { go: (s
           onClick={async () => {
             const who = profile?.full_name || "me";
             const result = await nativeShareText({
-              title: "AURA",
-              text: `Follow ${who} on AURA — download the app:`,
+              title: BRAND_NAME,
+              text: `Follow ${who} on ${BRAND_NAME} — download the app:`,
               url: AURA_APP_URL,
             });
             if (result === "copied") toast.success(t("profileScreen.linkCopied"));

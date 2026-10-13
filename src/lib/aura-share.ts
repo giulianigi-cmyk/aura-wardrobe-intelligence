@@ -1,5 +1,6 @@
+import { BRAND_NAME } from "./brand";
 export const AURA_APP_URL = "https://aura-wardrobe-intelligence.lovable.app";
-export const AURA_SHARE_CAPTION = `Created with Aura — download the app: ${AURA_APP_URL}`;
+export const AURA_SHARE_CAPTION = `Created with ${BRAND_NAME} — download the app: ${AURA_APP_URL}`;
 
 /** Try native share sheet (mobile). Returns true if it launched. */
 export async function nativeShareFile(file: File, text: string): Promise<boolean> {
@@ -9,7 +10,7 @@ export async function nativeShareFile(file: File, text: string): Promise<boolean
   };
   try {
     if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
-      await nav.share({ files: [file], text, title: "My Aura outfit" });
+      await nav.share({ files: [file], text, title: `My ${BRAND_NAME} outfit` });
       return true;
     }
   } catch {
@@ -67,7 +68,7 @@ export function shareLinks(shareUrl: string, caption: string): Record<string, st
   return {
     whatsapp: `https://wa.me/?text=${t}%20${u}`,
     facebook: `https://www.facebook.com/sharer/sharer.php?u=${u}&quote=${t}`,
-    email: `mailto:?subject=${encodeURIComponent("My Aura outfit")}&body=${t}%0A%0A${u}`,
+    email: `mailto:?subject=${encodeURIComponent(`My ${BRAND_NAME} outfit`)}&body=${t}%0A%0A${u}`,
     instagram: "instagram://library",
     tiktok: "snssdk1233://",
   };

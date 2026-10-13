@@ -8,6 +8,7 @@
 //  - the set of pieces worn in the last couple of days, to keep out of today's look when the same
 //    category still has alternatives.
 
+import { BRAND_NAME } from "./brand";
 export type WearHistory = { lastWorn: string | null; wornCount: number };
 
 /** Pieces worn within this many days are kept out of a look for TODAY when possible. */
@@ -119,7 +120,7 @@ export function wearFields(h: WearHistory | undefined, todayIso: string): { last
 }
 
 export const ROTATION_PROMPT_RULE =
-  "ROTATION — each wardrobe entry has lastWornDaysAgo (null = never worn since it was added to AURA) and timesWorn. " +
+  `ROTATION — each wardrobe entry has lastWornDaysAgo (null = never worn since it was added to ${BRAND_NAME}) and timesWorn. ` +
   "The person wants to rediscover their whole wardrobe, not see the same recent pieces again: prefer pieces not worn for a while, " +
   `and whenever the occasion and weather allow, build in at least one piece not worn for ${FORGOTTEN_DAYS}+ days (or never worn). ` +
   `Avoid pieces worn in the last ${RECENT_DAYS} days unless nothing else suitable exists. ` +

@@ -1,4 +1,5 @@
 import i18n, { SUPPORTED_LANGUAGES, LANGUAGE_LABELS, type SupportedLanguage } from "@/i18n/config";
+import { BRAND_NAME, BRAND_WORDMARK } from "@/lib/brand";
 
 /**
  * The very first screen, before Onboarding/Auth — deliberately has NO
@@ -29,7 +30,7 @@ export function LanguagePicker({ onDone }: { onDone: () => void }) {
     <div className="relative h-full w-full flex flex-col gradient-warm">
       <div className="absolute inset-0 grain opacity-40" />
       <div className="relative flex-1 flex flex-col items-center justify-center px-8">
-        <p className="font-serif text-[64px] leading-none italic text-foreground/85 tracking-tight">aura</p>
+        <p className="font-serif text-[64px] leading-none italic text-foreground/85 tracking-tight">{BRAND_WORDMARK}</p>
         <div className="mx-auto mt-6 h-px w-16 bg-foreground/30" />
         <div className="mt-10 w-full max-w-xs space-y-3">
           {SUPPORTED_LANGUAGES.map((code) => (

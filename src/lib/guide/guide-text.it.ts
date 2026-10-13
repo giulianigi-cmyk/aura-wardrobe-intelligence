@@ -1,7 +1,8 @@
 import type { GuideText } from "./guide-structure";
+import { BRAND_NAME } from "@/lib/brand";
 
 const text: GuideText = {
-  title: "Guida di AURA",
+  title: `Guida di ${BRAND_NAME}`,
   intro: "Come usare ogni parte dell'app, passo per passo. Accanto a ogni passo vedi il pulsante da toccare, come appare nell'app; con «Apri» ci vai direttamente.",
   searchPlaceholder: "Cerca nella guida…",
   noResults: "Nessun argomento trovato. Prova con un'altra parola.",
@@ -19,8 +20,8 @@ const text: GuideText = {
   },
   articles: {
     about: {
-      title: "Com'è fatta AURA",
-      intro: "AURA è il tuo guardaroba digitale: fotografi i tuoi capi e l'app ti propone cosa indossare, ogni giorno. In basso ci sono sempre cinque sezioni.",
+      title: `Com'è fatta ${BRAND_NAME}`,
+      intro: `${BRAND_NAME} è il tuo guardaroba digitale: fotografi i tuoi capi e l'app ti propone cosa indossare, ogni giorno. In basso ci sono sempre cinque sezioni.`,
       steps: [
         "Home: il look di oggi, pensato per il meteo, e le scorciatoie.",
         "Guardaroba: tutti i tuoi capi e il tasto + per aggiungerne.",
@@ -35,7 +36,7 @@ const text: GuideText = {
       steps: [
         "In Home, nel riquadro Primi passi, tocca «Più foto insieme».",
         "Tocca «Scegli foto» e seleziona dalla galleria fino a 50 foto, una per capo.",
-        "AURA scontorna e riconosce i capi in background: puoi intanto usare l'app o chiuderla.",
+        `${BRAND_NAME} scontorna e riconosce i capi in background: puoi intanto usare l'app o chiuderla.`,
         "Quando il lotto è pronto tocca «Rivedi», controlla i capi e aggiungili al guardaroba.",
       ],
       tip: "Foto su sfondo semplice e con il capo intero danno i risultati migliori.",
@@ -55,7 +56,7 @@ const text: GuideText = {
         "Tocca il tasto + in alto.",
         "Scegli «Aggiungi un capo».",
         "Scatta una foto o scegline una dalla galleria.",
-        "AURA toglie lo sfondo e compila tipo, colori, materiali e stagione: controlla e correggi se serve.",
+        `${BRAND_NAME} toglie lo sfondo e compila tipo, colori, materiali e stagione: controlla e correggi se serve.`,
         "Tocca «Salva nel guardaroba».",
       ],
       tip: "Prezzo e data d'acquisto sono facoltativi, ma servono per il costo per utilizzo nelle statistiche.",
@@ -67,7 +68,7 @@ const text: GuideText = {
         "In Guardaroba tocca + e poi «Aggiungi un capo».",
         "Tocca «Incolla link prodotto».",
         "Incolla il link nel campo (tieni premuto e scegli Incolla) oppure tocca «Incolla dagli appunti».",
-        "Tocca «Importa prodotto»: AURA prende foto, brand e prezzo dalla pagina. Controlla e salva.",
+        `Tocca «Importa prodotto»: ${BRAND_NAME} prende foto, brand e prezzo dalla pagina. Controlla e salva.`,
       ],
     },
     batch: {
@@ -79,11 +80,11 @@ const text: GuideText = {
         "Le foto vengono elaborate in background: puoi chiudere l'app e trovi un avviso nelle notifiche quando è pronto.",
         "Tocca «Rivedi», scegli i capi da tenere e aggiungili al guardaroba.",
       ],
-      tip: "Se il servizio non è disponibile, AURA te lo dice sotto il lotto: riprova più tardi.",
+      tip: `Se il servizio non è disponibile, ${BRAND_NAME} te lo dice sotto il lotto: riprova più tardi.`,
     },
     "outfit-scan": {
       title: "Fotografare un outfit intero",
-      intro: "Una tua foto con l'outfit addosso: AURA riconosce tutti i capi insieme.",
+      intro: `Una tua foto con l'outfit addosso: ${BRAND_NAME} riconosce tutti i capi insieme.`,
       steps: [
         "In Guardaroba tocca +.",
         "Scegli «Scansiona un outfit» e scatta o scegli una foto a figura intera.",
@@ -110,7 +111,7 @@ const text: GuideText = {
     },
     locations: {
       title: "Più guardaroba (casa, mare, città…)",
-      intro: "Se tieni i vestiti in posti diversi, AURA può proporti solo quello che hai a portata di mano.",
+      intro: `Se tieni i vestiti in posti diversi, ${BRAND_NAME} può proporti solo quello che hai a portata di mano.`,
       steps: [
         "Apri Tu.",
         "Tocca l'ingranaggio per aprire Impostazioni.",
@@ -150,7 +151,7 @@ const text: GuideText = {
       steps: [
         "Apri Stylist e scorri fino ad «Altre opzioni».",
         "Scegli l'occasione.",
-        "Tocca «Suggerimento AI»: AURA compone un outfit dai tuoi capi.",
+        `Tocca «Suggerimento AI»: ${BRAND_NAME} compone un outfit dai tuoi capi.`,
       ],
     },
     "work-week": {
@@ -172,9 +173,9 @@ const text: GuideText = {
     },
     worn: {
       title: "Segnare cosa hai indossato",
-      intro: "Così AURA sa cosa usi davvero: migliora i suggerimenti e calcola il costo per utilizzo.",
+      intro: `Così ${BRAND_NAME} sa cosa usi davvero: migliora i suggerimenti e calcola il costo per utilizzo.`,
       steps: [
-        "Quando AURA ti chiede «Hai indossato questo?», tocca «Sì, questo è quello che ho indossato».",
+        `Quando ${BRAND_NAME} ti chiede «Hai indossato questo?», tocca «Sì, questo è quello che ho indossato».`,
         "Oppure in Calendario apri il giorno e tocca «Segna come indossato».",
         "Oppure fotografati con «Scansiona un outfit».",
       ],
@@ -190,14 +191,14 @@ const text: GuideText = {
     },
     "connect-calendar": {
       title: "Collegare il tuo calendario",
-      intro: "Con i tuoi impegni, AURA propone l'outfit giusto per ogni appuntamento.",
+      intro: `Con i tuoi impegni, ${BRAND_NAME} propone l'outfit giusto per ogni appuntamento.`,
       steps: [
         "Apri Tu.",
         "Tocca l'ingranaggio per aprire Impostazioni.",
         "Tocca «Calendario».",
         "Collega Google, Outlook o iCloud. Per iCloud serve una password specifica per app, creata su appleid.apple.com.",
       ],
-      tip: "AURA legge soltanto i tuoi impegni e non li modifica: li aggiorna da sola due volte al giorno, e puoi sincronizzarli quando vuoi. Le credenziali sono salvate cifrate.",
+      tip: `${BRAND_NAME} legge soltanto i tuoi impegni e non li modifica: li aggiorna da sola due volte al giorno, e puoi sincronizzarli quando vuoi. Le credenziali sono salvate cifrate.`,
     },
     trips: {
       title: "Preparare un viaggio",
@@ -206,7 +207,7 @@ const text: GuideText = {
         "Tocca la valigia in alto.",
         "Tocca «Pianifica un viaggio».",
         "Scrivi la destinazione (puoi aggiungere tappe), le date, il tipo di viaggio e da quale guardaroba prendere i capi.",
-        "AURA prepara la lista per la valigia e gli outfit per le giornate, in base al meteo previsto.",
+        `${BRAND_NAME} prepara la lista per la valigia e gli outfit per le giornate, in base al meteo previsto.`,
       ],
     },
     "create-avatar": {
@@ -234,7 +235,7 @@ const text: GuideText = {
         "Apri Tu.",
         "Tocca «Analisi colore».",
         "Fai una foto del viso alla luce naturale. La foto viene analizzata sul telefono e non viene salvata.",
-        "Tocca «Salva sul profilo»: AURA userà la tua palette negli abbinamenti.",
+        `Tocca «Salva sul profilo»: ${BRAND_NAME} userà la tua palette negli abbinamenti.`,
       ],
     },
     "color-lab": {
@@ -249,8 +250,8 @@ const text: GuideText = {
       title: "Cosa comprare (e cosa no)",
       steps: [
         "Apri Home.",
-        "Tocca «Completa il guardaroba»: AURA ti dice quali capi ti mancano davvero e con quanti dei tuoi si abbinerebbero.",
-        "Stai per comprare qualcosa? Tocca «Devo comprarlo?» e incolla il link o carica una foto: AURA lo confronta con quello che hai già.",
+        `Tocca «Completa il guardaroba»: ${BRAND_NAME} ti dice quali capi ti mancano davvero e con quanti dei tuoi si abbinerebbero.`,
+        `Stai per comprare qualcosa? Tocca «Devo comprarlo?» e incolla il link o carica una foto: ${BRAND_NAME} lo confronta con quello che hai già.`,
       ],
     },
     insights: {
@@ -268,12 +269,12 @@ const text: GuideText = {
         "Tocca «Community» e scegli il tuo username.",
         "Mostra il tuo codice QR per farti aggiungere dagli amici.",
         "Condividi un outfit con il tasto di condivisione: puoi mandarlo in chat o pubblicarlo nel Feed.",
-        "Con «Invita amici» mandi il link per scaricare AURA.",
+        `Con «Invita amici» mandi il link per scaricare ${BRAND_NAME}.`,
       ],
     },
     "profile-settings": {
       title: "Profilo, taglie e preferenze",
-      intro: "Più AURA sa di te, più i suggerimenti sono giusti.",
+      intro: `Più ${BRAND_NAME} sa di te, più i suggerimenti sono giusti.`,
       steps: [
         "Da Tu, tocca l'ingranaggio per aprire Impostazioni.",
         "Dati personali: nome, data di nascita, lavoro.",

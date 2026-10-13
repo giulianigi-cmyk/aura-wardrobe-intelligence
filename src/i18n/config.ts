@@ -1,6 +1,7 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import en from "./locales/en.json";
+import { BRAND_NAME } from "@/lib/brand";
 
 export const SUPPORTED_LANGUAGES = ["it", "en", "es", "fr"] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
@@ -87,7 +88,8 @@ if (!i18n.isInitialized) {
     },
     lng: "en", // same as the server render; the stored language is applied after hydration
     fallbackLng: "en",
-    interpolation: { escapeValue: false },
+    // {{appName}} in any translation is the app name (brand.ts).
+    interpolation: { escapeValue: false, defaultVariables: { appName: BRAND_NAME } },
     react: { bindI18nStore: "added" },
   });
   // Every existing `i18n.changeLanguage(...)` call keeps working unchanged: switching to a

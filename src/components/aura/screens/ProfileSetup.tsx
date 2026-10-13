@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { USERNAME_RE } from "@/lib/community";
 import { track } from "@/lib/telemetry-client";
 import i18n, { SUPPORTED_LANGUAGES, LANGUAGE_LABELS, type SupportedLanguage } from "@/i18n/config";
+import { BRAND_NAME, BRAND_WORDMARK } from "@/lib/brand";
 
 const STYLES = [
   "Minimal", "Editorial", "Quiet luxury", "Parisian", "Street",
@@ -164,7 +165,7 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
       <header className="px-8 pt-14 pb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles size={12} />
-          <span className="text-[10px] uppercase tracking-[0.4em] text-muted-foreground">AURA</span>
+          <span className="text-[10px] uppercase tracking-[0.4em] text-muted-foreground">{BRAND_NAME}</span>
         </div>
         <button
           onClick={() => { setErr(null); void finish(); }}

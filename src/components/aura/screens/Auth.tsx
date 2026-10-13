@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/use-auth";
 import { Sparkles, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { LanguagePicker } from "../LanguagePicker";
+import { BRAND_NAME, BRAND_WORDMARK } from "@/lib/brand";
 
 type Mode = "signin" | "signup" | "forgot";
 
@@ -73,7 +74,7 @@ export function Auth() {
           ) : (
             <>
               <Sparkles size={14} />
-              <span className="text-[10px] uppercase tracking-[0.4em] text-muted-foreground">AURA</span>
+              <span className="text-[10px] uppercase tracking-[0.4em] text-muted-foreground">{BRAND_NAME}</span>
             </>
           )}
         </div>

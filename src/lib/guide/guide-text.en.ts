@@ -1,7 +1,8 @@
 import type { GuideText } from "./guide-structure";
+import { BRAND_NAME } from "@/lib/brand";
 
 const text: GuideText = {
-  title: "AURA Guide",
+  title: `${BRAND_NAME} Guide`,
   intro: "How to use every part of the app, step by step. Next to each step you see the button to tap, as it looks in the app; “Open” takes you straight there.",
   searchPlaceholder: "Search the guide…",
   noResults: "No topic found. Try another word.",
@@ -19,8 +20,8 @@ const text: GuideText = {
   },
   articles: {
     about: {
-      title: "How AURA is organised",
-      intro: "AURA is your digital closet: you photograph your pieces and the app suggests what to wear, every day. Five sections are always at the bottom.",
+      title: `How ${BRAND_NAME} is organised`,
+      intro: `${BRAND_NAME} is your digital closet: you photograph your pieces and the app suggests what to wear, every day. Five sections are always at the bottom.`,
       steps: [
         "Home: today's look, chosen for the weather, plus shortcuts.",
         "Closet: all your pieces, and the + button to add more.",
@@ -35,7 +36,7 @@ const text: GuideText = {
       steps: [
         "On Home, in the First steps card, tap “Several photos”.",
         "Tap “Choose photos” and pick up to 50 photos from your gallery, one per piece.",
-        "AURA removes the backgrounds and recognises the pieces in the background: you can keep using the app or close it.",
+        `${BRAND_NAME} removes the backgrounds and recognises the pieces in the background: you can keep using the app or close it.`,
         "When the batch is ready, tap “Review”, check the pieces and add them to your closet.",
       ],
       tip: "Photos of the whole piece on a plain background give the best results.",
@@ -55,7 +56,7 @@ const text: GuideText = {
         "Tap the + button at the top.",
         "Choose “Add one piece”.",
         "Take a photo or pick one from your gallery.",
-        "AURA removes the background and fills in type, colours, materials and season: check and correct if needed.",
+        `${BRAND_NAME} removes the background and fills in type, colours, materials and season: check and correct if needed.`,
         "Tap “Save to closet”.",
       ],
       tip: "Price and purchase date are optional, but they power cost per wear in your insights.",
@@ -67,7 +68,7 @@ const text: GuideText = {
         "In Closet tap + and then “Add one piece”.",
         "Tap “Paste product link”.",
         "Paste the link in the field (press and hold, then Paste) or tap “Paste from clipboard”.",
-        "Tap “Import product”: AURA takes the photo, brand and price from the page. Check and save.",
+        `Tap “Import product”: ${BRAND_NAME} takes the photo, brand and price from the page. Check and save.`,
       ],
     },
     batch: {
@@ -79,11 +80,11 @@ const text: GuideText = {
         "The photos are processed in the background: you can close the app, and you'll find a notice in your notifications when it's ready.",
         "Tap “Review”, choose the pieces to keep and add them to your closet.",
       ],
-      tip: "If the service is unavailable, AURA tells you under the batch: try again later.",
+      tip: `If the service is unavailable, ${BRAND_NAME} tells you under the batch: try again later.`,
     },
     "outfit-scan": {
       title: "Photographing a whole outfit",
-      intro: "One photo of you dressed: AURA recognises all the pieces together.",
+      intro: `One photo of you dressed: ${BRAND_NAME} recognises all the pieces together.`,
       steps: [
         "In Closet tap +.",
         "Choose “Scan one outfit” and take or pick a full-length photo.",
@@ -110,7 +111,7 @@ const text: GuideText = {
     },
     locations: {
       title: "Several closets (home, seaside, city…)",
-      intro: "If you keep clothes in different places, AURA can suggest only what you have at hand.",
+      intro: `If you keep clothes in different places, ${BRAND_NAME} can suggest only what you have at hand.`,
       steps: [
         "Open You.",
         "Tap the gear to open Settings.",
@@ -150,7 +151,7 @@ const text: GuideText = {
       steps: [
         "Open Stylist and scroll to “More options”.",
         "Choose the occasion.",
-        "Tap “AI suggest”: AURA puts together an outfit from your pieces.",
+        `Tap “AI suggest”: ${BRAND_NAME} puts together an outfit from your pieces.`,
       ],
     },
     "work-week": {
@@ -172,9 +173,9 @@ const text: GuideText = {
     },
     worn: {
       title: "Logging what you wore",
-      intro: "This way AURA knows what you really wear: suggestions improve and cost per wear is calculated.",
+      intro: `This way ${BRAND_NAME} knows what you really wear: suggestions improve and cost per wear is calculated.`,
       steps: [
-        "When AURA asks “Did you wear this?”, tap “Yes, this is what I wore”.",
+        `When ${BRAND_NAME} asks “Did you wear this?”, tap “Yes, this is what I wore”.`,
         "Or in Calendar open the day and tap “Mark as worn”.",
         "Or take a photo of yourself with “Scan one outfit”.",
       ],
@@ -190,14 +191,14 @@ const text: GuideText = {
     },
     "connect-calendar": {
       title: "Connecting your calendar",
-      intro: "With your plans, AURA suggests the right outfit for each appointment.",
+      intro: `With your plans, ${BRAND_NAME} suggests the right outfit for each appointment.`,
       steps: [
         "Open You.",
         "Tap the gear to open Settings.",
         "Tap “Calendar”.",
         "Connect Google, Outlook or iCloud. iCloud needs an app-specific password, created at appleid.apple.com.",
       ],
-      tip: "AURA only reads your events and never changes them: it refreshes them twice a day on its own, and you can sync whenever you like. Credentials are stored encrypted.",
+      tip: `${BRAND_NAME} only reads your events and never changes them: it refreshes them twice a day on its own, and you can sync whenever you like. Credentials are stored encrypted.`,
     },
     trips: {
       title: "Getting ready for a trip",
@@ -206,7 +207,7 @@ const text: GuideText = {
         "Tap the suitcase at the top.",
         "Tap “Plan a trip”.",
         "Enter the destination (you can add stops), the dates, the kind of trip and which closet to pack from.",
-        "AURA prepares the packing list and the outfits for each day, based on the forecast.",
+        `${BRAND_NAME} prepares the packing list and the outfits for each day, based on the forecast.`,
       ],
     },
     "create-avatar": {
@@ -234,7 +235,7 @@ const text: GuideText = {
         "Open You.",
         "Tap “Color analysis”.",
         "Take a photo of your face in natural light. It is analysed on your phone and never saved.",
-        "Tap “Save to profile”: AURA will use your palette when matching pieces.",
+        `Tap “Save to profile”: ${BRAND_NAME} will use your palette when matching pieces.`,
       ],
     },
     "color-lab": {
@@ -249,8 +250,8 @@ const text: GuideText = {
       title: "What to buy (and what not to)",
       steps: [
         "Open Home.",
-        "Tap “Shop your gaps”: AURA tells you which pieces you're really missing and how many of yours they'd go with.",
-        "About to buy something? Tap “Should I buy it?” and paste the link or upload a photo: AURA compares it with what you already own.",
+        `Tap “Shop your gaps”: ${BRAND_NAME} tells you which pieces you're really missing and how many of yours they'd go with.`,
+        `About to buy something? Tap “Should I buy it?” and paste the link or upload a photo: ${BRAND_NAME} compares it with what you already own.`,
       ],
     },
     insights: {
@@ -268,12 +269,12 @@ const text: GuideText = {
         "Tap “Community” and choose your username.",
         "Show your QR code so friends can add you.",
         "Share an outfit with the share button: send it in a chat or post it to the Feed.",
-        "“Invite friends” sends the link to get AURA.",
+        `“Invite friends” sends the link to get ${BRAND_NAME}.`,
       ],
     },
     "profile-settings": {
       title: "Profile, sizes and preferences",
-      intro: "The more AURA knows about you, the better the suggestions.",
+      intro: `The more ${BRAND_NAME} knows about you, the better the suggestions.`,
       steps: [
         "From You, tap the gear to open Settings.",
         "Personal info: name, date of birth, work.",

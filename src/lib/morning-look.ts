@@ -3,6 +3,7 @@
 // in the person's own time zone, and the text in the four languages. Sent by morning-push.server.ts.
 
 /** Choosable times: every 15 minutes from 05:00 to 12:00 (the sender runs every 15 minutes). */
+import { BRAND_NAME } from "./brand";
 export const MORNING_TIMES: string[] = Array.from({ length: (12 - 5) * 4 + 1 }, (_, i) => {
   const m = 5 * 60 + i * 15;
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
@@ -37,10 +38,10 @@ export function isDue(time: string, localMinutes: number): boolean {
 export type DayWeather = { min: number; max: number; rainChance: number | null };
 
 const TEXT = {
-  it: { title: "Il tuo look di oggi è pronto", weather: (w: DayWeather) => `Oggi tra ${w.min}° e ${w.max}°${w.rainChance != null && w.rainChance >= 50 ? ", possibile pioggia" : ""}.`, cta: "Apri AURA per vedere cosa indossare." },
-  en: { title: "Today's look is ready", weather: (w: DayWeather) => `Today ${w.min}° to ${w.max}°${w.rainChance != null && w.rainChance >= 50 ? ", rain likely" : ""}.`, cta: "Open AURA to see what to wear." },
-  es: { title: "Tu look de hoy está listo", weather: (w: DayWeather) => `Hoy entre ${w.min}° y ${w.max}°${w.rainChance != null && w.rainChance >= 50 ? ", posible lluvia" : ""}.`, cta: "Abre AURA para ver qué ponerte." },
-  fr: { title: "Votre look du jour est prêt", weather: (w: DayWeather) => `Aujourd'hui entre ${w.min}° et ${w.max}°${w.rainChance != null && w.rainChance >= 50 ? ", pluie probable" : ""}.`, cta: "Ouvrez AURA pour voir quoi porter." },
+  it: { title: "Il tuo look di oggi è pronto", weather: (w: DayWeather) => `Oggi tra ${w.min}° e ${w.max}°${w.rainChance != null && w.rainChance >= 50 ? ", possibile pioggia" : ""}.`, cta: `Apri ${BRAND_NAME} per vedere cosa indossare.` },
+  en: { title: "Today's look is ready", weather: (w: DayWeather) => `Today ${w.min}° to ${w.max}°${w.rainChance != null && w.rainChance >= 50 ? ", rain likely" : ""}.`, cta: `Open ${BRAND_NAME} to see what to wear.` },
+  es: { title: "Tu look de hoy está listo", weather: (w: DayWeather) => `Hoy entre ${w.min}° y ${w.max}°${w.rainChance != null && w.rainChance >= 50 ? ", posible lluvia" : ""}.`, cta: `Abre ${BRAND_NAME} para ver qué ponerte.` },
+  fr: { title: "Votre look du jour est prêt", weather: (w: DayWeather) => `Aujourd'hui entre ${w.min}° et ${w.max}°${w.rainChance != null && w.rainChance >= 50 ? ", pluie probable" : ""}.`, cta: `Ouvrez ${BRAND_NAME} pour voir quoi porter.` },
 } as const;
 
 export function morningMessage(language: string | null | undefined, weather: DayWeather | null): { title: string; body: string } {

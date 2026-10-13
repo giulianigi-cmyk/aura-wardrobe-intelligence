@@ -1,7 +1,8 @@
 import type { GuideText } from "./guide-structure";
+import { BRAND_NAME } from "@/lib/brand";
 
 const text: GuideText = {
-  title: "Guide d'AURA",
+  title: `Guide de ${BRAND_NAME}`,
   intro: "Comment utiliser chaque partie de l'app, étape par étape. À côté de chaque étape, vous voyez le bouton à toucher tel qu'il apparaît dans l'app ; « Ouvrir » vous y emmène directement.",
   searchPlaceholder: "Rechercher dans le guide…",
   noResults: "Aucun sujet trouvé. Essayez un autre mot.",
@@ -19,8 +20,8 @@ const text: GuideText = {
   },
   articles: {
     about: {
-      title: "Comment AURA est organisée",
-      intro: "AURA est votre garde-robe numérique : vous photographiez vos pièces et l'app vous propose quoi porter, chaque jour. Cinq sections sont toujours en bas de l'écran.",
+      title: `Comment ${BRAND_NAME} est organisée`,
+      intro: `${BRAND_NAME} est votre garde-robe numérique : vous photographiez vos pièces et l'app vous propose quoi porter, chaque jour. Cinq sections sont toujours en bas de l'écran.`,
       steps: [
         "Accueil : le look du jour, pensé pour la météo, et les raccourcis.",
         "Garde-robe : toutes vos pièces et le bouton + pour en ajouter.",
@@ -35,7 +36,7 @@ const text: GuideText = {
       steps: [
         "Sur l'Accueil, dans l'encadré Premiers pas, touchez « Plusieurs photos ».",
         "Touchez « Choisir des photos » et sélectionnez jusqu'à 50 photos dans la galerie, une par pièce.",
-        "AURA détoure et reconnaît les pièces en arrière-plan : vous pouvez continuer à utiliser l'app ou la fermer.",
+        `${BRAND_NAME} détoure et reconnaît les pièces en arrière-plan : vous pouvez continuer à utiliser l'app ou la fermer.`,
         "Quand le lot est prêt, touchez « Examiner », vérifiez les pièces et ajoutez-les à la garde-robe.",
       ],
       tip: "Des photos de la pièce entière sur un fond simple donnent les meilleurs résultats.",
@@ -55,7 +56,7 @@ const text: GuideText = {
         "Touchez le bouton + en haut.",
         "Choisissez « Ajouter une pièce ».",
         "Prenez une photo ou choisissez-en une dans la galerie.",
-        "AURA retire le fond et remplit type, couleurs, matières et saison : vérifiez et corrigez si besoin.",
+        `${BRAND_NAME} retire le fond et remplit type, couleurs, matières et saison : vérifiez et corrigez si besoin.`,
         "Touchez « Enregistrer dans la garde-robe ».",
       ],
       tip: "Le prix et la date d'achat sont facultatifs, mais ils servent au coût par port dans les statistiques.",
@@ -67,7 +68,7 @@ const text: GuideText = {
         "Dans Garde-robe, touchez + puis « Ajouter une pièce ».",
         "Touchez « Coller le lien du produit ».",
         "Collez le lien dans le champ (appui long puis Coller) ou touchez « Coller depuis le presse-papiers ».",
-        "Touchez « Importer le produit » : AURA récupère la photo, la marque et le prix sur la page. Vérifiez et enregistrez.",
+        `Touchez « Importer le produit » : ${BRAND_NAME} récupère la photo, la marque et le prix sur la page. Vérifiez et enregistrez.`,
       ],
     },
     batch: {
@@ -79,11 +80,11 @@ const text: GuideText = {
         "Les photos sont traitées en arrière-plan : vous pouvez fermer l'app et vous trouverez un avis dans les notifications quand c'est prêt.",
         "Touchez « Examiner », choisissez les pièces à garder et ajoutez-les à la garde-robe.",
       ],
-      tip: "Si le service n'est pas disponible, AURA vous l'indique sous le lot : réessayez plus tard.",
+      tip: `Si le service n'est pas disponible, ${BRAND_NAME} vous l'indique sous le lot : réessayez plus tard.`,
     },
     "outfit-scan": {
       title: "Photographier une tenue entière",
-      intro: "Une photo de vous avec la tenue : AURA reconnaît toutes les pièces à la fois.",
+      intro: `Une photo de vous avec la tenue : ${BRAND_NAME} reconnaît toutes les pièces à la fois.`,
       steps: [
         "Dans Garde-robe, touchez +.",
         "Choisissez « Scanner une tenue » et prenez ou choisissez une photo en pied.",
@@ -110,7 +111,7 @@ const text: GuideText = {
     },
     locations: {
       title: "Plusieurs garde-robes (maison, mer, ville…)",
-      intro: "Si vous rangez vos vêtements à différents endroits, AURA peut ne vous proposer que ce que vous avez sous la main.",
+      intro: `Si vous rangez vos vêtements à différents endroits, ${BRAND_NAME} peut ne vous proposer que ce que vous avez sous la main.`,
       steps: [
         "Ouvrez Vous.",
         "Touchez l'engrenage pour ouvrir les Paramètres.",
@@ -150,7 +151,7 @@ const text: GuideText = {
       steps: [
         "Ouvrez Styliste et faites défiler jusqu'à « Plus d'options ».",
         "Choisissez l'occasion.",
-        "Touchez « Suggestion IA » : AURA compose une tenue avec vos pièces.",
+        `Touchez « Suggestion IA » : ${BRAND_NAME} compose une tenue avec vos pièces.`,
       ],
     },
     "work-week": {
@@ -172,9 +173,9 @@ const text: GuideText = {
     },
     worn: {
       title: "Noter ce que vous avez porté",
-      intro: "Ainsi AURA sait ce que vous portez vraiment : les suggestions s'améliorent et le coût par port est calculé.",
+      intro: `Ainsi ${BRAND_NAME} sait ce que vous portez vraiment : les suggestions s'améliorent et le coût par port est calculé.`,
       steps: [
-        "Quand AURA demande « Avez-vous porté cette tenue ? », touchez « Oui, c'est ce que j'ai porté ».",
+        `Quand ${BRAND_NAME} demande « Avez-vous porté cette tenue ? », touchez « Oui, c'est ce que j'ai porté ».`,
         "Ou, dans Calendrier, ouvrez le jour et touchez « Marquer comme portée ».",
         "Ou prenez-vous en photo avec « Scanner une tenue ».",
       ],
@@ -190,14 +191,14 @@ const text: GuideText = {
     },
     "connect-calendar": {
       title: "Connecter votre calendrier",
-      intro: "Avec vos rendez-vous, AURA propose la bonne tenue pour chacun.",
+      intro: `Avec vos rendez-vous, ${BRAND_NAME} propose la bonne tenue pour chacun.`,
       steps: [
         "Ouvrez Vous.",
         "Touchez l'engrenage pour ouvrir les Paramètres.",
         "Touchez « Calendrier ».",
         "Connectez Google, Outlook ou iCloud. Pour iCloud, il faut un mot de passe pour app, créé sur appleid.apple.com.",
       ],
-      tip: "AURA lit seulement vos événements et ne les modifie jamais : elle les met à jour deux fois par jour, et vous pouvez synchroniser quand vous voulez. Les identifiants sont enregistrés chiffrés.",
+      tip: `${BRAND_NAME} lit seulement vos événements et ne les modifie jamais : elle les met à jour deux fois par jour, et vous pouvez synchroniser quand vous voulez. Les identifiants sont enregistrés chiffrés.`,
     },
     trips: {
       title: "Préparer un voyage",
@@ -206,7 +207,7 @@ const text: GuideText = {
         "Touchez la valise en haut.",
         "Touchez « Planifier un voyage ».",
         "Indiquez la destination (vous pouvez ajouter des étapes), les dates, le type de voyage et la garde-robe où prendre les pièces.",
-        "AURA prépare la liste pour la valise et les tenues de chaque jour, selon les prévisions météo.",
+        `${BRAND_NAME} prépare la liste pour la valise et les tenues de chaque jour, selon les prévisions météo.`,
       ],
     },
     "create-avatar": {
@@ -234,7 +235,7 @@ const text: GuideText = {
         "Ouvrez Vous.",
         "Touchez « Analyse des couleurs ».",
         "Prenez une photo de votre visage à la lumière naturelle. Elle est analysée sur le téléphone et n'est jamais enregistrée.",
-        "Touchez « Enregistrer dans le profil » : AURA utilisera votre palette pour les associations.",
+        `Touchez « Enregistrer dans le profil » : ${BRAND_NAME} utilisera votre palette pour les associations.`,
       ],
     },
     "color-lab": {
@@ -249,8 +250,8 @@ const text: GuideText = {
       title: "Quoi acheter (et quoi éviter)",
       steps: [
         "Ouvrez l'Accueil.",
-        "Touchez « Compléter votre garde-robe » : AURA vous dit quelles pièces vous manquent vraiment et avec combien des vôtres elles s'associeraient.",
-        "Sur le point d'acheter ? Touchez « Devrais-je l'acheter ? » et collez le lien ou envoyez une photo : AURA le compare avec ce que vous avez déjà.",
+        `Touchez « Compléter votre garde-robe » : ${BRAND_NAME} vous dit quelles pièces vous manquent vraiment et avec combien des vôtres elles s'associeraient.`,
+        `Sur le point d'acheter ? Touchez « Devrais-je l'acheter ? » et collez le lien ou envoyez une photo : ${BRAND_NAME} le compare avec ce que vous avez déjà.`,
       ],
     },
     insights: {
@@ -268,12 +269,12 @@ const text: GuideText = {
         "Touchez « Communauté » et choisissez votre nom d'utilisateur.",
         "Montrez votre code QR pour que vos amis vous ajoutent.",
         "Partagez une tenue avec le bouton de partage : envoyez-la en message ou publiez-la dans le Feed.",
-        "« Inviter des amis » envoie le lien pour télécharger AURA.",
+        `« Inviter des amis » envoie le lien pour télécharger ${BRAND_NAME}.`,
       ],
     },
     "profile-settings": {
       title: "Profil, tailles et préférences",
-      intro: "Plus AURA en sait sur vous, plus les suggestions sont justes.",
+      intro: `Plus ${BRAND_NAME} en sait sur vous, plus les suggestions sont justes.`,
       steps: [
         "Depuis Vous, touchez l'engrenage pour ouvrir les Paramètres.",
         "Informations personnelles : nom, date de naissance, travail.",

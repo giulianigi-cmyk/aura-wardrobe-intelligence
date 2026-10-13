@@ -23,6 +23,7 @@ import { applyFashionSignals, fashionFacts, fashionPrompt, FashionSignalsSchema,
 import { dressPreferenceConflicts, hasAnyPreference, type DressConflict, type DressPreferences } from "./dress-preferences";
 import { COLOR_PALETTE } from "./color-palette";
 import type { WardrobeItem } from "./aura-types";
+import { BRAND_NAME } from "@/lib/brand";
 
 // ============================================================================
 // Purchase Advisor — "Should I buy this?"
@@ -545,7 +546,7 @@ async function resolveProductAndWardrobeFacts(
     : null;
   const duplicate = dup
     ? { verdict: dup.verdict, itemId: dup.itemId, label: dup.label }
-    : saidOwned ? { verdict: "maybe" as const, itemId: SAID_OWNED_ID, label: "a piece of this kind and colour the person told AURA they already own" } : null;
+    : saidOwned ? { verdict: "maybe" as const, itemId: SAID_OWNED_ID, label: `a piece of this kind and colour the person told ${BRAND_NAME} they already own` } : null;
   // The reference piece for "how it differs" is the same model when one is owned (an Alina jean
   // next to the Alina jeans owned), otherwise the closest piece of the same kind. A piece the person
   // marked "not similar" can't be called a duplicate, but it stays a valid reference for how this one
