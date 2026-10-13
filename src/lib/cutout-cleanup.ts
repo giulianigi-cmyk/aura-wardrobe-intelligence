@@ -17,8 +17,10 @@ const HAZE_ALPHA = 32;
 const SOLID_ALPHA = 230;
 const BG_COLOR_DISTANCE = 48;
 const ISLAND_RATIO = 0.05;
-/** The photo border must be this uniform (mean distance from its median colour) to be trusted. */
-const BG_MAX_SPREAD = 36;
+/** The photo border must be this uniform to be trusted: this share of its samples within
+ *  BG_COLOR_DISTANCE of its median colour. A share, not a mean, so a garment that touches the edge
+ *  of a product photo (a sweater filling the frame) does not make a plain white border "busy". */
+const BG_MIN_AGREEMENT = 0.75;
 
 const dist = (r: number, g: number, b: number, c: Rgb) => Math.hypot(r - c[0], g - c[1], b - c[2]);
 
@@ -41,9 +43,54 @@ export function estimateBackground(rgba: Uint8ClampedArray, w: number, h: number
   if (rs.length < 20) return null;
   const med = (a: number[]) => a.sort((p, q) => p - q)[a.length >> 1];
   const c: Rgb = [med(rs.slice()), med(gs.slice()), med(bs.slice())];
-  let spread = 0;
-  for (let i = 0; i < rs.length; i++) spread += dist(rs[i], gs[i], bs[i], c);
-  return spread / rs.length <= BG_MAX_SPREAD ? c : null;
+  let agree = 0;
+  for (let i = 0; i < rs.length; i++) if (dist(rs[i], gs[i], bs[i], c) < BG_COLOR_DISTANCE) agree++;
+  return agree / rs.length >= BG_MIN_AGREEMENT ? c : null;
+}
+
+/** Clearly not background in the original photo: this far from the background colour. */
+const FOREGROUND_DISTANCE = 64;
+/** A cutout must keep at least this share of what is clearly the garment in the original. */
+export const MIN_KEPT_FOREGROUND = 0.7;
+
+/** On a photo with a plain background: the share of the pixels that are clearly NOT background in
+ *  the original (the garment) that the cutout kept solid. A dark garment on white whose body the
+ *  model erased — a navy sweater of which only the light motif survived — scores far below 1.
+ *  Null when there is too little foreground to judge. */
+export function keptForegroundRatio(original: Uint8ClampedArray, cutout: Uint8ClampedArray, w: number, h: number, bg: Rgb): number | null {
+  let fg = 0, kept = 0;
+  for (let p = 0; p < w * h; p++) {
+    const i = p * 4;
+    if (original[i + 3] < 200 || dist(original[i], original[i + 1], original[i + 2], bg) < FOREGROUND_DISTANCE) continue;
+    fg++;
+    if (cutout[i + 3] >= 128) kept++;
+  }
+  return fg >= w * h * 0.01 ? kept / fg : null;
+}
+
+/** A cutout made from the colour alone: the plain background reachable from the photo's border
+ *  becomes transparent, everything else stays. The safe fallback for a product photo on white
+ *  when the model failed — a light part of the garment enclosed by darker fabric is never reached,
+ *  so it stays. Returns a new RGBA buffer. */
+export function colorKeyCutout(original: Uint8ClampedArray, w: number, h: number, bg: Rgb): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(original);
+  const n = w * h;
+  const isBg = (p: number) => dist(original[p * 4], original[p * 4 + 1], original[p * 4 + 2], bg) < BG_COLOR_DISTANCE;
+  const seen = new Uint8Array(n);
+  const stack: number[] = [];
+  const seed = (p: number) => { if (!seen[p] && isBg(p)) { seen[p] = 1; stack.push(p); } };
+  for (let x = 0; x < w; x++) { seed(x); seed((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { seed(y * w); seed(y * w + w - 1); }
+  while (stack.length) {
+    const p = stack.pop()!;
+    out[p * 4 + 3] = 0;
+    const x = p % w, y = (p - x) / w;
+    if (x > 0) seed(p - 1);
+    if (x < w - 1) seed(p + 1);
+    if (y > 0) seed(p - w);
+    if (y < h - 1) seed(p + w);
+  }
+  return out;
 }
 
 /** Cleans a cutout in place (RGBA, straight alpha). Returns how many pixels became transparent. */

@@ -1,7 +1,7 @@
 // Run with: bun test src/lib/cutout-cleanup.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cleanCutout, estimateBackground, type Rgb } from "./cutout-cleanup";
+import { cleanCutout, colorKeyCutout, estimateBackground, keptForegroundRatio, MIN_KEPT_FOREGROUND, type Rgb } from "./cutout-cleanup";
 
 function img(w: number, h: number, fill: [number, number, number, number]) {
   const a = new Uint8ClampedArray(w * h * 4);
@@ -67,4 +67,36 @@ test("faint haze removed", () => {
   cleanCutout(cut, w, h, null);
   assert.equal(alpha(cut, w, 20, 2), 0);
   assert.equal(alpha(cut, w, 20, 20), 255);
+});
+
+// A navy sweater with a light motif, photographed on white, nearly filling the frame (its sleeves
+// reach into the border band on the left and right).
+function navySweaterPhoto(w: number, h: number) {
+  const orig = img(w, h, [255, 255, 255, 255]);
+  rect(orig, w, 2, 10, w - 2, 90, [20, 30, 70, 255]); // the sweater, almost edge to edge
+  rect(orig, w, 40, 40, 60, 60, [240, 235, 220, 255]); // the cream motif in the middle
+  return orig;
+}
+
+test("a garment touching the edge of a white product photo still leaves a trusted white background", () => {
+  const w = 100, h = 100;
+  assert.deepEqual(estimateBackground(navySweaterPhoto(w, h), w, h), [255, 255, 255]);
+});
+
+test("a cutout that erased the dark body and kept only the light motif is detected, and the colour cutout keeps it all", () => {
+  const w = 100, h = 100;
+  const orig = navySweaterPhoto(w, h);
+  const bg = estimateBackground(orig, w, h)!;
+  const broken = img(w, h, [0, 0, 0, 0]);
+  rect(broken, w, 40, 40, 60, 60, [240, 235, 220, 255]); // only the motif survived
+  assert.ok(keptForegroundRatio(orig, broken, w, h, bg)! < MIN_KEPT_FOREGROUND);
+  const good = img(w, h, [0, 0, 0, 0]);
+  rect(good, w, 2, 10, w - 2, 90, [20, 30, 70, 255]);
+  assert.ok(keptForegroundRatio(orig, good, w, h, bg)! >= MIN_KEPT_FOREGROUND, "a correct cutout passes");
+
+  const fixed = colorKeyCutout(orig, w, h, bg);
+  assert.equal(alpha(fixed, w, 50, 3), 0, "the white above is background");
+  assert.equal(alpha(fixed, w, 50, 96), 0, "the white below is background");
+  assert.equal(alpha(fixed, w, 10, 50), 255, "the navy body stays");
+  assert.equal(alpha(fixed, w, 50, 50), 255, "the cream motif, enclosed by the sweater, stays");
 });
