@@ -87,3 +87,22 @@ test("a jacket starts at the top of the board, and the bag and belt beside it ke
   // nothing overlaps in the right-hand column
   assert.ok(r("bag").y + r("bag").h <= r("belt").y);
 });
+
+test("a suit jacket under a coat: the coat stays big on the left, the jacket lies over it and leaves the top and the shoes their room", () => {
+  const rects = layoutOutfit([
+    { id: "blazer", bucket: "outer", aspect: 1.05, subcategory: "Blazer" },
+    { id: "coat", bucket: "outer", aspect: 1.6, subcategory: "Coat", length: "Long" },
+    { id: "trousers", bucket: "bottom", aspect: 2.3, subcategory: "Trousers" },
+    { id: "shirt", bucket: "top", aspect: 1.0, subcategory: "Shirt" },
+    { id: "bag", bucket: "bag", aspect: 0.85, subcategory: "Top Handle", fill: 0.5 },
+    { id: "pumps", bucket: "shoes", aspect: 0.5, subcategory: "Pumps" },
+  ] as LayoutInput[]);
+  const get = (id: string) => rects.find((r) => r.id === id)!;
+  const coat = get("coat"), blazer = get("blazer"), shirt = get("shirt"), pumps = get("pumps");
+  assert.ok(coat.h > blazer.h, "the coat reads bigger than the jacket on it");
+  assert.ok(blazer.z > coat.z, "the jacket is drawn over the coat");
+  assert.ok(coat.x < blazer.x && blazer.y > coat.y, "the jacket sits lower and to the right of the coat");
+  assert.ok(overlap(shirt, blazer) < 0.15, "the jacket is not pushed onto the shirt");
+  assert.ok(coat.y + coat.h <= pumps.y, "the coat ends above the shoes");
+  for (const r of rects) assert.ok(r.x >= 0 && r.x + r.w <= W && r.y + r.h <= H * (1 - 0.115) + 1, r.id);
+});
