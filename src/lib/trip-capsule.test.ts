@@ -1083,3 +1083,32 @@ test("a trade fair is sent to the engine as Work, a flight as Travel, and on a w
   assert.match(engineOccasionText(flight, true), /business trip.*no logo/);
   assert.equal(engineOccasionText(evening, true), "Cena di lavoro");
 });
+
+test("a cold trip (12°C day, 5°C evening) packs a warm outer layer, a blazer alone is not one", () => {
+  const pool: PoolItem[] = [
+    item({ id: "blazer", category: "Outerwear", subcategory: "Blazer", formality: 4 }),
+    item({ id: "coat", category: "Outerwear", subcategory: "Coat", formality: 4, material: ["Wool"] }),
+    item({ id: "denim-jacket", category: "Outerwear", subcategory: "Denim Jacket", formality: 2 }),
+    item({ id: "trousers", category: "Bottoms", subcategory: "Trousers", formality: 3 }),
+    item({ id: "shirt", category: "Tops", subcategory: "Shirt", formality: 3 }),
+    item({ id: "pumps", category: "Shoes", subcategory: "Pumps", formality: 4 }),
+  ];
+  const requirements: Requirement[] = [
+    { activityId: "fair", date: "2026-10-22", daySegment: "day", dressCode: "Business Casual", label: "Gimav" },
+    { activityId: "dinner", date: "2026-10-22", daySegment: "evening", dressCode: null, label: "Cena" },
+  ];
+  const temps = new Map<string, number | null>([["fair", 12], ["dinner", 5]]);
+  const capsule = buildCapsule(pool, requirements, new Map(), [], temps);
+  assert.ok(capsule.has("coat"), `a coat expected: ${[...capsule].join(", ")}`);
+});
+
+test("a warm trip packs no coat", () => {
+  const pool: PoolItem[] = [
+    item({ id: "coat", category: "Outerwear", subcategory: "Coat", formality: 4 }),
+    item({ id: "shorts", category: "Bottoms", subcategory: "Shorts", formality: 1 }),
+    item({ id: "tee", category: "Tops", subcategory: "T-Shirt", formality: 1 }),
+  ];
+  const requirements: Requirement[] = [{ activityId: "beach-day", date: "2026-07-10", daySegment: "day", dressCode: null, label: "Passeggiata" }];
+  const capsule = buildCapsule(pool, requirements, new Map(), [], new Map([["beach-day", 28]]));
+  assert.ok(!capsule.has("coat"));
+});

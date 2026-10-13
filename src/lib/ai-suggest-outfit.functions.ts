@@ -6,7 +6,7 @@ import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { isItemAtAnyLocation } from "./wardrobe-location";
 import { isItemAllowedByDressPreferences, hasAnyPreference, coversShoulders, coversArms, coversLegs, type DressPreferences } from "./dress-preferences";
-import { anyItemViolatesWeather, violatesSleeveClimate, violatesWeatherRule, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule } from "./outfit-weather-rules";
+import { anyItemViolatesWeather, violatesSleeveClimate, violatesWeatherRule, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule, MILD_COOL_THRESHOLD_C, COLD_THRESHOLD_C } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, rainLayerFor, RAIN_PROMPT_RULE } from "./rain-rules";
 import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
@@ -991,6 +991,20 @@ export async function suggestOutfitCore(params: {
       const chosen = item_ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => !!c);
       const layer = rainLayerFor(chosen, usable);
       if (layer) item_ids = [...item_ids, layer.id];
+    }
+
+    // Cold: an outer layer, always (not only when the model thinks of it). Below 16°C — counting the
+    // morning, when the day starts cold — a look with no coat or jacket is incomplete; at 10°C or below a
+    // warm one (coat, trench, puffer, parka) first. A blazer or a cardigan already in the look counts.
+    {
+      const readings = [params.temperature, params.morningTemp].filter((t): t is number => typeof t === "number");
+      const coldest = readings.length ? Math.min(...readings) : null;
+      const hasLayer = item_ids.some((id) => { const c = catalog.find((x) => x.id === id); return !!c && slotOf(c) === "Outerwear"; });
+      if (coldest != null && coldest < MILD_COOL_THRESHOLD_C && !hasLayer) {
+        const warm = (c: (typeof catalog)[number]) => /coat|cappotto|trench|puffer|piumino|parka|wool|lana|shearling|montone/i.test(`${c.subcategory ?? ""} ${(c.material ?? []).join(" ")}`);
+        const layer = (coldest <= COLD_THRESHOLD_C ? pickBest("Outerwear", warm) : null) ?? pickBest("Outerwear");
+        if (layer) item_ids = [...item_ids, layer.id];
+      }
     }
 
     if (missingMandatoryBag(item_ids)) {

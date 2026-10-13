@@ -7,7 +7,7 @@ import { getTripWeatherMap, weatherKey } from "./trip-weather.server";
 import { describeWeather } from "./weather";
 import { isLogoOrGraphicTop, isWorkActivityText } from "./work-dress";
 import { computeCapsuleSeedAndExclusions } from "./trip-capsule-persistence";
-import { violatesWeatherRule, HEAVY_SIGNAL, LIGHT_SIGNAL, MILD_WARM_THRESHOLD_C, MILD_COOL_THRESHOLD_C, type WeatherCheckableItem } from "./outfit-weather-rules";
+import { violatesWeatherRule, HEAVY_SIGNAL, LIGHT_SIGNAL, MILD_WARM_THRESHOLD_C, MILD_COOL_THRESHOLD_C, COLD_THRESHOLD_C, type WeatherCheckableItem } from "./outfit-weather-rules";
 import type { StyleMemoryRow } from "./style-memory-prompt";
 import {
   detectActivityKind, hasEleganceSignal as sharedHasEleganceSignal, businessDinnerAdjustment,
@@ -882,8 +882,41 @@ export function buildCapsule(
     }
   }
 
+  // Reserved slot for the cold. No role target above packs a coat or a jacket, so a trip with a
+  // 12°C day and a 5°C evening (Düsseldorf in October) had no outer layer to choose from at all —
+  // a blazer packed for work is not one. Below 16°C the suitcase carries a real outer layer; at
+  // 10°C or below a warm one (coat, trench, puffer, parka) first. Unknown temperatures pack one
+  // only for a winter trip.
+  const temps = requirements.map((r) => tempByActivity.get(r.activityId)).filter((t): t is number => t != null);
+  const coldest = temps.length ? Math.min(...temps) : null;
+  const needsOuter = coldest != null ? coldest < MILD_COOL_THRESHOLD_C : requirements.some((r) => seasonByDate.get(r.date) === "Winter");
+  const hasRealOuter = Array.from(capsule).some((id) => {
+    const it = pool.find((p) => p.id === id);
+    return it?.category === "Outerwear" && !/blazer|vest|gilet/i.test(it.subcategory ?? "");
+  });
+  if (needsOuter && !hasRealOuter) {
+    const repReq = requirements.find((r) => tempByActivity.get(r.activityId) === coldest) ?? requirements[0];
+    const repSeason = seasonByDate.get(repReq.date) ?? "";
+    const warmFirst = coldest == null || coldest <= COLD_THRESHOLD_C;
+    const dressy = workReqs.length > 0 || requirements.some(hasEleganceSignal);
+    const best = pool
+      .filter((it) => it.category === "Outerwear" && !capsule.has(it.id) && !/blazer|vest|gilet/i.test(it.subcategory ?? "")
+        && climateSuitability(it, coldest, repSeason) !== "inappropriate")
+      .map((it) => ({
+        it,
+        score: (warmFirst && WARM_OUTER.test(`${it.subcategory ?? ""} ${(it.material ?? []).join(" ")}`) ? 10 : 0)
+          // a work or dinner trip wants a coat or a trench rather than a puffer or a denim jacket
+          + (dressy ? (CASUAL_OUTER.test(it.subcategory ?? "") ? -5 : 0) + it.formality : 0)
+          + versatility(it, repReq, coldest, styleMemory),
+      }))
+      .sort((a, b) => b.score - a.score)[0];
+    if (best) capsule.add(best.it.id);
+  }
+
   return capsule;
 }
+
+const WARM_OUTER = /coat|cappotto|trench|puffer|piumino|parka|wool|lana|cashmere|shearling|montone/i;
 
 // A tailored jacket rather than a puffer, a parka or a denim jacket.
 const CASUAL_OUTER = /puffer|piumino|parka|windbreaker|rain|anorak|denim|bomber|shacket|vest|gilet|fleece|pile/i;
