@@ -238,6 +238,33 @@ export function isWorkRequirement(req: Requirement): boolean {
   return req.daySegment === "day" && !isTransportActivity(req.label) && isWorkActivityText(req.label, req.dressCode);
 }
 
+type ActivityRow = { activity_type: string | null; day_segment: string | null; dress_code: string | null; start_time?: string | null; end_time?: string | null; location?: string | null };
+
+const minutesOf = (t: string | null | undefined): number | null => {
+  const m = /^(\d{1,2}):(\d{2})/.exec(t ?? "");
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+};
+const EVENING_FROM_MIN = 19 * 60;
+const DAY_UNTIL_MIN = 17 * 60;
+
+/** The parts of the day an activity's hours reach: its own segment, plus the evening when it ends
+ *  at 19:00 or later (or past midnight), plus the day when it starts before 17:00. */
+export function segmentsCovered(a: ActivityRow): ("day" | "evening")[] {
+  const own = a.day_segment === "evening" ? "evening" : "day";
+  const start = minutesOf(a.start_time), end = minutesOf(a.end_time);
+  const out = new Set<"day" | "evening">([own]);
+  if (end != null && (end >= EVENING_FROM_MIN || (start != null && end < start))) out.add("evening");
+  if (start != null && start < DAY_UNTIL_MIN) out.add("day");
+  return [...out];
+}
+
+/** A generic slot this planner invented for a date with nothing logged ("Day" / "Evening", no dress
+ *  code, no hours, no place). */
+export function isScaffoldSlot(a: ActivityRow): boolean {
+  return (a.activity_type === "Day" || a.activity_type === "Evening")
+    && !a.dress_code && !a.start_time && !a.end_time && !a.location?.trim();
+}
+
 /** The occasion as the outfit engine reads it. The engine keys its rules on the start of the text
  *  ("Work…" turns on the work rules and the person's work dress code; the piece's own occasion tags
  *  are matched against it), so a trade fair is sent as "Work · …" and a flight or a train as
@@ -250,7 +277,14 @@ export function engineOccasionText(req: Requirement, workTrip: boolean): string 
       ? `Travel · ${text} — a business trip: a smart, presentable travel look (trousers or dark jeans, a plain top, shirt or knit); no logo or graphic T-shirts or sweatshirts`
       : `Travel · ${text}`;
   }
-  return isWorkRequirement(req) ? `Work · ${text}` : text;
+  const base = isWorkRequirement(req) ? `Work · ${text}` : text;
+  // One look from the afternoon into the night: an event that starts in the day and ends in the
+  // evening has its dinner inside it, so the look must hold up at both.
+  const start = minutesOf(req.startTime), end = minutesOf(req.endTime);
+  if (req.daySegment === "day" && start != null && end != null && start < EVENING_FROM_MIN && (end >= 20 * 60 || end < start)) {
+    return `${base} — from ${req.startTime} until ${req.endTime}, dinner included: one look worn from the afternoon into the evening, without changing`;
+  }
+  return base;
 }
 
 function occasionText(req: Requirement): string {
@@ -1231,9 +1265,10 @@ export async function generateTripCapsuleCore({ data, context }: {
       const transportDates = new Set(
         activities.filter((a) => isTransportActivity(a.activity_type)).map((a) => a.activity_date),
       );
-      const covered = new Set(
-        activities.map((a) => `${a.activity_date}|${a.day_segment === "evening" ? "evening" : "day"}`),
-      );
+      // An activity covers the segments its hours reach, not only the one it was filed under: an
+      // event from 17:00 to 22:00 (dinner included) is the evening too, and must not get a second
+      // invented "Evening" look on top of it.
+      const covered = new Set(activities.flatMap((a) => segmentsCovered(a).map((seg) => `${a.activity_date}|${seg}`)));
       const tripDates: string[] = [];
       for (let d = new Date(`${tripStartDate}T00:00:00`); d <= new Date(`${tripEndDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
         tripDates.push(d.toISOString().slice(0, 10));
@@ -1259,6 +1294,15 @@ export async function generateTripCapsuleCore({ data, context }: {
         if (!scaffoldErr && inserted) activities = [...activities, ...(inserted as typeof activities)];
       }
     }
+
+    // Generic "Day"/"Evening" slots invented on an earlier run are dropped once a real activity of
+    // the same date reaches that part of the day (the person later logged an event until 22:00):
+    // the event's look is the evening look.
+    activities = activities.filter((a) => {
+      if (!isScaffoldSlot(a)) return true;
+      const seg = a.day_segment === "evening" ? "evening" : "day";
+      return !activities.some((o) => o !== a && o.activity_date === a.activity_date && !isScaffoldSlot(o) && segmentsCovered(o).includes(seg));
+    });
 
     const targeted = data.activityIds?.length ? new Set(data.activityIds) : null;
     const allRequirements: Requirement[] = activities

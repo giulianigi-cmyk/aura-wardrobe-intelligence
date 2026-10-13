@@ -11,7 +11,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildCapsule, type PoolItem, type Requirement, climateSuitability, isSweatConsumable, applyHardDressCodeFilter, isTransportActivity, applyTransportPracticalityFilter, isAccommodationActivity, changeAssumedPossible, isTravelSuitable, outfitIsTravelSuitable, isConcertFootwearSuitable, applyConcertFootwearFilter, activityKind, isWorkRequirement, engineOccasionText } from "./trip-capsule.server";
+import { buildCapsule, type PoolItem, type Requirement, climateSuitability, isSweatConsumable, applyHardDressCodeFilter, isTransportActivity, applyTransportPracticalityFilter, isAccommodationActivity, changeAssumedPossible, isTravelSuitable, outfitIsTravelSuitable, isConcertFootwearSuitable, applyConcertFootwearFilter, activityKind, isWorkRequirement, engineOccasionText, segmentsCovered, isScaffoldSlot } from "./trip-capsule.server";
 
 function item(overrides: Partial<PoolItem> & { id: string }): PoolItem {
   return {
@@ -1111,4 +1111,14 @@ test("a warm trip packs no coat", () => {
   const requirements: Requirement[] = [{ activityId: "beach-day", date: "2026-07-10", daySegment: "day", dressCode: null, label: "Passeggiata" }];
   const capsule = buildCapsule(pool, requirements, new Map(), [], new Map([["beach-day", 28]]));
   assert.ok(!capsule.has("coat"));
+});
+
+test("an event from 17:00 to 22:00 covers the evening too, and its look is told to last into the night", () => {
+  assert.deepEqual(segmentsCovered({ activity_type: "Evento", day_segment: "day", dress_code: null, start_time: "17:00", end_time: "22:00" }).sort(), ["day", "evening"]);
+  assert.deepEqual(segmentsCovered({ activity_type: "Fiera", day_segment: "day", dress_code: null, start_time: "09:00", end_time: "17:00" }), ["day"]);
+  assert.deepEqual(segmentsCovered({ activity_type: "Cena", day_segment: "evening", dress_code: null }), ["evening"]);
+  assert.equal(isScaffoldSlot({ activity_type: "Evening", day_segment: "evening", dress_code: null }), true);
+  assert.equal(isScaffoldSlot({ activity_type: "Evening", day_segment: "evening", dress_code: null, start_time: "20:00" }), false);
+  const event: Requirement = { activityId: "e", date: "2026-10-22", daySegment: "day", dressCode: null, label: "Evento GIMAV", startTime: "17:00", endTime: "22:00" };
+  assert.match(engineOccasionText(event, true), /dinner included/);
 });
