@@ -916,6 +916,7 @@ export function buildCapsule(
   return capsule;
 }
 
+const COAT_LAYER = /coat|cappotto|trench|puffer|piumino|parka|cape|mantella/i;
 const WARM_OUTER = /coat|cappotto|trench|puffer|piumino|parka|wool|lana|cashmere|shearling|montone/i;
 
 // A tailored jacket rather than a puffer, a parka or a denim jacket.
@@ -1699,6 +1700,10 @@ export async function generateTripCapsuleCore({ data, context }: {
           ...usedOutfits.slice(-avoidOutfitWindow).flat().filter((id) => {
             const it = pool.find((p) => p.id === id);
             if (BAG_ROLE.has(it?.category ?? "") || SHOE_ROLE.has(it?.category ?? "")) return false;
+            // The coat is packed once and worn every cold day, over whatever is under it — like the
+            // bag and the shoes. Avoiding it after one day left the next look without one, or
+            // reaching for a second coat nobody packs. Jackets and blazers still rotate.
+            if (it?.category === "Outerwear" && COAT_LAYER.test(it.subcategory ?? "")) return false;
             if (
               isTransportActivity(req.label) &&
               it && BOTTOM_ROLE.has(it.category ?? "") &&
