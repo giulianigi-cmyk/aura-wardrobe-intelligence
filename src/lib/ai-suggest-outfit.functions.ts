@@ -6,7 +6,7 @@ import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { isItemAtAnyLocation } from "./wardrobe-location";
 import { isItemAllowedByDressPreferences, hasAnyPreference, coversShoulders, coversArms, coversLegs, type DressPreferences } from "./dress-preferences";
-import { anyItemViolatesWeather, violatesSleeveClimate, violatesWeatherRule, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule } from "./outfit-weather-rules";
+import { anyItemViolatesWeather, violatesSleeveClimate, violatesWeatherRule, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule, MILD_COOL_THRESHOLD_C, COLD_THRESHOLD_C } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, rainLayerFor, RAIN_PROMPT_RULE } from "./rain-rules";
 import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
@@ -63,6 +63,9 @@ const InputSchema = z.object({
   avoidItemIds: z.array(z.string()).optional(),
   mustIncludeItemId: z.string().nullable().optional(),
 });
+
+// A coat, trench, long puffer or parka: the layer that goes over a suit jacket or a cardigan.
+const OVER_LAYER = /coat|cappotto|trench|puffer|piumino|parka|cape|mantella/i;
 
 const OutputSchema = z.object({
   item_ids: z.array(z.string()),
@@ -406,7 +409,11 @@ export async function suggestOutfitCore(params: {
   // mandatory piece…) goes AFTER the wardrobe catalog, at the end of the request: the rules and
   // the catalog then form an identical opening across the days of a weekly plan, a trip or a
   // Home refresh, which Gemini bills at the cached-input rate (~90% off). Same lines, new place.
+  const coldOuterRule = [params.temperature, params.morningTemp].some((t) => typeof t === "number" && t < MILD_COOL_THRESHOLD_C)
+    ? ["COLD (below 16°C at some point of the day): the look needs a coat, a trench or a long puffer. When it has a blazer or a cardigan, the coat goes OVER it — this is the one case where two outer pieces are allowed (one coat-type layer + one jacket/cardigan), so a suit with a coat on top is correct."]
+    : [];
   const contextRules = [
+    ...coldOuterRule,
     ...(params.relativeWarmthHint ? [`Default: ${params.relativeWarmthHint}`] : []),
     ...(params.temperature == null
       ? ["NEVER INVENT WEATHER DETAILS: the weather given in this request is unknown — never state or imply a specific temperature or condition ('cool weather', 'possible rain') anywhere in your explanation. Speak only in general, season-appropriate terms if you mention weather at all, and never present an invented condition as the reason for a piece."]
@@ -534,15 +541,24 @@ export async function suggestOutfitCore(params: {
     /cardigan|blazer|jacket|giacca|coat|cappotto|kimono|duster|gilet|waistcoat|shrug|bolero|coprispalle/i.test(`${c.subcategory ?? ""} ${c.style ?? ""}`);
   const slotOf = (c: { category?: string | null; subcategory?: string | null; style?: string | string[] | null }) =>
     c.category === "Tops" && isOpenLayerPiece(c) ? "Outerwear" : (c.category ?? "");
+  // On a cold day a coat or a long puffer goes OVER the suit jacket or the cardigan: two outer layers
+  // are allowed only then, and only as one over-layer plus one under-layer.
+  const coldReadings = [params.temperature, params.morningTemp].filter((t): t is number => typeof t === "number");
+  const coldest = coldReadings.length ? Math.min(...coldReadings) : null;
+  const isCold = coldest != null && coldest < MILD_COOL_THRESHOLD_C;
+  const isOverLayer = (c: { subcategory?: string | null }) => OVER_LAYER.test(c.subcategory ?? "");
   const hasSlotViolation = (ids: string[]): boolean => {
     const counts: Record<string, number> = {};
+    const outers: (typeof catalog)[number][] = [];
     for (const id of ids) {
       const item = catalog.find((c) => c.id === id);
       const cat = item ? slotOf(item) : "";
       if (!cat) continue;
       counts[cat] = (counts[cat] ?? 0) + 1;
+      if (cat === "Outerwear" && item) outers.push(item);
     }
-    return Object.entries(SLOT_LIMITS).some(([cat, limit]) => (counts[cat] ?? 0) > limit);
+    const layeredForCold = isCold && outers.length === 2 && outers.filter(isOverLayer).length === 1;
+    return Object.entries(SLOT_LIMITS).some(([cat, limit]) => (counts[cat] ?? 0) > (cat === "Outerwear" && layeredForCold ? 2 : limit));
   };
       const EVENING_SIGNAL = new RegExp(`embellish|strappy|feather|piuma|fringe|frange|tulle|${EMBELLISHED_SIGNAL.source}`, "i");
   // Sleeveless is NOT bare shoulders — a plain sleeveless tank/top is a
@@ -991,6 +1007,23 @@ export async function suggestOutfitCore(params: {
       const chosen = item_ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => !!c);
       const layer = rainLayerFor(chosen, usable);
       if (layer) item_ids = [...item_ids, layer.id];
+    }
+
+    // Cold: a coat, always (not only when the model thinks of it). Below 16°C — counting the morning,
+    // when the day starts cold — a look with no outer layer is incomplete, and a suit jacket or a
+    // cardigan alone is not enough either: a coat, a trench or a long puffer goes over it, as people
+    // actually dress for work in October. At 10°C or below a warm one (wool, puffer, parka) first.
+    if (isCold) {
+      const chosenOuters = item_ids.map((id) => catalog.find((x) => x.id === id)).filter((c): c is (typeof catalog)[number] => !!c && slotOf(c) === "Outerwear");
+      if (!chosenOuters.some(isOverLayer)) {
+        const warm = (c: (typeof catalog)[number]) => /coat|cappotto|puffer|piumino|parka|wool|lana|shearling|montone/i.test(`${c.subcategory ?? ""} ${(c.material ?? []).join(" ")}`);
+        const over = (coldest! <= COLD_THRESHOLD_C ? pickBest("Outerwear", (c) => isOverLayer(c) && warm(c)) : null)
+          ?? pickBest("Outerwear", isOverLayer)
+          // no coat in the wardrobe: any jacket, but only when the look has no layer at all
+          ?? (chosenOuters.length === 0 ? pickBest("Outerwear") : null);
+        // a second layer goes only over a jacket or a cardigan, never next to another coat
+        if (over && chosenOuters.length <= 1) item_ids = [...item_ids, over.id];
+      }
     }
 
     if (missingMandatoryBag(item_ids)) {

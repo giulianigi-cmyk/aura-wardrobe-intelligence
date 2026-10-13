@@ -44,6 +44,12 @@ const MARGIN = 0.04; // min distance from canvas edge (fraction)
  *  letters (shoes touching the mark); .115 leaves a clear ~40px gap above it. */
 export const BOTTOM_RESERVED = 0.115;
 const GROUP_SHRINK = 0.75; // when several items share one slot
+/** The coat over a suit jacket (two outer pieces): matched on the subcategory. */
+const OVER_LAYER = /coat|cappotto|trench|puffer|piumino|parka|cape|mantella/i;
+/** Coat over a suit jacket: both drawn smaller than a single outer piece, the jacket more, so both
+ *  read and they leave the top and the shoes their room. */
+const LAYERED_OVER_K = 0.85;
+const LAYERED_UNDER_K = 0.62;
 /** Full-length trousers: minimum height (fraction of H) and the widest they may become for it. */
 const LONG_BOTTOM_MIN_H = 0.52;
 const LONG_BOTTOM_MAX_W = 0.56;
@@ -271,9 +277,9 @@ return { w, h: w * aspect };
   const placeGroup = (
     list: LayoutInput[], bucket: Bucket, box: Box,
     cx: number, cy: number | ((maxH: number) => number),
-    axis: "x" | "y" = "x", z: number = Z[bucket],
+    axis: "x" | "y" = "x", z: number = Z[bucket], shrinkOverride?: number,
   ): LayoutRect[] => {
-    const shrink = list.length > 1 ? GROUP_SHRINK : 1;
+    const shrink = shrinkOverride ?? (list.length > 1 ? GROUP_SHRINK : 1);
     const sizes = list.map((it) => sizeOf(it, box, shrink));
     const maxH = Math.max(...sizes.map((s) => s.h));
     const cyv = typeof cy === "function" ? cy(maxH) : cy;
@@ -346,7 +352,16 @@ return { w, h: w * aspect };
   // It used to be centred lower (42–50% of the height): a jacket shorter than the trousers left an
   // empty band above it, top-left, while the top sat up-right. Top-aligned like the top, the board
   // is balanced and the shoes in the bottom-left corner get their own room under its hem.
-  if (outer) placeGroup(by.get("outer")!, "outer", BOX.outer, 0.22 * W, (mh) => MY + mh / 2 + 0.02 * H);
+  const outers = by.get("outer") ?? [];
+  if (outers.length === 2) {
+    // A suit jacket under a coat or a long puffer (a cold work day): the coat stays big, left and
+    // top-aligned; the jacket lies over it, smaller and lower to the right — layered as worn, not
+    // pushed onto the top as a second piece side by side.
+    const isOver = (it: LayoutInput) => OVER_LAYER.test(it.subcategory ?? "");
+    const [over, under] = isOver(outers[1]) && !isOver(outers[0]) ? [outers[1], outers[0]] : [outers[0], outers[1]];
+    placeGroup([over], "outer", BOX.outer, 0.20 * W, (mh) => MY + mh / 2 + 0.02 * H, "x", Z.outer, LAYERED_OVER_K);
+    placeGroup([under], "outer", BOX.outer, 0.34 * W, (mh) => MY + mh / 2 + 0.14 * H, "x", Z.outer + 0.5, LAYERED_UNDER_K);
+  } else if (outer) placeGroup(outers, "outer", BOX.outer, 0.22 * W, (mh) => MY + mh / 2 + 0.02 * H);
 
   // ── Top: diagonal up-right, waist overlap ≈ 45% of its own height ──
   let topRects: LayoutRect[] = [];

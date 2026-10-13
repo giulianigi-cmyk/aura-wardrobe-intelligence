@@ -7,7 +7,7 @@ import { getTripWeatherMap, weatherKey } from "./trip-weather.server";
 import { describeWeather } from "./weather";
 import { isLogoOrGraphicTop, isWorkActivityText } from "./work-dress";
 import { computeCapsuleSeedAndExclusions } from "./trip-capsule-persistence";
-import { violatesWeatherRule, HEAVY_SIGNAL, LIGHT_SIGNAL, MILD_WARM_THRESHOLD_C, MILD_COOL_THRESHOLD_C, type WeatherCheckableItem } from "./outfit-weather-rules";
+import { violatesWeatherRule, HEAVY_SIGNAL, LIGHT_SIGNAL, MILD_WARM_THRESHOLD_C, MILD_COOL_THRESHOLD_C, COLD_THRESHOLD_C, type WeatherCheckableItem } from "./outfit-weather-rules";
 import type { StyleMemoryRow } from "./style-memory-prompt";
 import {
   detectActivityKind, hasEleganceSignal as sharedHasEleganceSignal, businessDinnerAdjustment,
@@ -238,6 +238,33 @@ export function isWorkRequirement(req: Requirement): boolean {
   return req.daySegment === "day" && !isTransportActivity(req.label) && isWorkActivityText(req.label, req.dressCode);
 }
 
+type ActivityRow = { activity_type: string | null; day_segment: string | null; dress_code: string | null; start_time?: string | null; end_time?: string | null; location?: string | null };
+
+const minutesOf = (t: string | null | undefined): number | null => {
+  const m = /^(\d{1,2}):(\d{2})/.exec(t ?? "");
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+};
+const EVENING_FROM_MIN = 19 * 60;
+const DAY_UNTIL_MIN = 17 * 60;
+
+/** The parts of the day an activity's hours reach: its own segment, plus the evening when it ends
+ *  at 19:00 or later (or past midnight), plus the day when it starts before 17:00. */
+export function segmentsCovered(a: ActivityRow): ("day" | "evening")[] {
+  const own = a.day_segment === "evening" ? "evening" : "day";
+  const start = minutesOf(a.start_time), end = minutesOf(a.end_time);
+  const out = new Set<"day" | "evening">([own]);
+  if (end != null && (end >= EVENING_FROM_MIN || (start != null && end < start))) out.add("evening");
+  if (start != null && start < DAY_UNTIL_MIN) out.add("day");
+  return [...out];
+}
+
+/** A generic slot this planner invented for a date with nothing logged ("Day" / "Evening", no dress
+ *  code, no hours, no place). */
+export function isScaffoldSlot(a: ActivityRow): boolean {
+  return (a.activity_type === "Day" || a.activity_type === "Evening")
+    && !a.dress_code && !a.start_time && !a.end_time && !a.location?.trim();
+}
+
 /** The occasion as the outfit engine reads it. The engine keys its rules on the start of the text
  *  ("Work…" turns on the work rules and the person's work dress code; the piece's own occasion tags
  *  are matched against it), so a trade fair is sent as "Work · …" and a flight or a train as
@@ -250,7 +277,14 @@ export function engineOccasionText(req: Requirement, workTrip: boolean): string 
       ? `Travel · ${text} — a business trip: a smart, presentable travel look (trousers or dark jeans, a plain top, shirt or knit); no logo or graphic T-shirts or sweatshirts`
       : `Travel · ${text}`;
   }
-  return isWorkRequirement(req) ? `Work · ${text}` : text;
+  const base = isWorkRequirement(req) ? `Work · ${text}` : text;
+  // One look from the afternoon into the night: an event that starts in the day and ends in the
+  // evening has its dinner inside it, so the look must hold up at both.
+  const start = minutesOf(req.startTime), end = minutesOf(req.endTime);
+  if (req.daySegment === "day" && start != null && end != null && start < EVENING_FROM_MIN && (end >= 20 * 60 || end < start)) {
+    return `${base} — from ${req.startTime} until ${req.endTime}, dinner included: one look worn from the afternoon into the evening, without changing`;
+  }
+  return base;
 }
 
 function occasionText(req: Requirement): string {
@@ -882,8 +916,42 @@ export function buildCapsule(
     }
   }
 
+  // Reserved slot for the cold. No role target above packs a coat or a jacket, so a trip with a
+  // 12°C day and a 5°C evening (Düsseldorf in October) had no outer layer to choose from at all —
+  // a blazer packed for work is not one. Below 16°C the suitcase carries a real outer layer; at
+  // 10°C or below a warm one (coat, trench, puffer, parka) first. Unknown temperatures pack one
+  // only for a winter trip.
+  const temps = requirements.map((r) => tempByActivity.get(r.activityId)).filter((t): t is number => t != null);
+  const coldest = temps.length ? Math.min(...temps) : null;
+  const needsOuter = coldest != null ? coldest < MILD_COOL_THRESHOLD_C : requirements.some((r) => seasonByDate.get(r.date) === "Winter");
+  const hasRealOuter = Array.from(capsule).some((id) => {
+    const it = pool.find((p) => p.id === id);
+    return it?.category === "Outerwear" && !/blazer|vest|gilet/i.test(it.subcategory ?? "");
+  });
+  if (needsOuter && !hasRealOuter) {
+    const repReq = requirements.find((r) => tempByActivity.get(r.activityId) === coldest) ?? requirements[0];
+    const repSeason = seasonByDate.get(repReq.date) ?? "";
+    const warmFirst = coldest == null || coldest <= COLD_THRESHOLD_C;
+    const dressy = workReqs.length > 0 || requirements.some(hasEleganceSignal);
+    const best = pool
+      .filter((it) => it.category === "Outerwear" && !capsule.has(it.id) && !/blazer|vest|gilet/i.test(it.subcategory ?? "")
+        && climateSuitability(it, coldest, repSeason) !== "inappropriate")
+      .map((it) => ({
+        it,
+        score: (warmFirst && WARM_OUTER.test(`${it.subcategory ?? ""} ${(it.material ?? []).join(" ")}`) ? 10 : 0)
+          // a work or dinner trip wants a coat or a trench rather than a puffer or a denim jacket
+          + (dressy ? (CASUAL_OUTER.test(it.subcategory ?? "") ? -5 : 0) + it.formality : 0)
+          + versatility(it, repReq, coldest, styleMemory),
+      }))
+      .sort((a, b) => b.score - a.score)[0];
+    if (best) capsule.add(best.it.id);
+  }
+
   return capsule;
 }
+
+const COAT_LAYER = /coat|cappotto|trench|puffer|piumino|parka|cape|mantella/i;
+const WARM_OUTER = /coat|cappotto|trench|puffer|piumino|parka|wool|lana|cashmere|shearling|montone/i;
 
 // A tailored jacket rather than a puffer, a parka or a denim jacket.
 const CASUAL_OUTER = /puffer|piumino|parka|windbreaker|rain|anorak|denim|bomber|shacket|vest|gilet|fleece|pile/i;
@@ -1197,9 +1265,10 @@ export async function generateTripCapsuleCore({ data, context }: {
       const transportDates = new Set(
         activities.filter((a) => isTransportActivity(a.activity_type)).map((a) => a.activity_date),
       );
-      const covered = new Set(
-        activities.map((a) => `${a.activity_date}|${a.day_segment === "evening" ? "evening" : "day"}`),
-      );
+      // An activity covers the segments its hours reach, not only the one it was filed under: an
+      // event from 17:00 to 22:00 (dinner included) is the evening too, and must not get a second
+      // invented "Evening" look on top of it.
+      const covered = new Set(activities.flatMap((a) => segmentsCovered(a).map((seg) => `${a.activity_date}|${seg}`)));
       const tripDates: string[] = [];
       for (let d = new Date(`${tripStartDate}T00:00:00`); d <= new Date(`${tripEndDate}T00:00:00`); d.setDate(d.getDate() + 1)) {
         tripDates.push(d.toISOString().slice(0, 10));
@@ -1225,6 +1294,15 @@ export async function generateTripCapsuleCore({ data, context }: {
         if (!scaffoldErr && inserted) activities = [...activities, ...(inserted as typeof activities)];
       }
     }
+
+    // Generic "Day"/"Evening" slots invented on an earlier run are dropped once a real activity of
+    // the same date reaches that part of the day (the person later logged an event until 22:00):
+    // the event's look is the evening look.
+    activities = activities.filter((a) => {
+      if (!isScaffoldSlot(a)) return true;
+      const seg = a.day_segment === "evening" ? "evening" : "day";
+      return !activities.some((o) => o !== a && o.activity_date === a.activity_date && !isScaffoldSlot(o) && segmentsCovered(o).includes(seg));
+    });
 
     const targeted = data.activityIds?.length ? new Set(data.activityIds) : null;
     const allRequirements: Requirement[] = activities
@@ -1666,6 +1744,10 @@ export async function generateTripCapsuleCore({ data, context }: {
           ...usedOutfits.slice(-avoidOutfitWindow).flat().filter((id) => {
             const it = pool.find((p) => p.id === id);
             if (BAG_ROLE.has(it?.category ?? "") || SHOE_ROLE.has(it?.category ?? "")) return false;
+            // The coat is packed once and worn every cold day, over whatever is under it — like the
+            // bag and the shoes. Avoiding it after one day left the next look without one, or
+            // reaching for a second coat nobody packs. Jackets and blazers still rotate.
+            if (it?.category === "Outerwear" && COAT_LAYER.test(it.subcategory ?? "")) return false;
             if (
               isTransportActivity(req.label) &&
               it && BOTTOM_ROLE.has(it.category ?? "") &&

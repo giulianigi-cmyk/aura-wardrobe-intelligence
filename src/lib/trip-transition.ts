@@ -8,11 +8,12 @@
 // itself is untouched; it just gets called once per OutfitStateGroup
 // instead of once per activity when a group covers more than one.
 //
-// Deliberately conservative for V1: an activity missing start/end time
-// (every activity created before this feature existed, since those
-// columns are new and nullable) is always treated as its own standalone
-// group — exactly the behavior that already existed, so no existing
-// trip's capsule changes just because this code now runs.
+// Deliberately conservative: an activity missing start/end time is its
+// own standalone group — except for appointments of a working day (a
+// trade fair, meetings one after another) or two activities at the same
+// place, which share one look like the person wears it.
+
+import { isWorkActivityText } from "./work-dress";
 
 export type ActivityForTransition = {
   activityId: string;
@@ -75,6 +76,20 @@ function parseMinutes(t: string | null): number | null {
  *  pair even get a chance to share an outfit", not the exact pieces
  *  that would change (that's still suggestOutfitCore's job). */
 function estimateTransition(a: ActivityForTransition, b: ActivityForTransition): { kind: TransitionKind; cost: number } {
+  const gapMinutes = (() => {
+    const aEnd = parseMinutes(a.endTime);
+    const bStart = parseMinutes(b.startTime);
+    if (aEnd == null || bStart == null) return null;
+    return bStart - aEnd;
+  })();
+
+  // Back to back (less than an hour between them, or overlapping — a dinner inside an event that
+  // runs until 22:00): there is no time to go and change, so even a day → evening crossing is the
+  // same outfit with a small adjustment, never a second look.
+  if (gapMinutes != null && gapMinutes < 60 && a.daySegment !== b.daySegment) {
+    return { kind: "minor", cost: TRANSITION_COST.CHANGE_ACCESSORY };
+  }
+
   // A day → evening (or evening → day) crossing is never a "minor"
   // transition on its own, regardless of dressCode — this was the real
   // bug: with both dressCodes null, formalityBand() returned "mid" for
@@ -88,19 +103,22 @@ function estimateTransition(a: ActivityForTransition, b: ActivityForTransition):
     return { kind: "major", cost: TRANSITION_COST.FULL_CHANGE };
   }
 
-  const gapMinutes = (() => {
-    const aEnd = parseMinutes(a.endTime);
-    const bStart = parseMinutes(b.startTime);
-    if (aEnd == null || bStart == null) return null;
-    return bStart - aEnd;
-  })();
-
   // No timing data for this pair at all — the conservative, no-behavior
   // -change default: keep them standalone, same as before this engine
   // existed. This is what makes the feature safe to ship for trips that
   // predate it, and for any activity a person enters by hand without a
   // time (still fully supported, just not groupable yet).
-  if (gapMinutes == null) return { kind: "impossible", cost: TRANSITION_COST.FULL_CHANGE };
+  //
+  // Exception: appointments of a working day (a trade fair, meetings one after another), or two
+  // activities at the same place. Nobody changes between the stands of a fair, so without times
+  // they still share one look.
+  if (gapMinutes == null) {
+    const sameplace = !!a.location?.trim() && a.location.trim().toLowerCase() === b.location?.trim().toLowerCase();
+    const bothWork = isWorkActivityText(a.label, a.dressCode) && isWorkActivityText(b.label, b.dressCode);
+    return sameplace || bothWork
+      ? { kind: "no_change", cost: TRANSITION_COST.NO_CHANGE }
+      : { kind: "impossible", cost: TRANSITION_COST.FULL_CHANGE };
+  }
 
   // A long enough gap (roughly 3+ hours) is treated as "back to base
   // first" territory — plausibly a hotel return, not a hallway
