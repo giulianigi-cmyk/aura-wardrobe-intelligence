@@ -23,7 +23,8 @@ import { rainAlertFor, rainAlertMessage } from "./rain-alert";
 import { fetchMetnoDaily, utcOffsetSeconds } from "./weather-metno";
 import { DEFAULT_TIME_ZONE, isValidTimeZone } from "./plans";
 import { sendPushToUser } from "./push.server";
-import { describeWeather, classifyTemp } from "./weather";
+import { describeWeather, classifyTemp, weatherLabelKey } from "./weather";
+import { pieceLabel, weatherChangeMessage } from "./weather-change-message";
 import {
   SIGNIFICANT_TEMP_DELTA,
   UMBRELLA_PRECIPITATION_THRESHOLD,
@@ -167,7 +168,7 @@ export async function runPlanWeatherRecheck(limit = 200): Promise<RecheckResult>
     if (!wardrobeCache.has(userId)) {
       const { data: itemRows } = await db
         .from("wardrobe_items")
-        .select("id, category, subcategory, colors, style, season, brand, material, location_id, active_loan_id, length, toe_shape, style_tags, fit")
+        .select("id, category, subcategory, colors, style, season, brand, material, location_id, active_loan_id, length, toe_shape, style_tags, fit, occasion, formality, day_evening, sleeve_length, heel_height, closure, gender")
         .eq("user_id", userId)
         .eq("archived", false);
       // Loaned out = not physically available to re-plan into, same reasoning as archived.
@@ -183,6 +184,19 @@ export async function runPlanWeatherRecheck(limit = 200): Promise<RecheckResult>
         brand: it.brand,
         material: it.material,
         locationId: it.location_id,
+        // The same piece attributes the other callers send: without the occasion tag the "tagged only
+        // Travel" rule could not fire here, and a travel bag was proposed for a work look.
+        occasion: it.occasion ?? null,
+        formality: it.formality ?? null,
+        dayEvening: it.day_evening ?? null,
+        sleeveLength: it.sleeve_length ?? null,
+        length: it.length ?? null,
+        fit: it.fit ?? null,
+        heelHeight: it.heel_height ?? null,
+        toeShape: it.toe_shape ?? null,
+        closure: it.closure ?? null,
+        gender: it.gender ?? null,
+        styleTags: it.style_tags ?? null,
       })));
     }
     return wardrobeCache.get(userId) ?? [];
@@ -281,7 +295,7 @@ export async function runPlanWeatherRecheck(limit = 200): Promise<RecheckResult>
         if (alert && await claimRainAlert(plan.user_id, localDate)) {
           const language = profiles.get(plan.user_id)?.language ?? null;
           const byId = new Map((wardrobeCache.get(plan.user_id) ?? []).map((i) => [i.id, i]));
-          const labels = alert.unsuitableIds.map((id) => labelFor(byId.get(id))).filter(Boolean) as string[];
+          const labels = alert.unsuitableIds.map((id) => pieceLabel(language, byId.get(id))).filter(Boolean) as string[];
           let hasAlternative = false;
           if (alert.kind === "swap") {
             const suggestion = await adapt(plan, day, wardrobeCache.get(plan.user_id) ?? [], activity);
@@ -347,6 +361,7 @@ export async function runPlanWeatherRecheck(limit = 200): Promise<RecheckResult>
     await upsertWeatherNotification(db, {
       plan,
       day,
+      language: profiles.get(plan.user_id)?.language ?? null,
       newItemIds: suggestion.item_ids,
       explanation: suggestion.explanation,
       itemsById: new Map(items.map((i) => [i.id, i])),
@@ -360,12 +375,6 @@ export async function runPlanWeatherRecheck(limit = 200): Promise<RecheckResult>
   return result;
 }
 
-function labelFor(item: SuggestOutfitItem | undefined): string | null {
-  if (!item) return null;
-  const parts = [item.colors?.[0], item.brand, item.subcategory || item.category].filter(Boolean);
-  return parts.length ? String(parts.join(" ")).toLowerCase() : null;
-}
-
 async function upsertWeatherNotification(
   db: any,
   args: {
@@ -376,32 +385,26 @@ async function upsertWeatherNotification(
     itemsById: Map<string, SuggestOutfitItem>;
     tripId: string | null;
     activityId: string | null;
+    /** The person's language for the generic wording (profiles.language). */
+    language?: string | null;
     /** Already-localized wording (the morning rain alert); otherwise the generic one below. */
     title?: string;
     body?: string;
   },
 ) {
-  const { plan, day, newItemIds, explanation, itemsById } = args;
+  const { plan, day, newItemIds, itemsById } = args;
   const oldItemIds: string[] = plan.item_ids ?? [];
   const dropped = oldItemIds.filter((id) => !newItemIds.includes(id));
   const added = newItemIds.filter((id) => !oldItemIds.includes(id));
 
-  const weekday = new Date(`${plan.date}T00:00:00Z`).toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
   const condition = describeWeather(day.code).label;
-  const title = args.title ?? `Weather changed for your ${weekday} outfit`;
-
-  const lines: string[] = [];
-  const droppedLabels = dropped.map((id) => labelFor(itemsById.get(id))).filter(Boolean) as string[];
-  const addedLabels = added.map((id) => labelFor(itemsById.get(id))).filter(Boolean) as string[];
-  if (droppedLabels.length) {
-    lines.push(`${condition} expected — your ${droppedLabels.slice(0, 2).join(" and ")} may not be ideal.`);
-    if (addedLabels.length) lines.push(`Suggested: ${addedLabels.slice(0, 2).join(" and ")} instead.`);
-  } else {
-    lines.push(`${condition} expected, around ${Math.round(day.tempMax)}°. ${explanation}`.trim());
-  }
-  if (day.precipitation > UMBRELLA_PRECIPITATION_THRESHOLD) {
-    lines.push(`${Math.round(day.precipitation)}% chance of rain — don't forget your umbrella.`);
-  }
+  const generic = weatherChangeMessage(args.language, {
+    dateIso: plan.date, weatherKey: weatherLabelKey(day.code), tempMax: day.tempMax, precipitation: day.precipitation,
+    umbrellaThreshold: UMBRELLA_PRECIPITATION_THRESHOLD,
+    dropped: dropped.map((id) => pieceLabel(args.language, itemsById.get(id))).filter(Boolean) as string[],
+    added: added.map((id) => pieceLabel(args.language, itemsById.get(id))).filter(Boolean) as string[],
+  });
+  const title = args.title ?? generic.title;
 
   const data = {
     plan_id: plan.id,
@@ -432,7 +435,7 @@ async function upsertWeatherNotification(
     .contains("data", { plan_id: plan.id })
     .maybeSingle();
 
-  const body = args.body ?? lines.join("\n");
+  const body = args.body ?? generic.body;
   if (existing?.id) {
     await db.from("notifications")
       .update({ title, body, data, status: "unread", read_at: null, created_at: new Date().toISOString() })
