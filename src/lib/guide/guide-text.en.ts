@@ -210,6 +210,7 @@ const text: GuideText = {
         "Add the activities with their start and end time, or pick them from your calendar: the times come along.",
         `${BRAND_NAME} packs the suitcase and plans the outfits for each day, based on the forecast: back-to-back appointments, or a dinner inside an event, keep one look, and when it's cold a coat goes in the suitcase.`,
       ],
+      tip: "The × in the Trip Capsule doesn't empty the suitcase: it excludes that piece from this trip, and it won't be suggested again, not even when you regenerate. To bring it back, tap “Add” and pick it. To start the choice over, delete the looks and tap “Generate outfits”: the pieces you didn't remove stay, the removed ones don't.",
     },
     "create-avatar": {
       title: "Creating your avatar",

@@ -210,6 +210,7 @@ const text: GuideText = {
         "Añade las actividades con la hora de inicio y de fin, o elígelas de tu calendario: las horas se copian solas.",
         `${BRAND_NAME} prepara la maleta y los outfits de cada día según la previsión del tiempo: citas seguidas, o una cena dentro de un evento, mantienen un solo look, y si hace frío en la maleta va un abrigo.`,
       ],
+      tip: "La × de la Trip Capsule no vacía la maleta: excluye esa prenda de este viaje y no se volverá a proponer, ni siquiera al regenerar. Para recuperarla, toca «Añadir» y elígela. Para empezar la elección de nuevo, borra los looks y toca «Generar outfits»: las prendas que no quitaste se quedan, las quitadas no.",
     },
     "create-avatar": {
       title: "Crear tu avatar",

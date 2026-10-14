@@ -210,6 +210,7 @@ const text: GuideText = {
         "Ajoutez les activités avec l'heure de début et de fin, ou choisissez-les dans votre calendrier : les horaires suivent.",
         `${BRAND_NAME} prépare la valise et les tenues de chaque jour selon les prévisions météo : des rendez-vous qui s'enchaînent, ou un dîner pendant un événement, gardent une seule tenue, et quand il fait froid un manteau va dans la valise.`,
       ],
+      tip: "Le × de la Capsule de voyage ne vide pas la valise : il exclut cette pièce de ce voyage, et elle ne sera plus proposée, même en régénérant. Pour la remettre, touchez « Ajouter » et choisissez-la. Pour recommencer le choix, supprimez les tenues et touchez « Générer les tenues » : les pièces que vous n'avez pas retirées restent, les autres non.",
     },
     "create-avatar": {
       title: "Créer votre avatar",
