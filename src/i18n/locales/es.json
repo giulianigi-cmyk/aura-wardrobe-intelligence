@@ -1227,7 +1227,7 @@
     "regenerateWornHint": "Ya confirmaste que llevaste este look para \"{{name}}\". Regenerarlo reemplazará ese registro.",
     "regenerateAnyway": "Regenerar de todos modos",
     "tripCapsule": "Trip Capsule",
-    "tripCapsuleHint": "Prendas disponibles para este viaje. El generador las prefiere antes de proponer otras.",
+    "tripCapsuleHint": "Prendas disponibles para este viaje. El generador las prefiere antes de proponer otras. La × quita una prenda de este viaje para siempre: no se volverá a proponer. Para recuperarla, toca «Añadir».",
     "addToCapsule": "Añadir",
     "tapToAddToCapsule": "Toca para añadir a la cápsula",
     "removeFromCapsuleAria": "Quitar de la Trip Capsule",

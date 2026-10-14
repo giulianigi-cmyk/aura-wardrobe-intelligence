@@ -1227,7 +1227,7 @@
     "regenerateWornHint": "You already confirmed you wore this look for \"{{name}}\". Regenerating it will replace that record.",
     "regenerateAnyway": "Regenerate anyway",
     "tripCapsule": "Trip Capsule",
-    "tripCapsuleHint": "Pieces available for this trip. The generator prefers these before proposing anything else.",
+    "tripCapsuleHint": "Pieces available for this trip. The generator prefers these before proposing anything else. The × removes a piece from this trip for good: it won't be suggested again. Tap “Add” to bring it back.",
     "addToCapsule": "Add",
     "tapToAddToCapsule": "Tap to add to the capsule",
     "removeFromCapsuleAria": "Remove from Trip Capsule",

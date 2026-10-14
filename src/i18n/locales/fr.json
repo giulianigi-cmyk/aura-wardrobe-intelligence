@@ -2096,7 +2096,7 @@
     "regenerateWornHint": "Vous avez déjà confirmé avoir porté ce look pour « {{name}} ». Le régénérer remplacera cet enregistrement.",
     "regenerateAnyway": "Régénérer quand même",
     "tripCapsule": "Capsule de voyage",
-    "tripCapsuleHint": "Pièces disponibles pour ce voyage. Le générateur les privilégie avant de proposer autre chose.",
+    "tripCapsuleHint": "Pièces disponibles pour ce voyage. Le générateur les privilégie avant de proposer autre chose. Le × retire une pièce de ce voyage pour de bon : elle ne sera plus proposée. Pour la remettre, touchez « Ajouter ».",
     "addToCapsule": "Ajouter",
     "tapToAddToCapsule": "Touchez pour ajouter à la capsule",
     "removeFromCapsuleAria": "Retirer de la Capsule de voyage",
