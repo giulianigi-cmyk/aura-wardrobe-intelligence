@@ -208,7 +208,7 @@ const text: GuideText = {
         "Tap “Plan a trip”.",
         "Enter the destination (you can add stops), the dates, the kind of trip and which closet to pack from.",
         "Add the activities with their start and end time, or pick them from your calendar: the times come along.",
-        `${BRAND_NAME} packs the suitcase and plans the outfits for each day, based on the forecast: back-to-back appointments, or a dinner inside an event, keep one look, and when it's cold a coat goes in the suitcase.`,
+        `${BRAND_NAME} packs the suitcase and plans the outfits for each day, based on the forecast: back-to-back appointments, or a dinner inside an event, keep one look, and when it's cold a coat goes in the suitcase. For trade fairs, exhibitions, congresses and client meetings: a suit, or tailored trousers or a skirt with a shirt, blouse or fine knit, and always a jacket; the suitcase always holds a pair of flat shoes too.`,
       ],
       tip: "The × in the Trip Capsule doesn't empty the suitcase: it excludes that piece from this trip, and it won't be suggested again, not even when you regenerate. To bring it back, tap “Add” and pick it. To start the choice over, delete the looks and tap “Generate outfits”: the pieces you didn't remove stay, the removed ones don't.",
     },

@@ -5,8 +5,9 @@ import { dressPreferencesToPrompt, type DressPreferences } from "./dress-prefere
 import { resolvePlanSlot } from "./outfit-plan-slot";
 import { getTripWeatherMap, weatherKey } from "./trip-weather.server";
 import { describeWeather } from "./weather";
-import { isLogoOrGraphicTop, isWorkActivityText } from "./work-dress";
+import { isLogoOrGraphicTop, isTailoredBottom, isUnderJacketTop, isWorkActivityText } from "./work-dress";
 import { isSuitJacket, isSuitPair } from "./suit-pairs";
+import { isTechnicalFootwear } from "./outfit-styling-rules";
 import { computeCapsuleSeedAndExclusions } from "./trip-capsule-persistence";
 import { violatesWeatherRule, HEAVY_SIGNAL, LIGHT_SIGNAL, MILD_WARM_THRESHOLD_C, MILD_COOL_THRESHOLD_C, COLD_THRESHOLD_C, type WeatherCheckableItem } from "./outfit-weather-rules";
 import type { StyleMemoryRow } from "./style-memory-prompt";
@@ -948,6 +949,26 @@ export function buildCapsule(
     if (best) capsule.add(best.it.id);
   }
 
+  // A pair without heels, on every trip: after hours on heels at a fair, on a flight or on a long walk
+  // people want to change into flat shoes. Added only when every pair packed so far has a heel. On a
+  // work trip a polished pair (loafers, ballet flats, smart flat boots) comes before sneakers.
+  const packedShoes = Array.from(capsule).map((id) => pool.find((p) => p.id === id)).filter((it): it is PoolItem => !!it && it.category === "Shoes");
+  if (requirements.length && (packedShoes.length === 0 || packedShoes.every(isHeeled))) {
+    const repReq = requirements[0];
+    const repTemp = coldest ?? tempByActivity.get(repReq.activityId) ?? null;
+    const repSeason = seasonByDate.get(repReq.date) ?? "";
+    const flat = pool
+      .filter((it) => it.category === "Shoes" && !capsule.has(it.id) && !isHeeled(it)
+        && climateSuitability(it, repTemp, repSeason) !== "inappropriate" && !isTechnicalFootwear(it))
+      .map((it) => ({
+        it,
+        score: versatility(it, repReq, repTemp, styleMemory)
+          + (workReqs.length ? (/sneaker|trainer|running/i.test(it.subcategory ?? "") ? -2 : 0) + it.formality : 0),
+      }))
+      .sort((a, b) => b.score - a.score)[0];
+    if (flat) capsule.add(flat.it.id);
+  }
+
   // A suit jacket travels with its own trousers or skirt (suit-pairs.ts): packing only one half is
   // how one suit's jacket ended up over another suit's trousers.
   for (const id of Array.from(capsule)) {
@@ -961,6 +982,13 @@ export function buildCapsule(
 }
 
 const COAT_LAYER = /coat|cappotto|trench|puffer|piumino|parka|cape|mantella/i;
+/** Shoes with a heel: a mid or high heel height, or a heeled kind of shoe. */
+function isHeeled(it: PoolItem): boolean {
+  if (it.heelHeight === "Mid" || it.heelHeight === "High") return true;
+  if (it.heelHeight === "Flat" || it.heelHeight === "Low") return false;
+  return /pump|heel|stiletto|slingback|wedge|décolleté|decollete|tacco/i.test(`${it.subcategory ?? ""} ${(it.styleTags ?? []).join(" ")}`);
+}
+
 const WARM_OUTER = /coat|cappotto|trench|puffer|piumino|parka|wool|lana|cashmere|shearling|montone/i;
 
 // A tailored jacket rather than a puffer, a parka or a denim jacket.
@@ -971,11 +999,14 @@ const CASUAL_OUTER = /puffer|piumino|parka|windbreaker|rain|anorak|denim|bomber|
 export function isWorkPiece(it: PoolItem): boolean {
   if (it.dayEvening === "evening") return false;
   if (it.category === "Outerwear") return it.formality >= 3 && !CASUAL_OUTER.test(it.subcategory ?? "");
-  if (TOP_ROLE.has(it.category ?? "")) return it.formality >= 2 && !isLogoOrGraphicTop(it);
-  if (BOTTOM_ROLE.has(it.category ?? "")) {
-    if (/shorts|jogger|legging|cargo/i.test(it.subcategory ?? "") || it.length === "Mini") return false;
+  // Under the jacket: a shirt, a blouse, a fine knit — never a T-shirt, a tank or a sweatshirt.
+  if (TOP_ROLE.has(it.category ?? "")) return it.formality >= 2 && !isLogoOrGraphicTop(it) && isUnderJacketTop(it);
+  if (it.category === "Bottoms") {
+    // Tailored trousers or a skirt: never jeans, leggings, joggers, cargo or shorts.
+    if (!isTailoredBottom(it) || it.length === "Mini") return false;
     return it.formality >= 3;
   }
+  if (BOTTOM_ROLE.has(it.category ?? "")) return it.length !== "Mini" && it.formality >= 3;
   return false;
 }
 

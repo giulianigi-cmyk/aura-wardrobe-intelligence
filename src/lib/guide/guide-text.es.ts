@@ -208,7 +208,7 @@ const text: GuideText = {
         "Toca «Planificar un viaje».",
         "Escribe el destino (puedes añadir paradas), las fechas, el tipo de viaje y de qué armario coger las prendas.",
         "Añade las actividades con la hora de inicio y de fin, o elígelas de tu calendario: las horas se copian solas.",
-        `${BRAND_NAME} prepara la maleta y los outfits de cada día según la previsión del tiempo: citas seguidas, o una cena dentro de un evento, mantienen un solo look, y si hace frío en la maleta va un abrigo.`,
+        `${BRAND_NAME} prepara la maleta y los outfits de cada día según la previsión del tiempo: citas seguidas, o una cena dentro de un evento, mantienen un solo look, y si hace frío en la maleta va un abrigo. Para ferias, exposiciones, congresos y reuniones con clientes: traje, o pantalón sastre o falda con camisa, blusa o punto fino, y siempre chaqueta; en la maleta va siempre también un par de zapatos planos.`,
       ],
       tip: "La × de la Trip Capsule no vacía la maleta: excluye esa prenda de este viaje y no se volverá a proponer, ni siquiera al regenerar. Para recuperarla, toca «Añadir» y elígela. Para empezar la elección de nuevo, borra los looks y toca «Generar outfits»: las prendas que no quitaste se quedan, las quitadas no.",
     },

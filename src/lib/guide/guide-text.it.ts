@@ -208,7 +208,7 @@ const text: GuideText = {
         "Tocca «Pianifica un viaggio».",
         "Scrivi la destinazione (puoi aggiungere tappe), le date, il tipo di viaggio e da quale guardaroba prendere i capi.",
         "Aggiungi le attività con l'orario di inizio e di fine, oppure sceglile dal calendario: gli orari arrivano da soli.",
-        `${BRAND_NAME} prepara la valigia e gli outfit per le giornate, in base al meteo previsto: appuntamenti uno dopo l'altro, o una cena dentro un evento, tengono un solo look, e se fa freddo in valigia c'è un capospalla.`,
+        `${BRAND_NAME} prepara la valigia e gli outfit per le giornate, in base al meteo previsto: appuntamenti uno dopo l'altro, o una cena dentro un evento, tengono un solo look, e se fa freddo in valigia c'è un capospalla. Per fiere, esposizioni, congressi e incontri con clienti: completo, oppure pantaloni sartoriali o gonna con camicia, blusa o maglia, e sempre la giacca; in valigia c'è sempre anche un paio di scarpe senza tacco.`,
       ],
       tip: "La × nella Trip Capsule non svuota la valigia: esclude quel capo da questo viaggio e non verrà più proposto, nemmeno rigenerando. Per rimetterlo tocca «Aggiungi» e sceglilo. Per far ricominciare la scelta, cancella i look e premi «Genera outfit»: i capi che non hai tolto restano, quelli tolti no.",
     },
