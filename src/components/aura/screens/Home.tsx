@@ -31,10 +31,14 @@ function todayISO(): string {
 }
 
 const CURATED_OCCASION_KEYS: Record<string, string> = {
+  Everyday: "home.occasionEveryday",
   Work: "home.occasionWork",
   Weekend: "home.occasionWeekend",
   Evening: "home.occasionEvening",
 };
+
+/** "everyday", "EVERYDAY", "Everyday" → "Everyday": the model doesn't always keep the case. */
+const occasionKey = (o: string) => o.trim().charAt(0).toUpperCase() + o.trim().slice(1).toLowerCase();
 
 export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown }: { go: (s: Screen) => void; openAvatarTryOn: (itemIds?: string[]) => void; openBuilder: (init: BuilderInit) => void; active?: boolean; onWardrobeKnown?: (pieces: number) => void }) {
   const { t } = useTranslation();
@@ -511,7 +515,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
               )}
                            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-secondary/60 px-3 py-1.5">
                 <Sparkles size={11} />
-                <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{todayLook.occasion || t("home.todayFallback")}</span>
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{todayLook.occasion ? (CURATED_OCCASION_KEYS[occasionKey(todayLook.occasion)] ? t(CURATED_OCCASION_KEYS[occasionKey(todayLook.occasion)]) : todayLook.occasion) : t("home.todayFallback")}</span>
               </div>
 
               <p className="mt-2 text-sm text-foreground/80 leading-relaxed">{todayLook.explanation}</p>
@@ -621,7 +625,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
                       </div>
                     )}
                   </div>
-                  <p className="mt-2 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{look.occasion ? (CURATED_OCCASION_KEYS[look.occasion] ? t(CURATED_OCCASION_KEYS[look.occasion]) : look.occasion) : t("home.lookFallback")}</p>
+                  <p className="mt-2 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{look.occasion ? (CURATED_OCCASION_KEYS[occasionKey(look.occasion)] ? t(CURATED_OCCASION_KEYS[occasionKey(look.occasion)]) : look.occasion) : t("home.lookFallback")}</p>
                   <p className="text-xs text-muted-foreground truncate">{look.explanation}</p>
                 </button>
               );

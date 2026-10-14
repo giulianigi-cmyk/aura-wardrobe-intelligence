@@ -6,6 +6,7 @@ import { resolvePlanSlot } from "./outfit-plan-slot";
 import { getTripWeatherMap, weatherKey } from "./trip-weather.server";
 import { describeWeather } from "./weather";
 import { isLogoOrGraphicTop, isWorkActivityText } from "./work-dress";
+import { isSuitJacket, isSuitPair } from "./suit-pairs";
 import { computeCapsuleSeedAndExclusions } from "./trip-capsule-persistence";
 import { violatesWeatherRule, HEAVY_SIGNAL, LIGHT_SIGNAL, MILD_WARM_THRESHOLD_C, MILD_COOL_THRESHOLD_C, COLD_THRESHOLD_C, type WeatherCheckableItem } from "./outfit-weather-rules";
 import type { StyleMemoryRow } from "./style-memory-prompt";
@@ -947,6 +948,15 @@ export function buildCapsule(
     if (best) capsule.add(best.it.id);
   }
 
+  // A suit jacket travels with its own trousers or skirt (suit-pairs.ts): packing only one half is
+  // how one suit's jacket ended up over another suit's trousers.
+  for (const id of Array.from(capsule)) {
+    const jacket = pool.find((p) => p.id === id);
+    if (!jacket || !isSuitJacket(jacket)) continue;
+    const own = pool.find((p) => p.id !== id && isSuitPair(jacket, p));
+    if (own) capsule.add(own.id);
+  }
+
   return capsule;
 }
 
@@ -1501,7 +1511,15 @@ export async function generateTripCapsuleCore({ data, context }: {
     // activity) never seed — a single-day regenerate has no business
     // forcing in unrelated days' items as a "preference", though
     // exclusions above still apply either way.
-    const existingCapsuleSeed: string[] = isRegeneratingExistingLook ? [] : persistedSeedIds;
+    // Exception: the pieces a trip carries throughout — the bag, the shoes, the coat — are seeded
+    // even then. Regenerating one day used to start from nothing and pick another bag, ignoring the one
+    // the other days of the same trip already use.
+    const carriedThroughout = (id: string) => {
+      const it = pool.find((p) => p.id === id);
+      return !!it && (BAG_ROLE.has(it.category ?? "") || SHOE_ROLE.has(it.category ?? "")
+        || (it.category === "Outerwear" && COAT_LAYER.test(it.subcategory ?? "")));
+    };
+    const existingCapsuleSeed: string[] = isRegeneratingExistingLook ? persistedSeedIds.filter(carriedThroughout) : persistedSeedIds;
 
     const capsule = buildCapsule(pool, capped, seasonByDate, existingCapsuleSeed, tempByActivity, styleMemory);
 
@@ -1554,6 +1572,22 @@ export async function generateTripCapsuleCore({ data, context }: {
       if (candidatePool.length < 3) {
         const capsuleIds = new Set(candidatePool.map((it) => it.id));
         candidatePool = [...candidatePool, ...eligible.filter((it) => !capsuleIds.has(it.id))];
+      }
+      // Every look needs shoes and a top and a bottom. When the capsule holds none of a role that
+      // fits this activity (pieces removed from the capsule by hand, a capsule built by an older run),
+      // the best fitting pieces of that role are offered as well — otherwise the outfit engine has
+      // nothing to choose from and the look ships without shoes.
+      if (activityKind(req) !== "swim") {
+        for (const role of [SHOE_ROLE, TOP_ROLE, BOTTOM_ROLE]) {
+          if (candidatePool.some((it) => role.has(it.category ?? ""))) continue;
+          const have = new Set(candidatePool.map((it) => it.id));
+          const temp = tempByActivity.get(req.activityId) ?? null;
+          const extra = eligible
+            .filter((it) => role.has(it.category ?? "") && !have.has(it.id))
+            .sort((a, b) => versatility(b, req, temp, styleMemory) - versatility(a, req, temp, styleMemory))
+            .slice(0, 3);
+          candidatePool = [...candidatePool, ...extra];
+        }
       }
       candidatePool = applyHardDressCodeFilter(candidatePool, req.dressCode);
       // Applied for EVERY transport activity, unconditionally. It used to

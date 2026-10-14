@@ -9,6 +9,15 @@ import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
 import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, isSummerSeason } from "./outfit-styling-rules";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 import { explanationLanguageInstruction } from "./language_prompt";
+
+/** The sentence under a look whose own explanation can no longer be trusted, in the person's language. */
+function fallbackTodayExplanation(language: string | null): string {
+  const lang = (language ?? "").slice(0, 2).toLowerCase();
+  if (lang === "it") return "Un look essenziale dal tuo armadio, pensato per il meteo di oggi.";
+  if (lang === "es") return "Un look sencillo de tu armario, pensado para el tiempo de hoy.";
+  if (lang === "fr") return "Une tenue épurée de votre garde-robe, pensée pour la météo du jour.";
+  return "A pared-back edit from your closet, put together for today's weather.";
+}
 import { dressPreferencesToPrompt, hasAnyPreference, isItemAllowedByDressPreferences, type DressPreferences } from "./dress-preferences";
 import { loadWearHistory, recentlyWornIds, rotationOrder, wearFields, withoutRecentPerCategory, ROTATION_PROMPT_RULE } from "./outfit-rotation";
 
@@ -374,7 +383,12 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
         return item?.category === "Dresses" || item?.category === "Jumpsuits";
       });
       if (!hasFullBody) return false;
-      return ids.some((id) => catalog.find((c) => c.id === id)?.category === "Bottoms");
+      // ...nor with a separate top: a sweater or a sequinned top over a dress is two outfits at once.
+      // A layer (cardigan, jacket, blazer) over a dress is fine — it takes the outerwear slot.
+      return ids.some((id) => {
+        const c = catalog.find((x) => x.id === id);
+        return c?.category === "Bottoms" || (c?.category === "Tops" && !isOpenLayerPiece(c));
+      });
     };
 
 
@@ -534,6 +548,32 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       return [...ids, best.id];
     };
 
+    // A top (never a cardigan alone) and a bottom for a look that lacks one, chosen like the shoes:
+    // right for the weather and the person's dress preferences, close to the look's formality.
+    const lookTarget = (ids: string[]) => {
+      const fs = ids.map((id) => catalog.find((c) => c.id === id)?.formality).filter((f): f is number => typeof f === "number");
+      return fs.length ? fs.reduce((a, b) => a + b, 0) / fs.length : 3;
+    };
+    const pickPiece = (occasion: string, ids: string[], fits: (c: (typeof catalog)[number]) => boolean) => {
+      const target = lookTarget(ids);
+      const ok = catalog.filter((c) => !ids.includes(c.id) && fits(c)
+        && !violatesDressPrefs(occasion, [c.id]) && !violatesWeather([c.id]) && !violatesOccasionTag(occasion, [c.id])
+        && !violatesEmbellishedByDay(occasion, [c.id]));
+      return ok.sort((a, b) => Math.abs((a.formality ?? target) - target) - Math.abs((b.formality ?? target) - target))[0] ?? null;
+    };
+    const isFullBodyId = (id: string) => ["Dresses", "Jumpsuits"].includes(catalog.find((c) => c.id === id)?.category ?? "");
+    const ensureTorso = (occasion: string, ids: string[]): string[] => {
+      if (ids.some(isFullBodyId)) return ids;
+      if (ids.some((id) => { const c = catalog.find((x) => x.id === id); return c?.category === "Tops" && !isOpenLayerPiece(c); })) return ids;
+      const top = pickPiece(occasion, ids, (c) => c.category === "Tops" && !isOpenLayerPiece(c));
+      return top ? [...ids, top.id] : ids;
+    };
+    const ensureLegs = (occasion: string, ids: string[]): string[] => {
+      if (ids.some(isFullBodyId) || ids.some((id) => catalog.find((c) => c.id === id)?.category === "Bottoms")) return ids;
+      const bottom = pickPiece(occasion, ids, (c) => c.category === "Bottoms");
+      return bottom ? [...ids, bottom.id] : ids;
+    };
+
     const ensureBag = (occasion: string, ids: string[]): string[] => {
       if (gender !== "Woman") return ids;
       if (!catalogHasBag) return ids;
@@ -625,6 +665,8 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
           // instead of the whole look — a dress alone is still valid,
           // while removing it would leave an incomplete outfit.
           if (todayHasFullBody && catalog.find((c) => c.id === id)?.category === "Bottoms") return false;
+          // ...and the same for a separate top (a layer such as a cardigan or a jacket stays).
+          if (todayHasFullBody && catalog.find((c) => c.id === id)?.category === "Tops" && !isOpenLayerPiece(catalog.find((c) => c.id === id))) return false;
           // Same one-per-slot rule curated looks already enforce (see SLOT_LIMITS/hasSlotViolation
           // below) — "today" never went through it, which is how it could ship two pairs of shoes
           // or two tops when the model's own answer already had the duplicate. Unlike a curated
@@ -729,11 +771,11 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
           if (isValidCuratedLook(retryParsed.today, []) && isCompleteLook(retryParsed.today.item_ids)) {
             clean.today = retryParsed.today;
           } else {
-            clean.today = { ...clean.today, explanation: "A pared-back edit from your closet, put together for today's weather." };
+            clean.today = { ...clean.today, explanation: fallbackTodayExplanation(language) };
           }
         } catch (err) {
           console.error("[AURA daily-looks] today-completion retry failed", err);
-          clean.today = { ...clean.today, explanation: "A pared-back edit from your closet, put together for today's weather." };
+          clean.today = { ...clean.today, explanation: fallbackTodayExplanation(language) };
         }
       }
 
@@ -780,6 +822,15 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
         }
       }
 
+      // A today look still without a top or a bottom after the retry (jeans and no top) is completed in
+      // code — a look shown on Home must be wearable — and its sentence no longer claims anything specific.
+      {
+        const before = clean.today.item_ids;
+        const completed = ensureLegs(clean.today.occasion, ensureTorso(clean.today.occasion, before));
+        if (completed.length !== before.length) {
+          clean.today = { ...clean.today, item_ids: completed, explanation: fallbackTodayExplanation(language) };
+        }
+      }
       clean.today = { ...clean.today, item_ids: ensureJewelry(clean.today.occasion, ensureBag(clean.today.occasion, ensureShoes(clean.today.occasion, clean.today.item_ids))) };
       clean.curated = clean.curated.map((l) => ({ ...l, item_ids: ensureJewelry(l.occasion, ensureBag(l.occasion, ensureShoes(l.occasion, l.item_ids))) }));
 
