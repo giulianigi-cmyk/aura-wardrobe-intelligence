@@ -16,7 +16,7 @@ export type GuideVisual =
   | { kind: "tab"; tab: GuideTab }
   /** A pill button, filled (main action) or outlined. */
   | { kind: "button"; labelKey: string; icon?: GuideIcon; variant: "solid" | "outline" }
-  /** A round icon button (the + in Wardrobe, the suitcase in Calendar, the gear in You). */
+  /** A round icon button (the + in Wardrobe, the gear in You). */
   | { kind: "round"; icon: GuideIcon; labelKey: string; dark?: boolean }
   /** A choice in a sheet: icon, title and the one-line hint under it. */
   | { kind: "option"; icon: GuideIcon; labelKey: string; hintKey?: string }
@@ -199,9 +199,10 @@ export const GUIDE: GuideChapterDef[] = [
         id: "trips", open: "trips",
         visuals: [
           tab("planner"),
-          { kind: "round", icon: "luggage", labelKey: "planner.tripsAria" },
+          { kind: "button", labelKey: "planner.tripsAria", icon: "luggage", variant: "solid" },
           { kind: "button", labelKey: "trips.planATrip", variant: "solid" },
           null,
+          { kind: "chips", labelKeys: ["tripDetail.addActivity", "tripDetail.chooseFromCalendar"] },
           null,
         ],
       },

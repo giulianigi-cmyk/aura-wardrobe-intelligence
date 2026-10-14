@@ -184,7 +184,7 @@ const text: GuideText = {
       title: "Planificar un día",
       steps: [
         "Abre Calendario.",
-        "Toca un día de la semana o del mes.",
+        "Toca un día del mes.",
         "Planifica un outfit, pregunta al estilista o elige tú las prendas.",
         "Al final del día puedes marcarlo como usado.",
       ],
@@ -204,10 +204,11 @@ const text: GuideText = {
       title: "Preparar un viaje",
       steps: [
         "Abre Calendario.",
-        "Toca la maleta de arriba.",
+        "Toca «Viajes» arriba.",
         "Toca «Planificar un viaje».",
         "Escribe el destino (puedes añadir paradas), las fechas, el tipo de viaje y de qué armario coger las prendas.",
-        `${BRAND_NAME} prepara la lista para la maleta y los outfits de cada día, según la previsión del tiempo.`,
+        "Añade las actividades con la hora de inicio y de fin, o elígelas de tu calendario: las horas se copian solas.",
+        `${BRAND_NAME} prepara la maleta y los outfits de cada día según la previsión del tiempo: citas seguidas, o una cena dentro de un evento, mantienen un solo look, y si hace frío en la maleta va un abrigo.`,
       ],
     },
     "create-avatar": {

@@ -184,7 +184,7 @@ const text: GuideText = {
       title: "Planning a day",
       steps: [
         "Open Calendar.",
-        "Tap a day in the week or month view.",
+        "Tap a day in the month.",
         "Plan an outfit, ask the stylist or pick the pieces yourself.",
         "At the end of the day you can mark it as worn.",
       ],
@@ -204,10 +204,11 @@ const text: GuideText = {
       title: "Getting ready for a trip",
       steps: [
         "Open Calendar.",
-        "Tap the suitcase at the top.",
+        "Tap “Trips” at the top.",
         "Tap “Plan a trip”.",
         "Enter the destination (you can add stops), the dates, the kind of trip and which closet to pack from.",
-        `${BRAND_NAME} prepares the packing list and the outfits for each day, based on the forecast.`,
+        "Add the activities with their start and end time, or pick them from your calendar: the times come along.",
+        `${BRAND_NAME} packs the suitcase and plans the outfits for each day, based on the forecast: back-to-back appointments, or a dinner inside an event, keep one look, and when it's cold a coat goes in the suitcase.`,
       ],
     },
     "create-avatar": {

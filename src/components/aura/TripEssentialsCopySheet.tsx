@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { essentialCategoryLabel, essentialNameLabel } from "@/lib/essential-labels";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -152,7 +153,7 @@ export function TripEssentialsCopySheet({
             <div className="space-y-4">
               {grouped.map(([category, list]) => (
                 <div key={category}>
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-1.5">{category}</p>
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-1.5">{essentialCategoryLabel(t, category)}</p>
                   <div className="space-y-1.5">
                     {list.map((e) => {
                       const have = already.has(keyOf(e.category, e.name));
@@ -167,7 +168,7 @@ export function TripEssentialsCopySheet({
                           <span className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 ${on ? "bg-foreground border-foreground" : "border-border"}`}>
                             {on && <Check size={11} className="text-background" />}
                           </span>
-                          <span className="flex-1 text-sm">{e.name} ×{e.quantity}</span>
+                          <span className="flex-1 text-sm">{essentialNameLabel(t, e.name)} ×{e.quantity}</span>
                           {have && <span className="text-[9px] uppercase tracking-widest text-muted-foreground">{t("tripDetail.alreadyOnList", { defaultValue: "Already here" })}</span>}
                         </button>
                       );

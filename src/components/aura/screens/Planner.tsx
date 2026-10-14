@@ -92,7 +92,7 @@ export function Planner({ go, openStylistChat, openBuilder, openAvatarTryOn, foc
   const { city, latitude, longitude, status, detect, setManual } = useLocation();
   const { data: weather } = useWeather(latitude, longitude);
 
-  const [view, setView] = useState<"month" | "week">("month");
+  const view = "month" as "month" | "week";
   const [anchor, setAnchor] = useState<Date>(startOfDay(new Date()));
   const { data: plans = [], refetch: refetchPlans } = useOutfitPlans() as { data: OutfitPlan[]; refetch: () => Promise<unknown> };
   const outfitPlansCache = useOutfitPlansCacheActions();
@@ -272,29 +272,17 @@ export function Planner({ go, openStylistChat, openBuilder, openAvatarTryOn, foc
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-2">
-          <div className="flex gap-1 rounded-full bg-secondary/60 p-1">
-            {(["month", "week"] as const).map((v) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={`px-4 py-1.5 rounded-full text-[10px] uppercase tracking-[0.25em] transition ${
-                  view === v ? "bg-foreground text-background" : "text-foreground/70"
-                }`}
-              >{v === "month" ? t("planner.month") : t("planner.week")}</button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => go("builder")}
-              className="h-9 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-95 inline-flex items-center gap-1"
-                        ><Sparkles size={11} /> {t("planner.createOutfit")}</button>
-                       <button
-              onClick={() => go("trips")}
-              aria-label={t("planner.tripsAria")}
-              className="h-12 w-12 rounded-full border border-border flex items-center justify-center active:scale-95"
-            ><Luggage size={26} /></button>
-          </div>
+        {/* Month view only (the week view showed the same plans with less context). The two actions
+            share one size and style: "Create outfit" and "Trips", labelled rather than a lone icon. */}
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button
+            onClick={() => go("builder")}
+            className="min-h-10 px-3 py-2 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.22em] leading-tight text-center active:scale-95 inline-flex items-center justify-center gap-1.5"
+          ><Sparkles size={12} strokeWidth={1.5} /> {t("planner.createOutfit")}</button>
+          <button
+            onClick={() => go("trips")}
+            className="min-h-10 px-3 py-2 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.22em] leading-tight text-center active:scale-95 inline-flex items-center justify-center gap-1.5"
+          ><Luggage size={12} strokeWidth={1.5} /> {t("planner.tripsAria")}</button>
         </div>
       </header>
 
