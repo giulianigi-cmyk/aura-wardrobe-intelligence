@@ -208,7 +208,7 @@ const text: GuideText = {
         "Touchez « Planifier un voyage ».",
         "Indiquez la destination (vous pouvez ajouter des étapes), les dates, le type de voyage et la garde-robe où prendre les pièces.",
         "Ajoutez les activités avec l'heure de début et de fin, ou choisissez-les dans votre calendrier : les horaires suivent.",
-        `${BRAND_NAME} prépare la valise et les tenues de chaque jour selon les prévisions météo : des rendez-vous qui s'enchaînent, ou un dîner pendant un événement, gardent une seule tenue, et quand il fait froid un manteau va dans la valise.`,
+        `${BRAND_NAME} prépare la valise et les tenues de chaque jour selon les prévisions météo : des rendez-vous qui s'enchaînent, ou un dîner pendant un événement, gardent une seule tenue, et quand il fait froid un manteau va dans la valise. Pour les salons, expositions, congrès et rendez-vous clients : un tailleur, ou un pantalon de tailleur ou une jupe avec une chemise, un chemisier ou une maille fine, et toujours une veste ; la valise contient toujours aussi une paire de chaussures plates.`,
       ],
       tip: "Le × de la Capsule de voyage ne vide pas la valise : il exclut cette pièce de ce voyage, et elle ne sera plus proposée, même en régénérant. Pour la remettre, touchez « Ajouter » et choisissez-la. Pour recommencer le choix, supprimez les tenues et touchez « Générer les tenues » : les pièces que vous n'avez pas retirées restent, les autres non.",
     },

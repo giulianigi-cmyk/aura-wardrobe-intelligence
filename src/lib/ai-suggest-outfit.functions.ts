@@ -15,8 +15,8 @@ import { loadWearHistory, recentlyWornIds, rotationOrder, seededRandom, wearFiel
 import { ensureAnchor, ANCHOR_UNAVAILABLE } from "./outfit-anchor";
 import { explanationLanguageInstruction } from "./language_prompt";
 import { BRAND_NAME } from "@/lib/brand";
-import { isLogoOrGraphicTop } from "./work-dress";
-import { keepSuitsTogether } from "./suit-pairs";
+import { isLogoOrGraphicTop, isProfessionalEventText, isTailoredBottom, isUnderJacketTop } from "./work-dress";
+import { isSuitJacket, keepSuitsTogether } from "./suit-pairs";
 
 const ItemSchema = z.object({
   id: z.string(),
@@ -413,7 +413,11 @@ export async function suggestOutfitCore(params: {
   const coldOuterRule = [params.temperature, params.morningTemp].some((t) => typeof t === "number" && t < MILD_COOL_THRESHOLD_C)
     ? ["COLD (below 16°C at some point of the day): the look needs a coat, a trench or a long puffer. When it has a blazer or a cardigan, the coat goes OVER it — this is the one case where two outer pieces are allowed (one coat-type layer + one jacket/cardigan), so a suit with a coat on top is correct."]
     : [];
+  const proEventRule = isProfessionalEventText(params.occasion) && !/^\s*travel\b/i.test(params.occasion ?? "")
+    ? ["IMPORTANT WORK EVENT (trade fair, exhibition, congress, client meeting): a suit, or tailored trousers or a skirt (never jeans, leggings, joggers or shorts) with a shirt, a blouse or a fine knit worn under a jacket (never a T-shirt, tank or sweatshirt), and ALWAYS a blazer or tailored jacket on top, even when it is warm — then the lightest one."]
+    : [];
   const contextRules = [
+    ...proEventRule,
     ...coldOuterRule,
     ...(params.relativeWarmthHint ? [`Default: ${params.relativeWarmthHint}`] : []),
     ...(params.temperature == null
@@ -573,10 +577,16 @@ export async function suggestOutfitCore(params: {
   // the same signal the AI itself uses when tagging subcategory/style —
   // free text, not sleeveLength.
   const BARE_SHOULDER_SIGNAL = /off.?shoulder|bardot|halter|strapless|one.?shoulder|cold.?shoulder|bandeau|tube top/i;
+  // A trade fair, an exhibition, a congress, a client meeting (work-dress.ts): always a suit, or
+  // tailored trousers or a skirt with a shirt, a blouse or a fine knit, and a jacket on top. Not the
+  // journey to it, which has its own travel rules.
+  const isProEvent = isProfessionalEventText(params.occasion) && !/^\s*travel\b/i.test(params.occasion ?? "");
   const violatesWorkRules = (ids: string[]): boolean =>
     ids.some((id) => {
       const item = catalog.find((c) => c.id === id);
       if (!item) return false;
+      if (isProEvent && item.category === "Bottoms" && !isTailoredBottom(item)) return true;
+      if (isProEvent && item.category === "Tops" && !isOpenLayerPiece(item) && !isUnderJacketTop(item)) return true;
       if ((item.dayEvening ?? "") === "evening" && (item.formality ?? 0) >= 4) return true;
       const text = `${item.subcategory ?? ""} ${(item.styleTags ?? []).join(" ")} ${(item.material ?? []).join(" ")}`;
       if (EVENING_SIGNAL.test(text)) return true;
@@ -610,7 +620,7 @@ export async function suggestOutfitCore(params: {
   // outfit-weather-rules.ts (unica fonte di verità, condivisa con Home).
   const violatesWeather = (ids: string[]): boolean => anyItemViolatesWeather(ids, catalog, params.temperature);
 
-  const isWorkOccasion = (params.occasion ?? "").toLowerCase().startsWith("work");
+  const isWorkOccasion = (params.occasion ?? "").toLowerCase().startsWith("work") || isProEvent;
 
   // Place-of-worship, embassy, formal-venue and similar venue requirements (place-dress-code.ts) —
   // detected from the occasion/location text, so this applies the same whether that text came from
@@ -1009,6 +1019,14 @@ export async function suggestOutfitCore(params: {
       const chosen = item_ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => !!c);
       const layer = rainLayerFor(chosen, usable);
       if (layer) item_ids = [...item_ids, layer.id];
+    }
+
+    // An important work event: a jacket, always — even when warm (the lightest that passes the rules,
+    // else any tailored jacket the look may use). The cold rule below then adds a coat over it.
+    if (isProEvent && !item_ids.some((id) => { const c = catalog.find((x) => x.id === id); return !!c && (isSuitJacket(c) || (c.category === "Tops" && /blazer|jacket|giacca/i.test(c.subcategory ?? ""))); })) {
+      const jacket = pickBest("Outerwear", (c) => isSuitJacket(c))
+        ?? catalog.find((c) => isSuitJacket(c) && !item_ids.includes(c.id) && !hardExcluded.has(c.id) && !violatesOccasionTag([c.id]));
+      if (jacket) item_ids = [...item_ids, jacket.id];
     }
 
     // Cold: a coat, always (not only when the model thinks of it). Below 16°C — counting the morning,

@@ -1122,3 +1122,19 @@ test("an event from 17:00 to 22:00 covers the evening too, and its look is told 
   const event: Requirement = { activityId: "e", date: "2026-10-22", daySegment: "day", dressCode: null, label: "Evento GIMAV", startTime: "17:00", endTime: "22:00" };
   assert.match(engineOccasionText(event, true), /dinner included/);
 });
+
+test("every trip packs one pair without heels when all the packed shoes have heels; jeans and tees are not work pieces", () => {
+  const pool: PoolItem[] = [
+    item({ id: "pumps", category: "Shoes", subcategory: "Pumps", formality: 4, heelHeight: "High" }),
+    item({ id: "loafers", category: "Shoes", subcategory: "Loafers", formality: 3, heelHeight: "Flat" }),
+    item({ id: "sneakers", category: "Shoes", subcategory: "Sneakers", formality: 1, heelHeight: "Flat" }),
+    item({ id: "trousers", category: "Bottoms", subcategory: "Trousers", formality: 3 }),
+    item({ id: "jeans", category: "Bottoms", subcategory: "Jeans", formality: 3 }),
+    item({ id: "tee", category: "Tops", subcategory: "T-Shirt", formality: 2 }),
+    item({ id: "blouse", category: "Tops", subcategory: "Blouse", formality: 3 }),
+  ];
+  const requirements: Requirement[] = [{ activityId: "fair", date: "2026-10-22", daySegment: "day", dressCode: null, label: "Fiera GIMAV" }];
+  const capsule = buildCapsule(pool, requirements, new Map(), ["pumps"]);
+  assert.ok(capsule.has("loafers"), `a flat polished pair expected: ${[...capsule].join(", ")}`);
+  assert.ok(capsule.has("trousers") && capsule.has("blouse"), "tailored trousers and a blouse for the fair");
+});
