@@ -323,14 +323,27 @@ export async function composeAndUploadOutfitImage(userId: string, items: Compose
   const blob = await composeOutfitImage(items);
   if (!blob) return null;
   const path = `${userId}/home-suggestion-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
-  const { error } = await supabase.storage.from("outfits").upload(path, blob, {
-    contentType: "image/png",
-    cacheControl: "3600",
-    upsert: false,
-  });
-  if (error) {
-    console.error("[AURA compose-outfit-canvas] upload failed", error);
-    return null;
+  // A phone on a patchy connection (iOS reports it as "Load failed") loses the upload of an image
+  // that was already composed; it used to be dropped at the first failure, leaving the look without
+  // its board until the next app start. Up to UPLOAD_RETRY_DELAYS_MS.length more tries, same path:
+  // "already exists" on a retry means the earlier try did reach storage and only its answer was lost.
+  for (let attempt = 0; ; attempt++) {
+    const { error } = await supabase.storage.from("outfits").upload(path, blob, {
+      contentType: "image/png",
+      cacheControl: "3600",
+      upsert: false,
+    });
+    if (!error || (attempt > 0 && isAlreadyExists(error))) return path;
+    if (attempt >= UPLOAD_RETRY_DELAYS_MS.length) {
+      console.error("[AURA compose-outfit-canvas] upload failed", error);
+      return null;
+    }
+    await new Promise((r) => setTimeout(r, UPLOAD_RETRY_DELAYS_MS[attempt]));
   }
-  return path;
+}
+
+const UPLOAD_RETRY_DELAYS_MS = [1000, 2000];
+
+function isAlreadyExists(error: { message?: string; statusCode?: string | number }): boolean {
+  return String(error.statusCode ?? "") === "409" || /already exists|duplicate/i.test(error.message ?? "");
 }
