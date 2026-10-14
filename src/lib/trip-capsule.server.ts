@@ -5,12 +5,14 @@ import { dressPreferencesToPrompt, type DressPreferences } from "./dress-prefere
 import { resolvePlanSlot } from "./outfit-plan-slot";
 import { getTripWeatherMap, weatherKey } from "./trip-weather.server";
 import { describeWeather } from "./weather";
+import { isWetCondition } from "./rain-rules";
 import { isLogoOrGraphicTop, isTailoredBottom, isUnderJacketTop, isWorkActivityText } from "./work-dress";
 import { isSuitJacket, isSuitPair } from "./suit-pairs";
 import { isTechnicalFootwear } from "./outfit-styling-rules";
 import { computeCapsuleSeedAndExclusions } from "./trip-capsule-persistence";
 import { violatesWeatherRule, HEAVY_SIGNAL, LIGHT_SIGNAL, MILD_WARM_THRESHOLD_C, MILD_COOL_THRESHOLD_C, COLD_THRESHOLD_C, type WeatherCheckableItem } from "./outfit-weather-rules";
 import type { StyleMemoryRow } from "./style-memory-prompt";
+import { isWarmOuter, isWarmAndRainReady } from "./warm-outer";
 import {
   detectActivityKind, hasEleganceSignal as sharedHasEleganceSignal, businessDinnerAdjustment,
   type ActivityKind,
@@ -674,6 +676,9 @@ export function buildCapsule(
   existingCapsuleSeed: string[] = [],
   tempByActivity: Map<string, number | null> = new Map(),
   styleMemory: StyleMemoryRow[] = [],
+  // Each activity's day at its coldest (the morning minimum) and whether it rains: a day activity is
+  // scored at the day's maximum, but the person leaves the hotel at the minimum.
+  dayColdByActivity: Map<string, { low: number | null; wet: boolean }> = new Map(),
 ): Set<string> {
   // Items already chosen for OTHER activities of this same trip in a
   // previous, separate generation call (days already planned, and
@@ -921,28 +926,34 @@ export function buildCapsule(
   // Reserved slot for the cold. No role target above packs a coat or a jacket, so a trip with a
   // 12°C day and a 5°C evening (Düsseldorf in October) had no outer layer to choose from at all —
   // a blazer packed for work is not one. Below 16°C the suitcase carries a real outer layer; at
-  // 10°C or below a warm one (coat, trench, puffer, parka) first. Unknown temperatures pack one
-  // only for a winter trip.
-  const temps = requirements.map((r) => tempByActivity.get(r.activityId)).filter((t): t is number => t != null);
+  // 10°C or below a warm one (wool coat, puffer, parka — not a trench), a puffer or a parka first
+  // when it rains. The coldest reading counts each day's morning minimum, not only the daytime
+  // maximum a day activity is scored at. Unknown temperatures pack one only for a winter trip.
+  const temps = requirements.flatMap((r) => [tempByActivity.get(r.activityId), dayColdByActivity.get(r.activityId)?.low])
+    .filter((t): t is number => t != null);
   const coldest = temps.length ? Math.min(...temps) : null;
   const needsOuter = coldest != null ? coldest < MILD_COOL_THRESHOLD_C : requirements.some((r) => seasonByDate.get(r.date) === "Winter");
+  const warmFirst = coldest == null || coldest <= COLD_THRESHOLD_C;
+  const wetTrip = requirements.some((r) => dayColdByActivity.get(r.activityId)?.wet);
+  const isRealOuter = (it: PoolItem | undefined) => it?.category === "Outerwear" && !/blazer|vest|gilet/i.test(it.subcategory ?? "");
   const hasRealOuter = Array.from(capsule).some((id) => {
     const it = pool.find((p) => p.id === id);
-    return it?.category === "Outerwear" && !/blazer|vest|gilet/i.test(it.subcategory ?? "");
+    return isRealOuter(it) && (!warmFirst || coldest == null || isWarmOuter(it!));
   });
   if (needsOuter && !hasRealOuter) {
     const repReq = requirements.find((r) => tempByActivity.get(r.activityId) === coldest) ?? requirements[0];
     const repSeason = seasonByDate.get(repReq.date) ?? "";
-    const warmFirst = coldest == null || coldest <= COLD_THRESHOLD_C;
     const dressy = workReqs.length > 0 || requirements.some(hasEleganceSignal);
     const best = pool
-      .filter((it) => it.category === "Outerwear" && !capsule.has(it.id) && !/blazer|vest|gilet/i.test(it.subcategory ?? "")
+      .filter((it) => isRealOuter(it) && !capsule.has(it.id)
         && climateSuitability(it, coldest, repSeason) !== "inappropriate")
       .map((it) => ({
         it,
-        score: (warmFirst && WARM_OUTER.test(`${it.subcategory ?? ""} ${(it.material ?? []).join(" ")}`) ? 10 : 0)
-          // a work or dinner trip wants a coat or a trench rather than a puffer or a denim jacket
-          + (dressy ? (CASUAL_OUTER.test(it.subcategory ?? "") ? -5 : 0) + it.formality : 0)
+        score: (warmFirst && isWarmOuter(it) ? 10 : 0)
+          + (warmFirst && wetTrip && isWarmAndRainReady(it) ? 6 : 0)
+          // a work or dinner trip wants a coat or a trench rather than a puffer or a denim jacket —
+          // except on a cold, rainy trip, where a puffer or parka is the coat
+          + (dressy ? (CASUAL_OUTER.test(it.subcategory ?? "") && !(warmFirst && wetTrip && isWarmAndRainReady(it)) ? -5 : 0) + it.formality : 0)
           + versatility(it, repReq, coldest, styleMemory),
       }))
       .sort((a, b) => b.score - a.score)[0];
@@ -988,8 +999,6 @@ function isHeeled(it: PoolItem): boolean {
   if (it.heelHeight === "Flat" || it.heelHeight === "Low") return false;
   return /pump|heel|stiletto|slingback|wedge|décolleté|decollete|tacco/i.test(`${it.subcategory ?? ""} ${(it.styleTags ?? []).join(" ")}`);
 }
-
-const WARM_OUTER = /coat|cappotto|trench|puffer|piumino|parka|wool|lana|cashmere|shearling|montone/i;
 
 // A tailored jacket rather than a puffer, a parka or a denim jacket.
 const CASUAL_OUTER = /puffer|piumino|parka|windbreaker|rain|anorak|denim|bomber|shacket|vest|gilet|fleece|pile/i;
@@ -1525,6 +1534,7 @@ export async function generateTripCapsuleCore({ data, context }: {
     // same numbers — no risk of the two drifting apart by recomputing
     // this twice. Same tempMin(evening)/tempMax(day) split as before.
     const tempByActivity = new Map<string, number | null>();
+    const dayColdByActivity = new Map<string, { low: number | null; wet: boolean }>();
     const dayWeatherByActivity = new Map<string, ReturnType<typeof weatherMap.get>>();
     for (const req of capped) {
       const dest = destinationForDate(req.date);
@@ -1532,6 +1542,7 @@ export async function generateTripCapsuleCore({ data, context }: {
       const dw = wKey ? weatherMap.get(wKey) ?? null : null;
       dayWeatherByActivity.set(req.activityId, dw);
       tempByActivity.set(req.activityId, dw ? (req.daySegment === "evening" ? dw.tempMin : dw.tempMax) : null);
+      dayColdByActivity.set(req.activityId, { low: dw?.tempMin ?? null, wet: dw ? isWetCondition(describeWeather(dw.weatherCode).label) : false });
     }
 
     // Seed for buildCapsule (see its own comment): the trip's persistent
@@ -1552,7 +1563,7 @@ export async function generateTripCapsuleCore({ data, context }: {
     };
     const existingCapsuleSeed: string[] = isRegeneratingExistingLook ? persistedSeedIds.filter(carriedThroughout) : persistedSeedIds;
 
-    const capsule = buildCapsule(pool, capped, seasonByDate, existingCapsuleSeed, tempByActivity, styleMemory);
+    const capsule = buildCapsule(pool, capped, seasonByDate, existingCapsuleSeed, tempByActivity, styleMemory, dayColdByActivity);
 
     const created: { date: string; daySegment: string }[] = [];
     const failed: { date: string; daySegment: string; reason: string }[] = [];

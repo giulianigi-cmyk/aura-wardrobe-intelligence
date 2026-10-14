@@ -7,7 +7,8 @@ import { parseAiJson } from "./ai-json";
 import { isItemAtAnyLocation } from "./wardrobe-location";
 import { isItemAllowedByDressPreferences, hasAnyPreference, coversShoulders, coversArms, coversLegs, type DressPreferences } from "./dress-preferences";
 import { anyItemViolatesWeather, violatesSleeveClimate, violatesWeatherRule, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule, MILD_COOL_THRESHOLD_C, COLD_THRESHOLD_C } from "./outfit-weather-rules";
-import { filterForRain, isWetCondition, rainLayerFor, RAIN_PROMPT_RULE } from "./rain-rules";
+import { filterForRain, isWetCondition, rainLayerFor, rainReason, RAIN_PROMPT_RULE } from "./rain-rules";
+import { isWarmOuter, isWarmAndRainReady } from "./warm-outer";
 import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
 import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
@@ -1014,7 +1015,10 @@ export async function suggestOutfitCore(params: {
 
     // Rain: a real outer layer, always (not only when the model thinks of it) — a raincoat or trench
     // first — unless it is hot. Chosen among the pieces this outfit may use (occasion, weather rules).
-    if (isWetCondition(params.condition) && (params.temperature == null || params.temperature < 26)) {
+    // At 10°C or below the cold rule further down chooses the layer (warm and, in the rain, a puffer or
+    // a parka first): a trench here would leave a 5°C rainy morning in a mid-season coat.
+    const veryCold = isCold && coldest! <= COLD_THRESHOLD_C;
+    if (isWetCondition(params.condition) && (params.temperature == null || params.temperature < 26) && !veryCold) {
       const usable = catalog.filter((c) => !violatesWeather([c.id]));
       const chosen = item_ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => !!c);
       const layer = rainLayerFor(chosen, usable);
@@ -1032,17 +1036,26 @@ export async function suggestOutfitCore(params: {
     // Cold: a coat, always (not only when the model thinks of it). Below 16°C — counting the morning,
     // when the day starts cold — a look with no outer layer is incomplete, and a suit jacket or a
     // cardigan alone is not enough either: a coat, a trench or a long puffer goes over it, as people
-    // actually dress for work in October. At 10°C or below a warm one (wool, puffer, parka) first.
+    // actually dress for work in October. At 10°C or below a warm one (wool coat, puffer, parka —
+    // never a trench or a raincoat, warm-outer.ts), in the rain a puffer or a parka first; a trench
+    // already in the look is swapped for it.
     if (isCold) {
       const chosenOuters = item_ids.map((id) => catalog.find((x) => x.id === id)).filter((c): c is (typeof catalog)[number] => !!c && slotOf(c) === "Outerwear");
+      const warmOver = (c: (typeof catalog)[number]) => isOverLayer(c) && isWarmOuter(c);
+      // in the rain a puffer or a parka first — but not at work, where the wool coat stays (the occasion first)
+      const pickWarm = () => (isWetCondition(params.condition) && !isWorkOccasion ? pickBest("Outerwear", (c) => warmOver(c) && isWarmAndRainReady(c)) : null)
+        ?? pickBest("Outerwear", warmOver);
       if (!chosenOuters.some(isOverLayer)) {
-        const warm = (c: (typeof catalog)[number]) => /coat|cappotto|puffer|piumino|parka|wool|lana|shearling|montone/i.test(`${c.subcategory ?? ""} ${(c.material ?? []).join(" ")}`);
-        const over = (coldest! <= COLD_THRESHOLD_C ? pickBest("Outerwear", (c) => isOverLayer(c) && warm(c)) : null)
+        const over = (veryCold ? pickWarm() : null)
           ?? pickBest("Outerwear", isOverLayer)
           // no coat in the wardrobe: any jacket, but only when the look has no layer at all
-          ?? (chosenOuters.length === 0 ? pickBest("Outerwear") : null);
+          ?? (chosenOuters.length === 0 ? pickBest("Outerwear", (c) => !isWetCondition(params.condition) || !rainReason(c)) ?? pickBest("Outerwear") : null);
         // a second layer goes only over a jacket or a cardigan, never next to another coat
         if (over && chosenOuters.length <= 1) item_ids = [...item_ids, over.id];
+      } else if (veryCold && !chosenOuters.some(warmOver)) {
+        const light = chosenOuters.find((c) => isOverLayer(c) && c.id !== params.mustIncludeItemId);
+        const warm = light ? pickWarm() : null;
+        if (light && warm) item_ids = item_ids.map((id) => (id === light.id ? warm.id : id));
       }
     }
 
