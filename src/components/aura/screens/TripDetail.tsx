@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
@@ -33,6 +34,12 @@ import { essentialCategoryLabel, essentialNameLabel } from "@/lib/essential-labe
 
 
 const TYPE_ICON: Record<TripType, typeof Briefcase> = { work: Briefcase, leisure: Palmtree, mixed: Shuffle };
+
+// The full-screen sheets (add pieces, capsule, edit outfit, calendar) render on document.body, like
+// OutfitViewerSheet: inside the screen they sat under the tab bar, which covered their Save button.
+function toBody(node: ReactNode) {
+  return typeof document !== "undefined" ? createPortal(node, document.body) : null;
+}
 
 function fmtDate(d: string) {
   return new Date(`${d}T00:00:00`).toLocaleDateString(i18n.language, { month: "short", day: "numeric", year: "numeric" });
@@ -960,7 +967,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
           </section>
         );
       })()}
-      {pickerOpen && (
+      {pickerOpen && toBody(
         <div className="fixed inset-0 z-50 bg-background flex flex-col animate-fade-in">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 pt-14">
             <div>
@@ -1001,7 +1008,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
         </div>
       )}
 
-      {capsulePickerOpen && (
+      {capsulePickerOpen && toBody(
         <div className="fixed inset-0 z-50 bg-background flex flex-col animate-fade-in">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 pt-14">
             <div>
@@ -1042,7 +1049,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
         </div>
       )}
 
-      {editingPlan && (
+      {editingPlan && toBody(
         <div className="fixed inset-0 z-[60] bg-background flex flex-col animate-fade-in">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 pt-14">
             <div className="min-w-0">
@@ -1206,7 +1213,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
         )}
       </section>
 
-      {calendarPickerOpen && (
+      {calendarPickerOpen && toBody(
         <div className="fixed inset-0 z-[70] bg-background flex flex-col animate-fade-in">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 pt-14">
             <div>
