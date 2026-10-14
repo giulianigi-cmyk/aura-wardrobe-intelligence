@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { resolvePlanSlot } from "./outfit-plan-slot";
+import { localDateTime } from "./local-date-time";
 
 export type CalendarEventForTrip = {
   id: string;
@@ -69,7 +70,11 @@ export const listCalendarEventsForTrip = createServerFn({ method: "POST" })
 const ImportSchema = z.object({
   tripId: z.string().uuid(),
   calendarEventId: z.string().uuid(),
+  /** The person's IANA time zone ("Europe/Rome"), so the activity gets the event's LOCAL date
+   *  and hours. Optional: without it UTC is used, as before. */
+  timeZone: z.string().max(64).optional(),
 });
+
 
 /**
  * Turns a real calendar event into a trip activity, prefilled from the
@@ -91,16 +96,20 @@ export const importCalendarEventToTrip = createServerFn({ method: "POST" })
     if (!trip) throw new Error("Trip not found");
 
     const { data: event, error: eventErr } = await (supabase.from("calendar_events_cache" as never) as any)
-      .select("id, title, start_time, end_time, all_day")
+      .select("id, title, start_time, end_time, all_day, location")
       .eq("id", data.calendarEventId).eq("user_id", userId).maybeSingle();
     if (eventErr) throw new Error(eventErr.message);
     if (!event) throw new Error("That calendar event no longer exists — reconnect your calendar and try again.");
 
-    const startDate = new Date(event.start_time);
-    const activityDate = startDate.toISOString().slice(0, 10);
+    // The event's hours come along: the trip planner reads them to tell back-to-back appointments
+    // (one look) from a dinner hours later (a change), and the activity list shows them. They used
+    // to be dropped, so every imported activity had no time at all. All-day events stay without.
+    const start = localDateTime(event.start_time, data.timeZone);
+    const end = event.end_time ? localDateTime(event.end_time, data.timeZone) : null;
+    const activityDate = event.all_day ? String(event.start_time).slice(0, 10) : start.date;
     // Simple, deliberately coarse day/evening split — a person can
     // always correct it by hand afterward like any other activity.
-    const daySegment = startDate.getUTCHours() >= 17 ? "evening" : "day";
+    const daySegment = !event.all_day && Number(start.time.slice(0, 2)) >= 17 ? "evening" : "day";
 
     const { data: activityRow, error: insErr } = await (supabase.from("trip_day_activities" as never) as any)
       .insert({
@@ -109,6 +118,10 @@ export const importCalendarEventToTrip = createServerFn({ method: "POST" })
         activity_type: event.title || "Untitled event",
         day_segment: daySegment,
         calendar_event_id: event.id,
+        start_time: event.all_day ? null : start.time,
+        // An event past midnight keeps its end hour (read as "into the night"); one spanning days does not.
+        end_time: event.all_day || !end || new Date(event.end_time).getTime() - new Date(event.start_time).getTime() >= 86_400_000 ? null : end.time,
+        location: event.location?.trim() || null,
       })
       .select("*").single();
     if (insErr) throw new Error(insErr.message);

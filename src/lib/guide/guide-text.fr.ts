@@ -184,7 +184,7 @@ const text: GuideText = {
       title: "Planifier une journée",
       steps: [
         "Ouvrez Calendrier.",
-        "Touchez un jour de la semaine ou du mois.",
+        "Touchez un jour du mois.",
         "Planifiez une tenue, demandez au styliste ou choisissez vous-même les pièces.",
         "En fin de journée, vous pouvez la marquer comme portée.",
       ],
@@ -204,10 +204,11 @@ const text: GuideText = {
       title: "Préparer un voyage",
       steps: [
         "Ouvrez Calendrier.",
-        "Touchez la valise en haut.",
+        "Touchez « Voyages » en haut.",
         "Touchez « Planifier un voyage ».",
         "Indiquez la destination (vous pouvez ajouter des étapes), les dates, le type de voyage et la garde-robe où prendre les pièces.",
-        `${BRAND_NAME} prépare la liste pour la valise et les tenues de chaque jour, selon les prévisions météo.`,
+        "Ajoutez les activités avec l'heure de début et de fin, ou choisissez-les dans votre calendrier : les horaires suivent.",
+        `${BRAND_NAME} prépare la valise et les tenues de chaque jour selon les prévisions météo : des rendez-vous qui s'enchaînent, ou un dîner pendant un événement, gardent une seule tenue, et quand il fait froid un manteau va dans la valise.`,
       ],
     },
     "create-avatar": {

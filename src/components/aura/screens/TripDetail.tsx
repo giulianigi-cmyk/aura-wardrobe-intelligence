@@ -29,6 +29,7 @@ import { optionLabel, optionList } from "@/lib/garment-names";
 import type { BuilderInit } from "../AuraApp";
 import { listCalendarEventsForTrip, importCalendarEventToTrip, linkExistingOutfitToTripActivity, type CalendarEventForTrip } from "@/lib/trip-calendar-link.functions";
 import { CalendarPlus } from "lucide-react";
+import { essentialCategoryLabel, essentialNameLabel } from "@/lib/essential-labels";
 
 
 const TYPE_ICON: Record<TripType, typeof Briefcase> = { work: Briefcase, leisure: Palmtree, mixed: Shuffle };
@@ -420,7 +421,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
     if (!trip || importingEventId) return;
     setImportingEventId(event.id);
     try {
-      const res = await importCalendarEvent({ data: { tripId: trip.id, calendarEventId: event.id } });
+      const res = await importCalendarEvent({ data: { tripId: trip.id, calendarEventId: event.id, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } });
       setActivities((prev) => [...prev, res.activity].sort((a, b) => a.activity_date.localeCompare(b.activity_date)));
       setCalendarEvents((prev) => prev.filter((e) => e.id !== event.id));
       if (res.existingOutfit) {
@@ -781,7 +782,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
         <div className="space-y-4">
           {Array.from(essentialsByCategory.entries()).map(([category, items]) => (
             <div key={category}>
-              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-1.5">{category}</p>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-1.5">{essentialCategoryLabel(t, category)}</p>
               <div className="space-y-1.5">
                 {items.map((item) => (
                   <div key={item.id} className="flex items-center gap-2 rounded-xl bg-secondary/40 px-3 py-2.5">
@@ -790,9 +791,9 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
                       className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 ${item.status === "packed" ? "bg-foreground border-foreground" : "border-border"}`}
                     >{item.status === "packed" && <Check size={11} className="text-background" />}</button>
                     <span className={`flex-1 text-sm ${item.status === "packed" ? "line-through text-muted-foreground" : ""}`}>
-                      {item.name} ×{item.quantity}
+                      {essentialNameLabel(t, item.name)} ×{item.quantity}
                     </span>
-                    <button onClick={() => void removeEssential(item.id)} aria-label={t("tripDetail.removeItemAria", { name: item.name })} className="h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-muted-foreground">
+                    <button onClick={() => void removeEssential(item.id)} aria-label={t("tripDetail.removeItemAria", { name: essentialNameLabel(t, item.name) })} className="h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-muted-foreground">
                       <X size={13} />
                     </button>
                   </div>
@@ -1098,7 +1099,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
                 <p className="text-sm truncate">{a.activity_type}</p>
                 <p className="text-[10px] text-muted-foreground">
                   {fmtDate(a.activity_date)}
-                  {a.start_time ? ` · ${a.start_time}${a.end_time ? `–${a.end_time}` : ""}` : ""}
+                  {a.start_time ? ` · ${a.start_time.slice(0, 5)}${a.end_time ? `–${a.end_time.slice(0, 5)}` : ""}` : ""}
                   {a.dress_code ? ` · ${a.dress_code}` : ""}
                 </p>
               </div>
@@ -1195,12 +1196,12 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
           <div className="mt-3 flex gap-2">
             <button
               onClick={() => { setDuplicatingActivity(null); setEditingActivityId(null); setActDate(minDate ?? ""); setActSegment("day"); setActType(""); setActDressCode(""); setActStartTime(""); setActEndTime(""); setAddingActivity(true); }}
-              className="flex-1 h-11 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center justify-center gap-2"
-            ><Plus size={13} /> {t("tripDetail.addActivity")}</button>
+              className="flex-1 min-h-14 py-2 px-3 rounded-[1.75rem] border border-dashed border-border text-[10px] uppercase tracking-[0.25em] text-muted-foreground flex flex-col items-center justify-center gap-1 text-center"
+            ><Plus size={14} className="shrink-0" /><span className="leading-snug">{t("tripDetail.addActivity")}</span></button>
             <button
               onClick={() => void openCalendarPicker()}
-              className="flex-1 h-11 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center justify-center gap-2"
-            ><CalendarPlus size={13} /> {t("tripDetail.chooseFromCalendar")}</button>
+              className="flex-1 min-h-14 py-2 px-3 rounded-[1.75rem] border border-dashed border-border text-[10px] uppercase tracking-[0.25em] text-muted-foreground flex flex-col items-center justify-center gap-1 text-center"
+            ><CalendarPlus size={14} className="shrink-0" /><span className="leading-snug">{t("tripDetail.chooseFromCalendar")}</span></button>
           </div>
         )}
       </section>
@@ -1374,7 +1375,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
         {activities.length > 0 && (
           <div className="space-y-3 mb-3">
             {[...activities]
-              .sort((a, b) => a.activity_date.localeCompare(b.activity_date) || (a.day_segment ?? "day").localeCompare(b.day_segment ?? "day"))
+              .sort((a, b) => a.activity_date.localeCompare(b.activity_date) || (a.day_segment ?? "day").localeCompare(b.day_segment ?? "day") || (a.start_time ?? "99").localeCompare(b.start_time ?? "99"))
               .map((a) => {
                 const op = outfitPlans.find((p) => p.trip_activity_id === a.id);
                 const proposal = proposals.find((pr) => pr.data?.trip_activity_id === a.id);
@@ -1387,7 +1388,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
                     <div className="flex items-center gap-1.5 mb-2">
                       {(a.day_segment ?? "day") === "evening" ? <Moon size={12} className="text-muted-foreground" /> : <Sun size={12} className="text-muted-foreground" />}
                       <p className="text-[11px] text-muted-foreground flex-1 min-w-0 truncate">
-                        {fmtDate(a.activity_date)} · {a.activity_type}{a.dress_code ? ` · ${a.dress_code}` : ""}
+                        {fmtDate(a.activity_date)}{a.start_time ? ` · ${a.start_time.slice(0, 5)}${a.end_time ? `–${a.end_time.slice(0, 5)}` : ""}` : ""} · {a.activity_type}{a.dress_code ? ` · ${a.dress_code}` : ""}
                       </p>
                       <button
                         onClick={() => requestRegenerateActivity(a.id, a.activity_type, op?.status)}
