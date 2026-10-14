@@ -40,6 +40,7 @@
     "occasionWork": "Trabajo",
     "occasionWeekend": "Fin de semana",
     "occasionEvening": "Noche",
+    "occasionEveryday": "Día a día",
     "noImage": "Sin imagen",
     "looksGenerateFailed": "No se pudieron crear los looks de hoy.",
     "looksLoadFailed": "No se pudieron cargar los looks de hoy."

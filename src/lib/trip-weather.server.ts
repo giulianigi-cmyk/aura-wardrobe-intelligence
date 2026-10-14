@@ -12,6 +12,7 @@
 //    surfacing this in the UI must label it "Estimated".
 
 import { fetchWeather } from "./weather";
+import { fetchMetnoDaily } from "./weather-metno";
 
 export type TripDayWeather = {
   tempMin: number;
@@ -77,7 +78,18 @@ async function fetchHistoricalAverage(lat: number, lon: number, monthDay: string
   };
 }
 
-export async function getTripDayWeather(lat: number, lon: number, dateISO: string): Promise<TripDayWeather | null> {
+/** MET Norway's daily values for a place, fetched once per place for a whole trip. Used when
+ *  Open-Meteo refuses the server (it answered 503 for days: every trip outfit was then planned with
+ *  no temperature at all — no coat on a 5°C evening, no cold rules). MET gives ~9 days ahead, in UTC;
+ *  the local offset is estimated from the longitude, the same way the plan-weather recheck does. */
+type MetnoCache = Map<string, Promise<Record<string, { tempMax: number; tempMin: number; code: number }> | null>>;
+function metnoDays(lat: number, lon: number, cache: MetnoCache) {
+  const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+  if (!cache.has(key)) cache.set(key, fetchMetnoDaily(lat, lon, Math.round(lon / 15) * 3600));
+  return cache.get(key)!;
+}
+
+export async function getTripDayWeather(lat: number, lon: number, dateISO: string, metnoCache: MetnoCache = new Map()): Promise<TripDayWeather | null> {
   const target = new Date(`${dateISO}T00:00:00`);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -91,8 +103,10 @@ export async function getTripDayWeather(lat: number, lon: number, dateISO: strin
         return { tempMin: day.tempMin, tempMax: day.tempMax, weatherCode: day.weatherCode, estimated: false };
       }
     } catch {
-      // Falls through to the historical estimate below.
+      // Falls through to MET Norway, then to the historical estimate below.
     }
+    const metno = (await metnoDays(lat, lon, metnoCache))?.[dateISO];
+    if (metno) return { tempMin: metno.tempMin, tempMax: metno.tempMax, weatherCode: metno.code, estimated: false };
   }
 
   return fetchHistoricalAverage(lat, lon, dateISO.slice(5));
@@ -112,8 +126,9 @@ export async function getTripWeatherMap(
     if (!unique.has(key)) unique.set(key, r);
   }
 
+  const metnoCache: MetnoCache = new Map();
   const resolved = await Promise.all(
-    Array.from(unique.entries()).map(async ([key, r]) => [key, await getTripDayWeather(r.lat, r.lon, r.date)] as const),
+    Array.from(unique.entries()).map(async ([key, r]) => [key, await getTripDayWeather(r.lat, r.lon, r.date, metnoCache)] as const),
   );
 
   const map = new Map<string, TripDayWeather>();

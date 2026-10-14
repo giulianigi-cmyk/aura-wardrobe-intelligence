@@ -16,6 +16,7 @@ import { ensureAnchor, ANCHOR_UNAVAILABLE } from "./outfit-anchor";
 import { explanationLanguageInstruction } from "./language_prompt";
 import { BRAND_NAME } from "@/lib/brand";
 import { isLogoOrGraphicTop } from "./work-dress";
+import { keepSuitsTogether } from "./suit-pairs";
 
 const ItemSchema = z.object({
   id: z.string(),
@@ -468,6 +469,7 @@ export async function suggestOutfitCore(params: {
     ROTATION_PROMPT_RULE,
     "You are a personal stylist. Compose ONE coherent outfit from the user's wardrobe.",
     "Pick 3-5 items that work together (typically 1 top + 1 bottom OR 1 dress, + 1 shoes, optionally 1 outerwear and 1 accessory/bag).",
+    "SUITS: a blazer and trousers (or a skirt) of the same brand and colour are one suit — wear them together, and never pair one suit's jacket with another suit's trousers.",
     ...(genderLine ? [genderLine] : []),
     "Match the weather and occasion. Prefer colors that harmonize and consistent style.",
     ...styleMemorySection,
@@ -1030,6 +1032,12 @@ export async function suggestOutfitCore(params: {
       const bag = pickBest("Bags");
       if (bag) item_ids = [...item_ids, bag.id];
     }
+
+    // One suit's jacket never goes with another suit's trousers (suit-pairs.ts): the halves are put
+    // back together with pieces this look may use. The person's starting piece is never swapped out.
+    item_ids = keepSuitsTogether(item_ids, catalog, (c) => c.id !== params.mustIncludeItemId && usableAddition(c) && !avoidSet.has(c.id))
+      .filter((id, i, all) => all.indexOf(id) === i);
+    if (params.mustIncludeItemId && !item_ids.includes(params.mustIncludeItemId)) item_ids = [...item_ids, params.mustIncludeItemId];
 
     // Guarantee, not just a prompt instruction: the starting piece is in the outfit.
     item_ids = ensureAnchor(item_ids, params.mustIncludeItemId, (id) => catalog.find((c) => c.id === id)?.category);
