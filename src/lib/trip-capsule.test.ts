@@ -11,7 +11,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildCapsule, type PoolItem, type Requirement, climateSuitability, isSweatConsumable, applyHardDressCodeFilter, isTransportActivity, applyTransportPracticalityFilter, isAccommodationActivity, changeAssumedPossible, isTravelSuitable, outfitIsTravelSuitable, isConcertFootwearSuitable, applyConcertFootwearFilter, activityKind, isWorkRequirement, engineOccasionText, segmentsCovered, isScaffoldSlot } from "./trip-capsule.server";
+import { buildCapsule, type PoolItem, type Requirement, climateSuitability, isSweatConsumable, applyHardDressCodeFilter, isTransportActivity, applyTransportPracticalityFilter, isAccommodationActivity, changeAssumedPossible, isTravelSuitable, outfitIsTravelSuitable, isConcertFootwearSuitable, applyConcertFootwearFilter, activityKind, isWorkRequirement, engineOccasionText, segmentsCovered, isScaffoldSlot, travelShoeFor } from "./trip-capsule.server";
 
 function item(overrides: Partial<PoolItem> & { id: string }): PoolItem {
   return {
@@ -1215,4 +1215,13 @@ test("every trip packs one pair without heels when all the packed shoes have hee
   const capsule = buildCapsule(pool, requirements, new Map(), ["pumps"]);
   assert.ok(capsule.has("loafers"), `a flat polished pair expected: ${[...capsule].join(", ")}`);
   assert.ok(capsule.has("trousers") && capsule.has("blouse"), "tailored trousers and a blouse for the fair");
+});
+
+test("the pair to travel in on a working trip: loafers before sneakers, never heels", () => {
+  const sneakers = item({ id: "nb", category: "Shoes", subcategory: "Sneakers", formality: 2, heelHeight: "Flat" });
+  const loafers = item({ id: "tods", category: "Shoes", subcategory: "Loafers", formality: 3, heelHeight: "Low" });
+  const pumps = item({ id: "pumps", category: "Shoes", subcategory: "Pumps", formality: 4, heelHeight: "High" });
+  assert.equal(travelShoeFor([sneakers, pumps, loafers], 15)?.id, "tods");
+  assert.equal(travelShoeFor([sneakers, pumps], 15)?.id, "nb");
+  assert.equal(travelShoeFor([pumps], 15), undefined);
 });

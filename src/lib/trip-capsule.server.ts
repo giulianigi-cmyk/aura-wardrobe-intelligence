@@ -1008,6 +1008,17 @@ export function buildCapsule(
 }
 
 const COAT_LAYER = /coat|cappotto|trench|puffer|piumino|parka|cape|mantella/i;
+const POLISHED_FLAT = /loafer|mocassin|moccasin|flat|ballerin|ballet|mary ?jane|derby|oxford|brogue/i;
+const SPORTY_SHOE = /sneaker|trainer|running|sport/i;
+
+/** The pair to travel in on a working trip: a polished low shoe (loafers, flats) before sneakers —
+ *  it also goes straight into the fair or the meeting — and never one that does not travel. */
+export function travelShoeFor(candidates: PoolItem[], temperature: number | null): PoolItem | undefined {
+  const rank = (it: PoolItem) => (POLISHED_FLAT.test(it.subcategory ?? "") && !SPORTY_SHOE.test(it.subcategory ?? "") ? 2 : SPORTY_SHOE.test(it.subcategory ?? "") ? 0 : 1);
+  return candidates
+    .filter((it) => SHOE_ROLE.has(it.category ?? "") && isTravelSuitable(it, temperature) && !isHeeled(it))
+    .sort((a, b) => rank(b) - rank(a) || b.formality - a.formality)[0];
+}
 /** Shoes with a heel: a mid or high heel height, or a heeled kind of shoe. */
 function isHeeled(it: PoolItem): boolean {
   if (it.heelHeight === "Mid" || it.heelHeight === "High") return true;
@@ -1722,6 +1733,39 @@ export async function generateTripCapsuleCore({ data, context }: {
         continue;
       }
 
+      // Leaving after a day already dressed for (the way home after the last day of the fair): the hotel
+      // was checked out in the morning, so there is nowhere to change — the day's look travels, and
+      // only the shoes change, to a pair that travels. Unless a hotel is logged for that same day.
+      if (isTransportActivity(req.label) && !activities.some((a) => a.activity_date === req.date && isAccommodationActivity(a.activity_type))) {
+        const dayIdx = usedOutfitDates.lastIndexOf(req.date);
+        if (dayIdx >= 0) {
+          const temp = tempByActivity.get(req.activityId) ?? null;
+          const dayLook = usedOutfits[dayIdx].filter((id) => {
+            const it = pool.find((p) => p.id === id);
+            return !(it && SHOE_ROLE.has(it.category ?? "") && !isTravelSuitable(it, temp));
+          });
+          const hasShoes = dayLook.some((id) => SHOE_ROLE.has(pool.find((p) => p.id === id)?.category ?? ""));
+          const shoe = hasShoes ? undefined : travelShoeFor([...candidatePool, ...pool.filter((it) => capsule.has(it.id))], temp) ?? travelShoeFor(eligible, temp);
+          const itemIds = shoe ? [...dayLook, shoe.id] : dayLook;
+          const { error: legErr } = await supabase.from("outfit_plans").upsert({
+            user_id: userId,
+            trip_id: data.tripId,
+            trip_activity_id: req.activityId,
+            date: req.date,
+            day_segment: req.daySegment,
+            item_ids: itemIds,
+            occasion: occasionText(req),
+            status: "planned",
+          } as never, { onConflict: resolvePlanSlot({ tripActivityId: req.activityId }).onConflict });
+          if (legErr) failed.push({ date: req.date, daySegment: req.daySegment, reason: legErr.message });
+          else {
+            created.push({ date: req.date, daySegment: req.daySegment });
+            itemIds.forEach((id) => allChosenItemIds.add(id));
+          }
+          continue;
+        }
+      }
+
       // A transport activity doesn't always need a look of its own. If
       // another outfit already generated for this same day would itself
       // pass the travel filter — jeans and a t-shirt for a concert, say —
@@ -1913,6 +1957,40 @@ export async function generateTripCapsuleCore({ data, context }: {
             .sort((a, b) => Number(finalPool.includes(b)) - Number(finalPool.includes(a))
               || Math.abs(a.formality - target) - Math.abs(b.formality - target))[0];
           if (shoe) result.item_ids = [...result.item_ids, shoe.id];
+        }
+        // A flight straight into the fair: one pair for both, so a polished low shoe (loafers, flats)
+        // rather than sneakers when the wardrobe has one.
+        if (travelGroups.has(req.activityId)) {
+          const shoe = lookItems().find((it) => SHOE_ROLE.has(it.category ?? ""));
+          if (shoe && SPORTY_SHOE.test(shoe.subcategory ?? "")) {
+            const polished = travelShoeFor([...finalPool, ...eligible], temperature);
+            if (polished && !SPORTY_SHOE.test(polished.subcategory ?? "")) {
+              result.item_ids = result.item_ids.map((id) => (id === shoe.id ? polished.id : id));
+            }
+          }
+        }
+        // The same suit is never worn two days running (nor twice the same day): when the look's suit
+        // jacket was in a look the day before or earlier today, another suit — jacket and its own
+        // trousers or skirt — takes its place, if the wardrobe has one that is free.
+        {
+          const prevDate = new Date(`${req.date}T00:00:00Z`);
+          prevDate.setUTCDate(prevDate.getUTCDate() - 1);
+          const prevIso = prevDate.toISOString().slice(0, 10);
+          const recent = new Set(usedOutfits.filter((_, i) => usedOutfitDates[i] === req.date || usedOutfitDates[i] === prevIso).flat());
+          const jacket = lookItems().find((it) => isSuitJacket(it) && recent.has(it.id) && pool.some((p) => isSuitPair(it, p)));
+          if (jacket) {
+            const free = (it: PoolItem) => !recent.has(it.id) && !result.item_ids.includes(it.id) && (!travelLeg || isTravelSuitable(it, temperature));
+            const options = [...finalPool, ...eligible.filter((it) => !finalPool.includes(it))];
+            const next = options.find((j) => isSuitJacket(j) && free(j) && options.some((b) => isSuitPair(j, b) && free(b)));
+            if (next) {
+              const nextBottom = options.find((b) => isSuitPair(next, b) && free(b))!;
+              const oldBottom = lookItems().find((it) => it.category === "Bottoms");
+              result.item_ids = result.item_ids
+                .map((id) => (id === jacket.id ? next.id : oldBottom && id === oldBottom.id ? nextBottom.id : id));
+              if (!oldBottom) result.item_ids = [...result.item_ids, nextBottom.id];
+              capsule.add(next.id); capsule.add(nextBottom.id);
+            }
+          }
         }
         const dayLow = dayColdByActivity.get(req.activityId)?.low ?? null;
         const lookColdest = [temperature, dayLow].filter((t): t is number => t != null);
