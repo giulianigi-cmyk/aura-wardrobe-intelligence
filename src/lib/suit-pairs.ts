@@ -37,25 +37,31 @@ export function isSuitPair(a: SuitCheckable, b: SuitCheckable): boolean {
 }
 
 /**
- * Keeps a look's suit halves together. When the look has a suit jacket and bottoms that belong to a
- * DIFFERENT suit, the bottoms are swapped for the jacket's own (or, if those are not available, the
- * jacket for the bottoms' own); with neither available, for bottoms that belong to no suit. A jacket worn with
- * ordinary trousers, jeans or a skirt that belongs to no suit is never touched.
+ * Keeps a look's suit halves together, and wears a suit as a suit whenever possible:
+ *  1. a suit jacket whose own bottoms can be used is worn with them, not with other tailored trousers
+ *     or a skirt (with jeans it is a deliberate casual pairing and stays);
+ *  2. suit bottoms whose own jacket can be used, under another blazer, get their own jacket;
+ *  3. otherwise two suits are never mixed: the bottoms of a different suit are swapped for ones that
+ *     belong to no suit.
+ * Pieces in `locked` (the person's own starting piece) are never swapped out.
  */
-export function keepSuitsTogether<T extends SuitCheckable>(ids: string[], available: T[], canUse: (it: T) => boolean = () => true): string[] {
+export function keepSuitsTogether<T extends SuitCheckable>(ids: string[], available: T[], canUse: (it: T) => boolean = () => true, locked: ReadonlySet<string> = new Set()): string[] {
   const byId = new Map(available.map((it) => [it.id, it] as const));
   const jacket = ids.map((id) => byId.get(id)).find((it): it is T => !!it && isSuitJacket(it));
+  // Only tailored bottoms: a suit jacket worn with jeans is a deliberate, casual choice and stays.
   const bottom = ids.map((id) => byId.get(id)).find((it): it is T => !!it && isSuitBottom(it));
   if (!jacket || !bottom || isSuitPair(jacket, bottom)) return ids;
-  const bottomsOwnJacket = available.find((it) => it.id !== jacket.id && isSuitPair(it, bottom));
-  if (!bottomsOwnJacket) return ids; // the bottoms belong to no suit: an ordinary pairing
+  const swap = (from: string, to: string) => ids.map((id) => (id === from ? to : id));
+  // 1. the jacket's own bottoms
   const jacketsOwnBottom = available.find((it) => it.id !== bottom.id && isSuitPair(jacket, it) && canUse(it));
-  if (jacketsOwnBottom) return ids.map((id) => (id === bottom.id ? jacketsOwnBottom.id : id));
-  if (canUse(bottomsOwnJacket)) return ids.map((id) => (id === jacket.id ? bottomsOwnJacket.id : id));
-  // Neither half's partner can be used: the bottoms are swapped for ones that belong to no suit
-  // (tailored ones first), so two suits are never mixed.
+  if (jacketsOwnBottom && !locked.has(bottom.id)) return swap(bottom.id, jacketsOwnBottom.id);
+  // 2. the bottoms' own jacket
+  const bottomsOwnJacket = available.find((it) => it.id !== jacket.id && isSuitPair(it, bottom));
+  if (bottomsOwnJacket && canUse(bottomsOwnJacket) && !locked.has(jacket.id)) return swap(jacket.id, bottomsOwnJacket.id);
+  // 3. two different suits, neither partner usable: bottoms that belong to no suit
+  if (!bottomsOwnJacket || locked.has(bottom.id)) return ids;
   const standalone = available
     .filter((it) => it.category === "Bottoms" && !ids.includes(it.id) && canUse(it) && !available.some((j) => isSuitPair(j, it)))
     .sort((a, b) => Number(isSuitBottom(b)) - Number(isSuitBottom(a)))[0];
-  return standalone ? ids.map((id) => (id === bottom.id ? standalone.id : id)) : ids;
+  return standalone ? swap(bottom.id, standalone.id) : ids;
 }

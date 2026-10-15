@@ -12,7 +12,7 @@ import { isTechnicalFootwear } from "./outfit-styling-rules";
 import { computeCapsuleSeedAndExclusions } from "./trip-capsule-persistence";
 import { violatesWeatherRule, HEAVY_SIGNAL, LIGHT_SIGNAL, MILD_WARM_THRESHOLD_C, MILD_COOL_THRESHOLD_C, COLD_THRESHOLD_C, type WeatherCheckableItem } from "./outfit-weather-rules";
 import type { StyleMemoryRow } from "./style-memory-prompt";
-import { isWarmOuter, isWarmAndRainReady, isDressyOuter } from "./warm-outer";
+import { isWarmOuter, isWarmAndRainReady, isDressyOuter, warmthTier } from "./warm-outer";
 import {
   detectActivityKind, hasEleganceSignal as sharedHasEleganceSignal, businessDinnerAdjustment,
   type ActivityKind,
@@ -915,8 +915,11 @@ export function buildCapsule(
       pool
         .filter((it) => role.has(it.category ?? "") && !capsule.has(it.id) && isWorkPiece(it)
           && climateSuitability(it, repTemp, repSeason) !== "inappropriate")
-        // A blazer first among jackets, then the best match for the day.
-        .map((it) => ({ it, score: (/blazer/i.test(it.subcategory ?? "") ? 10 : 0) + versatility(it, repReq, repTemp, styleMemory) }))
+        // A blazer first among jackets — a suit jacket (its trousers or skirt in the wardrobe) before a
+        // lone one, so whole suits travel — then the best match for the day.
+        .map((it) => ({ it, score: (/blazer/i.test(it.subcategory ?? "") ? 10 : 0)
+          + (isSuitJacket(it) && pool.some((p) => p.id !== it.id && isSuitPair(it, p)) ? 6 : 0)
+          + versatility(it, repReq, repTemp, styleMemory) }))
         .sort((a, b) => b.score - a.score)
         .slice(0, missing)
         .forEach(({ it }) => capsule.add(it.id));
@@ -940,9 +943,15 @@ export function buildCapsule(
   // A working trip wants a coat over the suit, not a sporty parka or a puffer — when the wardrobe has one.
   const wantDressy = workReqs.length > 0 && pool.some((it) => isRealOuter(it) && isDressyOuter(outerCheck(it))
     && (!warmFirst || coldest == null || isWarmOuter(outerCheck(it))));
+  // On a cold trip the packed coat must be as warm as the best one the wardrobe offers (within the
+  // dressy ones on a work trip): a polyester faux-fur "Coat" no longer stands in for a wool coat.
+  const coldCheck = warmFirst && coldest != null;
+  const bestTier = coldCheck
+    ? Math.max(0, ...pool.filter((it) => isRealOuter(it) && (!wantDressy || isDressyOuter(outerCheck(it)))).map((it) => warmthTier(outerCheck(it))))
+    : 0;
   const hasRealOuter = Array.from(capsule).some((id) => {
     const it = pool.find((p) => p.id === id);
-    return isRealOuter(it) && (!warmFirst || coldest == null || isWarmOuter(outerCheck(it!)))
+    return isRealOuter(it) && (!coldCheck || warmthTier(outerCheck(it!)) >= Math.max(1, bestTier))
       && (!wantDressy || isDressyOuter(outerCheck(it!)));
   });
   if (needsOuter && !hasRealOuter) {
@@ -954,7 +963,7 @@ export function buildCapsule(
         && climateSuitability(it, coldest, repSeason) !== "inappropriate")
       .map((it) => ({
         it,
-        score: (warmFirst && isWarmOuter(outerCheck(it)) ? 10 : 0)
+        score: (warmFirst ? warmthTier(outerCheck(it)) * 6 : 0)
           + (wantDressy && isDressyOuter(outerCheck(it)) ? 8 : 0)
           + (warmFirst && wetTrip && isWarmAndRainReady(outerCheck(it)) ? 6 : 0)
           // a work or dinner trip wants a coat or a trench rather than a puffer or a denim jacket —
@@ -1889,6 +1898,47 @@ export async function generateTripCapsuleCore({ data, context }: {
         continue;
       }
 
+      // Guarantees decided here, not left to the outfit engine (reported: a flight-and-fair look with
+      // no shoes, a trench on a 5°C morning). Shoes: a look always has a pair — on a journey one that
+      // travels. Cold: when the day starts at COLD_THRESHOLD_C or below, the look's coat is a warm one
+      // (wool, cashmere, down before a coat by name only) — dressy on a working day — replacing a trench.
+      {
+        const lookItems = () => result.item_ids.map((id) => pool.find((p) => p.id === id)).filter((it): it is PoolItem => !!it);
+        const formalityOf = (list: PoolItem[]) => (list.length ? list.reduce((a, it) => a + it.formality, 0) / list.length : 3);
+        if (activityKind(req) !== "swim" && !lookItems().some((it) => SHOE_ROLE.has(it.category ?? ""))) {
+          const target = formalityOf(lookItems());
+          // this look's own pool first, then any pair fit for the day
+          const shoe = [...finalPool, ...eligible.filter((it) => !finalPool.includes(it))]
+            .filter((it) => SHOE_ROLE.has(it.category ?? "") && (!travelLeg || isTravelSuitable(it, temperature)))
+            .sort((a, b) => Number(finalPool.includes(b)) - Number(finalPool.includes(a))
+              || Math.abs(a.formality - target) - Math.abs(b.formality - target))[0];
+          if (shoe) result.item_ids = [...result.item_ids, shoe.id];
+        }
+        const dayLow = dayColdByActivity.get(req.activityId)?.low ?? null;
+        const lookColdest = [temperature, dayLow].filter((t): t is number => t != null);
+        if (lookColdest.length && Math.min(...lookColdest) <= COLD_THRESHOLD_C) {
+          const outers = lookItems().filter((it) => it.category === "Outerwear");
+          const isCoat = (it: PoolItem) => COAT_LAYER.test(it.subcategory ?? "");
+          const warmCoat = (it: PoolItem) => isCoat(it) && isWarmOuter({ ...it, styleTags: it.styleTags ?? it.style });
+          if (!outers.some(warmCoat)) {
+            const working = isWorkRequirement(req);
+            const ranked = (list: PoolItem[]) => list
+              .filter((it) => it.category === "Outerwear" && warmCoat(it) && !result.item_ids.includes(it.id))
+              .map((it) => {
+                const c = { ...it, styleTags: it.styleTags ?? it.style };
+                return { it, score: warmthTier(c) * 10 + (working && isDressyOuter(c) ? 8 : 0) + it.formality };
+              })
+              .sort((a, b) => b.score - a.score)[0]?.it;
+            // the packed coat first, otherwise the best one the wardrobe has
+            const coat = ranked(pool.filter((it) => capsule.has(it.id))) ?? ranked(pool);
+            const lightCoat = outers.find(isCoat);
+            if (coat && lightCoat) result.item_ids = result.item_ids.map((id) => (id === lightCoat.id ? coat.id : id));
+            else if (coat && outers.length <= 1) result.item_ids = [...result.item_ids, coat.id];
+            if (coat) capsule.add(coat.id);
+          }
+        }
+      }
+
       usedOutfits.push(result.item_ids);
       usedOutfitDates.push(req.date);
 
@@ -1989,6 +2039,24 @@ export async function generateTripCapsuleCore({ data, context }: {
           } else {
             created.push({ date: companionReq.date, daySegment: companionReq.daySegment });
           }
+        }
+      }
+    }
+
+    // Carried, not necessarily worn: the flat pair packed for after hours on heels, and the warm coat
+    // packed for a cold trip, belong in the suitcase even when no generated look uses them — persisted
+    // with the chosen pieces below, so the capsule shows them.
+    {
+      const chosen = Array.from(allChosenItemIds).map((id) => pool.find((p) => p.id === id)).filter((it): it is PoolItem => !!it);
+      if (!chosen.some((it) => SHOE_ROLE.has(it.category ?? "") && !isHeeled(it))) {
+        const flat = Array.from(capsule).map((id) => pool.find((p) => p.id === id))
+          .find((it): it is PoolItem => !!it && SHOE_ROLE.has(it.category ?? "") && !isHeeled(it));
+        if (flat) allChosenItemIds.add(flat.id);
+      }
+      for (const id of capsule) {
+        const it = pool.find((p) => p.id === id);
+        if (it && it.category === "Outerwear" && COAT_LAYER.test(it.subcategory ?? "") && warmthTier({ ...it, styleTags: it.styleTags ?? it.style }) > 0) {
+          allChosenItemIds.add(id);
         }
       }
     }

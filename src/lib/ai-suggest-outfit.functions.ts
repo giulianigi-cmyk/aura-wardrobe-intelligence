@@ -1080,7 +1080,10 @@ export async function suggestOutfitCore(params: {
 
     // One suit's jacket never goes with another suit's trousers (suit-pairs.ts): the halves are put
     // back together with pieces this look may use. The person's starting piece is never swapped out.
-    item_ids = keepSuitsTogether(item_ids, catalog, (c) => c.id !== params.mustIncludeItemId && usableAddition(c) && !avoidSet.has(c.id))
+    // A suit's own half is used even if it was worn in an earlier look of the batch: a complete suit
+    // matters more than variety (the jacket itself already rotates).
+    item_ids = keepSuitsTogether(item_ids, catalog, (c) => c.id !== params.mustIncludeItemId && usableAddition(c),
+      new Set(params.mustIncludeItemId ? [params.mustIncludeItemId] : []))
       .filter((id, i, all) => all.indexOf(id) === i);
     if (params.mustIncludeItemId && !item_ids.includes(params.mustIncludeItemId)) item_ids = [...item_ids, params.mustIncludeItemId];
 
