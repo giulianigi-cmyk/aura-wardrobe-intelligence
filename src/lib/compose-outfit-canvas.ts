@@ -16,6 +16,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { bucketOf, layoutOutfit, CANVAS_W, CANVAS_H, type Bucket, type LayoutRect } from "@/lib/outfit-layout";
 import { BRAND_WORDMARK } from "@/lib/brand";
+import { removeWhiteHalo } from "@/lib/cutout-cleanup";
 
 export { bucketOf };
 export type { Bucket };
@@ -62,14 +63,20 @@ async function toDataUrl(url: string): Promise<string> {
   const bitmap = await createImageBitmap(blob).catch(() => null);
   if (!bitmap) return blobToDataUrl(blob);
   const scale = Math.min(1, COMPOSE_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
-  if (scale === 1) { bitmap.close(); return blobToDataUrl(blob); }
   const off = document.createElement("canvas");
   off.width = Math.max(1, Math.round(bitmap.width * scale));
   off.height = Math.max(1, Math.round(bitmap.height * scale));
-  const ctx = off.getContext("2d");
+  const ctx = off.getContext("2d", { willReadFrequently: true });
   if (!ctx) { bitmap.close(); return blobToDataUrl(blob); }
   ctx.drawImage(bitmap, 0, 0, off.width, off.height);
   bitmap.close();
+  // No white box or white rim on the board (cutout-cleanup.ts): it covered the piece beside it.
+  try {
+    const px = ctx.getImageData(0, 0, off.width, off.height);
+    if (removeWhiteHalo(px.data, off.width, off.height) > 0) ctx.putImageData(px, 0, 0);
+  } catch (e) {
+    console.warn("[AURA compose-outfit-canvas] halo clean-up skipped", e);
+  }
   const out = off.toDataURL("image/png");
   off.width = 0; // free the backing store now rather than at the next GC
   off.height = 0;

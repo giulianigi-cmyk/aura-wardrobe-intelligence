@@ -1,7 +1,8 @@
 // Run with: bun test src/lib/outfit-layout.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { layoutOutfit, CANVAS_W as W, CANVAS_H as H, type LayoutInput } from "./outfit-layout";
+import { layoutOutfit, BOARD_SCALE as K, CANVAS_W as W, CANVAS_H as H, type LayoutInput } from "./outfit-layout";
+// Sizes below are the laid-out ones; the finished board is drawn at BOARD_SCALE (K) for air around it.
 
 const look = (aspect: number, subcategory = "Cargo Pants"): LayoutInput[] => [
   { id: "tee", bucket: "top", aspect: 1.15, subcategory: "T-Shirt", length: "Regular" },
@@ -15,12 +16,12 @@ const overlap = (a: { x: number; y: number; w: number; h: number }, b: typeof a)
 
 test("wide trousers (relaxed cargo photographed legs apart) are not shrunk to a small piece", () => {
   // was 0.40 H for aspect 1.2 against 0.69 H for slim jeans; now at least ~85% of slim (0.60 H)
-  assert.ok(rect(1.2, "pants").h >= 0.51 * H);
-  assert.ok(rect(1.4, "pants").h >= 0.51 * H);
+  assert.ok(rect(1.2, "pants").h >= 0.51 * K * H);
+  assert.ok(rect(1.4, "pants").h >= 0.51 * K * H);
 });
 
 test("slim trousers keep their size; they never exceed the canvas", () => {
-  assert.ok(Math.abs(rect(2.4, "pants").h - 0.60 * H) < 0.01 * H);
+  assert.ok(Math.abs(rect(2.4, "pants").h - 0.60 * K * H) < 0.01 * H);
   for (const a of [1, 1.2, 1.4, 2.4]) {
     const r = rect(a, "pants");
     assert.ok(r.x >= 0 && r.x + r.w <= W && r.y >= 0 && r.y + r.h <= H, `aspect ${a}`);
@@ -81,8 +82,8 @@ test("a jacket starts at the top of the board, and the bag and belt beside it ke
     { id: "shoes", bucket: "shoes", aspect: 0.9, subcategory: "Flats", fill: 0.35 },
   ]);
   const r = (id: string) => rects.find((x) => x.id === id)!;
-  assert.ok(r("jacket").y / H < 0.1, "jacket top-aligned");
-  assert.ok(r("bag").w / W >= 0.3, "bag at least 30% wide");
+  assert.ok(r("jacket").y / H < 0.14, "jacket near the top, with air above it");
+  assert.ok(r("bag").w / W >= 0.3 * K, "bag at least 30% wide before the board scale");
   assert.ok(r("belt").w / W >= 0.28, "belt at least 28% wide");
   // nothing overlaps in the right-hand column
   assert.ok(r("bag").y + r("bag").h <= r("belt").y);
