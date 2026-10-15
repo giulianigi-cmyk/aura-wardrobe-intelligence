@@ -53,3 +53,20 @@ test("a cream knit on a white photo, partly reachable from the border: left as i
   removeWhiteHalo(a, W, H);
   assert.equal(alpha(a, 30, 20), 255);
 });
+
+test("a navy sweater with a white bear motif (the Ralph Lauren case): navy and bear both stay", () => {
+  const bear = (x: number, y: number) => x >= 16 && x < 24 && y >= 16 && y < 24;
+  const navy: [number, number, number, number] = [20, 30, 70, 255];
+  // uncut product photo on white
+  const photo = img((x, y) => (bear(x, y) ? [250, 250, 250, 255] : inside(x, y, 8) ? navy : [252, 252, 252, 255]));
+  removeWhiteHalo(photo, W, H);
+  assert.equal(alpha(photo, 2, 2), 0, "background removed");
+  assert.equal(alpha(photo, 10, 20), 255, "navy body kept");
+  assert.equal(alpha(photo, 20, 20), 255, "white bear kept");
+  // already cut out, with a white rim
+  const cut = img((x, y) => (bear(x, y) ? [250, 250, 250, 255] : inside(x, y, 9) ? navy : inside(x, y, 8) ? [245, 245, 245, 255] : [0, 0, 0, 0]));
+  removeWhiteHalo(cut, W, H);
+  assert.equal(alpha(cut, 8, 20), 0, "white rim removed");
+  assert.equal(alpha(cut, 12, 20), 255, "navy body kept");
+  assert.equal(alpha(cut, 20, 20), 255, "white bear kept");
+});
