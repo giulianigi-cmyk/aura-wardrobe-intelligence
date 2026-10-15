@@ -44,8 +44,9 @@ const MARGIN = 0.04; // min distance from canvas edge (fraction)
  *  letters (shoes touching the mark); .115 leaves a clear ~40px gap above it. */
 export const BOTTOM_RESERVED = 0.115;
 const GROUP_SHRINK = 0.75; // when several items share one slot
-/** The finished board is drawn at this share of its laid-out size, for air around the pieces. */
-export const BOARD_SCALE = 0.86;
+/** The finished board is drawn at this share of its laid-out size, for air around the pieces.
+ *  0.86 read a little small once the white halo around cutouts was gone (reported): +15%. */
+export const BOARD_SCALE = 0.99;
 const SMALL_ACCESSORY = new Set<Bucket>(["sunglasses", "headwear", "earrings", "necklace", "brooch", "wrist", "anklet", "belt", "acc"]);
 /** The coat over a suit jacket (two outer pieces): matched on the subcategory. */
 const OVER_LAYER = /coat|cappotto|trench|puffer|piumino|parka|cape|mantella/i;
