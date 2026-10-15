@@ -101,9 +101,13 @@ test("a suit jacket under a coat: the coat stays big on the left, the jacket lie
   const get = (id: string) => rects.find((r) => r.id === id)!;
   const coat = get("coat"), blazer = get("blazer"), shirt = get("shirt"), pumps = get("pumps");
   assert.ok(coat.h > blazer.h, "the coat reads bigger than the jacket on it");
-  assert.ok(blazer.z > coat.z, "the jacket is drawn over the coat");
+  assert.ok(blazer.z > coat.z, "the jacket is drawn over the coat where they touch");
   assert.ok(coat.x < blazer.x && blazer.y > coat.y, "the jacket sits lower and to the right of the coat");
-  assert.ok(overlap(shirt, blazer) < 0.15, "the jacket is not pushed onto the shirt");
+  // side by side: the coat does not hide the jacket, the jacket lies open over the shirt (most of it shows)
+  assert.ok(overlap(coat, blazer) <= 0.2, `the coat does not hide the jacket (${overlap(coat, blazer).toFixed(2)})`);
+  assert.ok(overlap(blazer, shirt) <= 0.4, "the shirt still shows under the jacket");
+  assert.ok(blazer.z > shirt.z, "the jacket is drawn over the shirt");
+  assert.ok(overlap(get("bag"), blazer) <= 0.15, "the bag does not cover the jacket");
   assert.ok(coat.y + coat.h <= pumps.y, "the coat ends above the shoes");
   for (const r of rects) assert.ok(r.x >= 0 && r.x + r.w <= W && r.y + r.h <= H * (1 - 0.115) + 1, r.id);
 });

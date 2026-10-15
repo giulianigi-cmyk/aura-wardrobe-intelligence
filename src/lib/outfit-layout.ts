@@ -54,6 +54,8 @@ const OVER_LAYER = /coat|cappotto|trench|puffer|piumino|parka|cape|mantella/i;
  *  read and they leave the top and the shoes their room. */
 const LAYERED_OVER_K = 0.85;
 const LAYERED_UNDER_K = 0.62;
+/** Coat and jacket side by side: the jacket may overlap the coat by at most this share of its width. */
+const UNDER_OVERLAP = 0.15;
 /** Full-length trousers: minimum height (fraction of H) and the widest they may become for it. */
 const LONG_BOTTOM_MIN_H = 0.52;
 const LONG_BOTTOM_MAX_W = 0.56;
@@ -372,8 +374,13 @@ return { w, h: w * aspect };
     // pushed onto the top as a second piece side by side.
     const isOver = (it: LayoutInput) => OVER_LAYER.test(it.subcategory ?? "");
     const [over, under] = isOver(outers[1]) && !isOver(outers[0]) ? [outers[1], outers[0]] : [outers[0], outers[1]];
-    placeGroup([over], "outer", BOX.outer, 0.20 * W, (mh) => MY + mh / 2 + 0.02 * H, "x", Z.outer, LAYERED_OVER_K);
-    placeGroup([under], "outer", BOX.outer, 0.34 * W, (mh) => MY + mh / 2 + 0.14 * H, "x", Z.outer + 0.5, LAYERED_UNDER_K);
+    // Side by side, not one on the other (reported: the coat hid the jacket): the jacket's left edge
+    // overlaps the coat by at most UNDER_OVERLAP of its own width, a little lower, clear of the bag.
+    const [coatRect] = placeGroup([over], "outer", BOX.outer, 0.18 * W, (mh) => MY + mh / 2 + 0.02 * H, "x", Z.outer, LAYERED_OVER_K);
+    const jw = sizeOf(under, BOX.outer, LAYERED_UNDER_K).w;
+    const jcx = Math.min(W - MX - jw / 2, coatRect.x + coatRect.w + jw * (0.5 - UNDER_OVERLAP));
+    // Drawn over the top, as an open jacket over a shirt: the top still shows for most of it.
+    placeGroup([under], "outer", BOX.outer, jcx, (mh) => MY + mh / 2 + 0.22 * H, "x", Z.top + 0.5, LAYERED_UNDER_K);
   } else if (outer) placeGroup(outers, "outer", BOX.outer, 0.22 * W, (mh) => MY + mh / 2 + 0.02 * H);
 
   // ── Top: diagonal up-right, waist overlap ≈ 45% of its own height ──
