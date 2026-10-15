@@ -107,3 +107,15 @@ test("a suit jacket under a coat: the coat stays big on the left, the jacket lie
   assert.ok(coat.y + coat.h <= pumps.y, "the coat ends above the shoes");
   for (const r of rects) assert.ok(r.x >= 0 && r.x + r.w <= W && r.y + r.h <= H * (1 - 0.115) + 1, r.id);
 });
+
+test("a ring is drawn much smaller than the bracelet beside it, not the other way round", () => {
+  const rects = layoutOutfit([
+    { id: "dress", bucket: "dress", aspect: 2.6, subcategory: "Maxi Dress", length: "Maxi" },
+    { id: "ring", bucket: "wrist", aspect: 0.8, subcategory: "Ring", fill: 0.3 },
+    { id: "bracelet", bucket: "wrist", aspect: 0.7, subcategory: "Bracelet", fill: 0.3 },
+    { id: "shoes", bucket: "shoes", aspect: 0.9, subcategory: "Sandals" },
+  ] as LayoutInput[]);
+  const r = (id: string) => rects.find((x) => x.id === id)!;
+  const side = (x: { w: number; h: number }) => Math.max(x.w, x.h);
+  assert.ok(side(r("ring")) < side(r("bracelet")) * 0.6, `ring ${side(r("ring"))} vs bracelet ${side(r("bracelet"))}`);
+});
