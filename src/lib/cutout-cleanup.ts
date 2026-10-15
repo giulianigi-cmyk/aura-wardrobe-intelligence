@@ -155,6 +155,11 @@ const HALO_RADIUS = 2;
 const NEAR_WHITE_MIN = 200;
 const NEAR_WHITE_CHROMA = 30;
 const LIGHT_PIECE_LUMA = 180;
+/** After keying out a white background, at least this share of the photo must remain (the piece). */
+const MIN_KEYED_PIECE = 0.08;
+/** The white still found one pixel deeper than the rim, as a share of the rim's outer ring: above
+ *  it the white is part of the piece, not a halo. */
+const DEEP_WHITE_SHARE = 0.3;
 
 const isNearWhite = (r: number, g: number, b: number) =>
   Math.min(r, g, b) >= NEAR_WHITE_MIN && Math.max(r, g, b) - Math.min(r, g, b) <= NEAR_WHITE_CHROMA;
@@ -167,13 +172,27 @@ export function removeWhiteHalo(rgba: Uint8ClampedArray, w: number, h: number): 
   let transparent = 0;
   for (let p = 0; p < n; p++) if (rgba[p * 4 + 3] < 16) transparent++;
 
-  // 1. Never cut out: plain light background → keyed out from the border.
+  // 1. Never cut out: plain light background → keyed out from the border. A white or cream piece
+  //    on a white photo would be keyed away with it: when what is left is too little to be the
+  //    piece, nothing is changed (the box stays — better than a missing or see-through garment).
   if (transparent < n * 0.01) {
     const bg = estimateBackground(rgba, w, h);
     if (bg && isNearWhite(bg[0], bg[1], bg[2])) {
       const keyed = colorKeyCutout(rgba, w, h, bg);
+      let kept = 0;
+      const keptLuma: number[] = [];
       for (let p = 0; p < n; p++) {
-        if (keyed[p * 4 + 3] === 0 && rgba[p * 4 + 3] !== 0) { rgba[p * 4 + 3] = 0; cleared++; }
+        if (keyed[p * 4 + 3] === 0) continue;
+        kept++;
+        if (p % 7 === 0) keptLuma.push(0.299 * keyed[p * 4] + 0.587 * keyed[p * 4 + 1] + 0.114 * keyed[p * 4 + 2]);
+      }
+      keptLuma.sort((a, b) => a - b);
+      // a light piece (white, cream, beige) is never keyed: its own edge may be taken for background
+      const lightPiece = keptLuma.length > 0 && keptLuma[keptLuma.length >> 1] >= LIGHT_PIECE_LUMA;
+      if (kept >= n * MIN_KEYED_PIECE && !lightPiece) {
+        for (let p = 0; p < n; p++) {
+          if (keyed[p * 4 + 3] === 0 && rgba[p * 4 + 3] !== 0) { rgba[p * 4 + 3] = 0; cleared++; }
+        }
       }
     }
   }
@@ -188,7 +207,12 @@ export function removeWhiteHalo(rgba: Uint8ClampedArray, w: number, h: number): 
   if (!lumas.length) return cleared;
   lumas.sort((a, b) => a - b);
   if (lumas[lumas.length >> 1] >= LIGHT_PIECE_LUMA) return cleared;
-  for (let pass = 0; pass < HALO_RADIUS; pass++) {
+  // Only a thin rim: if the white along the edge goes on deeper than HALO_RADIUS it is a real part
+  // of the piece (a wide white collar, a white band), and clearing it would eat into the garment —
+  // then nothing is cleared. One more pass than the radius checks how deep the white goes.
+  const rim: number[] = [];
+  const found: number[] = [];
+  for (let pass = 0; pass <= HALO_RADIUS; pass++) {
     const edge: number[] = [];
     for (let p = 0; p < n; p++) {
       const i = p * 4;
@@ -199,8 +223,15 @@ export function removeWhiteHalo(rgba: Uint8ClampedArray, w: number, h: number): 
         || x === 0 || y === 0 || x === w - 1 || y === h - 1;
       if (touches) edge.push(p);
     }
-    for (const p of edge) { rgba[p * 4 + 3] = 0; cleared++; }
+    found.push(edge.length);
     if (!edge.length) break;
+    if (pass === HALO_RADIUS) break; // the check pass clears nothing
+    for (const p of edge) { rim.push(p * 4 + 3, rgba[p * 4 + 3]); rgba[p * 4 + 3] = 0; }
   }
-  return cleared;
+  const deeper = found[HALO_RADIUS] ?? 0;
+  if (found[0] && deeper > found[0] * DEEP_WHITE_SHARE) {
+    for (let j = 0; j < rim.length; j += 2) rgba[rim[j]] = rim[j + 1];
+    return cleared;
+  }
+  return cleared + rim.length / 2;
 }

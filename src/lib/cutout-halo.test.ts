@@ -31,3 +31,25 @@ test("a white piece keeps its white edge", () => {
   removeWhiteHalo(a, W, H);
   assert.equal(alpha(a, 8, 20), 255);
 });
+
+test("a white shirt photographed on white, never cut out: nothing is erased", () => {
+  // the shirt is a touch darker than the background but within the background tolerance
+  const a = img((x, y) => (inside(x, y, 6) ? [236, 236, 234, 255] : [252, 252, 252, 255]));
+  removeWhiteHalo(a, W, H);
+  assert.equal(alpha(a, 20, 20), 255);
+  assert.equal(alpha(a, 2, 2), 255, "the box stays rather than the shirt going");
+});
+
+test("a dark top with a wide white edge (a white collar band): the white is part of it and stays", () => {
+  const a = img((x, y) => (inside(x, y, 14) ? [20, 20, 20, 255] : inside(x, y, 8) ? [250, 250, 250, 255] : [0, 0, 0, 0]));
+  removeWhiteHalo(a, W, H);
+  assert.equal(alpha(a, 8, 20), 255);
+  assert.equal(alpha(a, 20, 20), 255);
+});
+
+test("a cream knit on a white photo, partly reachable from the border: left as it is", () => {
+  // a grey outline only on the left: without the light-piece rule the flood would eat the right half
+  const a = img((x, y) => (inside(x, y, 6) ? (x === 6 ? [120, 120, 120, 255] : [240, 236, 228, 255]) : [252, 252, 252, 255]));
+  removeWhiteHalo(a, W, H);
+  assert.equal(alpha(a, 30, 20), 255);
+});
