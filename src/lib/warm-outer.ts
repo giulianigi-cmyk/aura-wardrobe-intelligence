@@ -39,6 +39,15 @@ export function isWarmOuter(it: OuterCheckable): boolean {
   return COAT.test(sub);
 }
 
+const NATURALLY_WARM = /wool|lana|cashmere|cachemire|alpaca|mohair|camel hair|down|piumino|puffer|shearling|montone|quilted|imbottit|padded/i;
+
+/** How warm a warm layer really is: 2 for wool, cashmere, down or shearling (and puffers), 1 for a
+ *  piece that is a coat by name only — a polyester or faux-fur "Coat" — 0 for anything not warm. */
+export function warmthTier(it: OuterCheckable): 0 | 1 | 2 {
+  if (!isWarmOuter(it)) return 0;
+  return NATURALLY_WARM.test(`${it.subcategory ?? ""} ${joined(it.material)}`) ? 2 : 1;
+}
+
 /** Warm and made for the rain too: a puffer or a parka, rather than a wool coat that soaks up water. */
 export function isWarmAndRainReady(it: OuterCheckable): boolean {
   return isWarmOuter(it) && RAIN_READY_OUTER.test(it.subcategory ?? "");

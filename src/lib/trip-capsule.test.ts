@@ -1141,6 +1141,33 @@ test("a cold work trip packs a wool coat, not a light sporty parka — even with
   assert.ok(capsule.has("camel-coat"), `a wool coat expected: ${[...capsule].join(", ")}`);
 });
 
+test("a cold work trip: a polyester faux-fur 'Coat' already packed does not stand in for a wool coat", () => {
+  const pool: PoolItem[] = [
+    item({ id: "faux-fur", category: "Outerwear", subcategory: "Coat", formality: 3, material: ["Polyester", "Synthetic"], season: "Autumn, Winter", style: ["Editorial", "Quiet Luxury"] }),
+    item({ id: "wool-coat", category: "Outerwear", subcategory: "Coat", formality: 4, material: ["Wool"], season: "Autumn, Winter", style: ["Minimal", "Tailored"] }),
+    item({ id: "trousers", category: "Bottoms", subcategory: "Trousers", formality: 3 }),
+    item({ id: "shirt", category: "Tops", subcategory: "Shirt", formality: 3 }),
+    item({ id: "loafers", category: "Shoes", subcategory: "Loafers", formality: 3 }),
+  ];
+  const requirements: Requirement[] = [{ activityId: "fair", date: "2026-10-23", daySegment: "day", dressCode: null, label: "Fiera Glasstec" }];
+  const capsule = buildCapsule(pool, requirements, new Map(), ["faux-fur"], new Map([["fair", 14]]), [], new Map([["fair", { low: 6, wet: false }]]));
+  assert.ok(capsule.has("wool-coat"), [...capsule].join(", "));
+});
+
+test("a work trip packs whole suits: a suit jacket comes before a lone blazer, and brings its trousers", () => {
+  const pool: PoolItem[] = [
+    item({ id: "lone-blazer", category: "Outerwear", subcategory: "Blazer", formality: 4, brand: "A", colors: ["Pearl"] }),
+    item({ id: "suit-jacket", category: "Outerwear", subcategory: "Blazer", formality: 3, brand: "Mango", colors: ["Midnight Blue"] }),
+    item({ id: "suit-trousers", category: "Bottoms", subcategory: "Trousers", formality: 3, brand: "Mango", colors: ["Midnight Blue"] }),
+    item({ id: "trousers", category: "Bottoms", subcategory: "Trousers", formality: 3, brand: "B", colors: ["Jet Black"] }),
+    item({ id: "shirt", category: "Tops", subcategory: "Shirt", formality: 3 }),
+    item({ id: "loafers", category: "Shoes", subcategory: "Loafers", formality: 3 }),
+  ];
+  const requirements: Requirement[] = [{ activityId: "fair", date: "2026-10-21", daySegment: "day", dressCode: null, label: "Fiera" }];
+  const capsule = buildCapsule(pool, requirements, new Map(), [], new Map([["fair", 18]]));
+  assert.ok(capsule.has("suit-jacket") && capsule.has("suit-trousers"), [...capsule].join(", "));
+});
+
 test("a mild trip (15°C, 12°C morning) is happy with the trench", () => {
   const pool: PoolItem[] = [
     item({ id: "trench", category: "Outerwear", subcategory: "Trench Coat", formality: 4 }),

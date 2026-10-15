@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isWarmOuter, isWarmAndRainReady, isDressyOuter } from "./warm-outer";
+import { isWarmOuter, isWarmAndRainReady, isDressyOuter, warmthTier } from "./warm-outer";
 
 test("a trench or a raincoat is never a warm layer, even when called a coat", () => {
   assert.equal(isWarmOuter({ subcategory: "Trench Coat", material: ["Cotton"] }), false);
@@ -28,4 +28,10 @@ test("a sporty parka or a puffer is not dressy; a wool coat is", () => {
   assert.equal(isDressyOuter({ subcategory: "Puffer Jacket", formality: 3, styleTags: ["Tailored", "Office"] }), false);
   assert.equal(isDressyOuter({ subcategory: "Coat", formality: 4, style: ["Quiet Luxury", "Elegant"] }), true);
   assert.equal(isDressyOuter({ subcategory: "Coat", formality: 3, styleTags: ["Streetwear"] }), false);
+});
+
+test("a wool coat is warmer than a polyester faux-fur coat; a trench is not warm at all", () => {
+  assert.equal(warmthTier({ subcategory: "Coat", material: ["Wool", "Cashmere"] }), 2);
+  assert.equal(warmthTier({ subcategory: "Coat", material: ["Polyester", "Synthetic"] }), 1);
+  assert.equal(warmthTier({ subcategory: "Trench Coat", material: ["Cotton"] }), 0);
 });

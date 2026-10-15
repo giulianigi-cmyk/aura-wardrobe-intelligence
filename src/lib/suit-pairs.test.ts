@@ -36,3 +36,23 @@ test("with neither suit complete, the bottoms become ones that belong to no suit
   const pool = [...all, plainTrousers];
   assert.deepEqual(keepSuitsTogether(["bj", "sh", "rt"], pool, (it) => it.id !== "bt" && it.id !== "rj"), ["bj", "sh", "pt"]);
 });
+
+test("a suit jacket over plain tailored trousers: the suit is worn complete when its trousers can be used", () => {
+  const camelJacket = { id: "cj", category: "Outerwear", subcategory: "Blazer", brand: "Zara", colors: ["Camel"] };
+  const camelTrousers = { id: "ct", category: "Bottoms", subcategory: "Trousers", brand: "Zara", colors: ["Camel"] };
+  const plainBlack = { id: "pb", category: "Bottoms", subcategory: "Trousers", brand: "Patrizia pepe", colors: ["Jet Black"] };
+  const shirt = { id: "sh", category: "Tops", subcategory: "Shirt", brand: "X", colors: ["White"] };
+  const all = [camelJacket, camelTrousers, plainBlack, shirt];
+  assert.deepEqual(keepSuitsTogether(["cj", "sh", "pb"], all), ["cj", "sh", "ct"]);
+  // its trousers not usable: the pairing stays as it is
+  assert.deepEqual(keepSuitsTogether(["cj", "sh", "pb"], all, (it) => it.id !== "ct"), ["cj", "sh", "pb"]);
+  // the person's own starting piece is never swapped out
+  assert.deepEqual(keepSuitsTogether(["cj", "sh", "pb"], all, () => true, new Set(["pb"])), ["cj", "sh", "pb"]);
+});
+
+test("suit trousers under another blazer get their own jacket", () => {
+  const navyJacket = { id: "nj", category: "Outerwear", subcategory: "Blazer", brand: "Mango", colors: ["Midnight Blue"] };
+  const navyTrousers = { id: "nt", category: "Bottoms", subcategory: "Trousers", brand: "Mango", colors: ["Midnight Blue"] };
+  const plainBlazer = { id: "pz", category: "Outerwear", subcategory: "Blazer", brand: "Other", colors: ["Camel"] };
+  assert.deepEqual(keepSuitsTogether(["pz", "nt"], [navyJacket, navyTrousers, plainBlazer]), ["nj", "nt"]);
+});
