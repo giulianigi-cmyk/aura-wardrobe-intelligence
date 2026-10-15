@@ -10,6 +10,7 @@ import { anyItemViolatesWeather, violatesSleeveClimate, violatesWeatherRule, BLA
 import { filterForRain, isWetCondition, rainLayerFor, rainReason, RAIN_PROMPT_RULE } from "./rain-rules";
 import { isWarmOuter, isWarmAndRainReady, isDressyOuter } from "./warm-outer";
 import { naturePairingRule } from "./nature-color-pairings";
+import { CATALOG_MAX_ITEMS, compactCatalogJson } from "./wardrobe-catalog";
 import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
 import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
@@ -290,7 +291,7 @@ export async function suggestOutfitCore(params: {
 
   // Rotation: wear history from wardrobe_items, then the catalog order (long-unworn first, with a
   // random factor). The mandatory piece and the pieces of an outfit being adapted are never
-  // dropped, and stay at the front so the 200-piece catalog cap can't cut them.
+  // dropped, and stay at the front so the catalog's safety ceiling (wardrobe-catalog.ts) can't cut them.
   // "Crea outfit partendo da questo": the chosen piece is the person's explicit request — it is
   // never filtered out by location, dress-preference or dress-code narrowing above. If it can't be
   // used at all (deleted, archived, out on loan) the caller gets a clear error instead of a
@@ -347,7 +348,7 @@ export async function suggestOutfitCore(params: {
   // exactly what happened to length and fit: the Work mini-skirt/dress
   // exclusion and the dress-preference length/fit checks were reading
   // catalog items that never actually carried those two fields).
-  const catalog = eligibleItems.slice(0, 200).map((it) => ({
+  const catalog = eligibleItems.slice(0, CATALOG_MAX_ITEMS).map((it) => ({
     id: it.id,
     category: it.category ?? "",
     subcategory: it.subcategory ?? "",
@@ -538,7 +539,7 @@ export async function suggestOutfitCore(params: {
   if (avoidedInCatalog.length) {
     contextRules.push(`ALREADY USED EARLIER IN THIS PLAN: ${JSON.stringify(avoidedInCatalog)}. Do not reuse any of these when the same category has another suitable piece in the catalog; reuse one only when its category has nothing else that fits.`);
   }
-  const userContent = `Wardrobe:\n${JSON.stringify(catalog)}\n\n${wx} ${occ}${params.commuteLayerHint ? `\n${params.commuteLayerHint}` : ""}${contextRules.length ? `\n\n${contextRules.join("\n")}` : ""}`;
+  const userContent = `Wardrobe:\n${compactCatalogJson(catalog)}\n\n${wx} ${occ}${params.commuteLayerHint ? `\n${params.commuteLayerHint}` : ""}${contextRules.length ? `\n\n${contextRules.join("\n")}` : ""}`;
 
   // Hard, code-level guardrails — mirrors the pattern in
   // suggest-daily-looks.functions.ts. The prompt above ALSO asks for all

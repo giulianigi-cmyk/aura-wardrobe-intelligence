@@ -7,6 +7,7 @@ import { parseAiJson } from "./ai-json";
 import { BLAZER_WARMTH_PROMPT_RULE, violatesWeatherRule } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
 import { naturePairingRule } from "./nature-color-pairings";
+import { CATALOG_MAX_ITEMS } from "./wardrobe-catalog";
 import { isDayOnlyBag, isEveningOnlyPiece, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE } from "./outfit-styling-rules";
 import { isItemAllowedByDressPreferences, coversLegs, coversArms, coversShoulders, type DressPreferences } from "./dress-preferences";
 import { isItemAtLocation } from "./wardrobe-location";
@@ -19,8 +20,9 @@ import { ensureAnchor } from "./outfit-anchor";
 import { applyPieceChange, detectPieceChange } from "./chat-piece-change";
 import { BRAND_NAME } from "@/lib/brand";
 
-/** Pieces sent to the model besides the ones the message names (which are always sent). */
-const CATALOG_CAP = 320;
+/** Pieces sent to the model besides the ones the message names (which are always sent): the whole
+ *  wardrobe (wardrobe-catalog.ts). */
+const CATALOG_CAP = CATALOG_MAX_ITEMS;
 /** Per-call limit, so a hung AI call ends in a clear "try again" instead of the request dying. */
 const AI_CALL_TIMEOUT_MS = 40_000;
 const REPAIR_CALL_TIMEOUT_MS = 25_000;
