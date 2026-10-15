@@ -37,6 +37,8 @@ const TYPE_ICON: Record<TripType, typeof Briefcase> = { work: Briefcase, leisure
 
 // The full-screen sheets (add pieces, capsule, edit outfit, calendar) render on document.body, like
 // OutfitViewerSheet: inside the screen they sat under the tab bar, which covered their Save button.
+// On a computer they stay inside the phone frame (md: 400×860, 10 px border): spread over the whole
+// browser, the piece grid blew small thumbnails up into big blurry tiles.
 function toBody(node: ReactNode) {
   return typeof document !== "undefined" ? createPortal(node, document.body) : null;
 }
@@ -968,7 +970,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
         );
       })()}
       {pickerOpen && toBody(
-        <div className="fixed inset-0 z-50 bg-background flex flex-col animate-fade-in">
+        <div className="fixed inset-0 z-50 bg-background flex flex-col animate-fade-in md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[380px] md:h-[840px] md:rounded-[2.6rem] md:overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 pt-14">
             <div>
               <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("tripDetail.yourWardrobe")}</p>
@@ -976,32 +978,16 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
             </div>
             <button onClick={() => setPickerOpen(false)} className="h-9 w-9 rounded-full border border-border flex items-center justify-center"><X size={16} /></button>
           </div>
-          <div className="flex-1 overflow-y-auto no-scrollbar px-5 py-4">
-            {wardrobeLoading ? (
-              <div className="flex justify-center mt-16"><Loader2 className="animate-spin text-muted-foreground" /></div>
-            ) : wardrobeItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground mt-8 text-center">{t("tripDetail.noPiecesYet")}</p>
-            ) : (
-              <div className="grid grid-cols-3 gap-2">
-                {wardrobeItems.map((it) => {
-                  const src = thumbSrc(it, wardrobeSigned);
-                  const added = packedItemIds.has(it.id);
-                  return (
-                    <button
-                      key={it.id}
-                      onClick={() => void togglePackingItem(it.id)}
-                      disabled={pendingItemId === it.id}
-                      className={`relative aspect-square rounded-xl overflow-hidden border-2 transition ${added ? "border-foreground" : "border-transparent"}`}
-                      style={{ background: "#FFFFFF" }}
-                    >
-                      {src ? <img src={src} className="h-full w-full object-contain p-1.5" alt="" loading="lazy" /> : null}
-                      {added && <span className="absolute top-1 right-1 h-5 w-5 rounded-full bg-foreground text-background text-[10px] flex items-center justify-center">✓</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <PiecePicker
+            className="flex-1 overflow-y-auto no-scrollbar px-5 py-4"
+            items={wardrobeItems}
+            signed={wardrobeSigned}
+            selectedIds={Array.from(packedItemIds)}
+            onToggle={(id) => { if (pendingItemId !== id) void togglePackingItem(id); }}
+            loading={wardrobeLoading}
+            emptyHint={t("tripDetail.noPiecesYet")}
+            columns={3}
+          />
           <div className="px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 border-t border-border/60">
             <button onClick={() => setPickerOpen(false)} className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em]">{t("tripDetail.done")}</button>
           </div>
@@ -1009,7 +995,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
       )}
 
       {capsulePickerOpen && toBody(
-        <div className="fixed inset-0 z-50 bg-background flex flex-col animate-fade-in">
+        <div className="fixed inset-0 z-50 bg-background flex flex-col animate-fade-in md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[380px] md:h-[840px] md:rounded-[2.6rem] md:overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 pt-14">
             <div>
               <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("tripDetail.yourWardrobe")}</p>
@@ -1017,32 +1003,18 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
             </div>
             <button onClick={() => setCapsulePickerOpen(false)} className="h-9 w-9 rounded-full border border-border flex items-center justify-center"><X size={16} /></button>
           </div>
-          <div className="flex-1 overflow-y-auto no-scrollbar px-5 py-4">
-            {wardrobeLoading ? (
-              <div className="flex justify-center mt-16"><Loader2 className="animate-spin text-muted-foreground" /></div>
-            ) : wardrobeItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground mt-8 text-center">{t("tripDetail.noPiecesYet")}</p>
-            ) : (
-              <div className="grid grid-cols-3 gap-2">
-                {wardrobeItems.map((it) => {
-                  const src = thumbSrc(it, wardrobeSigned);
-                  const inCapsule = capsuleItems.some((c) => c.wardrobe_item_id === it.id);
-                  return (
-                    <button
-                      key={it.id}
-                      onClick={() => void addToCapsule(it.id)}
-                      disabled={inCapsule}
-                      className={`relative aspect-square rounded-xl overflow-hidden border-2 transition ${inCapsule ? "border-foreground" : "border-transparent"}`}
-                      style={{ background: "#FFFFFF" }}
-                    >
-                      {src ? <img src={src} className="h-full w-full object-contain p-1.5" alt="" loading="lazy" /> : null}
-                      {inCapsule && <span className="absolute top-1 right-1 h-5 w-5 rounded-full bg-foreground text-background text-[10px] flex items-center justify-center">✓</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          {/* The shared picker: search bar, category and location chips (PiecePicker.tsx). A piece already
+              in the capsule shows as selected; tapping it again does nothing — the × in the capsule removes. */}
+          <PiecePicker
+            className="flex-1 overflow-y-auto no-scrollbar px-5 py-4"
+            items={wardrobeItems}
+            signed={wardrobeSigned}
+            selectedIds={capsuleItems.map((c) => c.wardrobe_item_id)}
+            onToggle={(id) => { if (!capsuleItems.some((c) => c.wardrobe_item_id === id)) void addToCapsule(id); }}
+            loading={wardrobeLoading}
+            emptyHint={t("tripDetail.noPiecesYet")}
+            columns={3}
+          />
           <div className="px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 border-t border-border/60">
             <button onClick={() => setCapsulePickerOpen(false)} className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em]">{t("tripDetail.done")}</button>
           </div>
@@ -1050,7 +1022,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
       )}
 
       {editingPlan && toBody(
-        <div className="fixed inset-0 z-[60] bg-background flex flex-col animate-fade-in">
+        <div className="fixed inset-0 z-[60] bg-background flex flex-col animate-fade-in md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[380px] md:h-[840px] md:rounded-[2.6rem] md:overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 pt-14">
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("tripDetail.editOutfit")}</p>
@@ -1214,7 +1186,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
       </section>
 
       {calendarPickerOpen && toBody(
-        <div className="fixed inset-0 z-[70] bg-background flex flex-col animate-fade-in">
+        <div className="fixed inset-0 z-[70] bg-background flex flex-col animate-fade-in md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[380px] md:h-[840px] md:rounded-[2.6rem] md:overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 pt-14">
             <div>
               <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("tripDetail.yourCalendar")}</p>
