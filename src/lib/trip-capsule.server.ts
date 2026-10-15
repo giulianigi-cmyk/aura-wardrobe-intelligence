@@ -12,7 +12,7 @@ import { isTechnicalFootwear } from "./outfit-styling-rules";
 import { computeCapsuleSeedAndExclusions } from "./trip-capsule-persistence";
 import { violatesWeatherRule, HEAVY_SIGNAL, LIGHT_SIGNAL, MILD_WARM_THRESHOLD_C, MILD_COOL_THRESHOLD_C, COLD_THRESHOLD_C, type WeatherCheckableItem } from "./outfit-weather-rules";
 import type { StyleMemoryRow } from "./style-memory-prompt";
-import { isWarmOuter, isWarmAndRainReady } from "./warm-outer";
+import { isWarmOuter, isWarmAndRainReady, isDressyOuter } from "./warm-outer";
 import {
   detectActivityKind, hasEleganceSignal as sharedHasEleganceSignal, businessDinnerAdjustment,
   type ActivityKind,
@@ -936,9 +936,14 @@ export function buildCapsule(
   const warmFirst = coldest == null || coldest <= COLD_THRESHOLD_C;
   const wetTrip = requirements.some((r) => dayColdByActivity.get(r.activityId)?.wet);
   const isRealOuter = (it: PoolItem | undefined) => it?.category === "Outerwear" && !/blazer|vest|gilet/i.test(it.subcategory ?? "");
+  const outerCheck = (it: PoolItem) => ({ ...it, styleTags: it.styleTags ?? it.style });
+  // A working trip wants a coat over the suit, not a sporty parka or a puffer — when the wardrobe has one.
+  const wantDressy = workReqs.length > 0 && pool.some((it) => isRealOuter(it) && isDressyOuter(outerCheck(it))
+    && (!warmFirst || coldest == null || isWarmOuter(outerCheck(it))));
   const hasRealOuter = Array.from(capsule).some((id) => {
     const it = pool.find((p) => p.id === id);
-    return isRealOuter(it) && (!warmFirst || coldest == null || isWarmOuter(it!));
+    return isRealOuter(it) && (!warmFirst || coldest == null || isWarmOuter(outerCheck(it!)))
+      && (!wantDressy || isDressyOuter(outerCheck(it!)));
   });
   if (needsOuter && !hasRealOuter) {
     const repReq = requirements.find((r) => tempByActivity.get(r.activityId) === coldest) ?? requirements[0];
@@ -949,11 +954,12 @@ export function buildCapsule(
         && climateSuitability(it, coldest, repSeason) !== "inappropriate")
       .map((it) => ({
         it,
-        score: (warmFirst && isWarmOuter(it) ? 10 : 0)
-          + (warmFirst && wetTrip && isWarmAndRainReady(it) ? 6 : 0)
+        score: (warmFirst && isWarmOuter(outerCheck(it)) ? 10 : 0)
+          + (wantDressy && isDressyOuter(outerCheck(it)) ? 8 : 0)
+          + (warmFirst && wetTrip && isWarmAndRainReady(outerCheck(it)) ? 6 : 0)
           // a work or dinner trip wants a coat or a trench rather than a puffer or a denim jacket —
           // except on a cold, rainy trip, where a puffer or parka is the coat
-          + (dressy ? (CASUAL_OUTER.test(it.subcategory ?? "") && !(warmFirst && wetTrip && isWarmAndRainReady(it)) ? -5 : 0) + it.formality : 0)
+          + (dressy ? (CASUAL_OUTER.test(it.subcategory ?? "") && !(warmFirst && wetTrip && isWarmAndRainReady(outerCheck(it))) ? -5 : 0) + it.formality : 0)
           + versatility(it, repReq, coldest, styleMemory),
       }))
       .sort((a, b) => b.score - a.score)[0];
@@ -1411,6 +1417,8 @@ export async function generateTripCapsuleCore({ data, context }: {
     // note, since nothing transitions INTO the first activity of the day).
     const groupCompanions = new Map<string, string[]>();
     const companionTransitionNote = new Map<string, string>();
+    // Representatives whose look also covers a journey (see below).
+    const travelGroups = new Set<string>();
     for (const [, dayReqs] of requirementsByDate) {
       const forGrouping: ActivityForTransition[] = dayReqs.map((r) => ({
         activityId: r.activityId, daySegment: r.daySegment, dressCode: r.dressCode,
@@ -1418,7 +1426,14 @@ export async function generateTripCapsuleCore({ data, context }: {
       }));
       for (const group of groupIntoOutfitStates(forGrouping)) {
         if (group.activityIds.length < 2) continue;
-        const [representative, ...companions] = group.activityIds;
+        // A flight straight into a trade fair is one look, generated for the fair: generated for the
+        // flight, it followed travel rules only and reached the fair with no jacket. The journey's
+        // practical limits (no high heels, nothing too short) still apply to it (travelGroups).
+        const groupReqs = group.activityIds.map((id) => dayReqs.find((r) => r.activityId === id)).filter((r): r is Requirement => !!r);
+        const lead = groupReqs.find((r) => !isTransportActivity(r.label) && isWorkRequirement(r));
+        const ordered = lead ? [lead.activityId, ...group.activityIds.filter((id) => id !== lead.activityId)] : group.activityIds;
+        if (lead && groupReqs.some((r) => isTransportActivity(r.label))) travelGroups.add(lead.activityId);
+        const [representative, ...companions] = ordered;
         groupCompanions.set(representative, companions);
         if (group.transitionNote) {
           for (const companionId of companions) companionTransitionNote.set(companionId, group.transitionNote);
@@ -1638,9 +1653,10 @@ export async function generateTripCapsuleCore({ data, context }: {
       // journey says nothing about what's sensible to wear during it.
       // That's what let a mini skirt back onto a train whenever a hotel
       // was logged the same day.
+      const travelLeg = isTransportActivity(req.label) || travelGroups.has(req.activityId);
       candidatePool = applyTransportPracticalityFilter(
         candidatePool,
-        isTransportActivity(req.label),
+        travelLeg,
         tempByActivity.get(req.activityId) ?? null,
       );
 
@@ -1651,6 +1667,27 @@ export async function generateTripCapsuleCore({ data, context }: {
         candidatePool,
         activityKind(req) === "concert",
       );
+
+      // On a journey the engine is not allowed pieces that aren't travel-suitable (hardExcludedItemIds
+      // below), so high pumps kept here as the only pair still left the flight look with no shoes at
+      // all. A role with nothing usable is topped up again from pieces that pass the same filters.
+      if (activityKind(req) !== "swim") {
+        const temp = tempByActivity.get(req.activityId) ?? null;
+        const usable = (it: PoolItem) => !travelLeg || isTravelSuitable(it, temp);
+        for (const role of [SHOE_ROLE, TOP_ROLE, BOTTOM_ROLE]) {
+          if (candidatePool.some((it) => role.has(it.category ?? "") && usable(it))) continue;
+          const have = new Set(candidatePool.map((it) => it.id));
+          const fitting = applyConcertFootwearFilter(
+            applyTransportPracticalityFilter(
+              applyHardDressCodeFilter(eligible.filter((it) => role.has(it.category ?? "") && !have.has(it.id) && usable(it)), req.dressCode),
+              travelLeg, temp),
+            activityKind(req) === "concert");
+          const extra = fitting
+            .sort((a, b) => versatility(b, req, temp, styleMemory) - versatility(a, req, temp, styleMemory))
+            .slice(0, 3);
+          candidatePool = [...candidatePool, ...extra];
+        }
+      }
 
       // Boots at a warm-weather dinner: a hard exclusion, not just a
       // reserved elegant slot. Reserving the best elegant shoe in the
@@ -1842,7 +1879,7 @@ export async function generateTripCapsuleCore({ data, context }: {
         // ankle boots back into a train outfit.
         // On a work trip the journey also leaves out logo and graphic T-shirts: travelling to or
         // from a trade fair with the blazer over a big-logo tee is not presentable.
-        hardExcludedItemIds: isTransportActivity(req.label)
+        hardExcludedItemIds: travelLeg
           ? pool.filter((it) => !isTravelSuitable(it, tempByActivity.get(req.activityId) ?? null) || (workTrip && isLogoOrGraphicTop(it))).map((it) => it.id)
           : [],
       });

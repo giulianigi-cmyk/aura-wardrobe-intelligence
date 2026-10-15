@@ -8,7 +8,8 @@ import { isItemAtAnyLocation } from "./wardrobe-location";
 import { isItemAllowedByDressPreferences, hasAnyPreference, coversShoulders, coversArms, coversLegs, type DressPreferences } from "./dress-preferences";
 import { anyItemViolatesWeather, violatesSleeveClimate, violatesWeatherRule, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule, MILD_COOL_THRESHOLD_C, COLD_THRESHOLD_C } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, rainLayerFor, rainReason, RAIN_PROMPT_RULE } from "./rain-rules";
-import { isWarmOuter, isWarmAndRainReady } from "./warm-outer";
+import { isWarmOuter, isWarmAndRainReady, isDressyOuter } from "./warm-outer";
+import { naturePairingRule } from "./nature-color-pairings";
 import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
 import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
@@ -382,6 +383,9 @@ export async function suggestOutfitCore(params: {
     ? "This person prefers a classic wardrobe: favor neutral, coordinated colors and minimal pattern-mixing over bold color or print combinations, even when a bolder pairing would technically also work."
     : null;
 
+  // Creative / Bold: colour pairings taken from nature, dosed by the occasion (nature-color-pairings.ts).
+  const natureLine = naturePairingRule(params.styleBoldness, params.occasion);
+
   // Style Memory — learned from every ❤️/👎/💾 given anywhere in the app
   // (see outfit-feedback.functions.ts). This is the shared core every
   // "AI Suggest" call goes through (OutfitBuilder's button, Ask Your
@@ -496,6 +500,7 @@ export async function suggestOutfitCore(params: {
     "Default: keep formality roughly consistent across the outfit — an elegant, dressed-up piece paired with something at the opposite end (flip-flops with a tailored dress, gym sneakers with a cocktail dress) usually reads as unintentional. A deliberate contrast (like a smart top with clean minimal sneakers) can absolutely work when the rest of the outfit supports it as a coherent choice rather than an accident.",
     "Above ~25°C, prefer a top that hasn't already been worn earlier in this batch over one that has, even if it scores slightly lower on style — a fresh piece matters more in hot weather (sweat, hygiene) than in cooler seasons, where repeating a top once or twice is completely normal.",
     ...(boldnessLine ? [boldnessLine] : []),
+    ...(natureLine ? [natureLine] : []),
     "NEVER pick more than one outerwear/layering piece in the same outfit — a blazer and a cardigan (or any two of blazer/cardigan/jacket/coat) are never worn together. Pick at most one.",
     "A cardigan or any open-front knit (even one tied or wrapped at the front) is a LAYER, like a jacket: ALWAYS pair it with a real top underneath — at least a tank top, camisole, t-shirt, bodysuit or fine knit — never as the only top (unless worn over a dress or jumpsuit).",
     "TEXT MUST MATCH THE ACTUAL ITEM, NOT YOUR INTENT: before writing the explanation, check the subcategory and colors of every item_id you're about to return, and describe each piece using its own real attributes — never call a sandal a 'décolleté'/'pumps' or describe a bag's color/pattern as something other than what it actually is. If nothing in the wardrobe matches what would be ideal, describe what you actually picked, not an idealized version of it.",
@@ -1042,8 +1047,10 @@ export async function suggestOutfitCore(params: {
     if (isCold) {
       const chosenOuters = item_ids.map((id) => catalog.find((x) => x.id === id)).filter((c): c is (typeof catalog)[number] => !!c && slotOf(c) === "Outerwear");
       const warmOver = (c: (typeof catalog)[number]) => isOverLayer(c) && isWarmOuter(c);
-      // in the rain a puffer or a parka first — but not at work, where the wool coat stays (the occasion first)
-      const pickWarm = () => (isWetCondition(params.condition) && !isWorkOccasion ? pickBest("Outerwear", (c) => warmOver(c) && isWarmAndRainReady(c)) : null)
+      // At work a coat, never a sporty parka or a puffer, when the wardrobe has one; elsewhere in the
+      // rain a puffer or a parka first.
+      const pickWarm = () => (isWorkOccasion ? pickBest("Outerwear", (c) => warmOver(c) && isDressyOuter(c)) : null)
+        ?? (isWetCondition(params.condition) && !isWorkOccasion ? pickBest("Outerwear", (c) => warmOver(c) && isWarmAndRainReady(c)) : null)
         ?? pickBest("Outerwear", warmOver);
       if (!chosenOuters.some(isOverLayer)) {
         const over = (veryCold ? pickWarm() : null)
@@ -1052,10 +1059,17 @@ export async function suggestOutfitCore(params: {
           ?? (chosenOuters.length === 0 ? pickBest("Outerwear", (c) => !isWetCondition(params.condition) || !rainReason(c)) ?? pickBest("Outerwear") : null);
         // a second layer goes only over a jacket or a cardigan, never next to another coat
         if (over && chosenOuters.length <= 1) item_ids = [...item_ids, over.id];
-      } else if (veryCold && !chosenOuters.some(warmOver)) {
-        const light = chosenOuters.find((c) => isOverLayer(c) && c.id !== params.mustIncludeItemId);
-        const warm = light ? pickWarm() : null;
-        if (light && warm) item_ids = item_ids.map((id) => (id === light.id ? warm.id : id));
+      } else if ((veryCold && !chosenOuters.some(warmOver)) || (isWorkOccasion && !chosenOuters.some((c) => isOverLayer(c) && isDressyOuter(c)))) {
+        // a trench on a 5°C morning, or a sporty parka at a trade fair: swapped for a warm (and, at
+        // work, dressy) coat when there is one — never the piece the person started from
+        const swap = chosenOuters.find((c) => isOverLayer(c) && c.id !== params.mustIncludeItemId);
+        const better = swap
+          ? (veryCold ? pickWarm() : pickBest("Outerwear", (c) => isOverLayer(c) && isDressyOuter(c)))
+          : null;
+        const improves = !!swap && !!better && (veryCold
+          ? isWarmOuter(better) && (!isWorkOccasion || isDressyOuter(better) || !isWarmOuter(swap))
+          : isDressyOuter(better));
+        if (swap && better && improves) item_ids = item_ids.map((id) => (id === swap.id ? better.id : id));
       }
     }
 

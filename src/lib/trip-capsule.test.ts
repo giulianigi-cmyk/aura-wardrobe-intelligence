@@ -1125,6 +1125,22 @@ test("a 15°C day starting at 5°C with rain packs a warm coat (a puffer on a ra
   assert.ok(wetWalk.has("puffer"), `in the rain a puffer expected: ${[...wetWalk].join(", ")}`);
 });
 
+test("a cold work trip packs a wool coat, not a light sporty parka — even with the parka already packed", () => {
+  const pool: PoolItem[] = [
+    item({ id: "parka", category: "Outerwear", subcategory: "Parka", formality: 2, material: ["Polyester", "Synthetic"], season: "Autumn", style: ["Streetwear", "Sporty"] }),
+    item({ id: "puffer", category: "Outerwear", subcategory: "Puffer Jacket", formality: 2, material: ["Polyester", "Down"], style: ["Sporty"] }),
+    item({ id: "camel-coat", category: "Outerwear", subcategory: "Coat", formality: 4, material: ["Wool", "Cashmere"], style: ["Quiet Luxury", "Elegant"] }),
+    item({ id: "trousers", category: "Bottoms", subcategory: "Trousers", formality: 3 }),
+    item({ id: "shirt", category: "Tops", subcategory: "Shirt", formality: 3 }),
+    item({ id: "loafers", category: "Shoes", subcategory: "Loafers", formality: 3 }),
+  ];
+  const requirements: Requirement[] = [
+    { activityId: "fair", date: "2026-10-21", daySegment: "day", dressCode: null, label: "Fiera Glasstec" },
+  ];
+  const capsule = buildCapsule(pool, requirements, new Map(), ["parka"], new Map([["fair", 15]]), [], new Map([["fair", { low: 5, wet: false }]]));
+  assert.ok(capsule.has("camel-coat"), `a wool coat expected: ${[...capsule].join(", ")}`);
+});
+
 test("a mild trip (15°C, 12°C morning) is happy with the trench", () => {
   const pool: PoolItem[] = [
     item({ id: "trench", category: "Outerwear", subcategory: "Trench Coat", formality: 4 }),
