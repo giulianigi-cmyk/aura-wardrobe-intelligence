@@ -44,6 +44,9 @@ const MARGIN = 0.04; // min distance from canvas edge (fraction)
  *  letters (shoes touching the mark); .115 leaves a clear ~40px gap above it. */
 export const BOTTOM_RESERVED = 0.115;
 const GROUP_SHRINK = 0.75; // when several items share one slot
+/** The finished board is drawn at this share of its laid-out size, for air around the pieces. */
+export const BOARD_SCALE = 0.86;
+const SMALL_ACCESSORY = new Set<Bucket>(["sunglasses", "headwear", "earrings", "necklace", "brooch", "wrist", "anklet", "belt", "acc"]);
 /** The coat over a suit jacket (two outer pieces): matched on the subcategory. */
 const OVER_LAYER = /coat|cappotto|trench|puffer|piumino|parka|cape|mantella/i;
 /** Coat over a suit jacket: both drawn smaller than a single outer piece, the jacket more, so both
@@ -592,6 +595,22 @@ return { w, h: w * aspect };
   const accInColumn = useColumn && columnEntries.some((e) => e.bucket === "acc");
   const accList = [...(accInColumn ? [] : by.get("acc") ?? []), ...(beltList.length && !beltBeside ? beltList : [])];
   if (accList.length) placeGroup(accList, "acc", BOX.acc, 0.17 * W, 0.83 * H, "y");
+
+  // Air around the board: the whole composition is drawn at BOARD_SCALE about its own centre, the
+  // pieces keeping their sizes relative to each other — it filled the canvas edge to edge (reported).
+  // Small accessories keep their size: at a smaller scale a watch or earrings became a smudge.
+  if (out.length) {
+    const cx = (Math.min(...out.map((r) => r.x)) + Math.max(...out.map((r) => r.x + r.w))) / 2;
+    const cy = (Math.min(...out.map((r) => r.y)) + Math.max(...out.map((r) => r.y + r.h))) / 2;
+    for (const r of out) {
+      const k = SMALL_ACCESSORY.has(r.bucket) ? 1 : BOARD_SCALE;
+      const mx = cx + (r.x + r.w / 2 - cx) * BOARD_SCALE;
+      const my = cy + (r.y + r.h / 2 - cy) * BOARD_SCALE;
+      r.w *= k; r.h *= k;
+      r.x = Math.min(W - MX - r.w, Math.max(MX, mx - r.w / 2));
+      r.y = Math.min(H - MB - r.h, Math.max(MY, my - r.h / 2));
+    }
+  }
 
   // Short pieces (a mini skirt, shorts) make a short composition: centre it vertically
   // in the free area instead of leaving it top-heavy. A full-length outfit already fills

@@ -141,3 +141,66 @@ export function cleanCutout(rgba: Uint8ClampedArray, w: number, h: number, bg: R
   for (let p = 0; p < n; p++) if (label[p] && !keep[label[p]]) clear(p);
   return cleared;
 }
+
+// ── White halo on the outfit canvas ─────────────────────────────────────────────────────────────
+// Pieces composed on the board (compose-outfit-canvas.ts) showed a white rim, or a whole white box,
+// that covered the piece beside them: a black long-sleeve top over black trousers left a white band
+// across the trousers. Two causes, both fixed here on plain pixels:
+//   1. a photo that was never cut out (opaque, plain light background): the background reachable from
+//      the border becomes transparent (colorKeyCutout);
+//   2. a cutout that kept a thin near-white rim of the old background along its edge: on a piece
+//      that is not itself light, near-white pixels within HALO_RADIUS of transparency are cleared.
+//      A white or cream piece is never touched — its own edge is white.
+const HALO_RADIUS = 2;
+const NEAR_WHITE_MIN = 200;
+const NEAR_WHITE_CHROMA = 30;
+const LIGHT_PIECE_LUMA = 180;
+
+const isNearWhite = (r: number, g: number, b: number) =>
+  Math.min(r, g, b) >= NEAR_WHITE_MIN && Math.max(r, g, b) - Math.min(r, g, b) <= NEAR_WHITE_CHROMA;
+
+/** Removes a white background box or white rim from a piece before it is drawn on the board, in
+ *  place (RGBA, straight alpha). Returns how many pixels became transparent. */
+export function removeWhiteHalo(rgba: Uint8ClampedArray, w: number, h: number): number {
+  const n = w * h;
+  let cleared = 0;
+  let transparent = 0;
+  for (let p = 0; p < n; p++) if (rgba[p * 4 + 3] < 16) transparent++;
+
+  // 1. Never cut out: plain light background → keyed out from the border.
+  if (transparent < n * 0.01) {
+    const bg = estimateBackground(rgba, w, h);
+    if (bg && isNearWhite(bg[0], bg[1], bg[2])) {
+      const keyed = colorKeyCutout(rgba, w, h, bg);
+      for (let p = 0; p < n; p++) {
+        if (keyed[p * 4 + 3] === 0 && rgba[p * 4 + 3] !== 0) { rgba[p * 4 + 3] = 0; cleared++; }
+      }
+    }
+  }
+
+  // 2. Thin white rim on a piece that is not itself light.
+  const lumas: number[] = [];
+  const step = Math.max(1, Math.floor(n / 20000));
+  for (let p = 0; p < n; p += step) {
+    const i = p * 4;
+    if (rgba[i + 3] >= 230) lumas.push(0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2]);
+  }
+  if (!lumas.length) return cleared;
+  lumas.sort((a, b) => a - b);
+  if (lumas[lumas.length >> 1] >= LIGHT_PIECE_LUMA) return cleared;
+  for (let pass = 0; pass < HALO_RADIUS; pass++) {
+    const edge: number[] = [];
+    for (let p = 0; p < n; p++) {
+      const i = p * 4;
+      if (rgba[i + 3] === 0 || !isNearWhite(rgba[i], rgba[i + 1], rgba[i + 2])) continue;
+      const x = p % w, y = (p - x) / w;
+      const touches = (x > 0 && rgba[(p - 1) * 4 + 3] === 0) || (x < w - 1 && rgba[(p + 1) * 4 + 3] === 0)
+        || (y > 0 && rgba[(p - w) * 4 + 3] === 0) || (y < h - 1 && rgba[(p + w) * 4 + 3] === 0)
+        || x === 0 || y === 0 || x === w - 1 || y === h - 1;
+      if (touches) edge.push(p);
+    }
+    for (const p of edge) { rgba[p * 4 + 3] = 0; cleared++; }
+    if (!edge.length) break;
+  }
+  return cleared;
+}
