@@ -11,7 +11,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildCapsule, type PoolItem, type Requirement, climateSuitability, isSweatConsumable, applyHardDressCodeFilter, isTransportActivity, applyTransportPracticalityFilter, isAccommodationActivity, changeAssumedPossible, isTravelSuitable, outfitIsTravelSuitable, isConcertFootwearSuitable, applyConcertFootwearFilter, activityKind, isWorkRequirement, engineOccasionText, segmentsCovered, isScaffoldSlot, travelShoeFor } from "./trip-capsule.server";
+import { buildCapsule, type PoolItem, type Requirement, climateSuitability, isSweatConsumable, applyHardDressCodeFilter, isTransportActivity, applyTransportPracticalityFilter, isAccommodationActivity, changeAssumedPossible, isTravelSuitable, outfitIsTravelSuitable, isConcertFootwearSuitable, applyConcertFootwearFilter, activityKind, isWorkRequirement, engineOccasionText, segmentsCovered, isScaffoldSlot, travelShoeFor, carryToteFor, shoeChangeNote } from "./trip-capsule.server";
 
 function item(overrides: Partial<PoolItem> & { id: string }): PoolItem {
   return {
@@ -1224,4 +1224,14 @@ test("the pair to travel in on a working trip: loafers before sneakers, never he
   assert.equal(travelShoeFor([sneakers, pumps, loafers], 15)?.id, "tods");
   assert.equal(travelShoeFor([sneakers, pumps], 15)?.id, "nb");
   assert.equal(travelShoeFor([pumps], 15), undefined);
+});
+
+test("a Longchamp-type tote carries the event shoes; the change is told in the person's language", () => {
+  const tote = item({ id: "lc", category: "Bags", subcategory: "Tote", brand: "Longchamp", formality: 2 });
+  const chanel = item({ id: "ch", category: "Bags", subcategory: "Top Handle Bag", brand: "Chanel", formality: 4 });
+  assert.equal(carryToteFor([chanel, tote])?.id, "lc");
+  assert.equal(carryToteFor([chanel]), undefined);
+  assert.match(shoeChangeNote("it", "toEvent"), /tote/);
+  assert.match(shoeChangeNote("fr", "toTravel"), /cabas/);
+  assert.equal(shoeChangeNote("de", "toEvent"), shoeChangeNote("it", "toEvent"));
 });

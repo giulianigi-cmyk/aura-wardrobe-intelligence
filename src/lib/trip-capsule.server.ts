@@ -1011,6 +1011,38 @@ const COAT_LAYER = /coat|cappotto|trench|puffer|piumino|parka|cape|mantella/i;
 const POLISHED_FLAT = /loafer|mocassin|moccasin|flat|ballerin|ballet|mary ?jane|derby|oxford|brogue/i;
 const SPORTY_SHOE = /sneaker|trainer|running|sport/i;
 
+const CARRY_TOTE = /tote|shopper|weekender|borsone|cabas/i;
+
+/** A roomy tote (a Longchamp-type bag) to carry the event shoes on a working trip. */
+export function carryToteFor(candidates: PoolItem[]): PoolItem | undefined {
+  return candidates
+    .filter((it) => BAG_ROLE.has(it.category ?? "") && (CARRY_TOTE.test(it.subcategory ?? "") || /longchamp/i.test(it.brand ?? "")))
+    .sort((a, b) => b.formality - a.formality)[0];
+}
+
+/** The shoe change, told in the person's language (no piece names: those stay in the look). */
+const SHOE_CHANGE_NOTE: Record<string, { toEvent: string; toTravel: string }> = {
+  it: {
+    toEvent: "Viaggia con le sneakers e porta le scarpe da evento nella tote: cambiale prima di entrare.",
+    toTravel: "Dopo l'evento cambia le scarpe con quelle da viaggio e metti quelle da evento nella tote.",
+  },
+  en: {
+    toEvent: "Travel in the sneakers and carry the event shoes in the tote: change before you go in.",
+    toTravel: "After the event change into the travel shoes and put the event pair in the tote.",
+  },
+  es: {
+    toEvent: "Viaja con las zapatillas y lleva los zapatos del evento en el tote: cámbiatelos antes de entrar.",
+    toTravel: "Después del evento ponte los zapatos de viaje y guarda los del evento en el tote.",
+  },
+  fr: {
+    toEvent: "Voyagez en baskets et emportez les chaussures de l'événement dans le cabas : changez-les avant d'entrer.",
+    toTravel: "Après l'événement, remettez les chaussures de voyage et rangez la paire de l'événement dans le cabas.",
+  },
+};
+export function shoeChangeNote(language: string | null | undefined, direction: "toEvent" | "toTravel"): string {
+  return (SHOE_CHANGE_NOTE[(language ?? "it").slice(0, 2)] ?? SHOE_CHANGE_NOTE.it)[direction];
+}
+
 /** The pair to travel in on a working trip: a polished low shoe (loafers, flats) before sneakers —
  *  it also goes straight into the fair or the meeting — and never one that does not travel. */
 export function travelShoeFor(candidates: PoolItem[], temperature: number | null): PoolItem | undefined {
@@ -1747,6 +1779,13 @@ export async function generateTripCapsuleCore({ data, context }: {
           const hasShoes = dayLook.some((id) => SHOE_ROLE.has(pool.find((p) => p.id === id)?.category ?? ""));
           const shoe = hasShoes ? undefined : travelShoeFor([...candidatePool, ...pool.filter((it) => capsule.has(it.id))], temp) ?? travelShoeFor(eligible, temp);
           const itemIds = shoe ? [...dayLook, shoe.id] : dayLook;
+          // Changing out of the event heels into sneakers: they travel home in the tote.
+          let legNote: string | null = null;
+          if (shoe && SPORTY_SHOE.test(shoe.subcategory ?? "")) {
+            const tote = carryToteFor(pool);
+            if (tote) { capsule.add(tote.id); allChosenItemIds.add(tote.id); }
+            legNote = shoeChangeNote(profile?.language, "toTravel");
+          }
           const { error: legErr } = await supabase.from("outfit_plans").upsert({
             user_id: userId,
             trip_id: data.tripId,
@@ -1755,6 +1794,7 @@ export async function generateTripCapsuleCore({ data, context }: {
             day_segment: req.daySegment,
             item_ids: itemIds,
             occasion: occasionText(req),
+            notes: legNote,
             status: "planned",
           } as never, { onConflict: resolvePlanSlot({ tripActivityId: req.activityId }).onConflict });
           if (legErr) failed.push({ date: req.date, daySegment: req.daySegment, reason: legErr.message });
@@ -1960,12 +2000,27 @@ export async function generateTripCapsuleCore({ data, context }: {
         }
         // A flight straight into the fair: one pair for both, so a polished low shoe (loafers, flats)
         // rather than sneakers when the wardrobe has one.
+        // Without such a pair: sneakers for the journey, and the event shoes carried in a tote and
+        // changed into before going in — the tote and the shoes go in the suitcase, not in the look,
+        // and a note says so.
         if (travelGroups.has(req.activityId)) {
           const shoe = lookItems().find((it) => SHOE_ROLE.has(it.category ?? ""));
           if (shoe && SPORTY_SHOE.test(shoe.subcategory ?? "")) {
             const polished = travelShoeFor([...finalPool, ...eligible], temperature);
             if (polished && !SPORTY_SHOE.test(polished.subcategory ?? "")) {
               result.item_ids = result.item_ids.map((id) => (id === shoe.id ? polished.id : id));
+            } else {
+              const target = formalityOf(lookItems());
+              const eventShoe = [...finalPool, ...eligible]
+                .filter((it) => SHOE_ROLE.has(it.category ?? "") && !SPORTY_SHOE.test(it.subcategory ?? "") && it.formality >= 3)
+                .sort((a, b) => Number(capsule.has(b.id)) - Number(capsule.has(a.id)) || Math.abs(a.formality - target) - Math.abs(b.formality - target))[0];
+              if (eventShoe) {
+                const tote = carryToteFor(pool);
+                capsule.add(eventShoe.id);
+                allChosenItemIds.add(eventShoe.id);
+                if (tote) { capsule.add(tote.id); allChosenItemIds.add(tote.id); }
+                result.explanation = `${shoeChangeNote(profile?.language, "toEvent")} ${result.explanation ?? ""}`.trim();
+              }
             }
           }
         }
