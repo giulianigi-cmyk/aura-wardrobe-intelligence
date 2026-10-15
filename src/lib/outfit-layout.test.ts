@@ -112,14 +112,31 @@ test("a suit jacket under a coat: the coat stays big on the left, the jacket lie
   for (const r of rects) assert.ok(r.x >= 0 && r.x + r.w <= W && r.y + r.h <= H * (1 - 0.115) + 1, r.id);
 });
 
-test("a ring is drawn much smaller than the bracelet beside it, not the other way round", () => {
+test("rings and bracelets are left off the board; the watch stays", () => {
   const rects = layoutOutfit([
     { id: "dress", bucket: "dress", aspect: 2.6, subcategory: "Maxi Dress", length: "Maxi" },
     { id: "ring", bucket: "wrist", aspect: 0.8, subcategory: "Ring", fill: 0.3 },
     { id: "bracelet", bucket: "wrist", aspect: 0.7, subcategory: "Bracelet", fill: 0.3 },
+    { id: "watch", bucket: "wrist", aspect: 1.4, subcategory: "Watch", fill: 0.5 },
     { id: "shoes", bucket: "shoes", aspect: 0.9, subcategory: "Sandals" },
   ] as LayoutInput[]);
-  const r = (id: string) => rects.find((x) => x.id === id)!;
-  const side = (x: { w: number; h: number }) => Math.max(x.w, x.h);
-  assert.ok(side(r("ring")) < side(r("bracelet")) * 0.6, `ring ${side(r("ring"))} vs bracelet ${side(r("bracelet"))}`);
+  const ids = rects.map((r) => r.id);
+  assert.ok(!ids.includes("ring") && !ids.includes("bracelet"), ids.join(","));
+  assert.ok(ids.includes("watch") && ids.includes("dress") && ids.includes("shoes"));
+});
+
+test("a blazer over an evening dress lies beside it, so both read (black on black)", () => {
+  for (const [dressAspect, jacketAspect] of [[2.6, 1.2], [2.6, 1.5], [1.8, 1.2], [1.8, 1.5]]) {
+    const rects = layoutOutfit([
+      { id: "dress", bucket: "dress", aspect: dressAspect, subcategory: "Evening Dress", length: "Maxi" },
+      { id: "blazer", bucket: "outer", aspect: jacketAspect, subcategory: "Blazer", length: "Regular" },
+      { id: "shoes", bucket: "shoes", aspect: 0.6, subcategory: "Pumps" },
+      { id: "bag", bucket: "bag", aspect: 0.7, subcategory: "Clutch", fill: 0.8 },
+    ] as LayoutInput[]);
+    const get = (id: string) => rects.find((r) => r.id === id)!;
+    const dress = get("dress"), blazer = get("blazer");
+    assert.ok(overlap(blazer, dress) <= 0.15, `dress ${dressAspect} / blazer ${jacketAspect}: ${overlap(blazer, dress)}`);
+    assert.ok(blazer.w >= 0.3 * W, "the blazer is not shrunk to a thumbnail");
+    for (const r of rects) assert.ok(r.x >= 0 && r.x + r.w <= W && r.y >= 0 && r.y + r.h <= H, r.id);
+  }
 });

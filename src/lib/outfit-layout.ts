@@ -56,6 +56,13 @@ const LAYERED_OVER_K = 0.85;
 const LAYERED_UNDER_K = 0.62;
 /** Coat and jacket side by side: the jacket may overlap the coat by at most this share of its width. */
 const UNDER_OVERLAP = 0.15;
+/** One jacket / coat over a dress: the dress moves right and the outer piece, on its left, may cover
+ *  at most this share of the dress's width (a black blazer over a black evening dress drawn on top of
+ *  it could not be told apart — reported). */
+const DRESS_OUTER_OVERLAP = 0.12;
+/** Rings and bracelets are not drawn on the composed boards: at board scale they are a few pixels
+ *  wide and add nothing to the look (reported). Watches and gloves stay. */
+const NOT_ON_BOARD = /\b(ring|rings|anello|anelli|bracelet|bracelets|bangle|bangles|bracciale|bracciali|cuff)\b/i;
 /** Full-length trousers: minimum height (fraction of H) and the widest they may become for it. */
 const LONG_BOTTOM_MIN_H = 0.52;
 const LONG_BOTTOM_MAX_W = 0.56;
@@ -227,7 +234,8 @@ type Box = { w: number; h: number };
  *  between them, bigger pieces (two pairs of shoes, two tops) may touch slightly. */
 const spanKOf = (bucket: Bucket): number => (bucket === "wrist" || bucket === "earrings" ? 1.06 : 0.95);
 
-export function layoutOutfit(items: LayoutInput[], W = CANVAS_W, H = CANVAS_H): LayoutRect[] {
+export function layoutOutfit(allItems: LayoutInput[], W = CANVAS_W, H = CANVAS_H): LayoutRect[] {
+  const items = allItems.filter((it) => !(it.bucket === "wrist" && NOT_ON_BOARD.test(it.subcategory ?? "")));
   if (!items.length) return [];
   const MX = MARGIN * W;
   const MY = MARGIN * H;
@@ -344,7 +352,8 @@ return { w, h: w * aspect };
   const bottomExtraW = anchorBucket === "bottom" && !outer
     ? Math.max(0, Math.max(...anchorList.map((it) => sizeOf(it, BOX.bottom, anchorList.length > 1 ? GROUP_SHRINK : 1).w)) - BOX.bottom.w * W)
     : 0;
-  const anchorCx = (anchorBucket === "dress" ? (outer ? 0.52 : 0.46) : anchorBucket === "bottom" ? (outer ? 0.52 : 0.44) : 0.5) * W + bottomExtraW / 2;
+  const dressBesideOuter = anchorBucket === "dress" && (by.get("outer")?.length ?? 0) === 1;
+  const anchorCx = (anchorBucket === "dress" ? (outer ? (dressBesideOuter ? 0.57 : 0.52) : 0.46) : anchorBucket === "bottom" ? (outer ? 0.52 : 0.44) : 0.5) * W + bottomExtraW / 2;
   const tops = anchorBucket === "top" ? [] : by.get("top") ?? [];
 
   // Top height decides how far down the anchor starts (top must stay inside the margin).
@@ -381,6 +390,14 @@ return { w, h: w * aspect };
     const jcx = Math.min(W - MX - jw / 2, coatRect.x + coatRect.w + jw * (0.5 - UNDER_OVERLAP));
     // Drawn over the top, as an open jacket over a shirt: the top still shows for most of it.
     placeGroup([under], "outer", BOX.outer, jcx, (mh) => MY + mh / 2 + 0.22 * H, "x", Z.top + 0.5, LAYERED_UNDER_K);
+  } else if (dressBesideOuter) {
+    // Beside the dress, not on it: shrunk (never below 70%) so its right edge covers at most
+    // DRESS_OUTER_OVERLAP of the dress, still drawn over it as worn open on top.
+    const ow = sizeOf(outers[0], BOX.outer, 1).w;
+    const room = A.l + DRESS_OUTER_OVERLAP * aW - MX;
+    const k = Math.max(0.7, Math.min(1, room / ow));
+    const owk = sizeOf(outers[0], BOX.outer, k).w;
+    placeGroup(outers, "outer", BOX.outer, Math.min(MX + owk / 2, A.l + DRESS_OUTER_OVERLAP * aW - owk / 2) , (mh) => MY + mh / 2 + 0.02 * H, "x", Z.outer, k);
   } else if (outer) placeGroup(outers, "outer", BOX.outer, 0.22 * W, (mh) => MY + mh / 2 + 0.02 * H);
 
   // ── Top: diagonal up-right, waist overlap ≈ 45% of its own height ──
