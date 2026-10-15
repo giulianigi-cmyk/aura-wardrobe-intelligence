@@ -6,6 +6,7 @@ import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
+import { CATALOG_MAX_ITEMS, compactCatalogJson } from "./wardrobe-catalog";
 import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, isSummerSeason } from "./outfit-styling-rules";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 import { explanationLanguageInstruction } from "./language_prompt";
@@ -172,7 +173,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       todayIso,
     );
 
-    const catalog = pool.slice(0, 200).map((it) => ({
+    const catalog = pool.slice(0, CATALOG_MAX_ITEMS).map((it) => ({
       id: it.id,
       category: it.category ?? "",
       subcategory: it.subcategory ?? "",
@@ -300,7 +301,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       ...(isWetCondition(data.condition) ? [RAIN_PROMPT_RULE] : []),
       ...(summerIsOver(todayIso, data.tempMin) ? [summerOverPromptRule(data.tempMin as number)] : []),
     ];
-    const userContent = `${dressRulesBlock}Wardrobe:\n${JSON.stringify(catalog)}\n\n${wx}${todayRules.length ? `\n${todayRules.join("\n")}` : ""}`;
+    const userContent = `${dressRulesBlock}Wardrobe:\n${compactCatalogJson(catalog)}\n\n${wx}${todayRules.length ? `\n${todayRules.join("\n")}` : ""}`;
     const validIds = new Set(catalog.map((c) => c.id));
 
     /** Fraction of overlap between two item sets (0 = nothing shared,
