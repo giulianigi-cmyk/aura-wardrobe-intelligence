@@ -788,8 +788,8 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
                 <button
                   onClick={() => void confirmWorn(p)}
                   disabled={confirmingPlanId === p.id || getWornIds(p).length === 0}
-                  className="flex-1 h-9 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 disabled:opacity-60"
-                ><Check size={12} /> {t("aiStylist.yesThisIsWhatIWore")}</button>
+                  className="flex-1 min-h-9 py-2 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-60"
+                ><Check size={12} className="shrink-0" /><span className="text-center leading-snug">{t("aiStylist.yesThisIsWhatIWore")}</span></button>
                 <button
                   onClick={() => void dismissPlan(p)}
                   disabled={confirmingPlanId === p.id}

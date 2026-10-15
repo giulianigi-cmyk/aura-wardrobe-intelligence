@@ -1493,6 +1493,40 @@ export async function generateTripCapsuleCore({ data, context }: {
       }
     }
     const companionActivityIds = new Set([...groupCompanions.values()].flat());
+
+    // The same grouping against EVERY activity of the day, planned ones included. "Generate the rest"
+    // and regenerating one look only see what is being generated, so Gimav from 16:00 — inside the
+    // fair until 17:30 — got a look of its own when the fair's was already planned, and the flight
+    // home after the last day of the fair did too. Now:
+    //  - an activity being generated for the first time whose group already has a planned look takes
+    //    that look (copyFromPlanned);
+    //  - a look generated for a group also updates the group's other, already planned activities, so
+    //    they stay the same outfit (syncPlanned).
+    const plannedItemsByActivity = new Map(
+      ((existingPlans ?? []) as { trip_activity_id: string | null; item_ids: string[] | null }[])
+        .filter((p) => p.trip_activity_id && p.item_ids?.length)
+        .map((p) => [p.trip_activity_id as string, p.item_ids as string[]]),
+    );
+    const generatingIds = new Set(requirements.map((r) => r.activityId));
+    const copyFromPlanned = new Map<string, string[]>();
+    const syncPlanned = new Map<string, string[]>();
+    for (const date of new Set(requirements.map((r) => r.date))) {
+      const dayAll: ActivityForTransition[] = activities
+        .filter((a) => a.activity_date === date)
+        .map((a) => ({
+          activityId: a.id, daySegment: a.day_segment as ActivityForTransition["daySegment"], dressCode: a.dress_code ?? null, label: a.activity_type ?? null,
+          startTime: a.start_time ?? null, endTime: a.end_time ?? null, location: a.location ?? null,
+        }));
+      for (const group of groupIntoOutfitStates(dayAll)) {
+        if (group.activityIds.length < 2) continue;
+        const planned = group.activityIds.filter((id) => !generatingIds.has(id) && plannedItemsByActivity.has(id));
+        if (!planned.length) continue;
+        const fresh = group.activityIds.filter((id) => generatingIds.has(id) && !plannedActivityIds.has(id));
+        const regenerated = group.activityIds.filter((id) => generatingIds.has(id) && plannedActivityIds.has(id));
+        for (const id of fresh) if (!regenerated.length) copyFromPlanned.set(id, plannedItemsByActivity.get(planned[0])!);
+        for (const id of regenerated) syncPlanned.set(id, planned);
+      }
+    }
     // The AI generation loop below only ever sees representatives —
     // companions are filled in afterward by copying the representative's
     // result, once it's known to have succeeded.
@@ -1666,6 +1700,27 @@ export async function generateTripCapsuleCore({ data, context }: {
     }
 
     for (const req of capped) {
+      let plannedLook = copyFromPlanned.get(req.activityId);
+      // a journey sharing a planned look keeps it, in shoes that travel
+      if (plannedLook && isTransportActivity(req.label)) {
+        const temp = tempByActivity.get(req.activityId) ?? null;
+        const kept = plannedLook.filter((id) => {
+          const it = pool.find((p) => p.id === id);
+          return !(it && SHOE_ROLE.has(it.category ?? "") && !isTravelSuitable(it, temp));
+        });
+        const hasShoes = kept.some((id) => SHOE_ROLE.has(pool.find((p) => p.id === id)?.category ?? ""));
+        const shoe = hasShoes ? undefined : travelShoeFor(pool.filter((it) => capsule.has(it.id)), temp) ?? travelShoeFor(pool, temp);
+        plannedLook = shoe ? [...kept, shoe.id] : kept;
+      }
+      if (plannedLook) {
+        const { error: copyErr } = await supabase.from("outfit_plans").upsert({
+          user_id: userId, trip_id: data.tripId, trip_activity_id: req.activityId, date: req.date,
+          day_segment: req.daySegment, item_ids: plannedLook, occasion: occasionText(req), status: "planned",
+        } as never, { onConflict: resolvePlanSlot({ tripActivityId: req.activityId }).onConflict });
+        if (copyErr) failed.push({ date: req.date, daySegment: req.daySegment, reason: copyErr.message });
+        else { created.push({ date: req.date, daySegment: req.daySegment }); usedOutfits.push(plannedLook); usedOutfitDates.push(req.date); }
+        continue;
+      }
       const season = seasonByDate.get(req.date)!;
       const eligible = eligibleFor(pool, req, season, tempByActivity.get(req.activityId) ?? null);
       let candidatePool = eligible.filter((it) => capsule.has(it.id));
@@ -1770,9 +1825,17 @@ export async function generateTripCapsuleCore({ data, context }: {
       // only the shoes change, to a pair that travels. Unless a hotel is logged for that same day.
       if (isTransportActivity(req.label) && !activities.some((a) => a.activity_date === req.date && isAccommodationActivity(a.activity_type))) {
         const dayIdx = usedOutfitDates.lastIndexOf(req.date);
-        if (dayIdx >= 0) {
+        // or the day's look planned earlier (the fair's look already there, the flight generated now)
+        const plannedDay = dayIdx >= 0 ? null : activities
+          .filter((a) => a.activity_date === req.date && a.id !== req.activityId && !isTransportActivity(a.activity_type)
+            && plannedItemsByActivity.has(a.id) && (!req.startTime || !a.start_time || a.start_time < req.startTime))
+          .sort((a, b) => (a.start_time ?? "").localeCompare(b.start_time ?? ""))
+          .map((a) => plannedItemsByActivity.get(a.id)!)
+          .pop() ?? null;
+        const baseLook = dayIdx >= 0 ? usedOutfits[dayIdx] : plannedDay;
+        if (baseLook) {
           const temp = tempByActivity.get(req.activityId) ?? null;
-          const dayLook = usedOutfits[dayIdx].filter((id) => {
+          const dayLook = baseLook.filter((id) => {
             const it = pool.find((p) => p.id === id);
             return !(it && SHOE_ROLE.has(it.category ?? "") && !isTravelSuitable(it, temp));
           });
@@ -2173,6 +2236,15 @@ export async function generateTripCapsuleCore({ data, context }: {
             created.push({ date: companionReq.date, daySegment: companionReq.daySegment });
           }
         }
+      }
+      // The group's other activities that already had a look keep wearing the same one.
+      for (const plannedId of syncPlanned.get(req.activityId) ?? []) {
+        const a = activities.find((x) => x.id === plannedId);
+        if (!a) continue;
+        await supabase.from("outfit_plans").upsert({
+          user_id: userId, trip_id: data.tripId, trip_activity_id: plannedId, date: a.activity_date,
+          day_segment: a.day_segment, item_ids: result.item_ids, occasion: a.activity_type ?? null, status: "planned",
+        } as never, { onConflict: resolvePlanSlot({ tripActivityId: plannedId }).onConflict });
       }
     }
 

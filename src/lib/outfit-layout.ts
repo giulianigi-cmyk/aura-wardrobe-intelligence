@@ -160,6 +160,14 @@ export function realCm(bucket: Bucket, subcategory?: string | null, length?: str
       if (has("sneakers", "running", "loafers")) return 28;
       if (has("flats", "pumps", "mules")) return 25;
       return 27;
+    // Watch, bracelet, ring and gloves share one box: without their real size a ring came out as big
+    // as the box and a bracelet beside it tiny (reported). Largest visible side, in cm.
+    case "wrist":
+      if (has("ring")) return 2.5;
+      if (has("bracelet", "bangle", "cuff")) return 7;
+      if (has("watch")) return 8;
+      if (has("glove")) return 22;
+      return 7;
     default:
       return null;
   }
@@ -176,6 +184,7 @@ const REFERENCE: Partial<Record<Bucket, { cm: number; min: number; max: number }
   outer: { cm: 100, min: 0.55, max: 1.1 },
   bag: { cm: 30, min: 0.8, max: 1.2 },
   shoes: { cm: 28, min: 0.85, max: 1.1 },
+  wrist: { cm: 7, min: 0.36, max: 1.1 },
 };
 function realScale(it: LayoutInput): number {
   const ref = REFERENCE[it.bucket];
