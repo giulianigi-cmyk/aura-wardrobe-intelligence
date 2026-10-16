@@ -33,6 +33,9 @@ export type LayoutInput = {
   /** share of the visible bounding box that is actually opaque (0-1). A bag photographed with a long
    *  thin strap has a big, mostly empty box: without this its body came out tiny. */
   fill?: number | null;
+  /** Bags: the size class saved on the piece ("mini" | "small" | "medium" | "large" …). The
+   *  subcategory alone drew a mini top-handle bag as big as a large one (reported). */
+  sizeClass?: string | null;
 };
 export type LayoutRect = { id: string; bucket: Bucket; /** top-left, canvas px */ x: number; y: number; w: number; h: number; z: number };
 
@@ -116,6 +119,12 @@ const Z: Record<Bucket, number> = { outer: 3, dress: 2, bottom: 2, belt: 5, top:
  *  garments → their length (height), bags → width, shoes → length. Unknown → null
  *  (the plain bucket box is used). This is what keeps a mini skirt short, a maxi
  *  skirt long, a shirt bigger than a tank top, a tote bigger than a clutch. */
+/** Bag width by saved size class, cm. */
+const BAG_CLASS_CM: Record<string, number> = { mini: 17, small: 22, medium: 30, large: 40, "extra large": 46, xl: 46, oversized: 46 };
+export function bagClassCm(sizeClass?: string | null): number | null {
+  return BAG_CLASS_CM[(sizeClass ?? "").trim().toLowerCase()] ?? null;
+}
+
 export function realCm(bucket: Bucket, subcategory?: string | null, length?: string | null): number | null {
   const sub = (subcategory ?? "").toLowerCase();
   const len = (length ?? "").toLowerCase();
@@ -202,8 +211,14 @@ function realScale(it: LayoutInput): number {
   if (!ref || cm == null) return 1;
   // Bags: a clutch is smaller than a tote, but only SOFTLY so (a real 24 cm crossbody is not
   // 20% smaller than a 30 cm shoulder bag on a flat-lay board) — they used to come out too small.
-  const ratio = it.bucket === "bag" ? Math.pow(cm / ref.cm, 0.4) : cm / ref.cm;
-return Math.min(ref.max, Math.max(ref.min, ratio));
+  // A saved size class is a real measure, not a guess from the subcategory: it scales more steeply
+  // (a mini bag reads clearly smaller than a large one, as on the editorial boards).
+  if (it.bucket === "bag") {
+    const known = bagClassCm(it.sizeClass);
+    if (known != null) return Math.min(1.3, Math.max(0.6, Math.pow(known / ref.cm, 0.75)));
+    return Math.min(ref.max, Math.max(ref.min, Math.pow(cm / ref.cm, 0.4)));
+  }
+  return Math.min(ref.max, Math.max(ref.min, cm / ref.cm));
 
 }
 
@@ -233,6 +248,50 @@ type Box = { w: number; h: number };
 /** Spacing factor for pieces fanned out inside one slot: tiny accessories keep a hair of air
  *  between them, bigger pieces (two pairs of shoes, two tops) may touch slightly. */
 const spanKOf = (bucket: Bucket): number => (bucket === "wrist" || bucket === "earrings" ? 1.06 : 0.95);
+
+/** Only the main garments may lie on top of each other. Accessories never do (reported: the watch
+ *  drawn on the pumps): the bag keeps clear of the shoes and of the other bags, and every small
+ *  accessory keeps clear of everything. A piece that collides moves to the nearest free spot inside
+ *  the margins; a small one may shrink a little (never below 70%) if the board has no room left.
+ *  The brooch is pinned ON the garment by design and stays where it is. */
+function separateAccessories(out: LayoutRect[], W: number, H: number, MX: number, MY: number, MB: number) {
+  const pad = 0.008 * W;
+  const hit = (a: { x: number; y: number; w: number; h: number }, b: LayoutRect) =>
+    Math.max(0, Math.min(a.x + a.w + pad, b.x + b.w) - Math.max(a.x - pad, b.x)) *
+    Math.max(0, Math.min(a.y + a.h + pad, b.y + b.h) - Math.max(a.y - pad, b.y));
+  const isSmall = (r: LayoutRect) => SMALL_ACCESSORY.has(r.bucket) && r.bucket !== "brooch";
+  const movers = [
+    ...out.filter((r) => r.bucket === "bag"),
+    ...out.filter(isSmall).sort((a, b) => b.w * b.h - a.w * a.h),
+  ];
+  for (const r of movers) {
+    const obstacles = out.filter((o) => o !== r && (isSmall(r) || o.bucket === "shoes" || o.bucket === "bag"));
+    const cost = (c: { x: number; y: number; w: number; h: number }) => obstacles.reduce((a, o) => a + hit(c, o), 0);
+    if (cost(r) <= 0) continue;
+    const ox = r.x + r.w / 2, oy = r.y + r.h / 2;
+    type Spot = { x: number; y: number; w: number; h: number; c: number; d: number };
+    let best = null as Spot | null;
+    // Near its own spot first (where it is worn), shrinking a little if needed; anywhere only last.
+    const near = 0.3 * W;
+    const passes: [number, number][] = isSmall(r) ? [[1, near], [0.85, near], [0.7, near], [1, Infinity]] : [[1, Infinity]];
+    for (const [k, maxD] of passes) {
+      best = null;
+      const w = r.w * k, h = r.h * k;
+      const sx = 0.015 * W, sy = 0.015 * H;
+      for (let x = MX; x <= W - MX - w + 0.5; x += sx) {
+        for (let y = MY; y <= H - MB - h + 0.5; y += sy) {
+          const cand = { x, y, w, h };
+          const c = cost(cand);
+          const d = Math.hypot(x + w / 2 - ox, y + h / 2 - oy);
+          if (d > maxD) continue;
+          if (!best || (c <= 0 && (best.c > 0 || d < best.d)) || (best.c > 0 && c < best.c)) best = { ...cand, c, d };
+        }
+      }
+      if (best && best.c <= 0) break;
+    }
+    if (best && best.c < cost(r)) Object.assign(r, { x: best.x, y: best.y, w: best.w, h: best.h });
+  }
+}
 
 export function layoutOutfit(allItems: LayoutInput[], W = CANVAS_W, H = CANVAS_H): LayoutRect[] {
   const items = allItems.filter((it) => !(it.bucket === "wrist" && NOT_ON_BOARD.test(it.subcategory ?? "")));
@@ -645,6 +704,8 @@ return { w, h: w * aspect };
       r.y = Math.min(H - MB - r.h, Math.max(MY, my - r.h / 2));
     }
   }
+
+  separateAccessories(out, W, H, MX, MY, MB);
 
   // Short pieces (a mini skirt, shorts) make a short composition: centre it vertically
   // in the free area instead of leaving it top-heavy. A full-length outfit already fills

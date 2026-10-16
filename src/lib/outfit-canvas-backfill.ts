@@ -14,13 +14,14 @@ import { uploadOutfitThumb } from "@/lib/outfit-thumb";
 type ItemRow = Pick<WardrobeItem, "id" | "image_url" | "category" | "subcategory"> & {
   length?: string | null;
   thumbnail_path?: string | null;
+  bag_size_class?: string | null;
 };
 
 async function loadItems(userId: string, ids: string[]): Promise<ItemRow[]> {
   if (!ids.length) return [];
   const { data, error } = await supabase
     .from("wardrobe_items")
-    .select("id, image_url, category, subcategory, length, thumbnail_path")
+    .select("id, image_url, category, subcategory, length, thumbnail_path, bag_size_class")
     .eq("user_id", userId)
     .in("id", ids);
   if (error || !data) return [];
@@ -44,7 +45,7 @@ export async function composeOutfitCanvasForItems(
     // several originals at once is what crashed Safari on iPhone.
     const thumb = opts.light ? it.thumbnail_path : null;
     const url = (thumb && signed[thumb]) || (path ? signed[path] : null);
-    if (url) compose.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length ?? null });
+    if (url) compose.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length ?? null, bagSize: it.bag_size_class ?? null });
   }
   if (!compose.length) return null;
 

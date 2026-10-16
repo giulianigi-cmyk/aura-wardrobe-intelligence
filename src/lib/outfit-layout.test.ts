@@ -140,3 +140,45 @@ test("a blazer over an evening dress lies beside it, so both read (black on blac
     for (const r of rects) assert.ok(r.x >= 0 && r.x + r.w <= W && r.y >= 0 && r.y + r.h <= H, r.id);
   }
 });
+
+test("small accessories never lie on another piece; the bag stays clear of the shoes", () => {
+  const boards: LayoutInput[][] = [
+    [
+      { id: "shirt", bucket: "top", aspect: 1.3, subcategory: "Shirt" },
+      { id: "pants", bucket: "bottom", aspect: 2.4, subcategory: "Trousers" },
+      { id: "bag", bucket: "bag", aspect: 0.9, subcategory: "Shoulder Bag", fill: 0.7 },
+      { id: "watch", bucket: "wrist", aspect: 1.6, subcategory: "Watch", fill: 0.5 },
+      { id: "sandals", bucket: "shoes", aspect: 1.0, subcategory: "Sandals" },
+      { id: "earrings", bucket: "earrings", aspect: 1.2, subcategory: "Earrings" },
+    ],
+    [
+      { id: "coat", bucket: "outer", aspect: 1.6, subcategory: "Coat" },
+      { id: "knit", bucket: "top", aspect: 1.0, subcategory: "Sweater" },
+      { id: "jeans", bucket: "bottom", aspect: 2.2, subcategory: "Jeans" },
+      { id: "bag", bucket: "bag", aspect: 0.8, subcategory: "Tote", fill: 0.7 },
+      { id: "watch", bucket: "wrist", aspect: 1.6, subcategory: "Watch", fill: 0.5 },
+      { id: "boots", bucket: "shoes", aspect: 1.0, subcategory: "Ankle Boots" },
+      { id: "earrings", bucket: "earrings", aspect: 1.2, subcategory: "Earrings" },
+      { id: "scarf", bucket: "acc", aspect: 1.2, subcategory: "Scarf" },
+    ],
+  ];
+  const small = new Set(["wrist", "earrings", "necklace", "sunglasses", "acc", "belt", "headwear", "anklet"]);
+  for (const items of boards) {
+    const rects = layoutOutfit(items);
+    for (const a of rects) for (const b of rects) {
+      if (a === b) continue;
+      if (small.has(a.bucket)) assert.equal(overlap(b, a), 0, `${a.id} on ${b.id}`);
+      if (a.bucket === "bag" && b.bucket === "shoes") assert.equal(overlap(b, a), 0, "bag on the shoes");
+    }
+  }
+});
+
+test("a bag saved as mini is drawn clearly smaller than one saved as large", () => {
+  const board = (sizeClass: string) => layoutOutfit([
+    { id: "tee", bucket: "top", aspect: 1.15, subcategory: "T-Shirt" },
+    { id: "jeans", bucket: "bottom", aspect: 2.2, subcategory: "Jeans" },
+    { id: "bag", bucket: "bag", aspect: 0.8, subcategory: "Top Handle Bag", fill: 0.7, sizeClass },
+  ] as LayoutInput[]).find((r) => r.id === "bag")!;
+  const mini = board("mini"), large = board("large");
+  assert.ok(large.w > mini.w * 1.5, `mini ${mini.w} vs large ${large.w}`);
+});

@@ -21,7 +21,7 @@ import { removeWhiteHalo } from "@/lib/cutout-cleanup";
 export { bucketOf };
 export type { Bucket };
 
-export type ComposeItem = { id: string; imgUrl: string; category: string | null; subcategory?: string | null; length?: string | null };
+export type ComposeItem = { id: string; imgUrl: string; category: string | null; subcategory?: string | null; length?: string | null; /** bags: saved size class (mini / small / medium / large) */ bagSize?: string | null };
 
 const BACKGROUND = "#FFFFFF";
 const SIGNATURE_FONT = 'italic 400 100px "Cormorant Garamond", "Times New Roman", serif';
@@ -171,6 +171,7 @@ async function prepareLayout(items: ComposeItem[]): Promise<Prepared | null> {
       subcategory: it.subcategory ?? null,
       length: it.length ?? null,
       fill: crops[i].fill ?? null,
+      sizeClass: it.bagSize ?? null,
     })),
     CANVAS_W, CANVAS_H,
   );
