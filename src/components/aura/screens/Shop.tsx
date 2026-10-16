@@ -1,3 +1,4 @@
+import { retryOnNetworkError } from "@/lib/network-retry";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
@@ -108,7 +109,8 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
         }
         return { source: "photo" as const, imageDataUrl: s.photoDataUrl! };
       });
-      const res = await comparePurchaseFn({ data: { items } });
+      // One quiet retry when the network drops the request (reported: "Load failed").
+      const res = await retryOnNetworkError(() => comparePurchaseFn({ data: { items } }));
       if (res.ok) {
         setCompareResult(res);
         // Remember this result's facts for every URL slot, so the next compare (after adding or
