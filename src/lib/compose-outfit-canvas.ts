@@ -13,6 +13,7 @@
  *
  *  Plain Canvas 2D API (no DOM clone), so it can compose headlessly.
  */
+import { retryOnNetworkError } from "@/lib/network-retry";
 import { supabase } from "@/integrations/supabase/client";
 import { bucketOf, layoutOutfit, CANVAS_W, CANVAS_H, type Bucket, type LayoutRect } from "@/lib/outfit-layout";
 import { BRAND_WORDMARK } from "@/lib/brand";
@@ -57,7 +58,8 @@ function blobToDataUrl(blob: Blob): Promise<string> {
  *  COMPOSE_MAX_DIMENSION — sidesteps canvas tainting with Supabase signed URLs (same technique
  *  OutfitBuilder's export uses). Transparency is kept (PNG). */
 async function toDataUrl(url: string): Promise<string> {
-  const resp = await fetch(url, { mode: "cors", cache: "no-store" });
+  // One quiet retry when the network drops the photo (reported: "Load failed", the board not made).
+  const resp = await retryOnNetworkError(() => fetch(url, { mode: "cors", cache: "no-store" }));
   if (!resp.ok) throw new Error(`image fetch failed: ${resp.status}`);
   const blob = await resp.blob();
   const bitmap = await createImageBitmap(blob).catch(() => null);
