@@ -80,7 +80,7 @@ const OUTER_MAX_W = 0.64;
 const OUTER_OVER_TOP = 1.3;
 /** Tall shoes (knee or over-the-knee boots, height > 1.3 × width): sized by a tall box so the shaft
  *  reads at its real length instead of being squeezed into the box of a pair of pumps. */
-const TALL_SHOES_BOX = { w: 0.24, h: 0.32 };
+const TALL_SHOES_BOX = { w: 0.21, h: 0.28 };
 const isTallShoe = (it: LayoutInput) => it.bucket === "shoes" && it.aspect > 1.3;
 /** Small accessories in the right-hand column never shrink below this share of their own box:
  *  at half size a watch or a belt became a smudge. */
@@ -98,7 +98,9 @@ const BOX: Record<Bucket, { w: number; h: number }> = {
   bottom: { w: 0.42, h: 0.60 },
   top: { w: 0.42, h: 0.37 },
   outer: { w: 0.42, h: 0.72 },
-  shoes: { w: 0.36, h: 0.20 },
+  // .36 × .20 drew a pair of sneakers ~45 cm long beside 100 cm jeans (reported: "scarpe giganti",
+  // next to bags that were right): about 25% smaller.
+  shoes: { w: 0.28, h: 0.16 },
   bag: { w: 0.40, h: 0.34 },
   sunglasses: { w: 0.28, h: 0.10 },
   headwear: { w: 0.22, h: 0.12 },
@@ -313,7 +315,8 @@ export function layoutOutfit(allItems: LayoutInput[], W = CANVAS_W, H = CANVAS_H
     // sandal) is enlarged so that its BODY reaches the size a compact one would (up to +35%).
     // Bags cap lower than shoes: at +35% a top-handle bag with a long strap was coming out visibly
     // oversized next to the jeans it sits beside.
-    const strapCap = it.bucket === "bag" ? 1.2 : 1.35;
+    // A strappy sandal is enlarged less than it was (+35% made stilettos the biggest piece on the board).
+    const strapCap = it.bucket === "bag" ? 1.2 : 1.15;
     const strapK = (it.bucket === "bag" || it.bucket === "shoes") && it.fill != null && it.fill > 0 && it.fill < 0.6
       ? Math.min(strapCap, Math.sqrt(0.6 / Math.max(it.fill, 0.25)))
       : 1;
