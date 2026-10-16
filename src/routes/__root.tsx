@@ -74,8 +74,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       // Installable app (Add to Home Screen) — needed on iPhone for the morning notification.
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "icon", href: "/favicon.ico?v=5", sizes: "16x16 32x32 48x48" },
-      { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png?v=5" },
+      { rel: "icon", href: "/favicon.ico?v=8", sizes: "16x16 32x32 48x48" },
+      { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png?v=8" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=7" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
