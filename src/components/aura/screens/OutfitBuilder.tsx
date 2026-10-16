@@ -147,7 +147,7 @@ async function autoPlaceLayout(items: WardrobeItem[], signed: Record<string, str
     const url = path ? signed[path] : "";
     if (!url || urlById.has(it.id)) continue;
     urlById.set(it.id, url);
-    compose.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length });
+    compose.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length, bagSize: it.bag_size_class });
   }
   if (!compose.length) return [];
   const layout = await computeBuilderLayout(compose, canvasAspect).catch(() => null);
@@ -469,9 +469,9 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         if (seen.has(p.itemId)) continue;
         seen.add(p.itemId);
         const w = byId.get(p.itemId);
-        if (w) compose.push({ id: w.id, imgUrl: p.imgUrl, category: w.category, subcategory: w.subcategory, length: w.length });
+        if (w) compose.push({ id: w.id, imgUrl: p.imgUrl, category: w.category, subcategory: w.subcategory, length: w.length, bagSize: w.bag_size_class });
       }
-      compose.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length });
+      compose.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length, bagSize: it.bag_size_class });
       const layout = await computeBuilderLayout(compose, canvasAspectOf(ratio));
       const mine = layout?.find((l) => l.itemId === it.id);
       if (mine) {

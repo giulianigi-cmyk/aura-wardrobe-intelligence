@@ -108,7 +108,7 @@ export function OutfitViewerSheet({
     const list: ComposeItem[] = [];
     for (const it of picks) {
       const url = thumbOf(it);
-      if (url) list.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length });
+      if (url) list.push({ id: it.id, imgUrl: url, category: it.category, subcategory: it.subcategory, length: it.length, bagSize: it.bag_size_class });
     }
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
