@@ -63,6 +63,8 @@ const UNDER_OVERLAP = 0.15;
  *  at most this share of the dress's width (a black blazer over a black evening dress drawn on top of
  *  it could not be told apart — reported). */
 const DRESS_OUTER_OVERLAP = 0.12;
+/** Share of a hat's area that may lie over a garment (reported: hats can overlap "solo un pezzettino"). */
+const HAT_OVER_GARMENT = 0.2;
 /** Rings and bracelets are not drawn on the composed boards: at board scale they are a few pixels
  *  wide and add nothing to the look (reported). Watches and gloves stay. */
 const NOT_ON_BOARD = /\b(ring|rings|anello|anelli|bracelet|bracelets|bangle|bangles|bracciale|bracciali|cuff)\b/i;
@@ -103,7 +105,7 @@ const BOX: Record<Bucket, { w: number; h: number }> = {
   shoes: { w: 0.28, h: 0.16 },
   bag: { w: 0.40, h: 0.34 },
   sunglasses: { w: 0.28, h: 0.10 },
-  headwear: { w: 0.22, h: 0.12 },
+  headwear: { w: 0.28, h: 0.16 }, // a cap or hat is ~25 cm: it read smaller than the earrings at .22 × .12 (reported)
   earrings: { w: 0.12, h: 0.12 },
   necklace: { w: 0.20, h: 0.12 },
   brooch: { w: 0.07, h: 0.07 },
@@ -268,7 +270,17 @@ function separateAccessories(out: LayoutRect[], W: number, H: number, MX: number
   ];
   for (const r of movers) {
     const obstacles = out.filter((o) => o !== r && (isSmall(r) || o.bucket === "shoes" || o.bucket === "bag"));
-    const cost = (c: { x: number; y: number; w: number; h: number }) => obstacles.reduce((a, o) => a + hit(c, o), 0);
+    // A hat may lie a little over a garment (top, trousers, dress, coat), as on the editorial boards:
+    // up to HAT_OVER_GARMENT of its own area is free; never over another accessory, the bag or the shoes.
+    const isGarment = (o: LayoutRect) => o.bucket === "top" || o.bucket === "bottom" || o.bucket === "dress" || o.bucket === "outer";
+    const cost = (c: { x: number; y: number; w: number; h: number }) => {
+      let garment = 0, other = 0;
+      for (const o of obstacles) {
+        const v = hit(c, o);
+        if (r.bucket === "headwear" && isGarment(o)) garment += v; else other += v;
+      }
+      return other + Math.max(0, garment - HAT_OVER_GARMENT * c.w * c.h);
+    };
     if (cost(r) <= 0) continue;
     const ox = r.x + r.w / 2, oy = r.y + r.h / 2;
     type Spot = { x: number; y: number; w: number; h: number; c: number; d: number };
@@ -309,7 +321,10 @@ export function layoutOutfit(allItems: LayoutInput[], W = CANVAS_W, H = CANVAS_H
   const clampC = (c: number, size: number, lo: number, hi: number) => Math.min(Math.max(c, lo + size / 2), hi - size / 2);
 
   /** Size = fit inside the bucket box using the real aspect ratio. */
-  const sizeOf = (it: LayoutInput, box: Box, shrink: number) => {
+  const sizeOf = (it: LayoutInput, boxIn: Box, shrink: number) => {
+    // A hat that joins the wrist cluster keeps its own box: in the watch's 10%-wide box a cap came
+    // out smaller than the earrings (reported).
+    const box = it.bucket === "headwear" && boxIn === BOX.wrist ? BOX.headwear : boxIn;
     const aspect = it.aspect > 0 ? it.aspect : 1;
     // A bag or shoe whose box is mostly empty (thin strap, chain, long handles, a strappy stiletto
     // sandal) is enlarged so that its BODY reaches the size a compact one would (up to +35%).

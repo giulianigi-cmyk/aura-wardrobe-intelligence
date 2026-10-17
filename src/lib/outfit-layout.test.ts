@@ -182,3 +182,26 @@ test("a bag saved as mini is drawn clearly smaller than one saved as large", () 
   const mini = board("mini"), large = board("large");
   assert.ok(large.w > mini.w * 1.5, `mini ${mini.w} vs large ${large.w}`);
 });
+
+test("a cap placed with the watch keeps a hat's size: never smaller than the earrings", () => {
+  const rects = layoutOutfit([
+    { id: "tank", bucket: "top", aspect: 1.3, subcategory: "Tank Top" },
+    { id: "jeans", bucket: "bottom", aspect: 2.2, subcategory: "Jeans" },
+    { id: "bag", bucket: "bag", aspect: 0.8, subcategory: "Shoulder Bag", fill: 0.7, sizeClass: "small" },
+    { id: "sneakers", bucket: "shoes", aspect: 0.45, subcategory: "Sneakers" },
+    { id: "necklace", bucket: "necklace", aspect: 1.1, subcategory: "Necklace" },
+    { id: "earrings", bucket: "earrings", aspect: 1.2, subcategory: "Earrings" },
+    { id: "watch", bucket: "wrist", aspect: 1.6, subcategory: "Watch", fill: 0.5 },
+    { id: "cap", bucket: "headwear", aspect: 0.7, subcategory: "Cap" },
+  ] as LayoutInput[]);
+  const r = (id: string) => rects.find((x) => x.id === id)!;
+  assert.ok(r("cap").w * r("cap").h > r("earrings").w * r("earrings").h, `cap ${r("cap").w}x${r("cap").h} vs earrings ${r("earrings").w}x${r("earrings").h}`);
+  // full hat size (not shrunk to make room): it may tuck a little over a garment instead
+  assert.ok(r("cap").w >= 0.12 * W, `cap width ${r("cap").w / W}`);
+  for (const o of rects) {
+    if (o.id === "cap") continue;
+    const share = overlap(o, r("cap"));
+    if (["tank", "jeans"].includes(o.id)) assert.ok(share <= 0.21, `cap over ${o.id}: ${share}`);
+    else assert.equal(share, 0, `cap over ${o.id}`);
+  }
+});
