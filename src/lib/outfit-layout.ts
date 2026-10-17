@@ -309,7 +309,10 @@ export function layoutOutfit(allItems: LayoutInput[], W = CANVAS_W, H = CANVAS_H
   const clampC = (c: number, size: number, lo: number, hi: number) => Math.min(Math.max(c, lo + size / 2), hi - size / 2);
 
   /** Size = fit inside the bucket box using the real aspect ratio. */
-  const sizeOf = (it: LayoutInput, box: Box, shrink: number) => {
+  const sizeOf = (it: LayoutInput, boxIn: Box, shrink: number) => {
+    // A hat that joins the wrist cluster keeps its own box: in the watch's 10%-wide box a cap came
+    // out smaller than the earrings (reported).
+    const box = it.bucket === "headwear" && boxIn === BOX.wrist ? BOX.headwear : boxIn;
     const aspect = it.aspect > 0 ? it.aspect : 1;
     // A bag or shoe whose box is mostly empty (thin strap, chain, long handles, a strappy stiletto
     // sandal) is enlarged so that its BODY reaches the size a compact one would (up to +35%).
