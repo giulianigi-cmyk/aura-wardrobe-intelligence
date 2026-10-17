@@ -196,4 +196,12 @@ test("a cap placed with the watch keeps a hat's size: never smaller than the ear
   ] as LayoutInput[]);
   const r = (id: string) => rects.find((x) => x.id === id)!;
   assert.ok(r("cap").w * r("cap").h > r("earrings").w * r("earrings").h, `cap ${r("cap").w}x${r("cap").h} vs earrings ${r("earrings").w}x${r("earrings").h}`);
+  // full hat size (not shrunk to make room): it may tuck a little over a garment instead
+  assert.ok(r("cap").w >= 0.12 * W, `cap width ${r("cap").w / W}`);
+  for (const o of rects) {
+    if (o.id === "cap") continue;
+    const share = overlap(o, r("cap"));
+    if (["tank", "jeans"].includes(o.id)) assert.ok(share <= 0.21, `cap over ${o.id}: ${share}`);
+    else assert.equal(share, 0, `cap over ${o.id}`);
+  }
 });
