@@ -1,3 +1,4 @@
+import { outfitThumbSrc } from "@/lib/outfit-thumb";
 import { Copy, Loader2, Share2, Sparkles, Search, Calendar as CalendarIcon, Trash2, Check, X, Archive, ArchiveRestore, Plus, Pencil, LayoutGrid, User, Crop } from "lucide-react";
 import { saveGeneralPlanAskingSameDay } from "@/lib/same-day-choice";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -117,7 +118,10 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
   const [signed, setSigned] = useState<Record<string, string>>({});
   useEffect(() => {
     void (async () => {
-      const paths = outfits.map((x) => x.canvas_image_url).filter(Boolean) as string[];
+      // The grid shows each outfit's small thumbnail (see outfitThumbSrc): 95 full 1080 × 1350 canvases
+      // decoded at once filled Safari's memory, and the next screen (the canvas editor) made the page
+      // reload (reported). The full canvas stays signed for the viewer.
+      const paths = outfits.flatMap((x) => [x.canvas_image_url, (x as { thumbnail_path?: string | null }).thumbnail_path]).filter(Boolean) as string[];
       if (!paths.length) {
         // Only actually updates state if there's something to clear —
         // setSigned({}) unconditionally was the other half of the loop
@@ -966,13 +970,13 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 {filteredOutfits.map((o) => {
-                  const url = o.canvas_image_url ? signed[o.canvas_image_url] : null;
+                  const url = outfitThumbSrc(o as { canvas_image_url?: string | null; thumbnail_path?: string | null }, signed) ?? null;
                   return (
                     <div key={o.id} className="animate-fade-up relative rounded-2xl overflow-hidden border border-border/60 bg-card shadow-soft">
                       <button onClick={() => viewOutfit(o)} className="block w-full text-left active:scale-[0.98]">
                         <div className="aspect-square" style={{ background: "#FFFFFF" }}>
                           {url ? (
-                            <img src={url} alt={o.name} className="w-full h-full object-contain p-2" />
+                            <img src={url} alt={o.name} loading="lazy" decoding="async" className="w-full h-full object-contain p-2" />
                           ) : (
                             <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground">{t("aiStylist.openCanvas")}</div>
                           )}

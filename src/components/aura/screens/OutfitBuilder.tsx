@@ -29,7 +29,7 @@ import {
 } from "@/lib/aura-share";
 import { suggestOutfitAI } from "@/lib/ai-suggest-outfit.functions";
 import { ANCHOR_UNAVAILABLE } from "@/lib/outfit-anchor";
-import { computeBuilderLayout, renderPlacedCanvas, type ComposeItem, type PlacedPiece } from "@/lib/compose-outfit-canvas";
+import { boardImageSrc, computeBuilderLayout, renderPlacedCanvas, type ComposeItem, type PlacedPiece } from "@/lib/compose-outfit-canvas";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { logWardrobeEvent } from "@/lib/wardrobe-events";
 import { submitOutfitFeedback } from "@/lib/outfit-feedback.functions";
@@ -60,6 +60,21 @@ const OCCASIONS: { value: string; key: string }[] = [
 const ANCHOR_OCCASIONS = OCCASIONS.slice(0, 8);
 
 type Ratio = "1:1" | "9:16";
+/** A piece on the canvas, drawn from its board-sized copy (see boardImageSrc) rather than the
+ *  full-size original: several 4000-px photos decoded at once made Safari on iPhone reload the
+ *  editor ("Si è verificato ripetutamente un errore", reported). Nothing is shown until the copy
+ *  is ready — it is usually already cached by the layout step. */
+function BoardImg({ src, ...rest }: React.ImgHTMLAttributes<HTMLImageElement> & { src: string }) {
+  const [shown, setShown] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setShown(null);
+    void boardImageSrc(src).then((u) => { if (alive) setShown(u); });
+    return () => { alive = false; };
+  }, [src]);
+  return shown ? <img src={shown} {...rest} /> : null;
+}
+
 type Placed = {
   key: string;         // instance key (allows duplicates)
   itemId: string;
@@ -1056,7 +1071,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
                   }}
                   onPointerDown={onPointerDown("move", p.key)}
                 >
-                                    <img
+                                    <BoardImg
                     src={p.imgUrl}
                     alt=""
                     draggable={false}

@@ -85,6 +85,18 @@ async function toDataUrl(url: string): Promise<string> {
   return out;
 }
 
+/** The board-sized copy (≤ COMPOSE_MAX_DIMENSION, cleaned) of a piece's image, as a data URL —
+ *  what the canvas editor shows instead of the full-size original, so a board of eight pieces
+ *  doesn't decode eight 4000-px photos. Shares the compose cache (usually already loaded by the
+ *  layout); falls back to the original URL only if the copy can't be made. */
+export async function boardImageSrc(url: string): Promise<string> {
+  try {
+    return (await loadCachedImage(url)).src;
+  } catch {
+    return url;
+  }
+}
+
 /** Loaded-image cache, keyed by signed URL. The same pieces are loaded again and
  *  again (Home compose, the viewer, every manual "add piece" on the canvas), and
  *  each load is a network fetch + decode: caching makes re-layouts near-instant.
@@ -158,7 +170,10 @@ type Prepared = { r: LayoutRect; img: HTMLImageElement; crop: Crop }[];
 async function prepareLayout(items: ComposeItem[]): Promise<Prepared | null> {
   let images: HTMLImageElement[];
   try {
-    images = await Promise.all(items.map((p) => loadCachedImage(p.imgUrl)));
+    // One at a time: decoding several full-size originals at once (some are 10–18 MB) is what made
+    // Safari on iPhone reload the page in the canvas editor (reported).
+    images = [];
+    for (const p of items) images.push(await loadCachedImage(p.imgUrl));
   } catch (e) {
     console.error("[AURA compose-outfit-canvas] one or more images failed to load", e);
     return null;
