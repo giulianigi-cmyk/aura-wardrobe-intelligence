@@ -1,3 +1,4 @@
+import { coatOverBareArms, COAT_SLEEVES_PROMPT_RULE } from "./warm-outer";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { usageFeature } from "@/lib/ai-usage";
 import { createServerFn } from "@tanstack/react-start";
@@ -200,6 +201,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       ...(languageLine ? [languageLine] : []),
       ...styleMemorySection,
       BLAZER_WARMTH_PROMPT_RULE,
+      COAT_SLEEVES_PROMPT_RULE,
       BELT_BODYCON_PROMPT_RULE,
       ACCESSORY_OCCASION_PROMPT_RULE,
     OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
@@ -402,6 +404,9 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     // that silently never matched multi-value season tags like
     // "Autumn, Winter". Both are fixed by using the shared function.
     const violatesWeather = (ids: string[]): boolean => anyItemViolatesWeather(ids, catalog, data.temperature ?? null);
+    // A warm coat over a T-shirt alone (see coatOverBareArms): rejected like any other weather mismatch.
+    const violatesCoatOverBareArms = (ids: string[]): boolean =>
+      coatOverBareArms(ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is NonNullable<typeof c> => !!c));
 
     // Technical/running shoes are a hard exclusion from every look this
     // engine produces — this engine styles outfits (Today's edit, Work,
@@ -483,6 +488,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       if (l.occasion === "Work" && violatesWorkModesty(l.item_ids)) return false;
       if (violatesDressPlusBottoms(l.item_ids)) return false;
       if (violatesWeather(l.item_ids)) return false;
+      if (violatesCoatOverBareArms(l.item_ids)) return false;
       if (violatesEmbellishedByDay(l.occasion, l.item_ids)) return false;
       if (violatesBeachBagByDay(l.occasion, l.item_ids)) return false;
       if (violatesStylingFootwear(l.item_ids)) return false;
@@ -683,6 +689,10 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
           return true;
         }),
       };
+      // "today" has no retry: a warm coat over a T-shirt alone loses the coat rather than the look.
+      if (violatesCoatOverBareArms(today.item_ids)) {
+        today.item_ids = today.item_ids.filter((id) => catalog.find((c) => c.id === id)?.category !== "Outerwear");
+      }
       const seen = [today.item_ids];
       const curated: DailyLook[] = [];
       for (const l of r.curated) {

@@ -8,7 +8,7 @@ import { isItemAtAnyLocation } from "./wardrobe-location";
 import { isItemAllowedByDressPreferences, hasAnyPreference, coversShoulders, coversArms, coversLegs, type DressPreferences } from "./dress-preferences";
 import { anyItemViolatesWeather, violatesSleeveClimate, violatesWeatherRule, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule, MILD_COOL_THRESHOLD_C, COLD_THRESHOLD_C } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, rainLayerFor, rainReason, RAIN_PROMPT_RULE } from "./rain-rules";
-import { isWarmOuter, isWarmAndRainReady, isDressyOuter } from "./warm-outer";
+import { isWarmOuter, isWarmAndRainReady, isDressyOuter, coatOverBareArms, COAT_SLEEVES_PROMPT_RULE } from "./warm-outer";
 import { naturePairingRule } from "./nature-color-pairings";
 import { CATALOG_MAX_ITEMS, compactCatalogJson } from "./wardrobe-catalog";
 import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
@@ -514,6 +514,7 @@ export async function suggestOutfitCore(params: {
     "If the occasion is Sport or mentions yoga, gym, running, hiking, training, pilates, tennis or cycling: the outfit MUST be built from Activewear pieces (sports bra / training top + leggings, bike shorts or running shorts) with sneakers or the appropriate sport shoe. Exclude denim, tailoring, dresses, heels and anything delicate, and honour the specific activity named — hiking wants covered, sturdy shoes, yoga wants soft stretch pieces.",
     "If the occasion is Travel (a flight, a transfer, a long drive): prioritise comfort and layers — soft, non-restrictive pieces, closed comfortable shoes (sneakers or flats, no heels), and one light layer that can go on and off.",
     BLAZER_WARMTH_PROMPT_RULE,
+    COAT_SLEEVES_PROMPT_RULE,
     BELT_BODYCON_PROMPT_RULE,
     ACCESSORY_OCCASION_PROMPT_RULE,
     OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
@@ -817,6 +818,7 @@ export async function suggestOutfitCore(params: {
     if (violatesFootwearRule(ids)) return false;
     if (violatesOccasionTag(ids)) return false;
     if (violatesSleeve(ids)) return false;
+    if (coatOverBareArms(ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is NonNullable<typeof c> => !!c))) return false;
     if (violatesEveningSunglasses(ids)) return false;
     if (violatesOpenLayerWithoutBase(ids)) return false;
     return true;
