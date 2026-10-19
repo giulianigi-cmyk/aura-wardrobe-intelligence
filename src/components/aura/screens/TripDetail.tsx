@@ -892,6 +892,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
         {addingLists && (
           <TripPresetsSheet
             tripId={trip.id}
+            currentEssentials={essentials}
             onClose={() => setAddingLists(false)}
             onAdded={(added) => setEssentials((prev) => [...prev, ...added])}
             onManage={() => { setAddingLists(false); go("essential-presets"); }}
