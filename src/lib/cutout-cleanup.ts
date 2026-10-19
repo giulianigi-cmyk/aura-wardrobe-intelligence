@@ -145,32 +145,46 @@ export function cleanCutout(rgba: Uint8ClampedArray, w: number, h: number, bg: R
 // ── White halo on the outfit canvas ─────────────────────────────────────────────────────────────
 // Pieces composed on the board (compose-outfit-canvas.ts) showed a white rim, or a whole white box,
 // that covered the piece beside them: a black long-sleeve top over black trousers left a white band
-// across the trousers. Two causes, both fixed here on plain pixels:
+// across the trousers. Three causes, all fixed here on plain pixels:
 //   1. a photo that was never cut out (opaque, plain light background): the background reachable from
 //      the border becomes transparent (colorKeyCutout);
-//   2. a cutout that kept a thin near-white rim of the old background along its edge: on a piece
-//      that is not itself light, near-white pixels within HALO_RADIUS of transparency are cleared.
-//      A white or cream piece is never touched — its own edge is white.
+//   2. a cutout that kept a fringe of the old background along its edge — near-white, or the light
+//      grey of a blend between the garment and the white/grey floor (a navy blazer with a ragged
+//      white-grey outline): pixels much lighter than the piece (or, on a white or cream piece, much
+//      darker and neutral: a grey shadow) are peeled off the edge, a few pixels deep. Where that
+//      colour goes on deeper than the peel it is a real part of the piece (a white collar band, a
+//      white sole) and it is put back there — only there, so one white detail no longer keeps the
+//      whole rim;
+//   3. the half-transparent edge pixels the model left tinted with the old background: their colour
+//      is taken from the solid piece beside them (their transparency stays, so the edge stays soft).
 const HALO_RADIUS = 2;
 const NEAR_WHITE_MIN = 200;
 const NEAR_WHITE_CHROMA = 30;
 const LIGHT_PIECE_LUMA = 180;
 /** After keying out a white background, at least this share of the photo must remain (the piece). */
 const MIN_KEYED_PIECE = 0.08;
-/** The white still found one pixel deeper than the rim, as a share of the rim's outer ring: above
- *  it the white is part of the piece, not a halo. */
-const DEEP_WHITE_SHARE = 0.3;
+/** Below this alpha a pixel counts as transparent (the edge the fringe touches). */
+const CLEAR_ALPHA = 16;
+/** A fringe pixel differs from the piece's typical luma by at least this much... */
+const FRINGE_CONTRAST = 70;
+/** ...is at least this light on a dark piece... */
+const FRINGE_MIN_LUMA = 150;
+/** ...and is a neutral (white / grey) colour, not the garment's own colour. */
+const FRINGE_CHROMA = 45;
+/** Half-transparent edge pixels are re-coloured from solid pixels at most this far away. */
+const DECONTAMINATE_DEPTH = 6;
 
 const isNearWhite = (r: number, g: number, b: number) =>
   Math.min(r, g, b) >= NEAR_WHITE_MIN && Math.max(r, g, b) - Math.min(r, g, b) <= NEAR_WHITE_CHROMA;
+const lumaOf = (r: number, g: number, b: number) => 0.299 * r + 0.587 * g + 0.114 * b;
 
-/** Removes a white background box or white rim from a piece before it is drawn on the board, in
- *  place (RGBA, straight alpha). Returns how many pixels became transparent. */
+/** Removes a white background box or a light/grey fringe from a piece before it is drawn on the
+ *  board, in place (RGBA, straight alpha). Returns how many pixels were changed. */
 export function removeWhiteHalo(rgba: Uint8ClampedArray, w: number, h: number): number {
   const n = w * h;
   let cleared = 0;
   let transparent = 0;
-  for (let p = 0; p < n; p++) if (rgba[p * 4 + 3] < 16) transparent++;
+  for (let p = 0; p < n; p++) if (rgba[p * 4 + 3] < CLEAR_ALPHA) transparent++;
 
   // 1. Never cut out: plain light background → keyed out from the border. A white or cream piece
   //    on a white photo would be keyed away with it: when what is left is too little to be the
@@ -184,7 +198,7 @@ export function removeWhiteHalo(rgba: Uint8ClampedArray, w: number, h: number): 
       for (let p = 0; p < n; p++) {
         if (keyed[p * 4 + 3] === 0) continue;
         kept++;
-        if (p % 7 === 0) keptLuma.push(0.299 * keyed[p * 4] + 0.587 * keyed[p * 4 + 1] + 0.114 * keyed[p * 4 + 2]);
+        if (p % 7 === 0) keptLuma.push(lumaOf(keyed[p * 4], keyed[p * 4 + 1], keyed[p * 4 + 2]));
       }
       keptLuma.sort((a, b) => a - b);
       // a light piece (white, cream, beige) is never keyed: its own edge may be taken for background
@@ -196,42 +210,149 @@ export function removeWhiteHalo(rgba: Uint8ClampedArray, w: number, h: number): 
       }
     }
   }
+  // An opaque photo that could not be keyed has no edge to clean.
+  let clearNow = 0;
+  for (let p = 0; p < n; p++) if (rgba[p * 4 + 3] < CLEAR_ALPHA) clearNow++;
+  if (clearNow < n * 0.01) return cleared;
 
-  // 2. Thin white rim on a piece that is not itself light.
+  // The piece's typical luma, from its solid pixels.
   const lumas: number[] = [];
   const step = Math.max(1, Math.floor(n / 20000));
   for (let p = 0; p < n; p += step) {
     const i = p * 4;
-    if (rgba[i + 3] >= 230) lumas.push(0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2]);
+    if (rgba[i + 3] >= 230) lumas.push(lumaOf(rgba[i], rgba[i + 1], rgba[i + 2]));
   }
   if (!lumas.length) return cleared;
   lumas.sort((a, b) => a - b);
-  if (lumas[lumas.length >> 1] >= LIGHT_PIECE_LUMA) return cleared;
-  // Only a thin rim: if the white along the edge goes on deeper than HALO_RADIUS it is a real part
-  // of the piece (a wide white collar, a white band), and clearing it would eat into the garment —
-  // then nothing is cleared. One more pass than the radius checks how deep the white goes.
-  const rim: number[] = [];
-  const found: number[] = [];
-  for (let pass = 0; pass <= HALO_RADIUS; pass++) {
+  const pieceLuma = lumas[lumas.length >> 1];
+  const lightPiece = pieceLuma >= LIGHT_PIECE_LUMA;
+  const lightLimit = Math.max(FRINGE_MIN_LUMA, pieceLuma + FRINGE_CONTRAST);
+  const darkLimit = pieceLuma - FRINGE_CONTRAST;
+  const isFringe = (i: number) => {
+    const r = rgba[i], g = rgba[i + 1], b = rgba[i + 2];
+    if (Math.max(r, g, b) - Math.min(r, g, b) > FRINGE_CHROMA) return false;
+    const l = lumaOf(r, g, b);
+    return lightPiece ? l <= darkLimit : l >= lightLimit;
+  };
+
+  // 2. Peel the fringe off the edge, `radius` passes; one more pass finds where it goes deeper.
+  const radius = Math.max(HALO_RADIUS, Math.round(Math.max(w, h) / 180));
+  const peeled = new Uint8Array(n); // 1 = peeled, 2 = the fringe colour still found one pass deeper
+  const peeledList: number[] = [];
+  const savedAlpha = new Uint8Array(n);
+  const deep: number[] = [];
+  // Fringe pixels on the edge (touching transparency or the photo border).
+  const edgeOf = (softOnly: boolean) => {
     const edge: number[] = [];
     for (let p = 0; p < n; p++) {
       const i = p * 4;
-      if (rgba[i + 3] === 0 || !isNearWhite(rgba[i], rgba[i + 1], rgba[i + 2])) continue;
+      if (rgba[i + 3] < CLEAR_ALPHA || (softOnly && rgba[i + 3] >= 230) || !isFringe(i)) continue;
       const x = p % w, y = (p - x) / w;
-      const touches = (x > 0 && rgba[(p - 1) * 4 + 3] === 0) || (x < w - 1 && rgba[(p + 1) * 4 + 3] === 0)
-        || (y > 0 && rgba[(p - w) * 4 + 3] === 0) || (y < h - 1 && rgba[(p + w) * 4 + 3] === 0)
-        || x === 0 || y === 0 || x === w - 1 || y === h - 1;
+      const touches = x === 0 || y === 0 || x === w - 1 || y === h - 1
+        || rgba[(p - 1) * 4 + 3] < CLEAR_ALPHA || rgba[(p + 1) * 4 + 3] < CLEAR_ALPHA
+        || rgba[(p - w) * 4 + 3] < CLEAR_ALPHA || rgba[(p + w) * 4 + 3] < CLEAR_ALPHA;
       if (touches) edge.push(p);
     }
-    found.push(edge.length);
+    return edge;
+  };
+  const peel = (edge: number[]) => {
+    for (const p of edge) {
+      peeled[p] = 1;
+      peeledList.push(p);
+      savedAlpha[p] = rgba[p * 4 + 3];
+      rgba[p * 4 + 3] = 0;
+    }
+  };
+  // The half-transparent part of the fringe (the model's soft edge) goes first and does not count
+  // towards the depth: only the solid fringe has to be thin.
+  for (let d = 0; d < DECONTAMINATE_DEPTH; d++) {
+    const edge = edgeOf(true);
     if (!edge.length) break;
-    if (pass === HALO_RADIUS) break; // the check pass clears nothing
-    for (const p of edge) { rim.push(p * 4 + 3, rgba[p * 4 + 3]); rgba[p * 4 + 3] = 0; }
+    peel(edge);
   }
-  const deeper = found[HALO_RADIUS] ?? 0;
-  if (found[0] && deeper > found[0] * DEEP_WHITE_SHARE) {
-    for (let j = 0; j < rim.length; j += 2) rgba[rim[j]] = rim[j + 1];
-    return cleared;
+  for (let pass = 0; pass <= radius; pass++) {
+    const edge = edgeOf(false);
+    if (!edge.length) break;
+    if (pass === radius) { for (const p of edge) { peeled[p] = 2; deep.push(p); } break; }
+    peel(edge);
   }
-  return cleared + rim.length / 2;
+  // Put back the peeled pixels joined to where the colour goes deeper (a real white part), up to
+  // radius + 1 steps from it; the thin fringe elsewhere stays removed.
+  let front = deep;
+  for (let d = 0; d <= radius && front.length; d++) {
+    const next: number[] = [];
+    for (const q of front) {
+      const x = q % w, y = (q - x) / w;
+      for (let dy = -1; dy <= 1; dy++) {
+        const yy = y + dy;
+        if (yy < 0 || yy >= h) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx;
+          if (xx < 0 || xx >= w) continue;
+          const r = yy * w + xx;
+          if (peeled[r] !== 1) continue;
+          peeled[r] = 3; // restored
+          rgba[r * 4 + 3] = savedAlpha[r];
+          next.push(r);
+        }
+      }
+    }
+    front = next;
+  }
+  for (const p of peeledList) if (peeled[p] === 1) cleared++;
+
+  // 3. Half-transparent edge pixels tinted with the old background take the colour of the solid
+  //    piece beside them, wave by wave outwards from the solid pixels.
+  const done = new Uint8Array(n);
+  let wave: number[] = [];
+  for (let p = 0; p < n; p++) if (rgba[p * 4 + 3] >= 230) done[p] = 1;
+  for (let p = 0; p < n; p++) {
+    const a = rgba[p * 4 + 3];
+    if (a < CLEAR_ALPHA || a >= 230) continue;
+    const x = p % w, y = (p - x) / w;
+    if ((x > 0 && done[p - 1]) || (x < w - 1 && done[p + 1]) || (y > 0 && done[p - w]) || (y < h - 1 && done[p + w])) wave.push(p);
+  }
+  for (let d = 0; d < DECONTAMINATE_DEPTH && wave.length; d++) {
+    const colours: number[] = [];
+    for (const p of wave) {
+      const x = p % w, y = (p - x) / w;
+      let r = 0, g = 0, b = 0, k = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        const yy = y + dy;
+        if (yy < 0 || yy >= h) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx;
+          if (xx < 0 || xx >= w) continue;
+          const q = yy * w + xx;
+          if (!done[q]) continue;
+          r += rgba[q * 4]; g += rgba[q * 4 + 1]; b += rgba[q * 4 + 2]; k++;
+        }
+      }
+      colours.push(r / k, g / k, b / k);
+    }
+    const next: number[] = [];
+    wave.forEach((p, j) => {
+      const i = p * 4;
+      if (isFringe(i)) {
+        rgba[i] = colours[j * 3]; rgba[i + 1] = colours[j * 3 + 1]; rgba[i + 2] = colours[j * 3 + 2];
+        cleared++;
+      }
+      done[p] = 1;
+    });
+    for (const p of wave) {
+      const x = p % w, y = (p - x) / w;
+      const add = (q: number) => {
+        const a = rgba[q * 4 + 3];
+        if (!done[q] && a >= CLEAR_ALPHA && a < 230) { done[q] = 4; next.push(q); }
+      };
+      if (x > 0) add(p - 1);
+      if (x < w - 1) add(p + 1);
+      if (y > 0) add(p - w);
+      if (y < h - 1) add(p + w);
+    }
+    // `done = 4` only reserved the slot in the next wave; it has no colour yet
+    for (const q of next) done[q] = 0;
+    wave = next;
+  }
+  return cleared;
 }

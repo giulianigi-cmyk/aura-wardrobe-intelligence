@@ -70,3 +70,57 @@ test("a navy sweater with a white bear motif (the Ralph Lauren case): navy and b
   assert.equal(alpha(cut, 12, 20), 255, "navy body kept");
   assert.equal(alpha(cut, 20, 20), 255, "white bear kept");
 });
+
+test("a navy blazer with a ragged light-grey fringe, 1-2 px deep: the fringe goes, the blazer stays", () => {
+  // the blend of navy and the white/grey floor: light grey, not near-white, of uneven depth
+  const navy: [number, number, number, number] = [25, 30, 60, 255];
+  const a = img((x, y) => {
+    if (!inside(x, y, 8)) return [0, 0, 0, 0];
+    const depth = 1 + (y % 2); // 1 or 2 px of fringe along the left edge (the peel is 2 px at this size)
+    if (x < 8 + depth) return [172, 174, 178, 255];
+    return inside(x, y, 9) ? navy : [200, 200, 204, 255];
+  });
+  removeWhiteHalo(a, W, H);
+  for (let y = 10; y < 30; y++) for (let x = 8; x < 8 + 1 + (y % 2); x++) assert.equal(alpha(a, x, y), 0, `fringe at ${x},${y}`);
+  assert.equal(alpha(a, 20, 20), 255, "blazer body kept");
+  assert.equal(alpha(a, 12, 20), 255, "blazer edge kept");
+});
+
+test("a dark piece with a white detail at its edge: the detail stays, the thin rim elsewhere goes", () => {
+  // white rim of 1 px all round, plus a white patch 8 px deep on the left (a white sole, a collar)
+  const a = img((x, y) => {
+    if (!inside(x, y, 8)) return [0, 0, 0, 0];
+    if (x < 16 && y >= 16 && y < 24) return [250, 250, 250, 255];
+    if (!inside(x, y, 9)) return [248, 248, 248, 255];
+    return [15, 15, 15, 255];
+  });
+  removeWhiteHalo(a, W, H);
+  assert.equal(alpha(a, 8, 20), 255, "white detail kept");
+  assert.equal(alpha(a, 12, 20), 255, "white detail kept");
+  assert.equal(alpha(a, 20, 8), 0, "thin rim on the top edge removed");
+  assert.equal(alpha(a, 31, 20), 0, "thin rim on the right edge removed");
+});
+
+test("a white shirt with a grey shadow fringe: the fringe goes, the shirt stays white", () => {
+  const a = img((x, y) => (inside(x, y, 9) ? [246, 246, 244, 255] : inside(x, y, 8) ? [120, 120, 124, 255] : [0, 0, 0, 0]));
+  removeWhiteHalo(a, W, H);
+  assert.equal(alpha(a, 8, 20), 0);
+  assert.equal(alpha(a, 9, 20), 255);
+  assert.equal(alpha(a, 20, 20), 255);
+});
+
+test("half-transparent edge pixels tinted white take the piece's colour and keep their softness", () => {
+  const a = img((x, y) => (inside(x, y, 9) ? [20, 25, 60, 255] : inside(x, y, 8) ? [230, 230, 232, 120] : [0, 0, 0, 0]));
+  // keep the soft edge out of the peel: a real dark outline outside it
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (inside(x, y, 7) && !inside(x, y, 8)) a.set([20, 25, 60, 60], (y * W + x) * 4);
+  removeWhiteHalo(a, W, H);
+  const i = (20 * W + 8) * 4;
+  assert.equal(a[i + 3], 120, "softness kept");
+  assert.ok(a[i] < 60 && a[i + 2] < 100, `colour from the piece, got ${a[i]},${a[i + 1]},${a[i + 2]}`);
+});
+
+test("a red garment keeps its light pink highlights at the edge (coloured, not a grey fringe)", () => {
+  const a = img((x, y) => (inside(x, y, 9) ? [170, 20, 30, 255] : inside(x, y, 8) ? [240, 170, 175, 255] : [0, 0, 0, 0]));
+  removeWhiteHalo(a, W, H);
+  assert.equal(alpha(a, 8, 20), 255);
+});
