@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isWarmOuter, isWarmAndRainReady, isDressyOuter, warmthTier } from "./warm-outer";
+import { isWarmOuter, isWarmAndRainReady, isDressyOuter, warmthTier, coatOverBareArms } from "./warm-outer";
 
 test("a trench or a raincoat is never a warm layer, even when called a coat", () => {
   assert.equal(isWarmOuter({ subcategory: "Trench Coat", material: ["Cotton"] }), false);
@@ -34,4 +34,18 @@ test("a wool coat is warmer than a polyester faux-fur coat; a trench is not warm
   assert.equal(warmthTier({ subcategory: "Coat", material: ["Wool", "Cashmere"] }), 2);
   assert.equal(warmthTier({ subcategory: "Coat", material: ["Polyester", "Synthetic"] }), 1);
   assert.equal(warmthTier({ subcategory: "Trench Coat", material: ["Cotton"] }), 0);
+});
+
+test("a wool coat over a T-shirt alone is rejected; with long sleeves or a knit it is fine", () => {
+  const coat = { category: "Outerwear", subcategory: "Coat", material: ["Wool", "Cashmere"] };
+  const tee = { category: "Tops", subcategory: "T-Shirt", sleeveLength: "Short Sleeve" };
+  const jeans = { category: "Bottoms", subcategory: "Jeans" };
+  assert.equal(coatOverBareArms([coat, tee, jeans]), true, "camel wool coat + white tee (reported)");
+  assert.equal(coatOverBareArms([coat, { category: "Tops", subcategory: "Shirt", sleeveLength: "Long Sleeve" }, jeans]), false);
+  assert.equal(coatOverBareArms([coat, tee, { category: "Tops", subcategory: "Cardigan", sleeveLength: "Long Sleeve" }, jeans]), false, "a knit over the tee");
+  assert.equal(coatOverBareArms([coat, { category: "Tops", subcategory: "Sweater", sleeveLength: "Short Sleeve" }, jeans]), false, "a short-sleeve knit is still a knit");
+  // a trench or a polyester "coat" is not a winter coat: a tee under it can be a mild-day look
+  assert.equal(coatOverBareArms([{ category: "Outerwear", subcategory: "Trench Coat", material: ["Cotton"] }, tee, jeans]), false);
+  assert.equal(coatOverBareArms([{ category: "Outerwear", subcategory: "Coat", material: ["Polyester"] }, tee, jeans]), false);
+  assert.equal(coatOverBareArms([coat, jeans]), false, "no top to judge");
 });

@@ -60,3 +60,26 @@ export function isDressyOuter(it: OuterCheckable): boolean {
   if (CASUAL_STYLE.test(`${joined(it.styleTags)} ${joined(it.style)}`)) return false;
   return (it.formality ?? 3) >= 3;
 }
+
+const KNIT_TOP = /sweater|jumper|pullover|cardigan|knit|maglion|maglia|turtleneck|dolcevita|sweatshirt|felpa|hoodie/i;
+
+/** A wool, cashmere, down or shearling coat (warmthTier 2) worn over bare arms: every top or dress in
+ *  the look is short-sleeved or sleeveless and none is a knit. A day cold enough for that coat is too
+ *  cold for a T-shirt on its own, and a day warm enough for the T-shirt doesn't need it (reported: a
+ *  camel wool coat with a white tee). Looks with no top at all are not judged here. */
+export function coatOverBareArms(
+  pieces: (OuterCheckable & { sleeveLength?: string | null })[],
+): boolean {
+  if (!pieces.some((p) => p.category === "Outerwear" && warmthTier(p) === 2)) return false;
+  const tops = pieces.filter((p) => p.category === "Tops" || p.category === "Dresses");
+  if (!tops.length) return false;
+  return tops.every((t) => {
+    const sleeve = (t.sleeveLength ?? "").toLowerCase();
+    const bare = sleeve === "short sleeve" || sleeve === "sleeveless";
+    return bare && !KNIT_TOP.test(t.subcategory ?? "");
+  });
+}
+
+export const COAT_SLEEVES_PROMPT_RULE =
+  "COAT AND SLEEVES: a wool, cashmere, down or shearling coat means a cold day — under it put long sleeves or a knit " +
+  "(a shirt, a long-sleeve top, a sweater), never a T-shirt or tank on its own. If the weather is warm enough for a T-shirt, leave the warm coat out.";
