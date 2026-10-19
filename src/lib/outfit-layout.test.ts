@@ -83,7 +83,8 @@ test("a jacket starts at the top of the board, and the bag and belt beside it ke
   ]);
   const r = (id: string) => rects.find((x) => x.id === id)!;
   assert.ok(r("jacket").y / H < 0.14, "jacket near the top, with air above it");
-  assert.ok(r("bag").w / W >= 0.3 * K, "bag at least 30% wide before the board scale");
+  // the jeans now keep their real length (wider, legs apart), so the column beside them is a touch narrower
+  assert.ok(r("bag").w / W >= 0.28 * K, "bag at least 28% wide before the board scale");
   assert.ok(r("belt").w / W >= 0.28, "belt at least 28% wide");
   // nothing overlaps in the right-hand column
   assert.ok(r("bag").y + r("bag").h <= r("belt").y);
@@ -204,4 +205,24 @@ test("a cap placed with the watch keeps a hat's size: never smaller than the ear
     if (["tank", "jeans"].includes(o.id)) assert.ok(share <= 0.21, `cap over ${o.id}: ${share}`);
     else assert.equal(share, 0, `cap over ${o.id}`);
   }
+});
+
+test("one scale for the whole board: blazer, trousers and shirt at the same px per cm, shoes the same whatever the photo", () => {
+  const board = (shoeAspect: number) => layoutOutfit([
+    { id: "blazer", bucket: "outer", aspect: 1.25, subcategory: "Blazer" },
+    { id: "trousers", bucket: "bottom", aspect: 2.3, subcategory: "Trousers" },
+    { id: "shirt", bucket: "top", aspect: 1.05, subcategory: "Shirt" },
+    { id: "shoes", bucket: "shoes", aspect: shoeAspect, subcategory: "Pumps" },
+  ]);
+  const get = (rs: ReturnType<typeof layoutOutfit>, id: string) => rs.find((r) => r.id === id)!;
+  const rs = board(0.6);
+  const perCm = (id: string, cm: number) => get(rs, id).h / cm;
+  const trousers = perCm("trousers", 100);
+  assert.ok(Math.abs(perCm("blazer", 75) / trousers - 1) < 0.03, "blazer at the trousers' scale");
+  assert.ok(Math.abs(perCm("shirt", 70) / trousers - 1) < 0.03, "shirt at the trousers' scale");
+  // a pair seen from the side (wide photo) or from the front (square photo): same length on the board
+  const side = get(board(0.45), "shoes"), front = get(board(1), "shoes");
+  assert.ok(Math.abs(Math.max(side.w, side.h) / Math.max(front.w, front.h) - 1) < 0.03, "shoes the same size");
+  // shoes: a fixed share of the trousers (25 cm pumps × 1.25 against 100 cm trousers)
+  assert.ok(Math.abs(Math.max(side.w, side.h) / get(rs, "trousers").h - 0.3125) < 0.02);
 });

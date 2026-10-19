@@ -68,18 +68,6 @@ const HAT_OVER_GARMENT = 0.2;
 /** Rings and bracelets are not drawn on the composed boards: at board scale they are a few pixels
  *  wide and add nothing to the look (reported). Watches and gloves stay. */
 const NOT_ON_BOARD = /\b(ring|rings|anello|anelli|bracelet|bracelets|bangle|bangles|bracciale|bracciali|cuff)\b/i;
-/** Full-length trousers: minimum height (fraction of H) and the widest they may become for it. */
-const LONG_BOTTOM_MIN_H = 0.52;
-const LONG_BOTTOM_MAX_W = 0.56;
-/** Jackets and coats: a blazer photographed with its sleeves out is wider than tall, so the width
- *  box kept it at ~37% of the canvas height next to trousers at ~69% — half their size instead of
- *  three quarters. They keep at least OUTER_MIN_H × (real length / 100 cm) of the height, widening
- *  up to OUTER_MAX_W of the canvas to get there (they sit behind the other pieces). */
-const OUTER_MIN_H = 0.66;
-const OUTER_MAX_W = 0.64;
-/** A jacket or coat is worn OVER the top, so it is drawn wider than it — a quilted jacket with wide
- *  sleeves used to come out the same size as the T-shirt under it. */
-const OUTER_OVER_TOP = 1.3;
 /** Tall shoes (knee or over-the-knee boots, height > 1.3 × width): sized by a tall box so the shaft
  *  reads at its real length instead of being squeezed into the box of a pair of pumps. */
 const TALL_SHOES_BOX = { w: 0.21, h: 0.28 };
@@ -115,6 +103,25 @@ const BOX: Record<Bucket, { w: number; h: number }> = {
   acc: { w: 0.22, h: 0.16 },
 };
 const TOP_AS_ANCHOR = { w: 0.50, h: 0.45 };
+
+// ── One scale for the whole board ───────────────────────────────────────────────────────────────
+// Each kind of piece used to fill its own box, so on the same board a blazer came out at ~9.8 px per
+// real cm, the trousers at 8, the shirt at 7.4 and the shoes anywhere between 7.6 and 10.7 depending
+// on how they were photographed (reported: jacket and trousers giant next to the shoes). Now every
+// main piece is drawn from its REAL size at one board scale: garments by their length, shoes by
+// their length (the longest side of the photo), bags by their width. Shoes and bags keep a fixed
+// enlargement over the garments — the same on every board — as on editorial flat-lays, where at the
+// strict scale a shoe is a quarter of the trousers (bags at 1.5 are the size reported right).
+const GARMENT_PX_PER_CM = 0.006; // × canvas height: 100 cm trousers = 60% of it
+const GARMENT_MAX_H: Partial<Record<Bucket, number>> = { dress: 0.80, outer: 0.72, bottom: 0.60, top: 0.50 };
+// widest a garment may become (a coat sits behind the other pieces, so it may be the widest)
+const GARMENT_MAX_W: Partial<Record<Bucket, number>> = { dress: 0.50, outer: 0.64, bottom: 0.56, top: 0.50 };
+const SHOE_SCALE = 1.25;
+const BAG_SCALE = 1.5;
+const BAG_REFERENCE_CM = 30;
+const SHOE_MAX = { w: 0.30, h: 0.42 };
+const BAG_MAX = { w: 0.42, h: 0.36 };
+const isGarment = (b: Bucket) => b === "top" || b === "bottom" || b === "dress" || b === "outer";
 
 // The jacket or coat lies OVER the trousers or dress (as on an editorial board), under the top.
 const Z: Record<Bucket, number> = { outer: 3, dress: 2, bottom: 2, belt: 5, top: 4, shoes: 5, bag: 5, sunglasses: 5, headwear: 5, earrings: 5, necklace: 5, brooch: 6, wrist: 5, anklet: 5, acc: 5 };
@@ -177,8 +184,9 @@ export function realCm(bucket: Bucket, subcategory?: string | null, length?: str
       if (has("belt bag")) return 22;
       return 30;
     case "shoes":
-      if (has("over-the-knee")) return 34;
-      if (has("knee boots")) return 32;
+      // tall boots: their height, the longest side of the photo (a knee boot stands ~42 cm)
+      if (has("over-the-knee")) return 55;
+      if (has("knee boots")) return 42;
       if (has("boots")) return 29;
       if (has("sneakers", "running", "loafers")) return 28;
       if (has("flats", "pumps", "mules")) return 25;
@@ -272,12 +280,11 @@ function separateAccessories(out: LayoutRect[], W: number, H: number, MX: number
     const obstacles = out.filter((o) => o !== r && (isSmall(r) || o.bucket === "shoes" || o.bucket === "bag"));
     // A hat may lie a little over a garment (top, trousers, dress, coat), as on the editorial boards:
     // up to HAT_OVER_GARMENT of its own area is free; never over another accessory, the bag or the shoes.
-    const isGarment = (o: LayoutRect) => o.bucket === "top" || o.bucket === "bottom" || o.bucket === "dress" || o.bucket === "outer";
     const cost = (c: { x: number; y: number; w: number; h: number }) => {
       let garment = 0, other = 0;
       for (const o of obstacles) {
         const v = hit(c, o);
-        if (r.bucket === "headwear" && isGarment(o)) garment += v; else other += v;
+        if (r.bucket === "headwear" && isGarment(o.bucket)) garment += v; else other += v;
       }
       return other + Math.max(0, garment - HAT_OVER_GARMENT * c.w * c.h);
     };
@@ -320,56 +327,64 @@ export function layoutOutfit(allItems: LayoutInput[], W = CANVAS_W, H = CANVAS_H
   const out: LayoutRect[] = [];
   const clampC = (c: number, size: number, lo: number, hi: number) => Math.min(Math.max(c, lo + size / 2), hi - size / 2);
 
-  /** Size = fit inside the bucket box using the real aspect ratio. */
-  const sizeOf = (it: LayoutInput, boxIn: Box, shrink: number) => {
-    // A hat that joins the wrist cluster keeps its own box: in the watch's 10%-wide box a cap came
-    // out smaller than the earrings (reported).
-    const box = it.bucket === "headwear" && boxIn === BOX.wrist ? BOX.headwear : boxIn;
+  // The board scale (px per real cm): the garment scale, lowered for the whole board when a piece
+  // would not fit at it (a 150 cm jumpsuit) — never for one piece alone.
+  let pxPerCm = GARMENT_PX_PER_CM * H;
+  for (const it of items) {
+    if (!isGarment(it.bucket)) continue;
+    const cm = realCm(it.bucket, it.subcategory, it.length);
+    if (cm) pxPerCm = Math.min(pxPerCm, (GARMENT_MAX_H[it.bucket]! * H) / cm);
+  }
+
+  /** Main pieces (garments, shoes, bags) at the board scale. A `boxIn` smaller than the bucket's own
+   *  box (a column squeezed to fit) scales the piece down by the same share; `fit` also keeps it
+   *  inside boxIn (the grid cells of a board without garments). */
+  const uniformSize = (it: LayoutInput, boxIn: Box, shrink: number, fit: boolean): { w: number; h: number } => {
     const aspect = it.aspect > 0 ? it.aspect : 1;
+    const ref = isTallShoe(it) ? TALL_SHOES_BOX : BOX[it.bucket];
+    const ownBox = boxIn === ref || boxIn === BOX[it.bucket] || boxIn === TALL_SHOES_BOX || boxIn === TOP_AS_ANCHOR;
+    const k = shrink * (ownBox ? 1 : Math.min(1, boxIn.w / ref.w, boxIn.h / ref.h));
     // A bag or shoe whose box is mostly empty (thin strap, chain, long handles, a strappy stiletto
-    // sandal) is enlarged so that its BODY reaches the size a compact one would (up to +35%).
-    // Bags cap lower than shoes: at +35% a top-handle bag with a long strap was coming out visibly
-    // oversized next to the jeans it sits beside.
-    // A strappy sandal is enlarged less than it was (+35% made stilettos the biggest piece on the board).
+    // sandal) is enlarged so that its BODY reaches the size a compact one would — bags up to +20%,
+    // shoes +15% (at +35% stilettos were the biggest piece on the board).
     const strapCap = it.bucket === "bag" ? 1.2 : 1.15;
     const strapK = (it.bucket === "bag" || it.bucket === "shoes") && it.fill != null && it.fill > 0 && it.fill < 0.6
       ? Math.min(strapCap, Math.sqrt(0.6 / Math.max(it.fill, 0.25)))
       : 1;
-    const f = realScale(it) * strapK;
-    // Garments: the real LENGTH sets the height cap (a mini skirt is short, a maxi long);
-    // the width cap stays put so wide pieces can't overflow. Bags and shoes: the real
-    // WIDTH is what matters, so both caps follow it.
-    const byLength = it.bucket === "top" || it.bucket === "bottom" || it.bucket === "dress" || it.bucket === "outer";
-    // Bags 0.85 (was 0.90) and tops 1.10: a bag read a little too big and a top a little too small
-    // against the trousers in the finished flat-lay. The top's headroom is real — the anchor never
-    // starts below 25% of the canvas, so a top up to ~38% tall does not push it down.
-    const visualK = it.bucket === "bag" ? 0.85 : it.bucket === "top" ? 1.10 : 1;
+    let w: number, maxW: number, maxH: number;
+    if (isGarment(it.bucket)) {
+      // garments by their real length (a mini skirt short, a maxi long, a blazer shorter than a coat)
+      const cm = realCm(it.bucket, it.subcategory, it.length) ?? REFERENCE[it.bucket]!.cm;
+      w = (cm * pxPerCm * k) / aspect;
+      maxW = GARMENT_MAX_W[it.bucket]! * W * k;
+      maxH = GARMENT_MAX_H[it.bucket]! * H * k;
+    } else if (it.bucket === "shoes") {
+      const len = (realCm("shoes", it.subcategory, it.length) ?? 27) * pxPerCm * SHOE_SCALE * strapK * k;
+      w = aspect > 1 ? len / aspect : len; // the longest side is the shoe's length
+      maxW = SHOE_MAX.w * W * k;
+      maxH = SHOE_MAX.h * H * k;
+    } else {
+      // bags by their width: the saved size class (mini … large) or the kind of bag
+      w = BAG_REFERENCE_CM * realScale(it) * pxPerCm * BAG_SCALE * strapK * k;
+      maxW = BAG_MAX.w * W * k;
+      maxH = BAG_MAX.h * H * k;
+    }
+    w = Math.min(w, maxW, maxH / aspect);
+    if (fit) w = Math.min(w, boxIn.w * W * shrink, (boxIn.h * H * shrink) / aspect);
+    return { w, h: w * aspect };
+  };
 
-let w = Math.min(
-  box.w * W * shrink * (byLength ? 1 : f),
-  (box.h * H * shrink * f) / aspect
-) * visualK;
-
-// Long trousers photographed wide (relaxed/cargo/wide-leg, legs apart: height ≈ width) were
-// capped by the width box and came out far shorter than a pair of jeans (40% of the canvas
-// height vs 69%). Full-length bottoms keep at least LONG_BOTTOM_MIN_H of the height, widening
-// up to LONG_BOTTOM_MAX_W of the canvas to get there.
-const cm = realCm(it.bucket, it.subcategory, it.length);
-if (it.bucket === "bottom" && cm != null && cm >= 90) {
-  const minH = LONG_BOTTOM_MIN_H * H * shrink;
-  if (w * aspect < minH) w = Math.max(w, Math.min(minH / aspect, LONG_BOTTOM_MAX_W * W * shrink));
-}
-if (it.bucket === "outer" && cm != null) {
-  const minH = Math.min(OUTER_MIN_H * (cm / 100), BOX.outer.h) * H * shrink;
-  if (w * aspect < minH) w = Math.max(w, Math.min(minH / aspect, OUTER_MAX_W * W * shrink));
-}
-const topUnder = it.bucket === "outer" ? by.get("top")?.[0] : undefined;
-if (topUnder) {
-  const t = sizeOf(topUnder, BOX.top, shrink);
-  w = Math.max(w, Math.min(t.w * OUTER_OVER_TOP, OUTER_MAX_W * W * shrink, (BOX.outer.h * H * shrink) / aspect));
-}
-
-return { w, h: w * aspect };
+  /** Size: main pieces at the board scale (uniformSize); small accessories fit their own box at
+   *  their real aspect ratio. */
+  const sizeOf = (it: LayoutInput, boxIn: Box, shrink: number, fit = false): { w: number; h: number } => {
+    if (isGarment(it.bucket) || it.bucket === "shoes" || it.bucket === "bag") return uniformSize(it, boxIn, shrink, fit);
+    // A hat that joins the wrist cluster keeps its own box: in the watch's 10%-wide box a cap came
+    // out smaller than the earrings (reported).
+    const box = it.bucket === "headwear" && boxIn === BOX.wrist ? BOX.headwear : boxIn;
+    const aspect = it.aspect > 0 ? it.aspect : 1;
+    const f = realScale(it); // watch / bracelet / gloves: by their real size
+    const w = Math.min(box.w * W * shrink * f, (box.h * H * shrink * f) / aspect);
+    return { w, h: w * aspect };
   };
 
   /** Places all items of one slot around (cx, cy), fanned along `axis`,
@@ -415,7 +430,7 @@ return { w, h: w * aspect };
     const cols = 2, rows = Math.ceil(items.length / cols);
     const cw = (W - 2 * MX) / cols, ch = (H - MY - MB) / Math.max(rows, 1);
     items.forEach((it, i) => {
-      const s = sizeOf(it, { w: (cw * 0.85) / W, h: (ch * 0.85) / H }, 1);
+      const s = sizeOf(it, { w: (cw * 0.85) / W, h: (ch * 0.85) / H }, 1, true);
       const c = i % cols, r = Math.floor(i / cols);
       out.push({ id: it.id, bucket: it.bucket, x: MX + c * cw + (cw - s.w) / 2, y: MY + r * ch + (ch - s.h) / 2, w: s.w, h: s.h, z: 5 });
     });
@@ -424,7 +439,7 @@ return { w, h: w * aspect };
 
   const outer = has("outer");
   const anchorList = by.get(anchorBucket)!;
-  // Trousers widened to keep their height (LONG_BOTTOM_MIN_H) move right by half the extra width,
+  // Trousers wider than their box (photographed with the legs apart) move right by half the extra width,
   // so the bag tucked on their left keeps the same overlap as beside a normal pair.
   const bottomExtraW = anchorBucket === "bottom" && !outer
     ? Math.max(0, Math.max(...anchorList.map((it) => sizeOf(it, BOX.bottom, anchorList.length > 1 ? GROUP_SHRINK : 1).w)) - BOX.bottom.w * W)
