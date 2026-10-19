@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
 import { listOpenWeatherProposals, resolveWeatherProposal } from "@/lib/plan-weather.functions";
 import { WeatherProposalCard, type WeatherProposal } from "../WeatherProposalCard";
-import { ArrowLeft, Loader2, Check, Plus, X, Trash2, Briefcase, Palmtree, Shuffle, CalendarDays, Sun, Moon, Luggage, Sparkles, AlertCircle, Info, Copy, Pencil, Image as ImageIcon, LayoutGrid, ListPlus } from "lucide-react";
+import { ArrowLeft, Loader2, Check, Plus, X, Trash2, Briefcase, Palmtree, Shuffle, CalendarDays, Sun, Moon, Luggage, Sparkles, AlertCircle, Info, Copy, Pencil, Image as ImageIcon, LayoutGrid, ListPlus, Minus } from "lucide-react";
 import { PiecePicker } from "../PiecePicker";
 import { OutfitViewerSheet } from "../OutfitViewerSheet";
 import { TripEssentialsCopySheet } from "../TripEssentialsCopySheet";
@@ -294,6 +294,26 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
       console.error("[AURA trip-detail] status update failed", e);
       setEssentials((prev) => prev.map((x) => (x.id === item.id ? item : x))); // revert
     }
+  };
+
+  // Quantity per trip: a saved list keeps 1 of everything, and here it becomes 2 T-shirts and 2 pairs of
+  // socks for two runs. Taps update at once; the save waits for a short pause so a run of taps is one
+  // write and the last value always wins.
+  const quantityTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const changeEssentialQuantity = (item: TripEssential, delta: number) => {
+    const next = Math.min(99, Math.max(1, item.quantity + delta));
+    if (next === item.quantity) return;
+    setEssentials((prev) => prev.map((e) => (e.id === item.id ? { ...e, quantity: next } : e)));
+    const timers = quantityTimers.current;
+    const pending = timers.get(item.id);
+    if (pending) clearTimeout(pending);
+    timers.set(item.id, setTimeout(() => {
+      timers.delete(item.id);
+      updateTripEssential({ data: { id: item.id, quantity: next } }).catch((e) => {
+        console.error("[AURA trip-detail] quantity update failed", e);
+        toast.error(t("tripDetail.quantityNotSaved", { defaultValue: "Couldn't save the quantity" }));
+      });
+    }, 500));
   };
 
   const addEssential = async () => {
@@ -801,9 +821,24 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
                       onClick={() => void toggleEssentialStatus(item)}
                       className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 ${item.status === "packed" ? "bg-foreground border-foreground" : "border-border"}`}
                     >{item.status === "packed" && <Check size={11} className="text-background" />}</button>
-                    <span className={`flex-1 text-sm ${item.status === "packed" ? "line-through text-muted-foreground" : ""}`}>
-                      {essentialNameLabel(t, item.name)} ×{item.quantity}
+                    <span className={`flex-1 min-w-0 text-sm ${item.status === "packed" ? "line-through text-muted-foreground" : ""}`}>
+                      {essentialNameLabel(t, item.name)}
                     </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => changeEssentialQuantity(item, -1)}
+                        disabled={item.quantity <= 1}
+                        aria-label={t("tripDetail.decreaseQuantityAria", { name: essentialNameLabel(t, item.name), defaultValue: "Fewer {{name}}" })}
+                        className="h-7 w-7 rounded-full border border-border flex items-center justify-center text-muted-foreground disabled:opacity-30"
+                      ><Minus size={12} /></button>
+                      <span className="w-5 text-center text-sm tabular-nums">{item.quantity}</span>
+                      <button
+                        onClick={() => changeEssentialQuantity(item, 1)}
+                        disabled={item.quantity >= 99}
+                        aria-label={t("tripDetail.increaseQuantityAria", { name: essentialNameLabel(t, item.name), defaultValue: "More {{name}}" })}
+                        className="h-7 w-7 rounded-full border border-border flex items-center justify-center text-muted-foreground disabled:opacity-30"
+                      ><Plus size={12} /></button>
+                    </div>
                     <button onClick={() => void removeEssential(item.id)} aria-label={t("tripDetail.removeItemAria", { name: essentialNameLabel(t, item.name) })} className="h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-muted-foreground">
                       <X size={13} />
                     </button>
