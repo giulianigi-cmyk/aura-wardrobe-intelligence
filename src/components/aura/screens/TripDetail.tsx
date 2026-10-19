@@ -5,10 +5,11 @@ import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
 import { listOpenWeatherProposals, resolveWeatherProposal } from "@/lib/plan-weather.functions";
 import { WeatherProposalCard, type WeatherProposal } from "../WeatherProposalCard";
-import { ArrowLeft, Loader2, Check, Plus, X, Trash2, Briefcase, Palmtree, Shuffle, CalendarDays, Sun, Moon, Luggage, Sparkles, AlertCircle, Info, Copy, Pencil, Image as ImageIcon, LayoutGrid } from "lucide-react";
+import { ArrowLeft, Loader2, Check, Plus, X, Trash2, Briefcase, Palmtree, Shuffle, CalendarDays, Sun, Moon, Luggage, Sparkles, AlertCircle, Info, Copy, Pencil, Image as ImageIcon, LayoutGrid, ListPlus } from "lucide-react";
 import { PiecePicker } from "../PiecePicker";
 import { OutfitViewerSheet } from "../OutfitViewerSheet";
 import { TripEssentialsCopySheet } from "../TripEssentialsCopySheet";
+import { TripPresetsSheet } from "../TripPresetsSheet";
 import { toast } from "sonner";
 import type { Screen } from "../AuraApp";
 import { getTrip, deleteTrip, addTripDestination, deleteTripDestination, updateTripOutfitPlanItems, deleteTripOutfitPlan, type Trip, type TripDestination, type TripType, type DaySegment } from "@/lib/trips.functions";
@@ -109,6 +110,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
   const confirmDeleteCanClose = useSheetCanClose(confirmDelete);
   const [addingEssential, setAddingEssential] = useState(false);
   const [copyingEssentials, setCopyingEssentials] = useState(false);
+  const [addingLists, setAddingLists] = useState(false);
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [addingActivity, setAddingActivity] = useState(false);
@@ -842,12 +844,24 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
               className="w-full h-11 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center justify-center gap-2"
             ><Plus size={13} /> {t("tripDetail.addItem")}</button>
             <button
+              onClick={() => setAddingLists(true)}
+              className="w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2"
+            ><ListPlus size={13} /> {t("tripDetail.addLists", { defaultValue: "Add saved lists" })}</button>
+            <button
               onClick={() => setCopyingEssentials(true)}
               className="w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2"
             ><Copy size={13} /> {t("tripDetail.copyFromTrip", { defaultValue: "Copy from another trip" })}</button>
           </div>
         )}
 
+        {addingLists && (
+          <TripPresetsSheet
+            tripId={trip.id}
+            onClose={() => setAddingLists(false)}
+            onAdded={(added) => setEssentials((prev) => [...prev, ...added])}
+            onManage={() => { setAddingLists(false); go("essential-presets"); }}
+          />
+        )}
         {copyingEssentials && (
           <TripEssentialsCopySheet
             toTripId={trip.id}

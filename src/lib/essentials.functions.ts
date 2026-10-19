@@ -209,25 +209,45 @@ export const applyPresetsToTrip = createServerFn({ method: "POST" })
     const { data: trip } = await (supabase.from("trips" as never) as any).select("id").eq("id", data.tripId).eq("user_id", userId).maybeSingle();
     if (!trip) throw new Error("Trip not found");
 
+    // Only the person's own lists (the preset ids come from the client).
+    const { data: owned, error: ownedErr } = await (supabase.from("essential_presets" as never) as any)
+      .select("id, name").eq("user_id", userId).in("id", data.presetIds);
+    if (ownedErr) throw new Error(ownedErr.message);
+    const presetName = new Map(((owned ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name]));
+    if (!presetName.size) return { added: 0, skipped: 0, items: [] as TripEssential[] };
+
     const { data: items, error: itemsErr } = await (supabase.from("essential_preset_items" as never) as any)
-      .select("category, name, quantity, always_include, preset_id")
-      .in("preset_id", data.presetIds);
+      .select("category, name, quantity, always_include, preset_id, position")
+      .in("preset_id", Array.from(presetName.keys()))
+      .order("position");
     if (itemsErr) throw new Error(itemsErr.message);
 
-    const toInclude = ((items ?? []) as { category: string | null; name: string; quantity: number; always_include: boolean }[])
+    const toInclude = ((items ?? []) as { category: string | null; name: string; quantity: number; always_include: boolean; preset_id: string }[])
       .filter((it) => it.always_include);
-    if (!toInclude.length) return { added: 0 };
+    if (!toInclude.length) return { added: 0, skipped: 0, items: [] as TripEssential[] };
 
-    const { error } = await (supabase.from("trip_essentials" as never) as any)
-      .insert(toInclude.map((it) => ({
-        trip_id: data.tripId,
-        category: it.category,
-        name: it.name,
-        quantity: it.quantity,
-        status: "to_pack",
-      })));
+    // Several lists can be combined on one trip (work + gym + running), also after the trip was
+    // created: an item with no category is filed under its list's name, so each list keeps its own
+    // section, and anything already on the trip (same name + category) is skipped, never duplicated.
+    const keyOf = (category: string | null | undefined, name: string) => `${(category ?? "").trim().toLowerCase()}|${name.trim().toLowerCase()}`;
+    const { data: existing, error: existingErr } = await (supabase.from("trip_essentials" as never) as any)
+      .select("category, name").eq("trip_id", data.tripId);
+    if (existingErr) throw new Error(existingErr.message);
+    const seen = new Set(((existing ?? []) as { category: string | null; name: string }[]).map((e) => keyOf(e.category, e.name)));
+
+    const toInsert: { trip_id: string; category: string | null; name: string; quantity: number; status: "to_pack" }[] = [];
+    for (const it of toInclude) {
+      const category = it.category?.trim() || presetName.get(it.preset_id)?.slice(0, 60) || null;
+      const k = keyOf(category, it.name);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      toInsert.push({ trip_id: data.tripId, category, name: it.name, quantity: it.quantity, status: "to_pack" });
+    }
+    if (!toInsert.length) return { added: 0, skipped: toInclude.length, items: [] as TripEssential[] };
+
+    const { data: rows, error } = await (supabase.from("trip_essentials" as never) as any).insert(toInsert).select("*");
     if (error) throw new Error(error.message);
-    return { added: toInclude.length };
+    return { added: toInsert.length, skipped: toInclude.length - toInsert.length, items: (rows ?? []) as TripEssential[] };
   });
 
 const UpdateTripEssentialSchema = z.object({
