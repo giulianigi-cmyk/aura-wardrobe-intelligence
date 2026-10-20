@@ -657,6 +657,19 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
     try {
       await updateTripOutfitPlanItems({ data: { planId: editingPlan.id, itemIds: editItemIds } });
       setOutfitPlans((prev) => prev.map((p) => (p.id === editingPlan.id ? { ...p, item_ids: editItemIds } : p)));
+      // A piece added to a day's outfit is packed for the trip: it joins the capsule too (also when it
+      // had been removed from it before — choosing it for a day says it comes along).
+      const inCapsule = new Set(capsuleItems.map((c) => c.wardrobe_item_id));
+      const newPieces = editItemIds.filter((id) => !inCapsule.has(id));
+      if (newPieces.length && trip) {
+        setCapsuleItems((prev) => [...prev, ...newPieces.map((id) => ({ id: `pending-${id}`, wardrobe_item_id: id, source: "user" }))]);
+        const { error: capsuleErr } = await (supabase.from("trip_capsule_items" as never) as any)
+          .upsert(
+            newPieces.map((id) => ({ trip_id: trip.id, wardrobe_item_id: id, source: "user", removed_by_user: false })),
+            { onConflict: "trip_id,wardrobe_item_id" },
+          );
+        if (capsuleErr) { toast.error(t("tripDetail.couldntUpdateCapsule")); load(); }
+      }
       // A hand-picked answer closes any open weather proposal for this plan.
       const open = proposals.find((pr) => pr.data?.plan_id === editingPlan.id);
       if (open) {
