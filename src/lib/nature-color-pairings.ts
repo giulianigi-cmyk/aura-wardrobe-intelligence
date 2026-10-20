@@ -26,7 +26,7 @@ export const COLOUR_PLAY_PRINCIPLES: string[] = [
 ];
 
 /** Colour pairings from editorial street-style and runway boards (shared by the owner as references):
- *  a dark plum / aubergine and a true red, each with the colours that work beside it, and how the
+ *  dark plum / aubergine, true red, grey as a base, leopard print, each with the colours that work beside it, and how the
  *  looks wore them. "quiet" pairings suit everyone, also a classic wardrobe; the others are colour
  *  play, for a single accent piece unless the person likes to experiment. */
 export const EDITORIAL_PAIRINGS: { colours: string; how: string; quiet: boolean }[] = [
@@ -46,10 +46,25 @@ export const EDITORIAL_PAIRINGS: { colours: string; how: string; quiet: boolean 
   { colours: "red + mint green", how: "a red blouse with a mint pleated skirt, the bag picking up one of the two", quiet: false },
   { colours: "red + lilac", how: "a red turtleneck with a lilac midi skirt", quiet: false },
   { colours: "red + violet / purple", how: "a red coat over a purple dress or jumpsuit, red shoes", quiet: false },
+  { colours: "red + camel", how: "a camel jacket over a red midi skirt, red boots", quiet: true },
+  { colours: "red + white", how: "a white shirt with red trousers", quiet: true },
+  { colours: "red + grey", how: "a grey knit over a red skirt, or a red knit over a grey midi skirt, black boots", quiet: true },
+  { colours: "red + brown", how: "a brown suede skirt with a red bag and red pumps", quiet: true },
+  { colours: "grey + burgundy", how: "a grey suit with a burgundy knit over the shoulders, burgundy shoes and bag", quiet: true },
+  { colours: "grey + brown / chocolate", how: "a grey knit with chocolate trousers and a brown bag", quiet: true },
+  { colours: "grey + navy blue", how: "a navy knit with grey trousers", quiet: true },
+  { colours: "grey + black", how: "a grey blazer over a black top and trousers, black flats", quiet: true },
+  { colours: "grey + white", how: "a grey blazer and knit with white trousers", quiet: true },
+  { colours: "grey + leopard print", how: "a charcoal cardigan with leopard trousers or a leopard scarf", quiet: true },
+  { colours: "leopard print + chocolate brown", how: "leopard trousers with a chocolate leather jacket or fur and brown shoes", quiet: true },
+  { colours: "grey + cobalt blue + camel", how: "a cobalt knit with grey trousers and coat, a camel bag", quiet: false },
+  { colours: "grey + mustard yellow", how: "a grey coat with mustard gloves and bag", quiet: false },
+  { colours: "grey + violet / lilac", how: "a grey pinstripe coat with a purple bag and a lilac scarf", quiet: false },
+  { colours: "leopard print + pink", how: "leopard trousers with a pink knit, or a leopard coat with pink trousers and bag", quiet: false },
 ];
 
 /** How those boards wear two colours — the moves to reuse, not the exact looks. */
-const EDITORIAL_MOVES = "a tonal suit or co-ord in one colour with the shirt or knit in the other; one colour as the coat over the other; the shoes or the bag echoing one of the two colours";
+const EDITORIAL_MOVES = "a tonal suit or co-ord in one colour with the shirt or knit in the other; one colour as the coat over the other; the shoes or the bag echoing one of the two colours; a grey base (coat, suit, knit) with the colour carried by the accessories — bag, gloves, scarf, shoes; leopard print treated as a neutral, with one solid colour from it or beside it";
 
 export type PairingLevel = "full" | "accent" | "none";
 
