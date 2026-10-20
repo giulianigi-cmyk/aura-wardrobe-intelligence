@@ -25,6 +25,32 @@ export const COLOUR_PLAY_PRINCIPLES: string[] = [
   "one statement accessory: a beret, bucket hat, headband, silk scarf, bold sunglasses or a chain belt",
 ];
 
+/** Colour pairings from editorial street-style and runway boards (shared by the owner as references):
+ *  a dark plum / aubergine and a true red, each with the colours that work beside it, and how the
+ *  looks wore them. "quiet" pairings suit everyone, also a classic wardrobe; the others are colour
+ *  play, for a single accent piece unless the person likes to experiment. */
+export const EDITORIAL_PAIRINGS: { colours: string; how: string; quiet: boolean }[] = [
+  { colours: "dark plum / aubergine + light blue", how: "a plum suit over a light-blue shirt", quiet: true },
+  { colours: "dark plum / aubergine + olive", how: "a plum blazer and wide trousers over an olive knit", quiet: true },
+  { colours: "dark plum / aubergine + navy blue", how: "a plum and navy colour-block coat with a navy hat", quiet: true },
+  { colours: "red + black", how: "a red coat or knit with black boots and a black turtleneck", quiet: true },
+  { colours: "dark plum / aubergine + khaki gold", how: "a plum sequin top over a khaki-gold knit skirt (evening)", quiet: false },
+  { colours: "dark plum / aubergine + red", how: "a plum dress with red knee boots", quiet: false },
+  { colours: "dark plum / purple + yellow", how: "a purple dress with a yellow panel or a yellow accessory", quiet: false },
+  { colours: "dark plum / aubergine + fuchsia", how: "a plum pleated midi skirt with a fuchsia knit and fuchsia pumps", quiet: false },
+  { colours: "dark plum / aubergine + emerald green", how: "an emerald coat with a plum bag", quiet: false },
+  { colours: "dark plum / purple + petrol / teal", how: "a teal top over a purple pencil skirt", quiet: false },
+  { colours: "red + indigo / cobalt", how: "a red knit and trousers with a cobalt sweater over the shoulders", quiet: false },
+  { colours: "red + sky blue", how: "a red suit with a sky-blue clutch", quiet: false },
+  { colours: "red + pink", how: "red trousers with a pink knit", quiet: false },
+  { colours: "red + mint green", how: "a red blouse with a mint pleated skirt, the bag picking up one of the two", quiet: false },
+  { colours: "red + lilac", how: "a red turtleneck with a lilac midi skirt", quiet: false },
+  { colours: "red + violet / purple", how: "a red coat over a purple dress or jumpsuit, red shoes", quiet: false },
+];
+
+/** How those boards wear two colours — the moves to reuse, not the exact looks. */
+const EDITORIAL_MOVES = "a tonal suit or co-ord in one colour with the shirt or knit in the other; one colour as the coat over the other; the shoes or the bag echoing one of the two colours";
+
 export type PairingLevel = "full" | "accent" | "none";
 
 const SOMBRE = /funeral|funerale|lutto|funeral|funérailles|obsequ|condolen/i;
@@ -54,8 +80,33 @@ export function naturePairingRule(styleBoldness: string | null | undefined, occa
   return `NATURE COLOUR PAIRINGS: this person likes to experiment with colour. If nature puts two colours together, they work together — use the wardrobe's own coloured pieces to propose pairings like: ${list}. Choose a pairing only from colours the listed pieces actually have; never invent a piece. ${dose} ${play} Never name the TV series or its characters in the text shown to the person. Every other rule (occasion, dress code, weather, rain) still comes first.`;
 }
 
+const listOf = (pairs: typeof EDITORIAL_PAIRINGS) => pairs.map((p) => `${p.colours} (${p.how})`).join("; ");
+
+/** Editorial colour pairings for everyone, dosed by how much the person likes colour and by the
+ *  occasion: a classic wardrobe gets the quiet pairings only, a balanced one also the colourful ones as
+ *  a single accent piece, an experimenter all of them (a whole look on a free day). Null for a
+ *  sombre occasion. Applies only to colours the wardrobe's pieces actually have. */
+export function editorialPairingRule(styleBoldness: string | null | undefined, occasion: string | null | undefined): string | null {
+  const level = pairingLevelFor(occasion);
+  if (level === "none") return null;
+  const quiet = EDITORIAL_PAIRINGS.filter((p) => p.quiet);
+  const colourful = EDITORIAL_PAIRINGS.filter((p) => !p.quiet);
+  const head = "COLOUR PAIRINGS THAT WORK (from editorial street-style boards): when the wardrobe has pieces in these colours, these pairings are good choices —";
+  const tail = `Ways to wear two colours: ${EDITORIAL_MOVES}. Use only colours the listed pieces actually have; never invent a piece. Occasion, dress code and weather still come first.`;
+  if (styleBoldness === "Classic") {
+    return `${head} ${listOf(quiet)}. Stay with these quiet pairings and neutrals. ${tail}`;
+  }
+  if (styleBoldness === "Creative" || styleBoldness === "Bold") {
+    const dose = level === "full"
+      ? "On this occasion a whole look may be built on one pairing."
+      : "This occasion is professional or formal: keep a polished base and bring the colourful pairings in through one or two pieces only.";
+    return `${head} ${listOf(EDITORIAL_PAIRINGS)}. ${dose} ${tail}`;
+  }
+  return `${head} ${listOf(quiet)}; and, as ONE accent piece only (a knit, the bag, the shoes) against a calm base, also ${listOf(colourful)}. ${tail}`;
+}
+
 /** For the wardrobe-gap analysis: what a colour-loving person is missing to play this way. */
 export function colourPlayGapRule(styleBoldness: string | null | undefined): string | null {
   if (styleBoldness !== "Creative" && styleBoldness !== "Bold") return null;
-  return `COLOUR-PLAY GAP: this person likes to experiment with colour. Unless a basic, structural piece is clearly missing (no coat, no everyday shoes), suggest the colour-play piece that would unlock the most new pairings with the coloured pieces they ALREADY own — e.g. a saturated blazer or coat, coloured knee boots or heels, a printed skirt, a colourful bag, a colour suit, a beret or silk scarf. Choose its colour from a pairing seen in nature (${NATURE_PAIRINGS.map((p) => p.colours).join("; ")}) or a Parisian colour-blocking contrast with what they own, and say in "reason" which owned piece it pairs with. Never name a TV series or its characters.`;
+  return `COLOUR-PLAY GAP: this person likes to experiment with colour. Unless a basic, structural piece is clearly missing (no coat, no everyday shoes), suggest the colour-play piece that would unlock the most new pairings with the coloured pieces they ALREADY own — e.g. a saturated blazer or coat, coloured knee boots or heels, a printed skirt, a colourful bag, a colour suit, a beret or silk scarf. Choose its colour from a pairing seen in nature (${NATURE_PAIRINGS.map((p) => p.colours).join("; ")}), from an editorial pairing (${EDITORIAL_PAIRINGS.map((p) => p.colours).join("; ")}) or a Parisian colour-blocking contrast with what they own, and say in "reason" which owned piece it pairs with. Never name a TV series or its characters.`;
 }

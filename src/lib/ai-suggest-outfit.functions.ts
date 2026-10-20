@@ -9,7 +9,7 @@ import { isItemAllowedByDressPreferences, hasAnyPreference, coversShoulders, cov
 import { anyItemViolatesWeather, violatesSleeveClimate, violatesWeatherRule, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule, MILD_COOL_THRESHOLD_C, COLD_THRESHOLD_C } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, rainLayerFor, rainReason, RAIN_PROMPT_RULE } from "./rain-rules";
 import { isWarmOuter, isWarmAndRainReady, isDressyOuter, coatOverBareArms, COAT_SLEEVES_PROMPT_RULE } from "./warm-outer";
-import { naturePairingRule } from "./nature-color-pairings";
+import { editorialPairingRule, naturePairingRule } from "./nature-color-pairings";
 import { CATALOG_MAX_ITEMS, compactCatalogJson } from "./wardrobe-catalog";
 import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
@@ -386,6 +386,8 @@ export async function suggestOutfitCore(params: {
 
   // Creative / Bold: colour pairings taken from nature, dosed by the occasion (nature-color-pairings.ts).
   const natureLine = naturePairingRule(params.styleBoldness, params.occasion);
+  // Everyone: editorial colour pairings (plum, red…), dosed by boldness and occasion.
+  const editorialLine = editorialPairingRule(params.styleBoldness, params.occasion);
 
   // Style Memory — learned from every ❤️/👎/💾 given anywhere in the app
   // (see outfit-feedback.functions.ts). This is the shared core every
@@ -502,6 +504,7 @@ export async function suggestOutfitCore(params: {
     "Above ~25°C, prefer a top that hasn't already been worn earlier in this batch over one that has, even if it scores slightly lower on style — a fresh piece matters more in hot weather (sweat, hygiene) than in cooler seasons, where repeating a top once or twice is completely normal.",
     ...(boldnessLine ? [boldnessLine] : []),
     ...(natureLine ? [natureLine] : []),
+    ...(editorialLine ? [editorialLine] : []),
     "NEVER pick more than one outerwear/layering piece in the same outfit — a blazer and a cardigan (or any two of blazer/cardigan/jacket/coat) are never worn together. Pick at most one.",
     "A cardigan or any open-front knit (even one tied or wrapped at the front) is a LAYER, like a jacket: ALWAYS pair it with a real top underneath — at least a tank top, camisole, t-shirt, bodysuit or fine knit — never as the only top (unless worn over a dress or jumpsuit).",
     "TEXT MUST MATCH THE ACTUAL ITEM, NOT YOUR INTENT: before writing the explanation, check the subcategory and colors of every item_id you're about to return, and describe each piece using its own real attributes — never call a sandal a 'décolleté'/'pumps' or describe a bag's color/pattern as something other than what it actually is. If nothing in the wardrobe matches what would be ideal, describe what you actually picked, not an idealized version of it.",
