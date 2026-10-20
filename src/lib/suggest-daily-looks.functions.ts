@@ -10,6 +10,7 @@ import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
 import { CATALOG_MAX_ITEMS, compactCatalogJson } from "./wardrobe-catalog";
 import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, isSummerSeason } from "./outfit-styling-rules";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
+import { editorialPairingRule } from "./nature-color-pairings";
 import { explanationLanguageInstruction } from "./language_prompt";
 
 /** The sentence under a look whose own explanation can no longer be trusted, in the person's language. */
@@ -237,6 +238,8 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       "",
       "   Formality and day/evening context outrank color or style match — a",
       "   great color pairing never justifies the wrong occasion.",
+      // Editorial colour pairings (plum, red…): quiet ones freely, colourful ones as one accent piece.
+      editorialPairingRule(null, "Weekend") ?? "",
             "   \"Work\" must EXCLUDE: off-shoulder or bare-shoulder tops, strappy or",
       "   embellished/rhinestone/metallic heeled sandals, clutches or evening bags,",
       "   cocktail-style dresses, anything overtly evening-coded, shorts of any",
