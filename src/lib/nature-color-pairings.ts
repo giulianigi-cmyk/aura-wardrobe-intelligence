@@ -61,6 +61,9 @@ export const EDITORIAL_PAIRINGS: { colours: string; how: string; quiet: boolean 
   { colours: "grey + mustard yellow", how: "a grey coat with mustard gloves and bag", quiet: false },
   { colours: "grey + violet / lilac", how: "a grey pinstripe coat with a purple bag and a lilac scarf", quiet: false },
   { colours: "leopard print + pink", how: "leopard trousers with a pink knit, or a leopard coat with pink trousers and bag", quiet: false },
+  { colours: "leopard print + navy / denim blue", how: "a navy blazer or knit with leopard trousers or boots, a leopard jacket over a light-blue shirt and dark jeans", quiet: true },
+  { colours: "leopard print + light blue / cobalt", how: "a cobalt knit with leopard trousers, light-blue gloves or scarf with a leopard jacket", quiet: false },
+  { colours: "leopard print + burgundy", how: "leopard trousers with a burgundy leather jacket or teddy coat, burgundy bag, gloves or shoes", quiet: true },
 ];
 
 /** How those boards wear two colours — the moves to reuse, not the exact looks. */

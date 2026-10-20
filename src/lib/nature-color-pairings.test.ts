@@ -41,4 +41,6 @@ test("editorial pairings reach everyone, dosed by boldness and occasion", () => 
   assert.match(classic, /grey \+ burgundy/);
   assert.match(classic, /leopard print \+ chocolate brown/);
   assert.doesNotMatch(classic, /leopard print \+ pink/);
+  assert.match(classic, /leopard print \+ burgundy/);
+  assert.match(classic, /leopard print \+ navy/);
 });
