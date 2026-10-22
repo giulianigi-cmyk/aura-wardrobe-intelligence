@@ -16,6 +16,7 @@ import { composeAndUploadOutfitImage, type ComposeItem } from "@/lib/compose-out
 import { OutfitViewerSheet } from "@/components/aura/OutfitViewerSheet";
 import { useWardrobeItems } from "@/lib/wardrobe-query";
 import { loadDressRules } from "@/lib/dress-preferences";
+import { retryOnNetworkError } from "@/lib/network-retry";
 import { suggestDailyLooks, type DailyLook } from "@/lib/suggest-daily-looks.functions";
 import { tempBucket } from "@/lib/outfit-weather-rules";
 import { cachedLooksStillFresh, lookFingerprint } from "@/lib/daily-look-cache";
@@ -279,7 +280,8 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
         } else if (activeItems.length >= 3) {
           try {
             const dressRules = await loadDressRules(user.id);
-            const res = await generateLooks({
+            // One quiet retry when the phone's connection drops ("Load failed" on iPhone, reported in app_errors).
+            const res = await retryOnNetworkError(() => generateLooks({
               data: {
                 temperature: weather?.current.temperature ?? null,
                 tempMin: weather?.daily?.[0]?.tempMin ?? null,
@@ -303,7 +305,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
                 })),
                 language: i18n.language,
               },
-            });
+            }));
             if (res.ok) {
               today_ = res.result.today;
               curated_ = res.result.curated;
