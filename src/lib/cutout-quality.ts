@@ -108,3 +108,38 @@ export async function analyzeCutoutQuality(imageDataUrl: string): Promise<Cutout
     return { ok: true }; // never block a save over the quality check itself failing
   }
 }
+
+/** Share of pixels whose transparency changed by more than ALPHA_CHANGE between two RGBA buffers of
+ *  the same size. Pure, for tests. */
+const ALPHA_CHANGE = 64;
+export function alphaChangedShare(before: Uint8ClampedArray, after: Uint8ClampedArray): number {
+  const n = Math.min(before.length, after.length) >> 2;
+  if (!n) return 0;
+  let changed = 0;
+  for (let p = 0; p < n; p++) if (Math.abs(before[p * 4 + 3] - after[p * 4 + 3]) > ALPHA_CHANGE) changed++;
+  return changed / n;
+}
+
+/** Below this share of changed pixels the free cutout removed nothing: run on a photo that is already
+ *  that same cutout (a piece re-cut from the wardrobe), it gives the photo back as it was. */
+export const NOTHING_REMOVED_SHARE = 0.01;
+
+/** How much of the picture the cutout actually changed (0-1), comparing the two at a small size. Null
+ *  when it cannot be measured (decode failure). */
+export async function cutoutChangedShare(beforeDataUrl: string, afterDataUrl: string): Promise<number | null> {
+  try {
+    const [a, b] = await Promise.all([loadImageEl(beforeDataUrl), loadImageEl(afterDataUrl)]);
+    const read = (img: HTMLImageElement) => {
+      const c = document.createElement("canvas");
+      c.width = ANALYSIS_SIZE; c.height = ANALYSIS_SIZE;
+      const ctx = c.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return null;
+      ctx.drawImage(img, 0, 0, ANALYSIS_SIZE, ANALYSIS_SIZE);
+      return ctx.getImageData(0, 0, ANALYSIS_SIZE, ANALYSIS_SIZE).data;
+    };
+    const pa = read(a), pb = read(b);
+    return pa && pb ? alphaChangedShare(pa, pb) : null;
+  } catch {
+    return null;
+  }
+}
