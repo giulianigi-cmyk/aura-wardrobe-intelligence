@@ -16,6 +16,7 @@ import { removeBackgroundClient } from "@/lib/bg-removal-client";
 import { removeBackground } from "@/lib/ai-bgremove.functions";
 import { analyzeCutoutQuality, cutoutChangedShare, NOTHING_REMOVED_SHARE } from "@/lib/cutout-quality";
 import { retryOnNetworkError } from "@/lib/network-retry";
+import { flattenOnWhite } from "@/lib/flatten-on-white";
 import { ItemCropAdjuster } from "@/components/aura/ItemCropAdjuster";
 import type { FractionalBox } from "@/components/aura/ItemCropAdjuster";
 import { compressImageForUpload } from "@/lib/image-compress";
@@ -355,7 +356,8 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
         needsPremium = !quality.ok || (changed != null && changed < NOTHING_REMOVED_SHARE);
       }
       if (needsPremium) {
-        const premium = await retryOnNetworkError(() => removeBackgroundPremium({ data: { imageDataUrl: dataUrl } }))
+        const onWhite = await flattenOnWhite(dataUrl);
+        const premium = await retryOnNetworkError(() => removeBackgroundPremium({ data: { imageDataUrl: onWhite } }))
           .catch((e: unknown) => ({ ok: false as const, error: e instanceof Error ? e.message : "remove.bg failed" }));
         if (premium.ok) bg = premium;
         else console.error("[AURA wardrobe] remove.bg fallback failed, keeping the free result", premium.error);

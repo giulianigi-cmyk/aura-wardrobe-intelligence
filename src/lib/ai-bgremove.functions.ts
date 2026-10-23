@@ -31,7 +31,8 @@ export async function removeBackgroundCore(imageDataUrl: string): Promise<{ ok: 
 
   try {
     const form = new FormData();
-    form.append("image_file", dataUrlToBlob(imageDataUrl), "upload.png");
+    const file = dataUrlToBlob(imageDataUrl);
+    form.append("image_file", file, file.type === "image/jpeg" ? "upload.jpg" : "upload.png");
     form.append("size", "auto");
     // Previously left on "auto" (remove.bg's own foreground-type guess),
     // which is a real cause of the reported problem: a garment that's a
@@ -64,7 +65,11 @@ export async function removeBackgroundCore(imageDataUrl: string): Promise<{ ok: 
     if (!resp.ok) {
       const body = await resp.text();
       console.warn("[AURA bgremove] remove.bg error", resp.status, body.slice(0, 300));
-      return { ok: false, error: `remove.bg ${resp.status}` };
+      // remove.bg explains a 400 in its body (e.g. "unknown_foreground", "file_too_large"): pass the
+      // code on, so the error logged by the app says why instead of a bare status.
+      let code = "";
+      try { code = String(JSON.parse(body)?.errors?.[0]?.code ?? JSON.parse(body)?.errors?.[0]?.title ?? ""); } catch { /* not JSON */ }
+      return { ok: false, error: `remove.bg ${resp.status}${code ? ` ${code.slice(0, 60)}` : ""}` };
     }
 
     const buf = new Uint8Array(await resp.arrayBuffer());
