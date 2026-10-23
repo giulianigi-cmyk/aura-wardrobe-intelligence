@@ -14,6 +14,7 @@ import { reanalyzeWardrobeBatch } from "@/lib/reanalyze-wardrobe.functions";
 import { lendItem, listActiveLoans, returnLoan, type WardrobeLoan } from "@/lib/wardrobe-loans.functions";
 import { removeBackgroundClient } from "@/lib/bg-removal-client";
 import { removeBackground } from "@/lib/ai-bgremove.functions";
+import { analyzeCutoutQuality, cutoutChangedShare, NOTHING_REMOVED_SHARE } from "@/lib/cutout-quality";
 import { retryOnNetworkError } from "@/lib/network-retry";
 import { ItemCropAdjuster } from "@/components/aura/ItemCropAdjuster";
 import type { FractionalBox } from "@/components/aura/ItemCropAdjuster";
@@ -336,29 +337,32 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
     try {
       // One quiet retry when the phone's connection drops while fetching the photo ("Load failed").
       const dataUrl = await retryOnNetworkError(() => toDataUrl(src));
-      // Tapped on a piece already in the wardrobe, the button means "this cutout is not good
-      // enough": the photo is usually the free cutout made when it was added, and running the same
-      // free cutout on it again changed nothing (reported: a blue jacket kept its ragged rim). So
-      // remove.bg goes first here; the free on-device cutout is the fallback when remove.bg is out of
-      // credits or fails.
-      let bg: { ok: true; imageDataUrl: string } | { ok: false; error?: string };
-      const premium = await retryOnNetworkError(() => removeBackgroundPremium({ data: { imageDataUrl: dataUrl } }))
-        .catch((e: unknown) => ({ ok: false as const, error: e instanceof Error ? e.message : "remove.bg failed" }));
-      if (premium.ok) {
-        bg = premium;
-      } else {
-        console.error("[AURA wardrobe] remove.bg failed, using the free cutout", premium.error);
+      // The free on-device cutout first; remove.bg (a paid call) only when the free one did not do
+      // the job: it failed, it left holes or a see-through piece, or it removed nothing — which is
+      // what happens on a piece already cut out that way when it was added (reported: a blue jacket
+      // kept its ragged rim and the button changed nothing).
+      let bg: { ok: true; imageDataUrl: string } | { ok: false; error?: string } = await removeBackgroundClient(dataUrl);
+      let attempt = 1;
+      while (!bg.ok && attempt < 3) {
+        await new Promise((r) => setTimeout(r, 800 * attempt));
         bg = await removeBackgroundClient(dataUrl);
-        let attempt = 1;
-        while (!bg.ok && attempt < 3) {
-          await new Promise((r) => setTimeout(r, 800 * attempt));
-          bg = await removeBackgroundClient(dataUrl);
-          attempt++;
-        }
-        if (!bg.ok) {
-          toast.error(t("wardrobe.toastBgRemoveFailed"));
-          return;
-        }
+        attempt++;
+      }
+      let needsPremium = !bg.ok;
+      if (bg.ok) {
+        const quality = await analyzeCutoutQuality(bg.imageDataUrl);
+        const changed = await cutoutChangedShare(dataUrl, bg.imageDataUrl);
+        needsPremium = !quality.ok || (changed != null && changed < NOTHING_REMOVED_SHARE);
+      }
+      if (needsPremium) {
+        const premium = await retryOnNetworkError(() => removeBackgroundPremium({ data: { imageDataUrl: dataUrl } }))
+          .catch((e: unknown) => ({ ok: false as const, error: e instanceof Error ? e.message : "remove.bg failed" }));
+        if (premium.ok) bg = premium;
+        else console.error("[AURA wardrobe] remove.bg fallback failed, keeping the free result", premium.error);
+      }
+      if (!bg.ok) {
+        toast.error(t("wardrobe.toastBgRemoveFailed"));
+        return;
       }
 
       const blob = await (await fetch(bg.imageDataUrl)).blob();
