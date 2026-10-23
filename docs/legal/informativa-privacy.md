@@ -30,7 +30,10 @@ Email per le richieste sulla privacy: giulia.nigi@gmail.com
 - Schermate visitate, aperture dell'app, errori tecnici, tipo di dispositivo e versione dell'app, per far funzionare l'app, correggere gli errori e capire quali funzioni vengono usate.
 - Registro dell'uso delle funzioni di intelligenza artificiale (quale funzione, quando, costo stimato), per gestire i limiti del piano e i costi.
 
-Non raccogliamo dati di pagamento: oggi l'app non ha acquisti a pagamento. *[Da aggiornare se verranno introdotti abbonamenti.]*
+**Acquisti (abbonamenti e crediti)**
+- Piano scelto, date di inizio e rinnovo della prova e dell'abbonamento, crediti acquistati e usati, stato dei pagamenti, richieste di disdetta, recesso e rimborso.
+- I dati della carta li tratta solo il fornitore del pagamento (*[App Store / Google Play / Stripe — da definire]*): noi non li vediamo e non li conserviamo.
+- Se emettiamo fattura o ricevuta: nome, indirizzo e codice fiscale o partita IVA, se necessari.
 
 ## 3. Perché li trattiamo e su quale base giuridica
 
@@ -45,6 +48,9 @@ Non raccogliamo dati di pagamento: oggi l'app non ha acquisti a pagamento. *[Da 
 | Libreria condivisa (rendere visibili ad altri utenti le foto prodotto dei tuoi capi) | Consenso, attivabile e disattivabile in Impostazioni › Privacy |
 | Statistiche d'uso, errori tecnici, sicurezza e prevenzione degli abusi | Legittimo interesse (art. 6.1.f) a far funzionare e migliorare l'app |
 | Rispondere alle segnalazioni e alle richieste | Esecuzione del contratto e legittimo interesse |
+| Gestire abbonamenti, prova gratuita, crediti, rinnovi, disdette, recessi e rimborsi | Esecuzione del contratto |
+| Promemoria prima della fine della prova e prima del rinnovo annuale | Esecuzione del contratto e obbligo di legge |
+| Conservare i dati di acquisto a fini fiscali e contabili | Obbligo di legge (art. 6.1.c) |
 
 Le foto del corpo e del viso servono solo a generare le immagini della prova virtuale. Non le usiamo per riconoscerti né per identificarti.
 
@@ -64,6 +70,7 @@ Non vendiamo i tuoi dati e non li usiamo per pubblicità. Li condividiamo solo c
 | Google, Microsoft, Apple | Accesso con il loro account e collegamento del calendario, solo se lo scegli | USA |
 | Apple, Google, Mozilla, Microsoft (servizi push) | Consegna delle notifiche | USA |
 | Resend | Invio delle email di risposta alle segnalazioni | USA |
+| *[App Store / Google Play / Stripe — da definire]* | Pagamenti di abbonamenti e crediti | *[da verificare]* |
 
 La rimozione dello sfondo dalle foto dei capi avviene direttamente sul tuo dispositivo.
 
@@ -75,6 +82,7 @@ Quando i dati vanno fuori dall'Unione Europea, il trasferimento si basa sulle de
 - **Registrazioni vocali:** non le conserviamo, servono solo per la trascrizione.
 - **Dati tecnici ed errori:** fino a 12 mesi. *[Da confermare.]*
 - **Segnalazioni:** fino a 24 mesi dalla chiusura. *[Da confermare.]*
+- **Dati di acquisto e fatture:** 10 anni, come richiesto dalla legge fiscale (art. 2220 c.c.), anche dopo la cancellazione dell'account.
 - Più a lungo solo se lo impone la legge.
 
 ## 6. I tuoi diritti

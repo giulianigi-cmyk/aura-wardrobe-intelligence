@@ -29,11 +29,46 @@ Molte funzioni usano l'intelligenza artificiale: vedi il punto 6.
 - L'account è personale e non può essere ceduto.
 - Puoi cancellare l'account in qualsiasi momento da Impostazioni: verranno cancellati anche i tuoi dati e le foto, come descritto nell'informativa privacy.
 
-## 4. Piani e limiti d'uso
+## 4. Piani, abbonamenti e crediti
 
-- Oggi l'app è gratuita. Alcune funzioni hanno limiti d'uso ragionevoli (per esempio il numero di nuovi capi, di rigenerazioni del look del giorno o di analisi) per contenere i costi dei servizi di intelligenza artificiale. Puoi vedere il tuo utilizzo nell'app.
-- In futuro potremmo introdurre piani a pagamento con limiti più ampi. Se succede, prezzi, durata, rinnovo e diritto di recesso saranno indicati prima dell'acquisto, e nessun pagamento verrà addebitato senza la tua conferma. *[Da completare quando ci saranno abbonamenti.]*
-- Un periodo di prova, se offerto, termina automaticamente senza addebiti.
+*[Prezzi, limiti e nomi dei piani da completare dopo la proposta di novembre.]*
+
+**4.1 Piano gratuito**
+L'app ha un piano gratuito con limiti d'uso (per esempio nuovi capi al mese, rigenerazioni del look del giorno, analisi). Puoi vedere il tuo utilizzo in Impostazioni › Piano e utilizzo.
+
+**4.2 Abbonamenti**
+- Sono disponibili abbonamenti **mensili** e **annuali** ai piani PLUS e ULTRA, con limiti più ampi e funzioni in più. Prezzo, durata, contenuto del piano e modalità di rinnovo sono mostrati chiaramente prima della conferma.
+- Il pagamento avviene tramite *[App Store / Google Play / Stripe — da definire]*. Quando paghi tramite uno store valgono anche le sue condizioni, per esempio per i rimborsi.
+- L'abbonamento **si rinnova automaticamente** alla scadenza, per lo stesso periodo e allo stesso prezzo, salvo disdetta. Puoi disdire in qualsiasi momento dalle impostazioni dell'account o dello store. La disdetta ha effetto alla fine del periodo già pagato, salvo quanto previsto al punto 4.5 sul recesso.
+- Ti avvisiamo prima del rinnovo di un abbonamento annuale e prima di ogni variazione di prezzo. Una variazione di prezzo vale solo dal rinnovo successivo e puoi disdire prima che si applichi.
+
+**4.3 Prova gratuita**
+- Puoi provare il piano *[ULTRA annuale]* gratis per **2 giorni**.
+- Per attivare la prova scegli tu l'abbonamento che partirà alla fine della prova. Prezzo e data del primo addebito sono indicati chiaramente, e confermi con un pulsante che dice in modo esplicito che l'ordine comporta un pagamento.
+- Durante la prova puoi disdire in qualsiasi momento senza alcun costo. Ti mandiamo un promemoria prima della fine della prova.
+- Se non disdici, alla fine della prova parte l'abbonamento che hai scelto e viene addebitato il primo periodo.
+- La prova gratuita spetta una sola volta per persona.
+
+**4.4 Crediti**
+- Puoi acquistare pacchetti di **crediti** da usare per singole funzioni oltre i limiti del tuo piano, per esempio una prova sull'avatar o una pianificazione in più. Il costo in crediti di ogni funzione è indicato prima dell'uso.
+- I crediti **non scadono** finché l'account è attivo. Non sono convertibili in denaro e non sono cedibili.
+- Se cancelli l'account, i crediti non usati si perdono. Te lo ricordiamo prima della cancellazione.
+
+**4.5 Diritto di recesso**
+- Come consumatore hai diritto di recedere da un acquisto a distanza **entro 14 giorni**, senza dover dare una motivazione (artt. 52 e seguenti del Codice del Consumo).
+- **Abbonamenti:**
+  - Se, su tua espressa richiesta, il servizio inizia prima che siano passati i 14 giorni (per esempio alla fine della prova gratuita), puoi comunque recedere entro i 14 giorni. In quel caso paghi solo la parte di servizio già usata, in proporzione al periodo trascorso.
+  - Se recedi durante la prova gratuita non paghi nulla.
+  - *[Da verificare con un professionista se e come il periodo di prova possa contare nei 14 giorni.]*
+- **Crediti:**
+  - I crediti sono contenuto digitale fornito subito. Al momento dell'acquisto ti chiediamo il consenso espresso a ricevere subito i crediti e la conferma che, così facendo, perdi il diritto di recesso (art. 59, lett. o, Codice del Consumo).
+  - Senza quel consenso e quella conferma, puoi recedere entro 14 giorni per i crediti non usati.
+- **Come recedere:**
+  - per gli acquisti fatti tramite uno store, segui la procedura di rimborso dello store;
+  - negli altri casi scrivi a giulia.nigi@gmail.com indicando l'acquisto;
+  - il rimborso avviene entro 14 giorni con lo stesso mezzo di pagamento.
+
+*Nota per la titolare, da togliere prima della pubblicazione:* la legge non consente di limitare il recesso ai soli 2 giorni di prova, né di far partire in automatico un abbonamento che la persona non ha scelto espressamente. Il testo sopra rispetta questi vincoli: la prova parte già sull'abbonamento annuale più completo, ma solo se la persona lo sceglie e lo conferma. Da far verificare a un professionista.
 
 ## 5. I tuoi contenuti
 
