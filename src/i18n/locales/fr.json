@@ -474,6 +474,8 @@
     "colorLabel": "Couleur",
     "clear": "Effacer",
     "sharedClosetAnonymous": "Garde-robe partagée · anonyme",
+    "sharedClosetNewest": "Toutes les pièces · les plus récentes d'abord",
+    "showMore": "Voir plus",
     "importFromUrl": "Importer depuis une URL",
     "pasteProductLinkTitle": "Collez un lien de produit",
     "importUrlHint": "Fonctionne avec la plupart des boutiques de mode. Nous extrairons la photo du produit, la nettoierons et préremplirons les détails.",
