@@ -22,7 +22,7 @@ import { importProductFromUrl, type CompositionEntry } from "@/lib/import-url.fu
 import { listLocations } from "@/lib/wardrobe-locations.functions";
 import { downloadImportImage } from "@/lib/import-image.functions";
 import { searchProductLibrary, browseProductLibrary, type ProductLibraryItem } from "@/lib/product-library";
-import { searchSharedLibrary, syncMySharedLibrary, type SharedLibraryItem } from "@/lib/shared-library.functions";
+import { browseSharedLibrary, searchSharedLibrary, syncMySharedLibrary, SHARED_PAGE_SIZE, type SharedLibraryItem } from "@/lib/shared-library.functions";
 import { buildProductSearchQuery, buildGoogleSearchUrl, buildGoogleLensUrl } from "@/lib/search-online";
 
 import { compressImageForUpload } from "@/lib/image-compress";
@@ -313,6 +313,9 @@ export function AddItem({ onClose, initialGarment }: {
   const [libraryQuery, setLibraryQuery] = useState("");
   const [libraryResults, setLibraryResults] = useState<ProductLibraryItem[]>([]);
   const [sharedResults, setSharedResults] = useState<SharedLibraryItem[]>([]);
+  // Browsing the whole library (no search): more pages can be loaded, newest first.
+  const [sharedHasMore, setSharedHasMore] = useState(false);
+  const [sharedLoadingMore, setSharedLoadingMore] = useState(false);
   const [librarySearching, setLibrarySearching] = useState(false);
 
   const [libraryLoadingId, setLibraryLoadingId] = useState<string | null>(null);
@@ -663,14 +666,32 @@ export function AddItem({ onClose, initialGarment }: {
     }
   };
 
+  // Opening the library shows every shared piece of every user, newest first (it used to open
+  // empty until a search), plus the product library.
+  const browseShared = async (offset: number): Promise<SharedLibraryItem[]> => {
+    const page = await browseSharedLibrary({ data: { offset } }).catch(() => [] as SharedLibraryItem[]);
+    setSharedHasMore(page.length === SHARED_PAGE_SIZE);
+    return page;
+  };
+  const loadMoreShared = async () => {
+    if (sharedLoadingMore) return;
+    setSharedLoadingMore(true);
+    try {
+      const page = await browseShared(sharedResults.length);
+      setSharedResults((prev) => [...prev, ...page.filter((p) => !prev.some((x) => x.id === p.id))]);
+    } finally {
+      setSharedLoadingMore(false);
+    }
+  };
+
   useEffect(() => {
     if (step !== "library") return;
     if (libraryQuery.trim()) return;
-    if (libraryResults.length > 0) return;
+    if (libraryResults.length > 0 || sharedResults.length > 0) return;
     let cancelled = false;
     setLibrarySearching(true);
-    browseProductLibrary()
-      .then((products) => { if (!cancelled) setLibraryResults(products); })
+    Promise.all([browseProductLibrary(), browseShared(0)])
+      .then(([products, shared]) => { if (!cancelled) { setLibraryResults(products); setSharedResults(shared); } })
       .finally(() => { if (!cancelled) setLibrarySearching(false); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -678,8 +699,9 @@ export function AddItem({ onClose, initialGarment }: {
 
   const runLibrarySearch = async () => {
     const q = libraryQuery.trim();
-    if (!q) { setLibraryResults([]); setSharedResults([]); return; }
+    if (!q) return;
     setLibrarySearching(true);
+    setSharedHasMore(false);
     try {
       const [products, shared] = await Promise.all([
         searchProductLibrary(q),
@@ -705,8 +727,9 @@ export function AddItem({ onClose, initialGarment }: {
         setLibraryResults(products);
         setSharedResults(shared);
       } else {
-        const products = await browseProductLibrary();
+        const [products, shared] = await Promise.all([browseProductLibrary(), browseShared(0)]);
         setLibraryResults(products);
+        setSharedResults(shared);
       }
     } finally {
       setLibrarySearching(false);
@@ -1112,8 +1135,8 @@ export function AddItem({ onClose, initialGarment }: {
           )}
 
           {(sharedResults.length > 0 || libraryResults.length > 0) && (
-            <div className="mt-4 flex items-center justify-between">
-              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("addItem.refine")}</p>
+            <div className="mt-6 shrink-0 flex items-center justify-between">
+              <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">{t("addItem.refine")}</p>
               <div className="shrink-0 flex items-center gap-1 rounded-full border border-border p-0.5">
                 <button
                   onClick={() => setLibraryColumns(2)}
@@ -1131,8 +1154,10 @@ export function AddItem({ onClose, initialGarment }: {
             </div>
           )}
 
+          {/* shrink-0: inside the scrolling column a row that scrolls sideways may otherwise be squeezed
+              to a sliver, cutting the chips in half (reported: "non si legge niente"). */}
           {(sharedResults.length > 0 || libraryResults.length > 0) && (
-            <div className="mt-2 flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            <div className="mt-3 shrink-0 flex items-center gap-2.5 overflow-x-auto py-1 -mx-1 px-1">
               {([
                 ["category", t("addItem.categoryLabel"), filterCategory, filterOptions.categories] as const,
                 ["color", t("addItem.colorLabel"), filterColor, filterOptions.colors] as const,
@@ -1143,7 +1168,7 @@ export function AddItem({ onClose, initialGarment }: {
                 <button
                   key={key}
                   onClick={() => setOpenFilterKey(key)}
-                  className={`shrink-0 rounded-full border px-3.5 py-2 text-xs whitespace-nowrap ${value ? "border-foreground bg-foreground text-background" : "border-border bg-card"}`}
+                  className={`shrink-0 rounded-full border px-4 py-2.5 text-sm whitespace-nowrap ${value ? "border-foreground bg-foreground text-background" : "border-border bg-card"}`}
                 >
                   {value || label}
                 </button>
@@ -1151,7 +1176,7 @@ export function AddItem({ onClose, initialGarment }: {
               {(filterCategory || filterColor || filterMaterial || filterBrand || filterSeason) && (
                 <button
                   onClick={() => { setFilterCategory(""); setFilterColor(""); setFilterMaterial(""); setFilterBrand(""); setFilterSeason(""); }}
-                  className="shrink-0 rounded-full border border-border px-3 py-1.5 text-[11px] text-muted-foreground"
+                  className="shrink-0 rounded-full border border-border px-4 py-2.5 text-sm text-muted-foreground"
                 >
                   {t("addItem.clear")}
                 </button>
@@ -1201,10 +1226,10 @@ export function AddItem({ onClose, initialGarment }: {
 
           {filteredShared.length > 0 && (
             <>
-              <p className="mt-5 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-                {t("addItem.sharedClosetAnonymous")}
+              <p className="mt-6 shrink-0 text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                {libraryQuery.trim() ? t("addItem.sharedClosetAnonymous") : t("addItem.sharedClosetNewest", { defaultValue: "All pieces · newest first" })}
               </p>
-              <div className={`mt-2 grid gap-1.5 ${libraryColumns === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+              <div className={`mt-3 shrink-0 grid gap-2 ${libraryColumns === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
                 {filteredShared.map((s) => (
                   <button
                     key={s.id}
@@ -1213,8 +1238,8 @@ export function AddItem({ onClose, initialGarment }: {
                     className="rounded-xl border border-border bg-card overflow-hidden active:scale-[0.98] transition disabled:opacity-60"
                   >
                     <div className="aspect-square w-full bg-secondary/40 relative">
-                      {s.signed_url && (
-                        <img src={s.signed_url} alt="" loading="lazy" className="h-full w-full object-contain" />
+                      {(s.thumb_url || s.signed_url) && (
+                        <img src={s.thumb_url || s.signed_url || ""} alt="" loading="lazy" decoding="async" className="h-full w-full object-contain" />
                       )}
                       {libraryLoadingId === s.id && (
                         <div className="absolute inset-0 flex items-center justify-center bg-background/60">
@@ -1225,6 +1250,16 @@ export function AddItem({ onClose, initialGarment }: {
                   </button>
                 ))}
               </div>
+              {!libraryQuery.trim() && sharedHasMore && (
+                <button
+                  onClick={() => void loadMoreShared()}
+                  disabled={sharedLoadingMore}
+                  className="mt-4 shrink-0 w-full h-11 rounded-full border border-border text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {sharedLoadingMore && <Loader2 size={14} className="animate-spin" />}
+                  {t("addItem.showMore", { defaultValue: "Show more" })}
+                </button>
+              )}
             </>
           )}
 

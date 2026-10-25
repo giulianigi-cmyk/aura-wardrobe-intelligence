@@ -474,6 +474,8 @@
     "colorLabel": "Colore",
     "clear": "Cancella",
     "sharedClosetAnonymous": "Guardaroba condiviso · anonimo",
+    "sharedClosetNewest": "Tutti i capi · dal più recente",
+    "showMore": "Mostra altri",
     "importFromUrl": "Importa da URL",
     "pasteProductLinkTitle": "Incolla un link prodotto",
     "importUrlHint": "Funziona con la maggior parte dei negozi di moda. Estrarremo la foto del prodotto, la puliremo e precompileremo i dettagli.",

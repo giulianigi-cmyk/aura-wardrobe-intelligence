@@ -43,14 +43,14 @@ async function ownerHash(admin: Admin, userId: string): Promise<string> {
   return data as string;
 }
 
-async function copyImageAnon(admin: Admin, sourcePath: string): Promise<string | null> {
+async function copyImageAnon(admin: Admin, sourcePath: string, suffix = ""): Promise<string | null> {
   const dl = await admin.storage.from("wardrobe").download(sourcePath);
   if (dl.error || !dl.data) {
     console.error("[AURA shared-library] download failed", sourcePath, dl.error);
     return null;
   }
   const ext = (sourcePath.split(".").pop() ?? "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
-  const anonPath = `${crypto.randomUUID()}.${ext}`;
+  const anonPath = `${crypto.randomUUID()}${suffix}.${ext}`;
   const up = await admin.storage.from(SHARED_BUCKET).upload(anonPath, dl.data, {
     contentType: dl.data.type || "image/png",
     upsert: false,
@@ -74,8 +74,8 @@ export async function revokeSharedLibrary(userId: string): Promise<{ removed: nu
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const hash = await ownerHash(supabaseAdmin, userId);
   const { data: rows } = await (supabaseAdmin as any)
-    .from("shared_library_items").select("id, image_url").eq("owner_hash", hash);
-  await removeAnonImages(supabaseAdmin, (rows ?? []).map((r: any) => r.image_url));
+    .from("shared_library_items").select("id, image_url, thumbnail_path").eq("owner_hash", hash);
+  await removeAnonImages(supabaseAdmin, (rows ?? []).flatMap((r: any) => [r.image_url, r.thumbnail_path]));
   await (supabaseAdmin as any).from("shared_library_items").delete().eq("owner_hash", hash);
   return { removed: rows?.length ?? 0 };
 }
@@ -103,7 +103,7 @@ export async function syncSharedLibrary(userId: string): Promise<{ synced: numbe
   const [{ data: items }, { data: existing }] = await Promise.all([
     (supabaseAdmin as any).from("wardrobe_items").select("*").eq("user_id", userId).eq("archived", false),
     (supabaseAdmin as any).from("shared_library_items")
-      .select("id, source_item_id, image_url, source_image_path").eq("owner_hash", hash),
+      .select("id, source_item_id, image_url, thumbnail_path, source_image_path").eq("owner_hash", hash),
   ]);
 
   const byItem = new Map<string, any>((existing ?? []).map((r: any) => [r.source_item_id, r]));
@@ -123,7 +123,15 @@ export async function syncSharedLibrary(userId: string): Promise<{ synced: numbe
     fields["material"] = item.material ?? [];
     fields["style_tags"] = item.style_tags ?? [];
 
+    // The small copy shown in the library grid: full images (up to 1.6 MB) left most of a page of 30
+    // blank on a phone. Copied with the image, and added to pieces shared before it existed.
+    const thumbSource = toStoragePath(item.thumbnail_path);
+
     if (prev && prev.source_image_path === sourcePath) {
+      if (!prev.thumbnail_path && thumbSource) {
+        const thumbPath = await copyImageAnon(supabaseAdmin, thumbSource, "-thumb");
+        if (thumbPath) fields["thumbnail_path"] = thumbPath;
+      }
       await (supabaseAdmin as any).from("shared_library_items").update(fields).eq("id", prev.id);
       synced++;
       continue;
@@ -131,22 +139,24 @@ export async function syncSharedLibrary(userId: string): Promise<{ synced: numbe
 
     const anonPath = await copyImageAnon(supabaseAdmin, sourcePath);
     if (!anonPath) continue;
+    const anonThumb = thumbSource ? await copyImageAnon(supabaseAdmin, thumbSource, "-thumb") : null;
 
     if (prev) {
       await (supabaseAdmin as any).from("shared_library_items")
-        .update({ ...fields, image_url: anonPath, source_image_path: sourcePath }).eq("id", prev.id);
-      await removeAnonImages(supabaseAdmin, [prev.image_url]);
+        .update({ ...fields, image_url: anonPath, thumbnail_path: anonThumb, source_image_path: sourcePath }).eq("id", prev.id);
+      await removeAnonImages(supabaseAdmin, [prev.image_url, prev.thumbnail_path]);
     } else {
       const { error } = await (supabaseAdmin as any).from("shared_library_items").insert({
         ...fields,
         owner_hash: hash,
         source_item_id: item.id,
         image_url: anonPath,
+        thumbnail_path: anonThumb,
         source_image_path: sourcePath,
       });
       if (error) {
         console.error("[AURA shared-library] insert", error);
-        await removeAnonImages(supabaseAdmin, [anonPath]);
+        await removeAnonImages(supabaseAdmin, [anonPath, anonThumb ?? ""]);
         continue;
       }
     }
@@ -155,7 +165,7 @@ export async function syncSharedLibrary(userId: string): Promise<{ synced: numbe
 
   const stale = (existing ?? []).filter((r: any) => !liveIds.has(r.source_item_id));
   if (stale.length) {
-    await removeAnonImages(supabaseAdmin, stale.map((r: any) => r.image_url));
+    await removeAnonImages(supabaseAdmin, stale.flatMap((r: any) => [r.image_url, r.thumbnail_path]));
     await (supabaseAdmin as any).from("shared_library_items")
       .delete().in("id", stale.map((r: any) => r.id));
   }

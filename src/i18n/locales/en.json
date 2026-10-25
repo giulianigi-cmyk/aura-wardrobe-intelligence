@@ -474,6 +474,8 @@
     "colorLabel": "Color",
     "clear": "Clear",
     "sharedClosetAnonymous": "Shared closet · anonymous",
+    "sharedClosetNewest": "All pieces · newest first",
+    "showMore": "Show more",
     "importFromUrl": "Import from URL",
     "pasteProductLinkTitle": "Paste a product link",
     "importUrlHint": "Works with most fashion stores. We'll extract the product photo, clean it up and pre-fill the details.",
