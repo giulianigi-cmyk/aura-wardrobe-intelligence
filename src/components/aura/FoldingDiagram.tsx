@@ -154,7 +154,7 @@ const DIAGRAMS: Record<FoldDiagramKind, Panel[]> = {
   ],
 };
 
-export function FoldingDiagram({ kind, label }: { kind: FoldDiagramKind; label: string }) {
+export function FoldingDiagram({ kind, label, steps }: { kind: FoldDiagramKind; label: string; steps?: readonly string[] }) {
   const markerId = `fold-arrow-${useId().replace(/:/g, "")}`;
   const panels = DIAGRAMS[kind];
   return (
@@ -163,16 +163,18 @@ export function FoldingDiagram({ kind, label }: { kind: FoldDiagramKind; label: 
         <div key={i} className="rounded-xl bg-secondary/40 pt-1 pb-1.5 flex flex-col items-center">
           <svg viewBox="0 0 100 90" className="w-full h-auto" aria-hidden="true">
             <defs>
-              <marker id={`${markerId}-${i}`} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+              <marker id={`${markerId}-${i}`} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
                 <path d="M0 0 L10 5 L0 10 Z" fill="currentColor" />
               </marker>
             </defs>
-            <path d={p.shape} fill="currentColor" fillOpacity={0.06} stroke="currentColor" strokeWidth={1.1} strokeLinejoin="round" strokeLinecap="round" />
-            {p.extra && <path d={p.extra} fill="none" stroke="currentColor" strokeOpacity={0.45} strokeWidth={0.8} strokeLinejoin="round" strokeLinecap="round" />}
-            {p.folds && <path d={p.folds} fill="none" stroke="currentColor" strokeOpacity={0.55} strokeWidth={0.8} strokeDasharray="3 3" />}
-            {p.arrows?.map((d) => <path key={d} d={d} fill="none" stroke="currentColor" strokeWidth={1} markerEnd={`url(#${markerId}-${i})`} />)}
+            <path d={p.shape} fill="currentColor" fillOpacity={0.04} stroke="currentColor" strokeOpacity={0.7} strokeWidth={1} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+            {p.extra && <path d={p.extra} fill="none" stroke="currentColor" strokeOpacity={0.35} strokeWidth={0.75} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />}
+            {p.folds && <path d={p.folds} fill="none" stroke="currentColor" strokeOpacity={0.45} strokeWidth={0.75} vectorEffect="non-scaling-stroke" strokeDasharray="3 3" />}
+            {p.arrows?.map((d) => <path key={d} d={d} fill="none" stroke="currentColor" strokeOpacity={0.8} strokeWidth={1} vectorEffect="non-scaling-stroke" markerEnd={`url(#${markerId}-${i})`} />)}
           </svg>
-          <span className="text-[10px] text-muted-foreground tabular-nums">{i + 1}</span>
+          <span className="px-1.5 text-center text-[10px] leading-snug text-muted-foreground">
+            <span className="tabular-nums">{i + 1}</span>{steps?.[i] ? `. ${steps[i]}` : ""}
+          </span>
         </div>
       ))}
     </div>

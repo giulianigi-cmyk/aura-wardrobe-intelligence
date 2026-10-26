@@ -44,7 +44,7 @@ export function StorageTipsSheet({ onClose }: { onClose: () => void }) {
               {diagrams.map((kind) => (
                 <div key={kind}>
                   <p className="text-sm">{tips.diagramLabels[kind]}</p>
-                  <FoldingDiagram kind={kind} label={tips.diagramLabels[kind]} />
+                  <FoldingDiagram kind={kind} label={tips.diagramLabels[kind]} steps={tips.diagramSteps[kind]} />
                 </div>
               ))}
             </div>

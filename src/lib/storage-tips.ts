@@ -18,6 +18,8 @@ export type StorageTips = {
   sections: StorageTipsSection[];
   diagramsTitle: string;
   diagramLabels: Record<FoldDiagramKind, string>;
+  /** One short sentence under each of the three drawings of a garment. */
+  diagramSteps: Record<FoldDiagramKind, [string, string, string]>;
 };
 
 const it: StorageTips = {
@@ -25,6 +27,7 @@ const it: StorageTips = {
   intro: "Pochi accorgimenti perché i capi ritornino come li hai lasciati: puliti, senza pieghe e senza tarme.",
   diagramsTitle: "Come piegare, passo passo",
   diagramLabels: { sweater: "Maglione", shirt: "Camicia", trousers: "Pantaloni", roll: "T-shirt arrotolata", jacket: "Giacca (se non puoi appenderla)", socks: "Calzini", briefs: "Slip e mutande", boxers: "Boxer", bra: "Reggiseno" },
+  diagramSteps: { sweater: ["A faccia in giù, porta lati e maniche al centro", "Piega in tre dal basso", "Pronto da riporre"], shirt: ["Abbottonata, piega lati e maniche dietro", "Piega in tre dal basso", "Colletto in alto, pronta"], trousers: ["Porta una gamba sopra l'altra", "Piega a metà o in tre", "Pronti da riporre"], roll: ["Porta lati e maniche al centro", "Arrotola partendo dal basso", "Un rotolo compatto"], jacket: ["Rovescia una spalla e infilaci l'altra", "Piega a metà", "Pronta, spalle protette"], socks: ["Sovrapponi i due calzini", "Piega a metà e infila nel bordo", "Il bordo li tiene insieme"], briefs: ["Porta i lati al centro", "Piega dal basso verso l'elastico", "Pronti da riporre"], boxers: ["Porta una gamba sopra l'altra", "Piega dal basso verso l'elastico", "Pronti da riporre"], bra: ["Metti una coppa dentro l'altra", "Infila spalline e fascia nella coppa", "Le coppe restano in forma"] },
   sections: [
     {
       id: "before",
@@ -94,6 +97,7 @@ const en: StorageTips = {
   intro: "A few habits so your pieces come back the way you left them: clean, crease-free and moth-free.",
   diagramsTitle: "How to fold, step by step",
   diagramLabels: { sweater: "Sweater", shirt: "Shirt", trousers: "Trousers", roll: "Rolled T-shirt", jacket: "Jacket (if you can't hang it)", socks: "Socks", briefs: "Briefs and knickers", boxers: "Boxers", bra: "Bra" },
+  diagramSteps: { sweater: ["Face down, bring sides and sleeves to the centre", "Fold in three from the bottom", "Ready to store"], shirt: ["Buttoned, fold sides and sleeves behind", "Fold in three from the bottom", "Collar on top, ready"], trousers: ["Lay one leg over the other", "Fold in half or in three", "Ready to store"], roll: ["Bring sides and sleeves to the centre", "Roll up from the bottom", "A compact roll"], jacket: ["Turn one shoulder inside out, tuck the other in", "Fold in half", "Ready, shoulders protected"], socks: ["Lay one sock on the other", "Fold in half and tuck into the cuff", "The cuff holds them together"], briefs: ["Bring the sides to the centre", "Fold from the bottom up to the waistband", "Ready to store"], boxers: ["Lay one leg over the other", "Fold from the bottom up to the waistband", "Ready to store"], bra: ["Nest one cup inside the other", "Tuck straps and band into the cup", "The cups keep their shape"] },
   sections: [
     {
       id: "before",
@@ -163,6 +167,7 @@ const fr: StorageTips = {
   intro: "Quelques gestes pour retrouver vos pièces comme vous les avez laissées : propres, sans plis et sans mites.",
   diagramsTitle: "Comment plier, pas à pas",
   diagramLabels: { sweater: "Pull", shirt: "Chemise", trousers: "Pantalon", roll: "T-shirt roulé", jacket: "Veste (si elle ne peut pas être suspendue)", socks: "Chaussettes", briefs: "Culottes et slips", boxers: "Caleçons", bra: "Soutien-gorge" },
+  diagramSteps: { sweater: ["Face contre la table, ramenez côtés et manches au centre", "Pliez en trois depuis le bas", "Prêt à ranger"], shirt: ["Boutonnée, repliez côtés et manches dans le dos", "Pliez en trois depuis le bas", "Col en haut, prête"], trousers: ["Posez une jambe sur l'autre", "Pliez en deux ou en trois", "Prêt à ranger"], roll: ["Ramenez côtés et manches au centre", "Roulez depuis le bas", "Un rouleau compact"], jacket: ["Retournez une épaule, glissez l'autre dedans", "Pliez en deux", "Prête, épaules protégées"], socks: ["Superposez les deux chaussettes", "Pliez en deux et glissez dans le bord", "Le bord les tient ensemble"], briefs: ["Ramenez les côtés au centre", "Pliez du bas vers la ceinture", "Prêt à ranger"], boxers: ["Posez une jambe sur l'autre", "Pliez du bas vers la ceinture", "Prêt à ranger"], bra: ["Emboîtez un bonnet dans l'autre", "Glissez bretelles et bande dans le bonnet", "Les bonnets gardent leur forme"] },
   sections: [
     {
       id: "before",
@@ -232,6 +237,7 @@ const es: StorageTips = {
   intro: "Unos pocos gestos para que tus prendas vuelvan como las dejaste: limpias, sin arrugas y sin polillas.",
   diagramsTitle: "Cómo doblar, paso a paso",
   diagramLabels: { sweater: "Jersey", shirt: "Camisa", trousers: "Pantalón", roll: "Camiseta enrollada", jacket: "Chaqueta (si no puedes colgarla)", socks: "Calcetines", briefs: "Braguitas y calzoncillos", boxers: "Bóxers", bra: "Sujetador" },
+  diagramSteps: { sweater: ["Boca abajo, lleva lados y mangas al centro", "Dobla en tres desde abajo", "Listo para guardar"], shirt: ["Abrochada, dobla lados y mangas hacia atrás", "Dobla en tres desde abajo", "Cuello arriba, lista"], trousers: ["Pon una pernera sobre la otra", "Dobla por la mitad o en tres", "Listo para guardar"], roll: ["Lleva lados y mangas al centro", "Enrolla desde abajo", "Un rollo compacto"], jacket: ["Da la vuelta a un hombro y mete el otro", "Dobla por la mitad", "Lista, hombros protegidos"], socks: ["Pon un calcetín sobre el otro", "Dobla y mete en el borde", "El borde los mantiene juntos"], briefs: ["Lleva los lados al centro", "Dobla desde abajo hasta la cinturilla", "Listo para guardar"], boxers: ["Pon una pernera sobre la otra", "Dobla desde abajo hasta la cinturilla", "Listo para guardar"], bra: ["Mete una copa dentro de la otra", "Guarda tirantes y banda en la copa", "Las copas mantienen la forma"] },
   sections: [
     {
       id: "before",
@@ -301,6 +307,7 @@ const zh: StorageTips = {
   intro: "几个小习惯，让你的衣物取出来时和收起来时一样：干净、平整、没有虫蛀。",
   diagramsTitle: "一步步学折叠",
   diagramLabels: { sweater: "毛衣", shirt: "衬衫", trousers: "长裤", roll: "卷起的 T 恤", jacket: "外套（无法悬挂时）", socks: "袜子", briefs: "内裤", boxers: "平角内裤", bra: "文胸" },
+  diagramSteps: { sweater: ["正面朝下，把两侧和袖子折向中间", "从下往上折成三折", "可以收起来了"], shirt: ["扣好纽扣，把两侧和袖子折到背面", "从下往上折成三折", "领口朝上，完成"], trousers: ["把一条裤腿叠到另一条上", "对折或折成三折", "可以收起来了"], roll: ["把两侧和袖子折向中间", "从下往上卷起", "紧凑的一卷"], jacket: ["把一侧肩部翻过来，把另一侧塞进去", "对折", "完成，肩部受到保护"], socks: ["把两只袜子叠在一起", "对折，塞进袜口", "袜口把它们固定在一起"], briefs: ["把两侧折向中间", "从下往上折到腰头", "可以收起来了"], boxers: ["把一条裤腿叠到另一条上", "从下往上折到腰头", "可以收起来了"], bra: ["把一个罩杯套进另一个", "把肩带和下围收进罩杯", "罩杯保持形状"] },
   sections: [
     {
       id: "before",
