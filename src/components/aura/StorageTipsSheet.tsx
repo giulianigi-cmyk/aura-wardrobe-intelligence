@@ -14,10 +14,10 @@ export function StorageTipsSheet({ onClose }: { onClose: () => void }) {
   const { profile } = useProfile();
   const diagrams = foldDiagramsFor(profile?.gender);
   return createPortal(
-    <div className="fixed inset-0 z-[80] bg-background/80 backdrop-blur flex items-end" onClick={onClose}>
+    <div className="fixed inset-0 z-[80] bg-background/80 backdrop-blur flex items-end justify-center" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full bg-card rounded-t-3xl border-t border-border p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] max-h-[85vh] overflow-y-auto overscroll-contain"
+        className="w-full max-w-md bg-card rounded-t-3xl border-t sm:border-x border-border p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] max-h-[85vh] overflow-y-auto overscroll-contain"
       >
         <div className="flex items-start justify-between gap-3">
           <p className="font-serif italic text-xl leading-tight">{tips.title}</p>
