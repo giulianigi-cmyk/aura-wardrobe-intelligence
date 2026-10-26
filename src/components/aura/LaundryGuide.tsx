@@ -75,6 +75,12 @@ export function CareBox({ materials, category, subcategory, onOpenGuide }: {
   return (
     <div className="rounded-2xl bg-secondary/40 p-4">
       <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("wardrobe.careBoxTitle")}</p>
+      {materials.length > 0 && (
+        <p className="mt-2 text-[13px]">
+          <span className="text-muted-foreground">{t("wardrobe.materialLabel")}: </span>
+          {materials.map((m) => t(`materials.${m}`, { defaultValue: m })).join(", ")}
+        </p>
+      )}
       {profile ? (
         <>
           <p className="mt-2 text-sm font-medium">{text.profiles[profile].name}</p>
