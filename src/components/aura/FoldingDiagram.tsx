@@ -1,7 +1,7 @@
 import { useId } from "react";
 import type { FoldDiagramKind } from "@/lib/storage-tips";
 
-/** Step-by-step line drawings for the "how to fold" tips of the cambio stagione: three panels per
+/** Step-by-step line drawings at the end of the cambio stagione tips: three panels per
  *  garment (laid flat with the fold lines, sides folded to the centre, folded or rolled up).
  *  Drawn in currentColor so they follow light and dark mode; the same in every language. */
 
@@ -74,6 +74,84 @@ const DIAGRAMS: Record<FoldDiagramKind, Panel[]> = {
       extra: "M50 48 m0 -5 a5 5 0 1 1 -5 5 a10 10 0 1 0 10 -10 a14 14 0 0 0 -14 -1",
     },
   ],
+  jacket: [
+    {
+      shape: "M32 16 L44 12 L50 38 L56 12 L68 16 L68 80 L32 80 Z M44 12 L46 26 L50 38 M56 12 L54 26 L50 38 M32 16 L20 70 L27 72 L33 36 M68 16 L80 70 L73 72 L67 36",
+      extra: "M50 38 V80",
+      arrows: ["M74 22 Q52 2 32 20"],
+    },
+    {
+      shape: "M36 14 L58 14 L60 80 L38 80 Z M58 14 L52 30",
+      folds: "M30 47 H66",
+      arrows: ["M64 74 Q74 62 64 50"],
+    },
+    {
+      shape: "M34 30 L62 30 L62 64 L34 64 Z",
+      extra: "M37 26 H66 V60",
+    },
+  ],
+  socks: [
+    {
+      shape: "M38 10 L54 10 L54 54 Q54 64 64 66 L74 68 Q82 71 79 78 L48 78 Q38 78 38 66 Z",
+      extra: "M42 13 L58 13 L58 52 Q58 62 68 64 L77 66",
+      folds: "M32 42 H62",
+      arrows: ["M30 72 Q20 58 32 46"],
+    },
+    {
+      shape: "M36 30 L60 30 L60 66 L36 66 Z",
+      extra: "M36 38 H60",
+      arrows: ["M64 64 Q74 50 64 38"],
+    },
+    {
+      shape: "M34 36 L62 36 L62 62 L34 62 Z",
+      extra: "M34 44 H62",
+    },
+  ],
+  briefs: [
+    {
+      shape: "M26 24 L74 24 L70 36 Q56 42 54 66 L46 66 Q44 42 30 36 Z M27 29 H73",
+      folds: "M40 22 V66 M60 22 V66",
+      arrows: ["M20 30 Q24 20 36 26", "M80 30 Q76 20 64 26"],
+    },
+    {
+      shape: "M40 24 L60 24 L58 40 L55 66 L45 66 L42 40 Z M40 29 H60",
+      folds: "M34 46 H66",
+      arrows: ["M62 62 Q72 52 62 44"],
+    },
+    {
+      shape: "M38 30 L62 30 L62 52 L38 52 Z M38 35 H62",
+    },
+  ],
+  boxers: [
+    {
+      shape: "M28 18 L72 18 L72 25 L28 25 Z M28 25 L25 66 L47 66 L50 46 L53 66 L75 66 L72 25",
+      folds: "M50 14 V70",
+      arrows: ["M66 50 Q58 38 42 44"],
+    },
+    {
+      shape: "M28 18 L50 18 L50 25 L52 66 L25 66 L28 25 Z M28 25 H50",
+      folds: "M20 42 H58",
+      arrows: ["M56 62 Q66 52 56 44"],
+    },
+    {
+      shape: "M28 22 L52 22 L52 46 L28 46 Z M28 29 H52",
+    },
+  ],
+  bra: [
+    {
+      shape: "M10 52 H90 V58 H10 Z M22 52 Q22 28 46 30 L50 52 M50 52 L54 30 Q78 28 78 52 M30 33 L36 10 M70 33 L64 10",
+      arrows: ["M74 40 Q62 20 40 36"],
+    },
+    {
+      shape: "M28 56 Q28 28 54 30 L58 56 Z M58 56 H84 V61 H58",
+      extra: "M33 54 Q34 34 54 35 M40 32 L46 14 M50 30 L56 14",
+      arrows: ["M80 66 Q70 74 54 62"],
+    },
+    {
+      shape: "M30 58 Q30 30 56 32 L60 58 Z",
+      extra: "M35 56 Q36 36 56 37 M40 52 Q46 46 54 50",
+    },
+  ],
 };
 
 export function FoldingDiagram({ kind, label }: { kind: FoldDiagramKind; label: string }) {
@@ -85,14 +163,14 @@ export function FoldingDiagram({ kind, label }: { kind: FoldDiagramKind; label: 
         <div key={i} className="rounded-xl bg-secondary/40 pt-1 pb-1.5 flex flex-col items-center">
           <svg viewBox="0 0 100 90" className="w-full h-auto" aria-hidden="true">
             <defs>
-              <marker id={`${markerId}-${i}`} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <marker id={`${markerId}-${i}`} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
                 <path d="M0 0 L10 5 L0 10 Z" fill="currentColor" />
               </marker>
             </defs>
-            <path d={p.shape} fill="currentColor" fillOpacity={0.06} stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" />
-            {p.extra && <path d={p.extra} fill="none" stroke="currentColor" strokeOpacity={0.45} strokeWidth={1.2} strokeLinejoin="round" strokeLinecap="round" />}
-            {p.folds && <path d={p.folds} fill="none" stroke="currentColor" strokeOpacity={0.55} strokeWidth={1.1} strokeDasharray="3 3" />}
-            {p.arrows?.map((d) => <path key={d} d={d} fill="none" stroke="currentColor" strokeWidth={1.4} markerEnd={`url(#${markerId}-${i})`} />)}
+            <path d={p.shape} fill="currentColor" fillOpacity={0.06} stroke="currentColor" strokeWidth={1.1} strokeLinejoin="round" strokeLinecap="round" />
+            {p.extra && <path d={p.extra} fill="none" stroke="currentColor" strokeOpacity={0.45} strokeWidth={0.8} strokeLinejoin="round" strokeLinecap="round" />}
+            {p.folds && <path d={p.folds} fill="none" stroke="currentColor" strokeOpacity={0.55} strokeWidth={0.8} strokeDasharray="3 3" />}
+            {p.arrows?.map((d) => <path key={d} d={d} fill="none" stroke="currentColor" strokeWidth={1} markerEnd={`url(#${markerId}-${i})`} />)}
           </svg>
           <span className="text-[10px] text-muted-foreground tabular-nums">{i + 1}</span>
         </div>

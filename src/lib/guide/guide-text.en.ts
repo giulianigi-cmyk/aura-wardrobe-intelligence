@@ -118,6 +118,19 @@ const text: GuideText = {
         "Tap “Wardrobe locations” and create your places.",
       ],
     },
+    storage: {
+      title: "Seasonal storage",
+      intro: "Put away out-of-season pieces (in the garage, the cellar, vacuum bags): they stay yours, but they aren't suggested until you bring them back to the wardrobe.",
+      steps: [
+        "Open Closet.",
+        "Tap “Select” and choose the pieces you're putting away.",
+        "Tap “Storage”. For a single piece you can also open its card and tap “Put in seasonal storage”.",
+        "You'll find them all under “Seasonal storage”, below the filters, with the date you put them away.",
+        "When the season changes, open “Seasonal storage”, select the pieces and tap “Bring back”.",
+        "“Seasonal storage” also has tips: how to get pieces ready, how to fold them (with drawings) and which containers to use.",
+      ],
+      tip: "On trips, if the destination has a different climate, we ask whether to use the pieces in storage too.",
+    },
     today: {
       title: "Today's look",
       steps: [

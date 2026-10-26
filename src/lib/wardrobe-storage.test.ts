@@ -17,3 +17,22 @@ test("archived and loaned pieces stay excluded", () => {
   assert.equal(isWearableNow({ archived: true }), false);
   assert.equal(isWearableNow({ active_loan_id: "x" }), false);
 });
+
+import { seasonsForTemperatures, storedPiecesForSeasons } from "./wardrobe-storage";
+
+test("a hot trip asks for the summer pieces put away, a cold one for the winter pieces", () => {
+  const stored = "2026-10-01T00:00:00Z";
+  const items = [
+    { id: "swim", season: "Summer", stored_at: stored },
+    { id: "down", season: "Winter", stored_at: stored },
+    { id: "linen", season: "Spring, Summer", stored_at: stored },
+    { id: "home", season: "Summer", stored_at: null },
+    { id: "untagged", season: "", stored_at: stored },
+    { id: "sold", season: "Summer", stored_at: stored, archived: true },
+  ];
+  const maldives = storedPiecesForSeasons(items, seasonsForTemperatures([30, 31, 29]));
+  assert.deepEqual(maldives.map((i) => i.id), ["swim", "linen"]);
+  const lapland = storedPiecesForSeasons(items, seasonsForTemperatures([-5, -2]));
+  assert.deepEqual(lapland.map((i) => i.id), ["down"]);
+  assert.deepEqual(storedPiecesForSeasons(items, new Set()), []);
+});

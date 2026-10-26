@@ -1296,7 +1296,15 @@
     "culturalStartAdapting": "Adaptar",
     "culturalStopAdapting": "No adaptar",
     "culturalNowAdapting": "Hecho: los próximos outfits de esos días respetarán las costumbres locales.",
-    "culturalNowNotAdapting": "Hecho: los próximos outfits no se adaptarán."
+    "culturalNowNotAdapting": "Hecho: los próximos outfits no se adaptarán.",
+    "storedOfferClimate": "Este viaje (máximas de unos {{temp}}°) necesita prendas que tienes en el cambio de armario: {{count}}.",
+    "storedOffer": "Este viaje necesita prendas que tienes en el cambio de armario: {{count}}.",
+    "storedOfferQuestion": "¿Puedo usarlas para este viaje? Para todo lo demás siguen guardadas.",
+    "storedOfferYes": "Sí, úsalas",
+    "storedOfferNo": "No",
+    "storedOfferAdded_one": "{{count}} prenda guardada añadida al viaje",
+    "storedOfferAdded_other": "{{count}} prendas guardadas añadidas al viaje",
+    "storedOfferReminder": "Este viaje incluye {{count}} prendas del cambio de armario: acuérdate de sacarlas antes de salir."
   },
   "batchReview": {
     "couldntLoadBatch": "No se pudo cargar este lote.",

@@ -118,6 +118,19 @@ const text: GuideText = {
         "Toca «Ubicaciones del armario» y crea tus lugares.",
       ],
     },
+    storage: {
+      title: "Cambio de armario",
+      intro: "Guarda las prendas fuera de temporada (en el garaje, el trastero, bolsas al vacío): siguen siendo tuyas, pero no se proponen hasta que las devuelvas al armario.",
+      steps: [
+        "Abre Armario.",
+        "Toca «Seleccionar» y elige las prendas que guardas.",
+        "Toca «Cambio de armario». Para una sola prenda también puedes abrir su ficha y tocar «Guardar en el cambio de armario».",
+        "Las encuentras todas en «Cambio de armario», debajo de los filtros, con la fecha en que las guardaste.",
+        "Cuando cambie la temporada, abre «Cambio de armario», selecciona las prendas y toca «Devolver».",
+        "En «Cambio de armario» también hay consejos: cómo preparar las prendas, cómo doblarlas (con dibujos) y qué contenedores usar.",
+      ],
+      tip: "En los viajes, si el destino tiene otro clima, te preguntamos si usar también las prendas guardadas.",
+    },
     today: {
       title: "El look de hoy",
       steps: [

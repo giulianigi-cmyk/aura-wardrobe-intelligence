@@ -119,6 +119,17 @@ export const GUIDE: GuideChapterDef[] = [
         id: "locations", open: "settings-wardrobe-locations",
         visuals: [tab("profile"), gear, row("settings.wardrobeLocations")],
       },
+      {
+        id: "storage", open: "wardrobe",
+        visuals: [
+          tab("wardrobe"),
+          { kind: "button", labelKey: "wardrobe.select", variant: "outline" },
+          { kind: "button", labelKey: "wardrobe.storeSelectionButton", variant: "solid" },
+          null,
+          { kind: "button", labelKey: "wardrobe.unstoreSelectionButton", variant: "solid" },
+          { kind: "row", labelKey: "wardrobe.storageTipsButton" },
+        ],
+      },
     ],
   },
   {

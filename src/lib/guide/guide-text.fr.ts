@@ -118,6 +118,19 @@ const text: GuideText = {
         "Touchez « Emplacements de la garde-robe » et créez vos lieux.",
       ],
     },
+    storage: {
+      title: "Rangement saisonnier",
+      intro: "Rangez les pièces hors saison (au garage, à la cave, sous vide) : elles restent à vous, mais ne sont plus proposées tant que vous ne les remettez pas dans la garde-robe.",
+      steps: [
+        "Ouvrez Garde-robe.",
+        "Touchez « Sélectionner » et choisissez les pièces que vous rangez.",
+        "Touchez « Ranger ». Pour une seule pièce, vous pouvez aussi ouvrir sa fiche et toucher « Ranger pour la saison ».",
+        "Vous les retrouvez toutes dans « Rangement saisonnier », sous les filtres, avec la date du rangement.",
+        "Au changement de saison, ouvrez « Rangement saisonnier », sélectionnez les pièces et touchez « Remettre ».",
+        "« Rangement saisonnier » contient aussi des conseils : préparer les pièces, les plier (avec des dessins) et choisir les contenants.",
+      ],
+      tip: "En voyage, si la destination a un autre climat, nous vous demandons s'il faut aussi utiliser les pièces rangées.",
+    },
     today: {
       title: "Le look du jour",
       steps: [

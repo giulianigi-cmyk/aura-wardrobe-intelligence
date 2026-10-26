@@ -1296,7 +1296,15 @@
     "culturalStartAdapting": "Adatta",
     "culturalStopAdapting": "Non adattare",
     "culturalNowAdapting": "Fatto: i prossimi outfit generati per quei giorni rispetteranno gli usi locali.",
-    "culturalNowNotAdapting": "Fatto: i prossimi outfit non verranno adattati."
+    "culturalNowNotAdapting": "Fatto: i prossimi outfit non verranno adattati.",
+    "storedOfferClimate": "Per questo viaggio (massime intorno ai {{temp}}°) servono capi che hai messo nel Cambio stagione: {{count}}.",
+    "storedOffer": "Per questo viaggio servono capi che hai messo nel Cambio stagione: {{count}}.",
+    "storedOfferQuestion": "Posso usarli per questo viaggio? Per tutto il resto restano nel Cambio stagione.",
+    "storedOfferYes": "Sì, usali",
+    "storedOfferNo": "No",
+    "storedOfferAdded_one": "{{count}} capo del Cambio stagione aggiunto al viaggio",
+    "storedOfferAdded_other": "{{count}} capi del Cambio stagione aggiunti al viaggio",
+    "storedOfferReminder": "In questo viaggio ci sono {{count}} capi del Cambio stagione: ricordati di riprenderli prima di partire."
   },
   "batchReview": {
     "couldntLoadBatch": "Impossibile caricare questo batch.",
