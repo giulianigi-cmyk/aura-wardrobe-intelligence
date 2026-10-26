@@ -16,7 +16,7 @@ export type CareSymbolKind =
   | "dryclean-P" | "dryclean-F" | "dryclean-W" | "dryclean-no";
 
 export type CareProfileId =
-  | "leather" | "hard" | "shoes" | "bag" | "swim" | "embellished" | "velvet" | "silk" | "down" | "wool"
+  | "leather" | "leatherShoes" | "patent" | "hard" | "shoes" | "bag" | "swim" | "embellished" | "velvet" | "silk" | "down" | "wool"
   | "viscose" | "synthetic" | "linen" | "denim" | "cotton";
 
 export type CareExtraId = "bra" | "activewear" | "hosiery";
@@ -34,6 +34,8 @@ export const SYMBOL_GROUPS: { id: SymbolGroupId; symbols: CareSymbolKind[] }[] =
 /** The symbols shown in a piece's box: what its label most likely says. Metal and jewellery have none. */
 export const PROFILE_SYMBOLS: Record<CareProfileId, CareSymbolKind[]> = {
   leather: ["wash-no", "bleach-no", "tumble-no", "iron-no", "dryclean-P"],
+  leatherShoes: ["wash-no", "bleach-no", "tumble-no", "iron-no"],
+  patent: ["wash-no", "bleach-no", "tumble-no", "iron-no"],
   hard: [],
   shoes: ["wash-30-very-gentle", "bleach-no", "tumble-no", "iron-no"],
   bag: ["wash-no", "bleach-no", "tumble-no", "iron-no"],
@@ -70,7 +72,8 @@ const TEXTILE_ORDER: [CareProfileId, string[]][] = [
 /** How a piece is washed, from its materials and category; null when there is nothing to go on yet. */
 export function careProfileFor(materials: readonly string[], category?: string | null): CareProfileId | null {
   const m = new Set(materials);
-  if ([...m].some((x) => LEATHER.has(x))) return "leather";
+  if (m.has("Patent Leather")) return "patent";
+  if ([...m].some((x) => LEATHER.has(x))) return category === "Shoes" ? "leatherShoes" : "leather";
   const textile = [...m].filter((x) => !HARD.has(x) && !EMBELLISHED.has(x));
   if (m.size > 0 && textile.length === 0 && [...m].every((x) => HARD.has(x))) return "hard";
   if (category === "Shoes") return "shoes";
@@ -152,6 +155,18 @@ const IT: LaundryText = {
       "Togli la polvere con un panno morbido; per lo scamosciato usa una spazzola apposita.",
       "Per macchie o una pulizia completa affidalo a una lavanderia specializzata in pelle.",
       "Se si bagna, lascialo asciugare all'aria, lontano da termosifoni e sole.",
+    ] },
+    leatherShoes: { name: "Scarpe in pelle", lines: [
+      "Non vanno in lavatrice.",
+      "Spazzola via la polvere e pulisci con un panno appena umido.",
+      "Nutri la pelle con una crema o un lucido del colore giusto; per lo scamosciato usa una spazzola apposita e uno spray impermeabilizzante.",
+      "Se si bagnano, riempile di carta e lasciale asciugare lontano dal calore; le forme in legno le aiutano a mantenere la forma.",
+    ] },
+    patent: { name: "Pelle lucida (vernice)", lines: [
+      "Non va in lavatrice e non va bagnata.",
+      "Pulisci con un panno morbido appena umido e asciugala subito; per segni e graffi leggeri usa un prodotto specifico per vernice.",
+      "Niente lucido né creme per pelle normale: la rendono opaca.",
+      "Riponila in un sacchetto di tessuto, separata: a contatto con plastica o altra vernice il colore può trasferirsi.",
     ] },
     hard: { name: "Metallo e gioielli", lines: [
       "Non si lava in lavatrice.",
@@ -300,6 +315,18 @@ const EN: LaundryText = {
       "For stains or a full clean, take it to a cleaner who specialises in leather.",
       "If it gets wet, let it air dry away from radiators and sunlight.",
     ] },
+    leatherShoes: { name: "Leather shoes", lines: [
+      "They don't go in the washing machine.",
+      "Brush off the dust and wipe with a barely damp cloth.",
+      "Feed the leather with a cream or polish in the right colour; for suede use a dedicated brush and a waterproofing spray.",
+      "If they get wet, stuff them with paper and let them dry away from heat; wooden shoe trees help them keep their shape.",
+    ] },
+    patent: { name: "Patent leather", lines: [
+      "It doesn't go in the washing machine and shouldn't get wet.",
+      "Wipe with a soft, barely damp cloth and dry it straight away; for marks and light scratches use a patent-leather cleaner.",
+      "No regular leather polish or cream: they dull the shine.",
+      "Store it on its own in a fabric bag: against plastic or other patent leather the colour can transfer.",
+    ] },
     hard: { name: "Metal and jewellery", lines: [
       "It doesn't go in the washing machine.",
       "Clean it with a soft, dry cloth; use a dedicated cloth for silver.",
@@ -446,6 +473,18 @@ const FR: LaundryText = {
       "Dépoussiérez-le avec un chiffon doux ; pour le daim, utilisez une brosse adaptée.",
       "Pour les taches ou un nettoyage complet, confiez-le à un pressing spécialisé dans le cuir.",
       "S'il est mouillé, laissez-le sécher à l'air, loin des radiateurs et du soleil.",
+    ] },
+    leatherShoes: { name: "Chaussures en cuir", lines: [
+      "Elles ne vont pas au lave-linge.",
+      "Brossez la poussière et essuyez avec un chiffon à peine humide.",
+      "Nourrissez le cuir avec une crème ou un cirage de la bonne couleur ; pour le daim, utilisez une brosse adaptée et un spray imperméabilisant.",
+      "Si elles sont mouillées, remplissez-les de papier et laissez-les sécher loin de la chaleur ; des embauchoirs en bois les aident à garder leur forme.",
+    ] },
+    patent: { name: "Cuir verni", lines: [
+      "Il ne va pas au lave-linge et ne doit pas être mouillé.",
+      "Essuyez-le avec un chiffon doux à peine humide et séchez-le aussitôt ; pour les marques et rayures légères, utilisez un produit spécial cuir verni.",
+      "Pas de cirage ni de crème pour cuir classique : ils le ternissent.",
+      "Rangez-le à part dans un sac en tissu : au contact du plastique ou d'un autre verni, la couleur peut déteindre.",
     ] },
     hard: { name: "Métal et bijoux", lines: [
       "Il ne va pas au lave-linge.",
@@ -594,6 +633,18 @@ const ES: LaundryText = {
       "Para manchas o una limpieza completa, llévala a una tintorería especializada en piel.",
       "Si se moja, déjala secar al aire, lejos de radiadores y del sol.",
     ] },
+    leatherShoes: { name: "Zapatos de piel", lines: [
+      "No van a la lavadora.",
+      "Cepilla el polvo y límpialos con un paño apenas húmedo.",
+      "Nutre la piel con una crema o betún del color adecuado; para el ante usa un cepillo específico y un spray impermeabilizante.",
+      "Si se mojan, rellénalos de papel y déjalos secar lejos del calor; las hormas de madera les ayudan a mantener la forma.",
+    ] },
+    patent: { name: "Charol", lines: [
+      "No va a la lavadora y no debe mojarse.",
+      "Límpialo con un paño suave apenas húmedo y sécalo enseguida; para marcas y arañazos leves usa un producto específico para charol.",
+      "Nada de betún ni cremas para piel normal: lo vuelven mate.",
+      "Guárdalo aparte en una bolsa de tela: en contacto con plástico u otro charol el color puede transferirse.",
+    ] },
     hard: { name: "Metal y joyas", lines: [
       "No se lava en la lavadora.",
       "Límpialo con un paño suave y seco; para la plata usa un paño específico.",
@@ -740,6 +791,18 @@ const ZH: LaundryText = {
       "用软布除尘；麂皮请用专用刷。",
       "有污渍或需要彻底清洁时，请交给专业皮革洗护店。",
       "如果淋湿，请自然风干，远离暖气和阳光。",
+    ] },
+    leatherShoes: { name: "皮鞋", lines: [
+      "不可机洗。",
+      "刷去灰尘，用微湿的布擦拭。",
+      "用颜色合适的鞋油或护理膏保养皮面；麂皮请用专用刷和防水喷雾。",
+      "如果淋湿，塞入纸团，远离热源晾干；木质鞋撑有助于保持鞋型。",
+    ] },
+    patent: { name: "漆皮", lines: [
+      "不可机洗，也不要沾水。",
+      "用微湿的软布擦拭后立即擦干；轻微痕迹和划痕请用漆皮专用清洁剂。",
+      "不要使用普通皮革鞋油或护理膏：会让漆面失去光泽。",
+      "单独放入布袋收纳：与塑料或其他漆皮接触可能会染色。",
     ] },
     hard: { name: "金属与饰品", lines: [
       "不可机洗。",
