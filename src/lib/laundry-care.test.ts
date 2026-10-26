@@ -19,6 +19,8 @@ test("leather, metal and accessories are never sent to the washing machine", () 
   assert.equal(careProfileFor(["Patent Leather"], "Shoes"), "patent");
   assert.equal(careProfileFor(["Patent Leather", "Leather"], "Bags"), "patent");
   assert.ok(PROFILE_SYMBOLS.patent.includes("wash-no"));
+  assert.equal(careProfileFor(["Calf Hair", "Leather"], "Shoes"), "calfHair");
+  assert.ok(!PROFILE_SYMBOLS.leather.includes("dryclean-P"));
   assert.equal(careProfileFor(["Gold", "Diamonds"], "Accessories"), "hard");
   assert.equal(careProfileFor(["Silver"]), "hard");
   assert.equal(careProfileFor(["Canvas"], "Shoes"), "shoes");
