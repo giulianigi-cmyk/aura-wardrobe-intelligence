@@ -1398,6 +1398,16 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                   );
                 })()}
 
+                {/* Come lavarlo: in the piece as it opens, before the buttons that edit, move or lend it. */}
+                <div className="mt-5">
+                  <CareBox
+                    materials={Array.isArray(detail.material) ? detail.material : []}
+                    category={detail.category}
+                    subcategory={detail.subcategory}
+                    onOpenGuide={() => setLaundryOpen(true)}
+                  />
+                </div>
+
                 <button
                   onClick={openEdit}
                   className="mt-5 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 active:scale-95"
@@ -1576,15 +1586,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                     </div>
                   </div>
                 )}
-                {/* Come lavarlo: at the bottom of the piece as it opens, not only in the edit form. */}
-                <div className="mt-6">
-                  <CareBox
-                    materials={Array.isArray(detail.material) ? detail.material : []}
-                    category={detail.category}
-                    subcategory={detail.subcategory}
-                    onOpenGuide={() => setLaundryOpen(true)}
-                  />
-                </div>
               </>
             ) : (
 
