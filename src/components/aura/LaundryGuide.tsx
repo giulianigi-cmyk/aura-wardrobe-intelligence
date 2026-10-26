@@ -65,18 +65,20 @@ export function LaundryGuideSheet({ onClose }: { onClose: () => void }) {
 
 /** "Come lavarlo" at the bottom of a piece, under its material: the likely label symbols and how to wash,
  *  dry and iron it, worked out from what it is made of (the most delicate fibre of a mix wins). */
-export function CareBox({ materials, category, subcategory, onOpenGuide }: {
+export function CareBox({ materials, category, subcategory, onOpenGuide, bare = false }: {
   materials: readonly string[]; category?: string | null; subcategory?: string | null; onOpenGuide: () => void;
+  /** Inside a DetailSection, which already draws the frame and the title. */
+  bare?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const text = laundryTextFor(i18n.language);
   const profile = careProfileFor(materials, category);
   const extras = careExtrasFor(category, subcategory);
   return (
-    <div className="rounded-2xl bg-secondary/40 p-4">
-      <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("wardrobe.careBoxTitle")}</p>
+    <div className={bare ? "" : "rounded-2xl bg-secondary/40 p-4"}>
+      {!bare && <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("wardrobe.careBoxTitle")}</p>}
       {materials.length > 0 && (
-        <p className="mt-2 text-[13px]">
+        <p className={`${bare ? "" : "mt-2 "}text-[13px]`}>
           <span className="text-muted-foreground">{t("wardrobe.materialLabel")}: </span>
           {materials.map((m) => t(`materials.${m}`, { defaultValue: m })).join(", ")}
         </p>

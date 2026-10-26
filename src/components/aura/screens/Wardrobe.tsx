@@ -57,6 +57,8 @@ import { setItemsStored } from "@/lib/wardrobe-storage.functions";
 import { isInStorage } from "@/lib/wardrobe-storage";
 import { StorageTipsSheet } from "@/components/aura/StorageTipsSheet";
 import { CareBox, LaundryGuideSheet } from "@/components/aura/LaundryGuide";
+import { DetailSection } from "@/components/aura/DetailSection";
+import { careProfileFor, laundryTextFor } from "@/lib/laundry-care";
 import { SeasonChangeSheet } from "@/components/aura/SeasonChangeSheet";
 import { FastScroller } from "@/components/aura/FastScroller";
 import type { WardrobeLocation } from "@/lib/wardrobe-location";
@@ -1203,7 +1205,8 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
               const src = path ? signed[path] : "";
               return (
                 <>
-                  <div className="mt-6 rounded-2xl overflow-hidden mx-auto aspect-square max-w-[240px]" style={{ background: "#FFFFFF" }}>
+                  {/* Fixed height instead of a square: a wide piece (shoes, bags) left big empty bands above and below. */}
+                  <div className="mt-4 rounded-2xl overflow-hidden mx-auto h-44 w-full max-w-[280px]" style={{ background: "#FFFFFF" }}>
                     {src ? (
                       <img src={src} alt="" className="h-full w-full object-contain p-3" />
                     ) : (
@@ -1211,13 +1214,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                     )}
                   </div>
                   {src && !editing && (
-                    <div className="mx-auto mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-                      <button
-                        onClick={() => setColorWheelOpen(true)}
-                        className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.2em] text-muted-foreground active:scale-95"
-                      >
-                        🎨 {t("wardrobe.colorHarmonyButton")}
-                      </button>
+                    <div className="mx-auto mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
                       <button
                         onClick={() => setAdjustingCrop(true)}
                         className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.2em] text-muted-foreground active:scale-95"
@@ -1247,7 +1244,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                   {!editing && (
                     <button
                       onClick={() => { setDetail(null); openBuilder({ itemIds: [], anchorItemId: detail.id }); }}
-                      className="mt-4 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 active:scale-[0.98]"
+                      className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 active:scale-[0.98]"
                     ><Sparkles size={14} /> {t("wardrobe.createOutfitFromThisButton")}</button>
                   )}
                 </>
@@ -1290,38 +1287,70 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                   const pal = cname
                     ? COLOR_PALETTE.find((p) => p.name.toLowerCase() === cname.toLowerCase())
                     : undefined;
-                  if (!pal) return null;
+                  const imgPath = toStoragePath(detail.image_url);
+                  const harmonyButton = imgPath && signed[imgPath] ? (
+                    <button
+                      onClick={() => setColorWheelOpen(true)}
+                      className="mt-3 text-[12px] underline underline-offset-2 text-foreground/80"
+                    >🎨 {t("wardrobe.colorHarmonyButton")} ›</button>
+                  ) : null;
+                  if (!pal) {
+                    return harmonyButton ? (
+                      <div className="mt-4">
+                        <DetailSection title={t("wardrobe.colorsSectionTitle")}>{harmonyButton}</DetailSection>
+                      </div>
+                    ) : null;
+                  }
                   const { h, s } = hexToHsl(pal.hex);
                   const neutral = s < 0.12;
+                  const wheelKey = (name: string) => name.replace(/[^A-Za-z]+(.)/g, (_, c: string) => c.toUpperCase()).replace(/^./, (c) => c.toLowerCase());
+                  const wheel = neutral ? t("wardrobe.neutral") : t(`colorHarmony.wheel.${wheelKey(nearestWheelName(h))}`, { defaultValue: nearestWheelName(h) });
+                  // Same harmony twice (two analogous, two split-complementary) shown as one group with two dots.
+                  const groups: { label: string; hexes: string[] }[] = [];
+                  for (const hm of getHarmonies(pal.hex).slice(0, 5)) {
+                    const g = groups.find((x) => x.label === hm.label);
+                    if (g) g.hexes.push(hm.hex); else groups.push({ label: hm.label, hexes: [hm.hex] });
+                  }
                   return (
-                    <div className="mt-5 rounded-2xl border border-border bg-secondary/30 p-4">
-                                            <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground text-center">
-                        {t("wardrobe.colorAnalysisItten")}
-                      </p>
-                      <div className="mt-3 flex items-center justify-center gap-2">
-                        <span className="h-8 w-8 rounded-full border border-border" style={{ background: pal.hex }} />
-                        <div className="text-left">
-                          <p className="text-sm font-medium">{optionLabel(pal.name, i18n.language)}</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {neutral ? t("wardrobe.neutral") : nearestWheelName(h)}
-                          </p>
+                    <div className="mt-4">
+                      <DetailSection
+                        title={t("wardrobe.colorsSectionTitle")}
+                        summary={
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="h-4 w-4 rounded-full border border-border" style={{ background: pal.hex }} />
+                            <span className="truncate">{optionLabel(pal.name, i18n.language)}</span>
+                            {!neutral && groups.flatMap((g) => g.hexes).map((hex, i) => (
+                              <span key={i} className={`h-3 w-3 rounded-full border border-border${i === 0 ? " ml-1" : ""}`} style={{ background: hex }} />
+                            ))}
+                          </span>
+                        }
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="h-9 w-9 rounded-full border border-border shrink-0" style={{ background: pal.hex }} />
+                          <div>
+                            <p className="text-sm font-medium">{optionLabel(pal.name, i18n.language)}</p>
+                            <p className="text-[11px] text-muted-foreground">{wheel}</p>
+                          </div>
                         </div>
-                      </div>
-                      {neutral ? (
-                        <p className="mt-3 text-[11px] text-muted-foreground text-center">
-                          {t("wardrobe.neutralDesc")}
-                        </p>
-
-                      ) : (
-                        <div className="mt-3 flex justify-center gap-2 flex-wrap">
-                          {getHarmonies(pal.hex).slice(0, 5).map((hm, idx) => (
-                            <div key={idx} className="text-center">
-                              <span className="block h-7 w-7 rounded-full border border-border mx-auto" style={{ background: hm.hex }} />
-                              <p className="mt-1 text-[8px] uppercase tracking-wide text-muted-foreground">{hm.label}</p>
+                        {neutral ? (
+                          <p className="mt-3 text-[12px] text-muted-foreground">{t("wardrobe.neutralDesc")}</p>
+                        ) : (
+                          <>
+                            <p className="mt-3 text-[11px] text-muted-foreground">{t("wardrobe.colorAnalysisItten")}</p>
+                            <div className="mt-2 space-y-2">
+                              {groups.map((g) => (
+                                <div key={g.label} className="flex items-center gap-3">
+                                  <div className="flex gap-1.5 w-16 shrink-0">
+                                    {g.hexes.map((hex, i) => <span key={i} className="h-6 w-6 rounded-full border border-border" style={{ background: hex }} />)}
+                                  </div>
+                                  <span className="text-[13px]">{t(`colorHarmony.harmony.${wheelKey(g.label)}`, { defaultValue: g.label })}</span>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      )}
+                          </>
+                        )}
+                        <div>{harmonyButton}</div>
+                      </DetailSection>
                     </div>
                   );
                 })()}
@@ -1354,10 +1383,14 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                   const symbol = currencySymbol[cur] ?? cur;
                   const fmtV = (n: number) => `${symbol}${Math.round(n).toLocaleString(i18n.language)}`;
                   return (
-                    <div className="mt-5 rounded-2xl border border-border bg-secondary/30 p-4 space-y-2">
-                      <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground text-center mb-1">
-                        {t("wardrobe.valueSectionTitle")}
-                      </p>
+                    <div className="mt-2">
+                    <DetailSection
+                      title={t("wardrobe.valueSectionTitle")}
+                      summary={val.resaleLow != null && val.resaleHigh != null
+                        ? `${fmtV(detail.price)} → ${fmtV(val.resaleLow)}–${fmtV(val.resaleHigh)}`
+                        : fmtV(detail.price)}
+                    >
+                    <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">{t("wardrobe.purchasedValueLabel")}</span>
                         <span>{fmtV(detail.price)}</span>
@@ -1395,18 +1428,32 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                         </p>
                       )}
                     </div>
+                    </DetailSection>
+                    </div>
                   );
                 })()}
 
                 {/* Come lavarlo: in the piece as it opens, before the buttons that edit, move or lend it. */}
-                <div className="mt-5">
-                  <CareBox
-                    materials={Array.isArray(detail.material) ? detail.material : []}
-                    category={detail.category}
-                    subcategory={detail.subcategory}
-                    onOpenGuide={() => setLaundryOpen(true)}
-                  />
-                </div>
+                {(() => {
+                  const mats = Array.isArray(detail.material) ? detail.material : [];
+                  const profile = careProfileFor(mats, detail.category);
+                  return (
+                    <div className="mt-2">
+                      <DetailSection
+                        title={t("wardrobe.careBoxTitle")}
+                        summary={profile ? laundryTextFor(i18n.language).profiles[profile].name : <span className="text-muted-foreground">{t("wardrobe.careAddMaterial")}</span>}
+                      >
+                        <CareBox
+                          bare
+                          materials={mats}
+                          category={detail.category}
+                          subcategory={detail.subcategory}
+                          onOpenGuide={() => setLaundryOpen(true)}
+                        />
+                      </DetailSection>
+                    </div>
+                  );
+                })()}
 
                 <button
                   onClick={openEdit}
@@ -1414,31 +1461,37 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                 >
                   <Pencil size={12} /> {t("wardrobe.editDetailsButton")}
                 </button>
-                <button
-                  onClick={() => void toggleArchiveItem(detail, !(detail as unknown as { archived?: boolean }).archived)}
-                  className="mt-3 w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 active:scale-95"
-                >
-                  {(detail as unknown as { archived?: boolean }).archived
-                    ? <><ArchiveRestore size={12} /> {t("wardrobe.restoreToCloset")}</>
-                    : <><Archive size={12} /> {t("wardrobe.archiveOutOfRotation")}</>}
-                </button>
-                {!(detail as unknown as { archived?: boolean }).archived && (
-                  <button
-                    onClick={() => void setStored([detail.id], !isInStorage(detail))}
-                    disabled={storing}
-                    className="mt-3 w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
-                  >
-                    {isInStorage(detail)
-                      ? <><PackageOpen size={12} /> {t("wardrobe.unstoreItemButton")}</>
-                      : <><Package size={12} /> {t("wardrobe.storeItemButton")}</>}
-                  </button>
-                )}
+                {/* Archive, seasonal storage and lend side by side (they used to be three full-width rows). */}
+                {(() => {
+                  const archived = !!(detail as unknown as { archived?: boolean }).archived;
+                  const loaned = !!(detail as unknown as { active_loan_id?: string | null }).active_loan_id;
+                  const small = "flex-1 min-w-0 rounded-2xl border border-border px-2 py-2.5 text-[10px] leading-tight uppercase tracking-[0.12em] inline-flex flex-col items-center justify-center gap-1.5 text-center active:scale-95 disabled:opacity-50";
+                  return (
+                    <div className="mt-3 flex gap-2">
+                      <button onClick={() => void toggleArchiveItem(detail, !archived)} className={small}>
+                        {archived ? <><ArchiveRestore size={14} /> {t("wardrobe.restoreShort")}</> : <><Archive size={14} /> {t("wardrobe.archiveShort")}</>}
+                      </button>
+                      {!archived && (
+                        <button onClick={() => void setStored([detail.id], !isInStorage(detail))} disabled={storing} className={small}>
+                          {isInStorage(detail)
+                            ? <><PackageOpen size={14} /> {t("wardrobe.unstoreShort")}</>
+                            : <><Package size={14} /> {t("wardrobe.storeShort")}</>}
+                        </button>
+                      )}
+                      {!loaned && (
+                        <button onClick={() => setLoanSheetOpen(true)} className={small}>
+                          <Users size={14} /> {t("wardrobe.lendShort")}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
                 {isInStorage(detail) && detail.stored_at && (
                   <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
                     {t("wardrobe.storedSinceLabel", { date: new Date(detail.stored_at).toLocaleDateString(i18n.language, { month: "short", day: "numeric", year: "numeric" }) })}
                   </p>
                 )}
-                {(detail as unknown as { active_loan_id?: string | null }).active_loan_id ? (
+                {(detail as unknown as { active_loan_id?: string | null }).active_loan_id && (
                   <div className="mt-3 rounded-2xl border border-border bg-secondary/30 p-3 text-center">
                     <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("wardrobe.loanedLabel")}</p>
                     <p className="font-serif text-lg mt-1">{loansByItemId[detail.id]?.borrower_name ?? "…"}</p>
@@ -1452,11 +1505,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                       className="mt-3 w-full h-10 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em]"
                     >{t("wardrobe.revokeLoanButton")}</button>
                   </div>
-                ) : (
-                  <button
-                    onClick={() => setLoanSheetOpen(true)}
-                    className="mt-3 w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 active:scale-95"
-                  ><Users size={12} /> {t("wardrobe.lendItemButton")}</button>
                 )}
                 {locations.length > 1 && (
                   <div className="mt-3">
@@ -1476,11 +1524,11 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                     </div>
                   </div>
                 )}
-                                            <button
+                <button
                   onClick={() => setConfirmDelete(true)}
-                  className="mt-3 w-full h-12 rounded-full border border-destructive/40 text-destructive text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2"
+                  className="mt-5 mx-auto flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.25em] text-destructive/80 py-2"
                 >
-                  <Trash2 size={12} /> {t("wardrobe.deleteItemButton")}
+                  <Trash2 size={11} /> {t("wardrobe.deleteItemButton")}
                 </button>
                 {confirmDelete && (
                   <div
@@ -1589,7 +1637,11 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
               </>
             ) : (
 
-              <div className="mt-4 space-y-4">
+              <div className="mt-4 space-y-3">
+                {/* Three groups that open on tap, so the form stays short: the main details open, style and
+                    price closed with a one-line summary of what is set. Every field is still here. */}
+                <DetailSection title={t("wardrobe.sectionMain")} defaultOpen>
+                <div className="space-y-4">
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("wardrobe.brandLabel")}</p>
                   <input
@@ -1699,15 +1751,36 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                   onChange={(v) => setEdit((s) => ({ ...s, materials: v }))}
                 />
 
-                <CareBox
-                  materials={edit.materials}
-                  category={edit.category}
-                  subcategory={edit.subcategory}
-                  onOpenGuide={() => setLaundryOpen(true)}
-                />
-
                 {([
                   [t("wardrobe.seasonLabel"), SEASON_OPTIONS, edit.seasons, (v: string[]) => setEdit((s) => ({ ...s, seasons: v })), toggleSeasonChip],
+                ] as const).map(([label, opts, values, setter, toggler]) => (
+                  <div key={label}>
+                    <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{label}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {opts.map((o) => {
+                        const on = values.includes(o);
+                        return (
+                          <button
+                            key={o}
+                            onClick={() => toggler(values, setter, o)}
+                            className={`rounded-full px-3 py-1.5 text-xs ${
+                              on ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"
+                            }`}
+                          >{optionLabel(o, i18n.language)}</button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+                </div>
+                </DetailSection>
+
+                <DetailSection
+                  title={t("wardrobe.sectionStyle")}
+                  summary={[...edit.styles, ...edit.occasions].map((o) => optionLabel(o, i18n.language)).join(", ")}
+                >
+                <div className="space-y-4">
+                {([
                   [t("wardrobe.styleLabel"), STYLE_OPTIONS, edit.styles, (v: string[]) => setEdit((s) => ({ ...s, styles: v })), toggleChip],
                   [t("wardrobe.occasionLabel"), OCCASION_OPTIONS, edit.occasions, (v: string[]) => setEdit((s) => ({ ...s, occasions: v })), toggleChip],
                 ] as const).map(([label, opts, values, setter, toggler]) => (
@@ -1769,6 +1842,17 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                   </div>
                 </div>
 
+                </div>
+                </DetailSection>
+
+                <DetailSection
+                  title={t("wardrobe.sectionValue")}
+                  summary={[
+                    edit.price.trim() ? `${currencySymbol[edit.currency] ?? edit.currency}${edit.price.trim()}` : "",
+                    edit.purchaseDate ? new Date(`${edit.purchaseDate}T00:00:00`).toLocaleDateString(i18n.language, { month: "short", year: "numeric" }) : "",
+                  ].filter(Boolean).join(" · ")}
+                >
+                <div className="space-y-4">
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("wardrobe.priceLabel")}</p>
                   <div className="mt-2 flex items-center gap-2">
@@ -1881,6 +1965,9 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                     ))}
                   </div>
                 </div>
+
+                </div>
+                </DetailSection>
 
                 {/* Save / Cancel: pinned to the very bottom of the sheet. It used to float 96px ABOVE the bottom
                     (bottom-24), which on a short window sat in the middle of the form, covered the rows under it

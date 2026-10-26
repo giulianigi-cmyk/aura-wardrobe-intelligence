@@ -124,7 +124,7 @@ const text: GuideText = {
       steps: [
         "Ouvrez Garde-robe.",
         "Touchez « Sélectionner » et choisissez les pièces que vous rangez.",
-        "Touchez « Ranger ». Pour une seule pièce, vous pouvez aussi ouvrir sa fiche et toucher « Ranger pour la saison ».",
+        "Touchez « Ranger ». Pour une seule pièce, vous pouvez aussi ouvrir sa fiche et toucher « Ranger ».",
         "Vous les retrouvez toutes dans « Rangement saisonnier », sous les filtres, avec la date du rangement.",
         "Au changement de saison, ouvrez « Rangement saisonnier », sélectionnez les pièces et touchez « Remettre ».",
         "« Rangement saisonnier » contient aussi des conseils : préparer les pièces, les plier (avec des dessins) et choisir les contenants.",

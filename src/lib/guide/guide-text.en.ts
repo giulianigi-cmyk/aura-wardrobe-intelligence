@@ -124,7 +124,7 @@ const text: GuideText = {
       steps: [
         "Open Closet.",
         "Tap “Select” and choose the pieces you're putting away.",
-        "Tap “Storage”. For a single piece you can also open its card and tap “Put in seasonal storage”.",
+        "Tap “Storage”. For a single piece you can also open its card and tap “Store away”.",
         "You'll find them all under “Seasonal storage”, below the filters, with the date you put them away.",
         "When the season changes, open “Seasonal storage”, select the pieces and tap “Bring back”.",
         "“Seasonal storage” also has tips: how to get pieces ready, how to fold them (with drawings) and which containers to use.",

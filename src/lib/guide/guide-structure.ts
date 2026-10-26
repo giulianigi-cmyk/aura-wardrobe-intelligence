@@ -112,7 +112,7 @@ export const GUIDE: GuideChapterDef[] = [
           null,
           { kind: "chips", labelKeys: ["wardrobe.editDetailsButton", "wardrobe.removeBackgroundButton", "wardrobe.adjustCropButton"] },
           { kind: "button", labelKey: "wardrobe.createOutfitFromThisButton", variant: "outline" },
-          { kind: "chips", labelKeys: ["wardrobe.lendItemButton", "wardrobe.archiveOutOfRotation"] },
+          { kind: "chips", labelKeys: ["wardrobe.lendShort", "wardrobe.archiveShort", "wardrobe.storeShort"] },
         ],
       },
       {
