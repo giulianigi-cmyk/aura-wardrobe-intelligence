@@ -130,6 +130,14 @@ export const GUIDE: GuideChapterDef[] = [
           { kind: "row", labelKey: "wardrobe.storageTipsButton" },
         ],
       },
+      {
+        id: "laundry", open: "wardrobe",
+        visuals: [
+          tab("wardrobe"),
+          { kind: "button", labelKey: "wardrobe.laundryButton", variant: "outline" },
+          { kind: "row", labelKey: "wardrobe.careBoxTitle" },
+        ],
+      },
     ],
   },
   {

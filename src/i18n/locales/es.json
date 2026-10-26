@@ -278,6 +278,8 @@
     "storedSinceLabel": "Guardado desde el {{date}}",
     "storedHint": "Estas prendas no se proponen en ningún look hasta que las devuelvas al armario.",
     "storageTipsButton": "Consejos para guardar la ropa",
+    "laundryButton": "Lavado",
+    "careBoxTitle": "Cómo lavarlo",
     "seasonChangeButton": "¿Qué guardar?",
     "backToTopAria": "Volver arriba",
     "fastScrollAria": "Desplazar la lista",
