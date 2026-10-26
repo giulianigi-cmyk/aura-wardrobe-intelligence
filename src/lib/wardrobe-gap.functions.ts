@@ -28,7 +28,7 @@ const ItemSchema = z.object({
 // This engine had no language handling at all — every suggestion came out in English regardless
 // of the app's own selected language, unlike purchase-advisor.functions.ts (same LANGUAGE_NAMES
 // list) which already asks for it.
-const LANGUAGE_NAMES: Record<string, string> = { it: "Italian", en: "English", es: "Spanish", fr: "French" };
+const LANGUAGE_NAMES: Record<string, string> = { it: "Italian", en: "English", es: "Spanish", fr: "French", zh: "Simplified Chinese" };
 
 // This one is shown to the person directly (not written by the model), so it needs its own fixed
 // translation rather than a "Respond in X" instruction — same reasoning as purchase-advisor.
@@ -38,6 +38,7 @@ const NO_GAP_FOUND: Record<string, string> = {
   en: "Couldn't find a clear wardrobe gap that isn't already covered - the wardrobe looks fairly complete.",
   es: "No he encontrado un vacío claro en tu armario: parece bastante completo.",
   fr: "Je n'ai pas trouvé de manque évident dans votre garde-robe : elle semble déjà bien complète.",
+  zh: "没有发现明显的衣橱空缺：你的衣橱看起来已经相当完整。",
 };
 
 const TOO_FEW_ITEMS: Record<string, string> = {
@@ -45,6 +46,7 @@ const TOO_FEW_ITEMS: Record<string, string> = {
   en: "Add a few more pieces to your wardrobe before gap analysis is meaningful.",
   es: "Añade algunas prendas más a tu armario antes de que el análisis de vacíos tenga sentido.",
   fr: "Ajoutez encore quelques pièces à votre garde-robe avant que l'analyse des manques ait du sens.",
+  zh: "请再添加几件单品，衣橱空缺分析才有意义。",
 };
 
 const ANALYSIS_FAILED: Record<string, string> = {
@@ -52,6 +54,7 @@ const ANALYSIS_FAILED: Record<string, string> = {
   en: "Analysis failed.",
   es: "El análisis ha fallado.",
   fr: "L'analyse a échoué.",
+  zh: "分析失败。",
 };
 
 const InputSchema = z.object({

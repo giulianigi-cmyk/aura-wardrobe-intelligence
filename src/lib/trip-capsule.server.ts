@@ -1,3 +1,4 @@
+import { isWearableNow } from "./wardrobe-storage";
 import { suggestOutfitCore, type SuggestOutfitItem } from "./ai-suggest-outfit.functions";
 import { groupIntoOutfitStates, type ActivityForTransition } from "./trip-transition";
 import { culturalNoteFor, isItemAllowedByCulture, type CulturalLevel } from "./cultural-dress-notes";
@@ -1038,6 +1039,10 @@ const SHOE_CHANGE_NOTE: Record<string, { toEvent: string; toTravel: string }> = 
     toEvent: "Voyagez en baskets et emportez les chaussures de l'événement dans le cabas : changez-les avant d'entrer.",
     toTravel: "Après l'événement, remettez les chaussures de voyage et rangez la paire de l'événement dans le cabas.",
   },
+  zh: {
+    toEvent: "旅途中穿运动鞋，把活动要穿的鞋放进托特包：进场前再换上。",
+    toTravel: "活动结束后换回旅行鞋，把活动穿的那双放进托特包。",
+  },
 };
 export function shoeChangeNote(language: string | null | undefined, direction: "toEvent" | "toTravel"): string {
   return (SHOE_CHANGE_NOTE[(language ?? "it").slice(0, 2)] ?? SHOE_CHANGE_NOTE.it)[direction];
@@ -1586,7 +1591,7 @@ export async function generateTripCapsuleCore({ data, context }: {
     // above: a legacy row with archived left NULL (never explicitly touched) fails `= false` in SQL
     // and would have been silently excluded from every trip capsule, even though it isn't actually
     // archived. `!it.archived` correctly treats null/undefined the same as false.
-    const allItems = ((itemsRaw ?? []) as any[]).filter((it) => !it.archived && !it.active_loan_id);
+    const allItems = ((itemsRaw ?? []) as any[]).filter((it) => isWearableNow(it));
     const locationFiltered = sourceLocationIds.length
       ? allItems.filter((it) => it.location_id == null || sourceLocationIds.includes(it.location_id))
       : allItems;

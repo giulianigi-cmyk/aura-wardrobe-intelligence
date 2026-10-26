@@ -18,6 +18,7 @@ import { useWardrobeCacheActions } from "@/lib/wardrobe-query";
 import { resolveWardrobeUrls, thumbSrc } from "@/lib/wardrobe-image";
 import type { WardrobeItem } from "@/lib/aura-types";
 import type { Screen } from "../AuraApp";
+import { isWearableNow } from "@/lib/wardrobe-storage";
 
 type Verdict = "certain" | "maybe" | "new";
 type Candidate = { detectionId: string; wardrobeItemId: string; matchScore: number; verdict: Verdict };
@@ -129,7 +130,7 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
       const { data } = await (supabase.from("wardrobe_items" as never) as any)
         .select("*").eq("user_id", user.id).eq("archived", false);
       // Loaned out = can't be what's actually being worn in the photo right now.
-      const items = ((data ?? []) as WardrobeItem[]).filter((it) => !(it as unknown as { active_loan_id?: string | null }).active_loan_id);
+      const items = ((data ?? []) as WardrobeItem[]).filter((it) => isWearableNow(it as never));
       setWardrobe(items);
       setWardrobeUrls(await resolveWardrobeUrls(items));
     })();

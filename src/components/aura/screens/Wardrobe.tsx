@@ -6,7 +6,7 @@ import { isShoeCategory, sizeEquivalences } from "@/lib/size-conversion";
 import { MaterialCombobox } from "@/components/aura/MaterialCombobox";
 import { AddSourceSheet } from "@/components/aura/AddSourceSheet";
 
-import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown } from "lucide-react";
+import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown, Package, PackageOpen, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { migrateLegacyTaxonomy } from "@/lib/migrate-legacy-taxonomy.functions";
@@ -53,6 +53,9 @@ import {
   lengthOptionsFor,
 } from "@/lib/wardrobe-options";
 import { listLocations, moveItemsToLocation } from "@/lib/wardrobe-locations.functions";
+import { setItemsStored } from "@/lib/wardrobe-storage.functions";
+import { isInStorage } from "@/lib/wardrobe-storage";
+import { StorageTipsSheet } from "@/components/aura/StorageTipsSheet";
 import type { WardrobeLocation } from "@/lib/wardrobe-location";
 import i18n from "@/i18n/config";
 import {
@@ -124,6 +127,10 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
   const detailCanClose = useSheetCanClose(!!detail);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showLoaned, setShowLoaned] = useState(false);
+  // Cambio stagione: the pieces put away for the season, all in one place (see wardrobe-storage.ts).
+  const [showStored, setShowStored] = useState(false);
+  const [storing, setStoring] = useState(false);
+  const [storageTipsOpen, setStorageTipsOpen] = useState(false);
   const [loansByItemId, setLoansByItemId] = useState<Record<string, WardrobeLoan>>({});
   const [loanSheetOpen, setLoanSheetOpen] = useState(false);
   const [borrowerName, setBorrowerName] = useState("");
@@ -140,6 +147,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
   const migrateLegacy = useServerFn(migrateLegacyTaxonomy);
   const fetchLocations = useServerFn(listLocations);
   const moveItems = useServerFn(moveItemsToLocation);
+  const storeItems = useServerFn(setItemsStored);
   const reanalyzeBatch = useServerFn(reanalyzeWardrobeBatch);
   const lendItemFn = useServerFn(lendItem);
   const fetchActiveLoans = useServerFn(listActiveLoans);
@@ -592,6 +600,25 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
     }
   };
 
+  /** Puts pieces away in the cambio stagione, or brings them back: from the detail sheet (one) or
+   *  from select mode (many). Nothing proposes a stored piece until it is back in the wardrobe. */
+  const setStored = async (ids: string[], stored: boolean) => {
+    if (ids.length === 0 || storing) return;
+    setStoring(true);
+    try {
+      const res = await storeItems({ data: { itemIds: ids, stored } });
+      const idSet = new Set(ids);
+      setItems((prev) => prev.map((it) => (idSet.has(it.id) ? { ...it, stored_at: res.storedAt } as WardrobeItem : it)));
+      setDetail((d) => (d && idSet.has(d.id) ? ({ ...d, stored_at: res.storedAt } as WardrobeItem) : d));
+      toast.success(stored ? t("wardrobe.toastStoredCount", { count: ids.length }) : t("wardrobe.toastUnstoredCount", { count: ids.length }));
+      if (selectMode) exitSelectMode();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("wardrobe.toastStoreFailed"));
+    } finally {
+      setStoring(false);
+    }
+  };
+
   const season = useMemo(() => currentSeason(), []);
 
   const runLegacyMigration = async () => {
@@ -746,6 +773,11 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
     [items],
   );
 
+  const storedCount = useMemo(
+    () => items.filter((i) => isInStorage(i) && !(i as unknown as { archived?: boolean }).archived).length,
+    [items],
+  );
+
   const unclassifiedCount = useMemo(
     () => items.filter((it) =>
       it.formality == null || !it.occasion || !it.season || !it.day_evening
@@ -767,6 +799,8 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
       const isLoaned = Boolean((i as unknown as { active_loan_id?: string | null }).active_loan_id);
       if (showLoaned) return isLoaned;
       if (showArchived) return isArchived;
+      if (showStored) return isInStorage(i) && !isArchived;
+      if (isInStorage(i)) return false;
       const locId = (i as unknown as { location_id?: string | null }).location_id ?? null;
       const matchesLocation = viewLocationId === "all" || locId === viewLocationId;
       return !isArchived && !isLoaned && matchesLocation &&
@@ -798,7 +832,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
       price_asc: withMissingLast((i) => i.price, -1),
     };
     return [...base].sort(sorters[sortBy]);
-  }, [items, cat, q, seasonOnly, seasonMatches, showArchived, showLoaned, viewLocationId, gapFilter, sortBy, i18n.language]);
+  }, [items, cat, q, seasonOnly, seasonMatches, showArchived, showLoaned, showStored, viewLocationId, gapFilter, sortBy, i18n.language]);
 
   const w = weather?.current;
   const wLabel = w ? describeWeather(w.weatherCode, w.isDay) : null;
@@ -923,7 +957,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
 
       {(archivedCount > 0 || showArchived) && (
         <button
-          onClick={() => { setShowArchived((v) => !v); setShowLoaned(false); }}
+          onClick={() => { setShowArchived((v) => !v); setShowLoaned(false); setShowStored(false); exitSelectMode(); }}
           className="mx-6 mt-3 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
         >
           {showArchived ? <><X size={11} /> {t("wardrobe.backToCloset")}</> : <><Archive size={11} /> {t("wardrobe.archivedCount", { count: archivedCount })}</>}
@@ -931,13 +965,45 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
       )}
       {(loanedCount > 0 || showLoaned) && (
         <button
-          onClick={() => { setShowLoaned((v) => !v); setShowArchived(false); }}
+          onClick={() => { setShowLoaned((v) => !v); setShowArchived(false); setShowStored(false); exitSelectMode(); }}
           className="mx-6 mt-2 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
         >
           {showLoaned ? <><X size={11} /> {t("wardrobe.backToCloset")}</> : <><Users size={11} /> {t("wardrobe.loanedCount", { count: loanedCount })}</>}
         </button>
       )}
-      {locations.length > 1 && !showArchived && (
+      {/* Cambio stagione + Select: always here, so pieces can be put away (several at once) even by
+          someone with a single location; in the storage view, Select brings several back at once. */}
+      {!showArchived && !showLoaned && (
+        <div className="mx-6 mt-3 flex items-center justify-between gap-2">
+          {gapFilter ? <span /> : (
+            <button
+              onClick={() => { setShowStored((v) => !v); setShowArchived(false); setShowLoaned(false); exitSelectMode(); }}
+              className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              {showStored ? <><X size={11} /> {t("wardrobe.backToCloset")}</> : <><Package size={11} /> {t("wardrobe.storedCount", { count: storedCount })}</>}
+            </button>
+          )}
+          <button
+            onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] uppercase tracking-widest border ${selectMode ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"}`}
+          >{selectMode ? t("wardrobe.cancel") : t("wardrobe.select")}</button>
+        </div>
+      )}
+      {showStored && (
+        <div className="mx-6 mt-2">
+          <p className="text-[11px] text-muted-foreground">{t("wardrobe.storedHint")}</p>
+          <button
+            onClick={() => setStorageTipsOpen(true)}
+            className="mt-2 w-full rounded-2xl bg-secondary/50 px-4 py-3 text-left text-sm flex items-center gap-2 active:scale-[0.99]"
+          >
+            <Lightbulb size={14} className="shrink-0" />
+            <span className="flex-1">{t("wardrobe.storageTipsButton")}</span>
+            <span className="text-muted-foreground">›</span>
+          </button>
+        </div>
+      )}
+      {storageTipsOpen && <StorageTipsSheet onClose={() => setStorageTipsOpen(false)} />}
+      {locations.length > 1 && !showArchived && !showLoaned && !showStored && (
         <div className="mx-6 mt-3 flex items-center gap-2">
           <div className="flex gap-2 overflow-x-auto no-scrollbar flex-1">
             <button
@@ -952,10 +1018,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
               >{loc.name}</button>
             ))}
           </div>
-          <button
-            onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] uppercase tracking-widest border ${selectMode ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"}`}
-          >{selectMode ? t("wardrobe.cancel") : t("wardrobe.select")}</button>
         </div>
       )}
       {loading ? (
@@ -963,10 +1025,10 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
       ) : filtered.length === 0 ? (
         <div className="px-6 mt-16 text-center animate-fade-up">
                     <p className="font-serif text-2xl italic">
-            {gapFilter && items.length === 0 ? t("wardrobe.emptyLoadErrorTitle") : gapFilter ? t("wardrobe.emptyGapDoneTitle") : showArchived ? t("wardrobe.emptyArchivedTitle") : items.length === 0 ? t("wardrobe.emptyClosetTitle") : t("wardrobe.emptySeasonTitle", { season: season.toLowerCase() })}
+            {gapFilter && items.length === 0 ? t("wardrobe.emptyLoadErrorTitle") : gapFilter ? t("wardrobe.emptyGapDoneTitle") : showArchived ? t("wardrobe.emptyArchivedTitle") : showStored ? t("wardrobe.emptyStoredTitle") : items.length === 0 ? t("wardrobe.emptyClosetTitle") : t("wardrobe.emptySeasonTitle", { season: season.toLowerCase() })}
           </p>
           <p className="text-sm text-muted-foreground mt-2">
-            {gapFilter && items.length === 0 ? t("wardrobe.emptyLoadErrorSub") : gapFilter ? (gapFilter === "price" ? t("wardrobe.emptyGapDoneSubPrice") : t("wardrobe.emptyGapDoneSubDate")) : showArchived ? t("wardrobe.emptyArchivedSub") : items.length === 0 ? t("wardrobe.emptyClosetSub") : t("wardrobe.emptySeasonSub")}
+            {gapFilter && items.length === 0 ? t("wardrobe.emptyLoadErrorSub") : gapFilter ? (gapFilter === "price" ? t("wardrobe.emptyGapDoneSubPrice") : t("wardrobe.emptyGapDoneSubDate")) : showArchived ? t("wardrobe.emptyArchivedSub") : showStored ? t("wardrobe.emptyStoredSub") : items.length === 0 ? t("wardrobe.emptyClosetSub") : t("wardrobe.emptySeasonSub")}
           </p>
           {gapFilter && items.length === 0 ? (
             <button
@@ -977,6 +1039,11 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
             <button
               onClick={() => onClearGapFilter?.()}
               className="mt-6 h-12 px-6 rounded-full bg-foreground text-background uppercase tracking-[0.3em] text-xs"
+            >{t("wardrobe.backToCloset")}</button>
+          ) : showStored ? (
+            <button
+              onClick={() => setShowStored(false)}
+              className="mt-6 h-12 px-6 rounded-full border border-border uppercase tracking-[0.3em] text-xs"
             >{t("wardrobe.backToCloset")}</button>
           ) : items.length === 0 ? (
 
@@ -1033,6 +1100,11 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
               <div className="px-0.5 mt-1.5">
                 <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground truncate">{it.brand ?? it.category}</p>
                 <p className="font-serif text-[15px] leading-tight truncate">{it.colors?.[0] ?? it.color ? garmentWithColor(it.subcategory || it.category, it.colors?.[0] ?? it.color, i18n.language) : [label, (it.subcategory || it.category) && garmentName(it.subcategory || it.category || "", i18n.language)].filter(Boolean).join(" ")}</p>
+                {showStored && it.stored_at && (
+                  <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                    {t("wardrobe.storedSinceLabel", { date: new Date(it.stored_at).toLocaleDateString(i18n.language, { month: "short", day: "numeric" }) })}
+                  </p>
+                )}
                 {showLoaned && loan && (
                   <p className="text-[10px] text-muted-foreground truncate mt-0.5">
                     {t("wardrobe.loanedToLabel", { name: loan.borrower_name })} · {new Date(`${loan.loaned_at}T00:00:00`).toLocaleDateString(i18n.language, { month: "short", day: "numeric" })}
@@ -1287,6 +1359,22 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
                     ? <><ArchiveRestore size={12} /> {t("wardrobe.restoreToCloset")}</>
                     : <><Archive size={12} /> {t("wardrobe.archiveOutOfRotation")}</>}
                 </button>
+                {!(detail as unknown as { archived?: boolean }).archived && (
+                  <button
+                    onClick={() => void setStored([detail.id], !isInStorage(detail))}
+                    disabled={storing}
+                    className="mt-3 w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                  >
+                    {isInStorage(detail)
+                      ? <><PackageOpen size={12} /> {t("wardrobe.unstoreItemButton")}</>
+                      : <><Package size={12} /> {t("wardrobe.storeItemButton")}</>}
+                  </button>
+                )}
+                {isInStorage(detail) && detail.stored_at && (
+                  <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
+                    {t("wardrobe.storedSinceLabel", { date: new Date(detail.stored_at).toLocaleDateString(i18n.language, { month: "short", day: "numeric", year: "numeric" }) })}
+                  </p>
+                )}
                 {(detail as unknown as { active_loan_id?: string | null }).active_loan_id ? (
                   <div className="mt-3 rounded-2xl border border-border bg-secondary/30 p-3 text-center">
                     <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("wardrobe.loanedLabel")}</p>
@@ -1750,13 +1838,32 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
       )}
 
       {selectMode && (
-        <div className="fixed bottom-24 left-6 right-6 z-40 rounded-full bg-foreground text-background px-5 py-3 flex items-center justify-between shadow-luxe">
+        <div className="fixed bottom-24 left-6 right-6 z-40 rounded-[1.75rem] bg-foreground text-background px-5 py-3 flex flex-wrap items-center justify-between gap-2 shadow-luxe">
           <span className="text-xs">{t("wardrobe.selectedCount", { count: selectedIds.size })}</span>
-          <button
-            onClick={() => setBulkMovePicker(true)}
-            disabled={selectedIds.size === 0}
-            className="h-9 px-4 rounded-full bg-background text-foreground text-[10px] uppercase tracking-[0.25em] disabled:opacity-50"
-          >{t("wardrobe.moveToButton")}</button>
+          <div className="flex flex-wrap items-center justify-end gap-2 ml-auto">
+            {showStored ? (
+              <button
+                onClick={() => void setStored(Array.from(selectedIds), false)}
+                disabled={selectedIds.size === 0 || storing}
+                className="h-9 px-4 rounded-full bg-background text-foreground text-[10px] uppercase tracking-[0.25em] inline-flex items-center gap-1.5 disabled:opacity-50"
+              >{storing ? <Loader2 size={11} className="animate-spin" /> : <PackageOpen size={11} />} {t("wardrobe.unstoreSelectionButton")}</button>
+            ) : (
+              <>
+                <button
+                  onClick={() => void setStored(Array.from(selectedIds), true)}
+                  disabled={selectedIds.size === 0 || storing}
+                  className="h-9 px-4 rounded-full bg-background text-foreground text-[10px] uppercase tracking-[0.25em] inline-flex items-center gap-1.5 disabled:opacity-50"
+                >{storing ? <Loader2 size={11} className="animate-spin" /> : <Package size={11} />} {t("wardrobe.storeSelectionButton")}</button>
+                {locations.length > 1 && (
+                  <button
+                    onClick={() => setBulkMovePicker(true)}
+                    disabled={selectedIds.size === 0}
+                    className="h-9 px-4 rounded-full bg-background text-foreground text-[10px] uppercase tracking-[0.25em] disabled:opacity-50"
+                  >{t("wardrobe.moveToButton")}</button>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
 

@@ -283,7 +283,7 @@ const text: GuideText = {
         "Mes tailles : vos tailles de vêtements et de chaussures.",
         "Préférences de style : code vestimentaire au travail, formalité et jours travaillés.",
         "Préférences vestimentaires : ce que vous préférez éviter (épaules dénudées, jupes courtes, talons hauts…).",
-        "Langue : italien, anglais, espagnol ou français.",
+        "Langue : italien, anglais, espagnol, français ou chinois simplifié.",
       ],
     },
     "notifications-privacy": {

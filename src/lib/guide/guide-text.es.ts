@@ -283,7 +283,7 @@ const text: GuideText = {
         "Mis tallas: tus tallas de ropa y calzado.",
         "Preferencias de estilo: código de vestimenta en el trabajo, formalidad y días laborables.",
         "Preferencias de vestimenta: lo que prefieres evitar (hombros al aire, faldas cortas, tacones altos…).",
-        "Idioma: italiano, inglés, español o francés.",
+        "Idioma: italiano, inglés, español, francés o chino simplificado.",
       ],
     },
     "notifications-privacy": {

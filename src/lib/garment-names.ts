@@ -1,7 +1,7 @@
 // Colour, category and garment-type names in the person's language. Wardrobe rows store them in
 // English (the palette and the option lists are English values), so anything shown to the person —
 // "Aquazzura · Jet Black · Sandals" — or handed to the AI as a fact goes through here first and
-// reads "Aquazzura · Nero · Sandali" in Italian. Unknown values (a brand, a model, a free-typed
+// reads "Aquazzura · Nero · Sandali" in Italian ("Aquazzura · 黑色凉鞋" in Chinese). Unknown values (a brand, a model, a free-typed
 // colour) are left as they are.
 
 type Lang = "it" | "es" | "fr";
@@ -237,6 +237,69 @@ const AGREE: Record<Lang, Record<string, [string, string, string, string]>> = {
   },
 };
 
+// Simplified Chinese: one name per stored English value. Chinese needs no agreement and puts the
+// colour before the garment ("黑色凉鞋"), so it has its own table and rules below.
+const ZH: Record<string, string> = {
+  // Colours
+  "Pure White": "纯白色", "Off White": "米白色", Ivory: "象牙白", Cream: "奶油色", Ecru: "本白色", Pearl: "珍珠白",
+  "Jet Black": "黑色", "Soft Black": "柔黑色", Charcoal: "炭灰色", Graphite: "石墨灰", "Slate Grey": "板岩灰", "Cool Grey": "冷灰色",
+  "Warm Grey": "暖灰色", "Silver Grey": "银灰色", "Dove Grey": "鸽灰色", Beige: "米色", Sand: "沙色", Champagne: "香槟色", Taupe: "灰褐色",
+  Stone: "石色", Nude: "裸色", Buttermilk: "奶黄色", Oat: "燕麦色", Camel: "驼色", Tan: "棕褐色", Caramel: "焦糖色", Cognac: "干邑色",
+  Chocolate: "巧克力色", Espresso: "深咖色", Mocha: "摩卡色", Chestnut: "栗色", Rust: "铁锈色", Sienna: "赭色", Khaki: "卡其色",
+  "Cherry Red": "樱桃红", Crimson: "深红色", Ruby: "宝石红", Burgundy: "酒红色", Wine: "葡萄酒红", Brick: "砖红色", "Coral Red": "珊瑚红",
+  Blush: "腮红粉", "Powder Pink": "粉粉色", Rose: "玫瑰粉", "Dusty Pink": "灰粉色", "Hot Pink": "亮粉色", Fuchsia: "紫红色", Magenta: "品红色",
+  Salmon: "三文鱼色", Peach: "桃色", Apricot: "杏色", Coral: "珊瑚色", Tangerine: "橘色", Orange: "橙色", Terracotta: "陶土色",
+  "Burnt Orange": "焦橙色", Butter: "奶油黄", Lemon: "柠檬黄", Canary: "金丝雀黄", Mustard: "芥末黄", Ochre: "赭黄色", "Gold Yellow": "金黄色",
+  Mint: "薄荷绿", Sage: "鼠尾草绿", Pistachio: "开心果绿", Olive: "橄榄绿", "Army Green": "军绿色", "Forest Green": "森林绿",
+  Emerald: "祖母绿", "Kelly Green": "鲜绿色", "Hunter Green": "墨绿色", Teal: "蓝绿色", Turquoise: "绿松石色", Seafoam: "海沫绿",
+  "Powder Blue": "粉蓝色", "Sky Blue": "天蓝色", "Baby Blue": "浅蓝色", Denim: "牛仔蓝", Cobalt: "钴蓝色", "Royal Blue": "宝蓝色",
+  Navy: "藏青色", "Midnight Blue": "午夜蓝", "Slate Blue": "灰蓝色", "Steel Blue": "钢蓝色", "Ice Blue": "冰蓝色", Lavender: "薰衣草紫",
+  Lilac: "丁香紫", Mauve: "淡紫色", Violet: "紫罗兰色", Plum: "梅子色", Aubergine: "茄紫色", Amethyst: "紫水晶色", Gold: "金色",
+  "Rose Gold": "玫瑰金", Silver: "银色", Bronze: "古铜色", Copper: "铜色", Pewter: "锡灰色", Gunmetal: "枪灰色",
+  "Animal Print": "动物纹", Floral: "花卉", Striped: "条纹", Checkered: "格纹", "Denim Wash": "水洗牛仔", "Tie Dye": "扎染",
+  Black: "黑色", White: "白色", Grey: "灰色", Gray: "灰色", Blue: "蓝色", Red: "红色", Green: "绿色", Brown: "棕色", Pink: "粉色",
+  Yellow: "黄色", Purple: "紫色",
+  // Garment types
+  "T-Shirt": "T 恤", Shirt: "衬衫", Blouse: "女式衬衫", "Tank Top": "背心", Camisole: "吊带背心", "Crop Top": "短款上衣", Bodysuit: "连体衣",
+  Polo: "Polo 衫", Sweater: "毛衣", Cardigan: "开衫", Hoodie: "连帽卫衣", Sweatshirt: "卫衣", "Vest Top": "背心", "Knit Top": "针织上衣",
+  Tunic: "长款上衣", Jeans: "牛仔裤", Trousers: "长裤", "Cargo Pants": "工装裤", Joggers: "束脚运动裤", Leggings: "打底裤", Shorts: "短裤",
+  "Bermuda Shorts": "百慕大短裤", Skirt: "半身裙", "Slip Dress": "吊带裙", "Shirt Dress": "衬衫裙", "Wrap Dress": "裹身裙",
+  "Bodycon Dress": "紧身连衣裙", "A-line Dress": "A 字连衣裙", "Shift Dress": "直筒连衣裙", "Sweater Dress": "针织连衣裙",
+  "Evening Dress": "晚礼服", Jumpsuit: "连体裤", Playsuit: "连体短裤", Romper: "连体短裤", Blazer: "西装外套", Coat: "大衣",
+  "Trench Coat": "风衣", "Puffer Jacket": "羽绒服", Parka: "派克大衣", "Rain Jacket": "雨衣", Windbreaker: "防风夹克",
+  "Denim Jacket": "牛仔夹克", "Leather Jacket": "皮夹克", "Bomber Jacket": "飞行员夹克", Shacket: "衬衫式外套", Cape: "斗篷", Vest: "马甲",
+  Sneakers: "运动鞋", "Running Shoes": "跑鞋", Sandals: "凉鞋", Flats: "平底鞋", Loafers: "乐福鞋", Pumps: "高跟鞋", Boots: "靴子",
+  "Chelsea Boots": "切尔西靴", "Combat Boots": "马丁靴", "Ankle Boots": "短靴", "Knee Boots": "及膝靴", "Over-the-Knee Boots": "过膝靴",
+  Espadrilles: "草编鞋", Slides: "拖鞋", Mules: "穆勒鞋", Wedges: "坡跟鞋", Clogs: "木屐鞋", Slippers: "室内拖鞋", "Flip Flops": "人字拖",
+  Tote: "托特包", Crossbody: "斜挎包", "Shoulder Bag": "单肩包", Clutch: "手拿包", Backpack: "双肩包", "Bucket Bag": "水桶包",
+  "Belt Bag": "腰包", Satchel: "剑桥包", "Hobo Bag": "流浪包", "Top Handle Bag": "手提包", Belt: "腰带", Scarf: "围巾", Hat: "帽子",
+  Cap: "棒球帽", Gloves: "手套", Watch: "手表", Sunglasses: "太阳镜", "Hair Accessory": "发饰", Tie: "领带", Earrings: "耳环",
+  Necklace: "项链", Bracelet: "手链", Ring: "戒指", Brooch: "胸针", Anklet: "脚链", Bra: "文胸", "Sports Bra": "运动文胸",
+  Briefs: "三角内裤", Panties: "内裤", Boxers: "平角内裤", Shapewear: "塑身衣", Sleepwear: "睡衣", Socks: "袜子", Tights: "连裤袜",
+  "One-piece Swimsuit": "连体泳衣", "Bikini Top": "比基尼上装", "Bikini Bottom": "比基尼下装", "Cover-up": "罩衫", "Swim Shorts": "泳裤",
+  "Training Top": "运动上衣", "Performance Jacket": "运动夹克", "Running Shorts": "跑步短裤", "Bike Shorts": "骑行短裤",
+  "Training Leggings": "运动紧身裤", "Tennis Skirt": "网球裙", Tracksuit: "运动套装",
+  // Categories
+  Tops: "上装", Bottoms: "下装", Dresses: "连衣裙", Jumpsuits: "连体裤", Outerwear: "外套", Shoes: "鞋履", Bags: "包袋",
+  Accessories: "配饰", Underwear: "内衣", Swimwear: "泳装", Activewear: "运动服",
+  // Other options
+  Spring: "春季", Summer: "夏季", Autumn: "秋季", Winter: "冬季", "All Seasons": "四季", Minimal: "极简", Editorial: "时装大片",
+  "Quiet luxury": "静奢风", Street: "街头", Romantic: "浪漫", Tailored: "利落剪裁", Bohemian: "波西米亚", Sporty: "运动风", Vintage: "复古",
+  Boho: "波西米亚", Preppy: "学院风", Elegant: "优雅", Streetwear: "街头潮流", Office: "通勤", Y2K: "Y2K", Grunge: "垃圾摇滚风",
+  Coastal: "海岸风", "Old Money": "老钱风", Everyday: "日常", Work: "工作", "Business Casual": "商务休闲", "Business Formal": "商务正装",
+  "Smart Casual": "时尚休闲", Evening: "晚间", Cocktail: "鸡尾酒会", "Black Tie": "黑领结", "Wedding Guest": "婚礼宾客",
+  "Garden Party": "花园派对", Weekend: "周末", Travel: "旅行", Resort: "度假", Formal: "正式", Sport: "运动", Mini: "迷你", Midi: "中长",
+  Maxi: "长款", Cropped: "短款", Regular: "常规", Short: "短", Mid: "中", Long: "长", Longline: "加长", Sleeveless: "无袖",
+  "Short Sleeve": "短袖", "Three-Quarter Sleeve": "七分袖", "Long Sleeve": "长袖", Slim: "修身", Relaxed: "宽松", Oversized: "廓形",
+  Flat: "平跟", Low: "低跟", High: "高跟", Round: "圆头", Square: "方头", Pointed: "尖头", "Open Toe": "露趾", Buttons: "纽扣",
+  Zip: "拉链", Lace: "系带", "Slip-On": "一脚蹬", Neutrals: "中性色", Whites: "白色系", "Blacks & Greys": "黑灰色系", Browns: "棕色系",
+  Beiges: "米色系", Reds: "红色系", Pinks: "粉色系", Oranges: "橙色系", Yellows: "黄色系", Greens: "绿色系", Blues: "蓝色系",
+  Purples: "紫色系", Metallics: "金属色", Multicolor: "多色", Buckle: "搭扣", Woman: "女", Man: "男", Unisex: "男女通用",
+};
+const ZH_MAP = new Map(Object.entries(ZH).map(([k, v]) => [k.toLowerCase(), v]));
+const isZh = (language: string | null | undefined) => (language ?? "").slice(0, 2).toLowerCase() === "zh";
+const zhName = (name: string) => ZH_MAP.get(name.trim().toLowerCase());
+
 const LANG_INDEX: Record<Lang, 0 | 1 | 2> = { it: 0, es: 1, fr: 2 };
 const lower = (m: Names) => new Map(Object.entries(m).map(([k, v]) => [k.toLowerCase(), v]));
 const COLOR_MAP = lower(COLORS);
@@ -255,6 +318,7 @@ export const hasGarmentGender = (name: string) => GENDER_MAP.has(name.trim().toL
 
 /** A colour name (palette or plain word) in the language; unknown names unchanged. */
 export function colorName(name: string, language: string | null | undefined): string {
+  if (isZh(language)) return zhName(name) ?? name;
   const l = langOf(language);
   const hit = l ? COLOR_MAP.get(name.trim().toLowerCase()) : undefined;
   return hit ? hit[LANG_INDEX[l!]] : name;
@@ -262,6 +326,7 @@ export function colorName(name: string, language: string | null | undefined): st
 
 /** A garment type or category in the language; unknown names unchanged. */
 export function garmentName(name: string, language: string | null | undefined): string {
+  if (isZh(language)) return zhName(name) ?? name;
   const l = langOf(language);
   const hit = l ? NAME_MAP.get(name.trim().toLowerCase()) : undefined;
   return hit ? hit[LANG_INDEX[l!]] : name;
@@ -286,9 +351,20 @@ export function colorAfterGarment(color: string, garment: string, language: stri
  *  Sandalias negras", "Aquazzura · Sandales noires": the garment type with its colour after it,
  *  agreeing as the language wants; brands and models stay as written. English is unchanged. */
 export function localizeLabel(label: string, language: string | null | undefined): string {
+  const zh = isZh(language);
   const l = langOf(language);
-  if (!l) return label;
+  if (!l && !zh) return label;
   const parts = label.split(" · ");
+  if (zh) {
+    // "黑色凉鞋": the colour (or print) goes in front of the garment, with no space.
+    const colorIdx = parts.findIndex((p) => hasColorName(p));
+    const typeIdx = parts.findIndex((p, i) => i !== colorIdx && hasGarmentName(p));
+    if (colorIdx >= 0 && typeIdx >= 0) {
+      const merged = `${zhName(parts[colorIdx])}${zhName(parts[typeIdx])}`;
+      return parts.flatMap((p, i) => (i === colorIdx ? [] : i === typeIdx ? [merged] : [p])).join(" · ");
+    }
+    return parts.map((p) => zhName(p) ?? p).join(" · ");
+  }
   const colorIdx = parts.findIndex((p) => hasColorName(p) || PATTERN_AFTER[p.trim().toLowerCase()] != null);
   const typeIdx = parts.findIndex((p, i) => i !== colorIdx && hasGarmentName(p));
   if (colorIdx >= 0 && typeIdx >= 0) {
@@ -301,6 +377,7 @@ export function localizeLabel(label: string, language: string | null | undefined
 /** "Sandali neri" / "Sandalias negras" / "Sandales noires" / "Jet Black Sandals": a garment with
  *  its colour, as the language says it. Either part may be missing. */
 export function garmentWithColor(garment: string | null | undefined, color: string | null | undefined, language: string | null | undefined): string {
+  if (isZh(language)) return [color && colorName(color, language), garment && garmentName(garment, language)].filter(Boolean).join("");
   const l = langOf(language);
   if (!l) return [color, garment].filter(Boolean).join(" ");
   if (!garment) return color ? colorName(color, l) : "";
@@ -318,7 +395,9 @@ export function searchableText(values: (string | null | undefined)[], language: 
   for (const v of values) {
     if (!v) continue;
     out.push(v);
-    if (l) {
+    if (isZh(language)) {
+      for (const part of v.split(",")) { const zh = zhName(part); if (zh) out.push(zh); }
+    } else if (l) {
       if (hasColorName(v)) out.push(colorName(v, l));
       if (hasGarmentName(v)) out.push(garmentName(v, l));
       for (const part of v.split(",")) { const o = OPTION_MAP.get(part.trim().toLowerCase()); if (o) out.push(o[LANG_INDEX[l]]); }
@@ -371,6 +450,7 @@ const OPTION_MAP = lower(OPTIONS);
 /** Any stored option value (colour, garment type, category, season, occasion, style, fit…) in the
  *  person's language for display; the stored value itself never changes. Unknown values unchanged. */
 export function optionLabel(value: string, language: string | null | undefined): string {
+  if (isZh(language)) return (value && zhName(value)) || value;
   const l = langOf(language);
   if (!l || !value) return value;
   const key = value.trim().toLowerCase();

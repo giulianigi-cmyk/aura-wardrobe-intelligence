@@ -19,6 +19,7 @@ function fallbackTodayExplanation(language: string | null): string {
   if (lang === "it") return "Un look essenziale dal tuo armadio, pensato per il meteo di oggi.";
   if (lang === "es") return "Un look sencillo de tu armario, pensado para el tiempo de hoy.";
   if (lang === "fr") return "Une tenue épurée de votre garde-robe, pensée pour la météo du jour.";
+  if (lang === "zh") return "一套简约的造型，取自你的衣橱，为今天的天气而搭配。";
   return "A pared-back edit from your closet, put together for today's weather.";
 }
 import { dressPreferencesToPrompt, hasAnyPreference, isItemAllowedByDressPreferences, type DressPreferences } from "./dress-preferences";

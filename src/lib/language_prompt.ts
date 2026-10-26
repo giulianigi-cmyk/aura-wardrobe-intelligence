@@ -10,12 +10,13 @@ const LANGUAGE_NAMES: Record<string, string> = {
   en: "English",
   es: "Spanish",
   fr: "French",
+  zh: "Simplified Chinese",
 };
 
 /** A system-prompt line asking the model to write its free-text explanation/reply in the given
  *  app language — or an empty string when the language is English, unset, or unrecognized (no
  *  instruction needed; English is the model's own natural default). `language` is the app's own
- *  stored preference (profiles.language — "it" | "en" | "es" | "fr"), not inferred from anything
+ *  stored preference (profiles.language — "it" | "en" | "es" | "fr" | "zh"), not inferred from anything
  *  in the wardrobe data itself. */
 export function explanationLanguageInstruction(language: string | null | undefined): string {
   const name = language ? LANGUAGE_NAMES[language] : null;

@@ -33,6 +33,7 @@ const UPDATE_TEXT = {
   en: { title: "Update on your report", status: { open: "Received", in_progress: "In progress", fixed: "Resolved", wontfix: "Not resolved" }, reply: "Reply" },
   es: { title: "Novedades sobre tu reporte", status: { open: "Recibido", in_progress: "En curso", fixed: "Resuelto", wontfix: "No resuelto" }, reply: "Respuesta" },
   fr: { title: "Mise à jour de votre signalement", status: { open: "Reçu", in_progress: "En cours", fixed: "Résolu", wontfix: "Non résolu" }, reply: "Réponse" },
+  zh: { title: "你的报告有新进展", status: { open: "已收到", in_progress: "处理中", fixed: "已解决", wontfix: "未解决" }, reply: "回复" },
 } as const;
 
 /** What the person reads when the owner changes the status or replies. */

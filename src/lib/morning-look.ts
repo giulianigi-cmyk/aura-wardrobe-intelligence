@@ -1,6 +1,6 @@
 // Morning look notification: at the time each person chooses (Settings › Notifiche), a push saying
 // today's look is ready, with the day's temperatures. Which times can be chosen, whether one is due
-// in the person's own time zone, and the text in the four languages. Sent by morning-push.server.ts.
+// in the person's own time zone, and the text in each app language. Sent by morning-push.server.ts.
 
 /** Choosable times: every 15 minutes from 05:00 to 12:00 (the sender runs every 15 minutes). */
 import { BRAND_NAME } from "./brand";
@@ -42,6 +42,7 @@ const TEXT = {
   en: { title: "Today's look is ready", weather: (w: DayWeather) => `Today ${w.min}° to ${w.max}°${w.rainChance != null && w.rainChance >= 50 ? ", rain likely" : ""}.`, cta: `Open ${BRAND_NAME} to see what to wear.` },
   es: { title: "Tu look de hoy está listo", weather: (w: DayWeather) => `Hoy entre ${w.min}° y ${w.max}°${w.rainChance != null && w.rainChance >= 50 ? ", posible lluvia" : ""}.`, cta: `Abre ${BRAND_NAME} para ver qué ponerte.` },
   fr: { title: "Votre look du jour est prêt", weather: (w: DayWeather) => `Aujourd'hui entre ${w.min}° et ${w.max}°${w.rainChance != null && w.rainChance >= 50 ? ", pluie probable" : ""}.`, cta: `Ouvrez ${BRAND_NAME} pour voir quoi porter.` },
+  zh: { title: "你的今日造型已准备好", weather: (w: DayWeather) => `今天 ${w.min}° 至 ${w.max}°${w.rainChance != null && w.rainChance >= 50 ? "，可能有雨" : ""}。`, cta: `打开 ${BRAND_NAME}，看看今天穿什么。` },
 } as const;
 
 export function morningMessage(language: string | null | undefined, weather: DayWeather | null): { title: string; body: string } {

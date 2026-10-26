@@ -283,7 +283,7 @@ const text: GuideText = {
         "My sizes: your clothing and shoe sizes.",
         "Style preferences: dress code at work, formality and work days.",
         "Dress preferences: what you'd rather avoid (bare shoulders, short skirts, high heels…).",
-        "Language: Italian, English, Spanish or French.",
+        "Language: Italian, English, Spanish, French or Simplified Chinese.",
       ],
     },
     "notifications-privacy": {

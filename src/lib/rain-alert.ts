@@ -46,6 +46,12 @@ const TEXT = {
     umbrellaTitle: "Pluie aujourd'hui : prenez un parapluie",
     umbrella: (c: number) => `${c} % de risque de pluie. Votre tenue convient, n'oubliez pas votre parapluie.`,
   },
+  zh: {
+    swapTitle: "今天有雨：换一套穿搭吧",
+    swap: (pieces: string, alt: boolean) => `${pieces}不适合雨天。${alt ? "点按查看替代穿搭。" : "建议换掉它。"}记得带伞。`,
+    umbrellaTitle: "今天有雨：记得带伞",
+    umbrella: (c: number) => `降雨概率 ${c}%。你的穿搭没问题，只是别忘了带伞。`,
+  },
 } as const;
 
 /** `pieces`: the unsuitable pieces as the person reads them ("camicia di lino beige"). */
