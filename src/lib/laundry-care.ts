@@ -6,6 +6,8 @@
  * always wins, and every box says so.
  */
 
+import { BRAND_NAME } from "./brand";
+
 export type CareSymbolKind =
   | "wash-30" | "wash-40" | "wash-60" | "wash-30-gentle" | "wash-40-gentle" | "wash-30-very-gentle" | "wash-hand" | "wash-no"
   | "bleach-any" | "bleach-oxygen" | "bleach-no"
@@ -93,7 +95,10 @@ export type LaundryText = {
   title: string;
   intro: string;
   careBoxEmpty: string;
-  labelNote: string;
+  /** Heading above the label symbols shown in a piece, to compare with the real label. */
+  symbolsTitle: string;
+  /** Small print under a piece's advice: general guidance from the materials typed in, not a guarantee. */
+  disclaimer: string;
   openGuide: string;
   groupTitles: Record<SymbolGroupId, string>;
   symbolLabels: Record<CareSymbolKind, string>;
@@ -109,7 +114,8 @@ const IT: LaundryText = {
   title: "Guida al lavaggio",
   intro: "Cosa significano i simboli dell'etichetta e quale programma della lavatrice scegliere per ogni tessuto.",
   careBoxEmpty: "Aggiungi il materiale per vedere come lavarlo.",
-  labelNote: "Se l'etichetta del capo dice diversamente, segui l'etichetta.",
+  symbolsTitle: "Simboli di riferimento da confrontare con l'etichetta",
+  disclaimer: `I consigli di lavaggio di ${BRAND_NAME} sono indicativi e si basano sui materiali e sulla categoria che hai inserito. Prima di lavarlo verifica sempre l'etichetta di manutenzione, che prevale su questi consigli. ${BRAND_NAME} non garantisce il risultato del lavaggio e non è responsabile di eventuali danni derivanti dall'applicazione dei consigli.`,
   openGuide: "Simboli dell'etichetta e programmi della lavatrice",
   groupTitles: { wash: "Lavaggio", bleach: "Candeggio", dry: "Asciugatura", iron: "Stiro", dryclean: "Lavaggio professionale" },
   symbolLabels: {
@@ -255,7 +261,8 @@ const EN: LaundryText = {
   title: "Laundry guide",
   intro: "What the care-label symbols mean and which washing-machine programme to choose for each fabric.",
   careBoxEmpty: "Add the material to see how to wash it.",
-  labelNote: "If the piece's label says otherwise, follow the label.",
+  symbolsTitle: "Reference symbols to compare with the label",
+  disclaimer: `${BRAND_NAME}'s washing advice is for guidance only and is based on the materials and category you entered. Before washing, always check the care label, which takes priority over this advice. ${BRAND_NAME} does not guarantee the result of the wash and is not liable for any damage arising from following the advice.`,
   openGuide: "Care-label symbols and washing-machine programmes",
   groupTitles: { wash: "Washing", bleach: "Bleaching", dry: "Drying", iron: "Ironing", dryclean: "Professional cleaning" },
   symbolLabels: {
@@ -401,7 +408,8 @@ const FR: LaundryText = {
   title: "Guide du lavage",
   intro: "Ce que veulent dire les symboles de l'étiquette et quel programme de lave-linge choisir pour chaque tissu.",
   careBoxEmpty: "Ajoutez la matière pour voir comment le laver.",
-  labelNote: "Si l'étiquette du vêtement dit autre chose, suivez l'étiquette.",
+  symbolsTitle: "Symboles de référence à comparer avec l'étiquette",
+  disclaimer: `Les conseils de lavage de ${BRAND_NAME} sont indicatifs et reposent sur les matières et la catégorie que vous avez saisies. Avant de laver, vérifiez toujours l'étiquette d'entretien, qui prime sur ces conseils. ${BRAND_NAME} ne garantit pas le résultat du lavage et n'est pas responsable des éventuels dommages résultant de l'application des conseils.`,
   openGuide: "Symboles de l'étiquette et programmes du lave-linge",
   groupTitles: { wash: "Lavage", bleach: "Blanchiment", dry: "Séchage", iron: "Repassage", dryclean: "Nettoyage professionnel" },
   symbolLabels: {
@@ -547,7 +555,8 @@ const ES: LaundryText = {
   title: "Guía de lavado",
   intro: "Qué significan los símbolos de la etiqueta y qué programa de la lavadora elegir para cada tejido.",
   careBoxEmpty: "Añade el material para ver cómo lavarlo.",
-  labelNote: "Si la etiqueta de la prenda dice otra cosa, sigue la etiqueta.",
+  symbolsTitle: "Símbolos de referencia para comparar con la etiqueta",
+  disclaimer: `Los consejos de lavado de ${BRAND_NAME} son orientativos y se basan en los materiales y la categoría que has introducido. Antes de lavar, comprueba siempre la etiqueta de cuidado, que prevalece sobre estos consejos. ${BRAND_NAME} no garantiza el resultado del lavado y no se hace responsable de los posibles daños derivados de seguir los consejos.`,
   openGuide: "Símbolos de la etiqueta y programas de la lavadora",
   groupTitles: { wash: "Lavado", bleach: "Lejía", dry: "Secado", iron: "Planchado", dryclean: "Limpieza profesional" },
   symbolLabels: {
@@ -693,7 +702,8 @@ const ZH: LaundryText = {
   title: "洗涤指南",
   intro: "洗标符号代表什么，以及每种面料该选洗衣机的哪个程序。",
   careBoxEmpty: "添加材质后即可查看洗涤方法。",
-  labelNote: "如果衣物洗标的说明不同，请以洗标为准。",
+  symbolsTitle: "可与洗标对照的参考符号",
+  disclaimer: `${BRAND_NAME} 的洗涤建议仅供参考，依据你填写的材质和类别。洗涤前请务必查看洗护标签，洗护标签优先于这些建议。${BRAND_NAME} 不保证洗涤效果，也不对因采用这些建议而造成的任何损坏承担责任。`,
   openGuide: "洗标符号与洗衣机程序",
   groupTitles: { wash: "水洗", bleach: "漂白", dry: "干燥", iron: "熨烫", dryclean: "专业清洗" },
   symbolLabels: {

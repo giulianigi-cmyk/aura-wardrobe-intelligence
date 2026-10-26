@@ -78,13 +78,6 @@ export function CareBox({ materials, category, subcategory, onOpenGuide }: {
       {profile ? (
         <>
           <p className="mt-2 text-sm font-medium">{text.profiles[profile].name}</p>
-          {PROFILE_SYMBOLS[profile].length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {PROFILE_SYMBOLS[profile].map((kind) => (
-                <CareSymbol key={kind} kind={kind} size={32} label={text.symbolLabels[kind]} />
-              ))}
-            </div>
-          )}
           <ul className="mt-2 space-y-1.5">
             {[...text.profiles[profile].lines, ...extras.map((e) => text.extras[e])].map((line, i) => (
               <li key={i} className="flex gap-2 text-[13px] leading-relaxed">
@@ -93,7 +86,20 @@ export function CareBox({ materials, category, subcategory, onOpenGuide }: {
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-[11px] text-muted-foreground">{text.labelNote}</p>
+          {PROFILE_SYMBOLS[profile].length > 0 && (
+            <>
+              <p className="mt-4 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{text.symbolsTitle}</p>
+              <ul className="mt-2 space-y-1.5">
+                {PROFILE_SYMBOLS[profile].map((kind) => (
+                  <li key={kind} className="flex items-center gap-3 text-[13px] leading-snug">
+                    <CareSymbol kind={kind} size={30} label={text.symbolLabels[kind]} />
+                    <span>{text.symbolLabels[kind]}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <p className="mt-3 text-[12px] leading-snug text-foreground/60">{text.disclaimer}</p>
         </>
       ) : (
         <p className="mt-2 text-[13px] text-muted-foreground">{text.careBoxEmpty}</p>
