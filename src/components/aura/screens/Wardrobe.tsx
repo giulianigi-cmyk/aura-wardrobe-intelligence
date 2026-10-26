@@ -1576,6 +1576,15 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                     </div>
                   </div>
                 )}
+                {/* Come lavarlo: at the bottom of the piece as it opens, not only in the edit form. */}
+                <div className="mt-6">
+                  <CareBox
+                    materials={Array.isArray(detail.material) ? detail.material : []}
+                    category={detail.category}
+                    subcategory={detail.subcategory}
+                    onOpenGuide={() => setLaundryOpen(true)}
+                  />
+                </div>
               </>
             ) : (
 
