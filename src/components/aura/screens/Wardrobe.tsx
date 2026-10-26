@@ -56,6 +56,7 @@ import { listLocations, moveItemsToLocation } from "@/lib/wardrobe-locations.fun
 import { setItemsStored } from "@/lib/wardrobe-storage.functions";
 import { isInStorage } from "@/lib/wardrobe-storage";
 import { StorageTipsSheet } from "@/components/aura/StorageTipsSheet";
+import { SeasonChangeSheet } from "@/components/aura/SeasonChangeSheet";
 import { FastScroller } from "@/components/aura/FastScroller";
 import type { WardrobeLocation } from "@/lib/wardrobe-location";
 import i18n from "@/i18n/config";
@@ -132,6 +133,21 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
   const [showStored, setShowStored] = useState(false);
   const [storing, setStoring] = useState(false);
   const [storageTipsOpen, setStorageTipsOpen] = useState(false);
+  const [seasonChangeOpen, setSeasonChangeOpen] = useState(false);
+  // Opened from the season-change notification (AuraApp sets the flag before showing Wardrobe).
+  useEffect(() => {
+    const open = () => {
+      try {
+        if (sessionStorage.getItem("aura.openSeasonChange") !== "1") return;
+        sessionStorage.removeItem("aura.openSeasonChange");
+      } catch { return; /* storage unavailable */ }
+      setShowStored(true);
+      setSeasonChangeOpen(true);
+    };
+    open();
+    window.addEventListener("aura:open-season-change", open);
+    return () => window.removeEventListener("aura:open-season-change", open);
+  }, []);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [loansByItemId, setLoansByItemId] = useState<Record<string, WardrobeLoan>>({});
   const [loanSheetOpen, setLoanSheetOpen] = useState(false);
@@ -996,6 +1012,14 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
         <div className="mx-6 mt-2">
           <p className="text-[11px] text-muted-foreground">{t("wardrobe.storedHint")}</p>
           <button
+            onClick={() => setSeasonChangeOpen(true)}
+            className="mt-2 w-full rounded-2xl bg-foreground text-background px-4 py-3 text-left text-sm flex items-center gap-2 active:scale-[0.99]"
+          >
+            <Sparkles size={14} className="shrink-0" />
+            <span className="flex-1">{t("wardrobe.seasonChangeButton")}</span>
+            <span>›</span>
+          </button>
+          <button
             onClick={() => setStorageTipsOpen(true)}
             className="mt-2 w-full rounded-2xl bg-secondary/50 px-4 py-3 text-left text-sm flex items-center gap-2 active:scale-[0.99]"
           >
@@ -1006,6 +1030,16 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
         </div>
       )}
       {storageTipsOpen && <StorageTipsSheet onClose={() => setStorageTipsOpen(false)} />}
+      {seasonChangeOpen && (
+        <SeasonChangeSheet
+          items={items}
+          signed={signed}
+          dailyMax={(weather?.daily ?? []).map((d) => d.tempMax)}
+          userId={user?.id}
+          onStore={(ids, stored) => setStored(ids, stored)}
+          onClose={() => setSeasonChangeOpen(false)}
+        />
+      )}
       {locations.length > 1 && !showArchived && !showLoaned && !showStored && (
         <div className="mx-6 mt-3 flex items-center gap-2">
           <div className="flex gap-2 overflow-x-auto no-scrollbar flex-1">

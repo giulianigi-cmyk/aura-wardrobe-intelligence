@@ -111,6 +111,8 @@
     "notifOutfitShareSub": "When a friend shares an outfit with you in chat",
     "notifWeatherChange": "Weather alert for planned outfits",
     "notifWeatherChangeSub": "When the forecast changes for a day you've already planned an outfit",
+    "notifSeasonChange": "Seasonal switch",
+    "notifSeasonChangeSub": "At most a couple of times a year, with the morning look, when temperatures change and there are pieces to move",
     "notifSystem": "System updates",
     "notifSystemSub": "Important announcements about {{appName}}",
     "sharedLibrary": "Shared library",
@@ -276,6 +278,7 @@
     "storedSinceLabel": "In storage since {{date}}",
     "storedHint": "These pieces aren't suggested in any look until you bring them back to the wardrobe.",
     "storageTipsButton": "Storage tips",
+    "seasonChangeButton": "What to put away?",
     "backToTopAria": "Back to top",
     "fastScrollAria": "Scroll the list",
     "storeItemButton": "Put in seasonal storage",
@@ -2596,5 +2599,23 @@
     "title": "Plans reminder",
     "sub": "The evening before, tomorrow's plans from your connected calendar",
     "enabled": "Done: the evening before at {{time}}, when you have plans"
+  },
+  "seasonChange": {
+    "title": "What to put away?",
+    "noWeather": "To advise you I need the weather where you are: set your location in Closet or on Home.",
+    "forecast": "Over the next two weeks highs range from {{min}}° to {{max}}°.",
+    "putAwayTitle": "To put away ({{count}})",
+    "putAwayHint": "Pieces only for seasons the coming weeks don't need. Untick the ones you want to keep.",
+    "putAwayButton": "Put away {{count}}",
+    "putAwayNone": "Nothing to put away for now.",
+    "keepOutTitle": "To keep out ({{count}})",
+    "keepOutHint": "Out of season, but you still need them.",
+    "reasonPlanned": "in your calendar",
+    "reasonRecent": "worn recently",
+    "bringBackTitle": "To bring back ({{count}})",
+    "bringBackHint": "Pieces in storage that suit the coming weeks.",
+    "bringBackButton": "Bring back {{count}}",
+    "bringBackNone": "Nothing to bring back from storage.",
+    "untaggedNote": "Pieces with no season, or for all seasons, are never moved."
   }
 }

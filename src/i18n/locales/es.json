@@ -111,6 +111,8 @@
     "notifOutfitShareSub": "Cuando un amigo te comparte un outfit en el chat",
     "notifWeatherChange": "Alerta meteorológica para outfits planificados",
     "notifWeatherChangeSub": "Cuando cambia el pronóstico para un día en el que ya has planificado un outfit",
+    "notifSeasonChange": "Cambio de armario",
+    "notifSeasonChangeSub": "Como mucho un par de veces al año, con el look de la mañana, cuando cambian las temperaturas y hay prendas que mover",
     "notifSystem": "Actualizaciones del sistema",
     "notifSystemSub": "Anuncios importantes sobre {{appName}}",
     "sharedLibrary": "Biblioteca compartida",
@@ -276,6 +278,7 @@
     "storedSinceLabel": "Guardado desde el {{date}}",
     "storedHint": "Estas prendas no se proponen en ningún look hasta que las devuelvas al armario.",
     "storageTipsButton": "Consejos para guardar la ropa",
+    "seasonChangeButton": "¿Qué guardar?",
     "backToTopAria": "Volver arriba",
     "fastScrollAria": "Desplazar la lista",
     "storeItemButton": "Guardar en el cambio de armario",
@@ -2596,5 +2599,23 @@
     "title": "Recordatorio de planes",
     "sub": "La noche anterior, los planes de mañana de tu calendario conectado",
     "enabled": "Listo: la noche anterior a las {{time}}, si mañana tienes planes"
+  },
+  "seasonChange": {
+    "title": "¿Qué guardar?",
+    "noWeather": "Para aconsejarte necesito el tiempo de tu ciudad: indica tu ubicación en Armario o en Inicio.",
+    "forecast": "En las próximas dos semanas las máximas van de {{min}}° a {{max}}°.",
+    "putAwayTitle": "Para guardar ({{count}})",
+    "putAwayHint": "Prendas solo para temporadas que no necesitarás en las próximas semanas. Desmarca las que quieras tener a mano.",
+    "putAwayButton": "Guardar {{count}}",
+    "putAwayNone": "Nada que guardar por ahora.",
+    "keepOutTitle": "Para dejar fuera ({{count}})",
+    "keepOutHint": "Fuera de temporada, pero aún las necesitas.",
+    "reasonPlanned": "en tu calendario",
+    "reasonRecent": "puesta hace poco",
+    "bringBackTitle": "Para recuperar ({{count}})",
+    "bringBackHint": "Prendas guardadas que van bien para las próximas semanas.",
+    "bringBackButton": "Devolver {{count}}",
+    "bringBackNone": "Nada que recuperar del cambio de armario.",
+    "untaggedNote": "Las prendas sin temporada, o para todas las temporadas, nunca se mueven."
   }
 }

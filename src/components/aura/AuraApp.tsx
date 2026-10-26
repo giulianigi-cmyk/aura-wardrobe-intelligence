@@ -317,6 +317,12 @@ function Inner() {
       if (day && /^\d{4}-\d{2}-\d{2}$/.test(day)) {
         track("flow_step", { feature: "event_reminder", step: "opened" });
         openPlanner(day);
+      } else if (params.get("open") === "season-change") {
+        // The season-change notification: Wardrobe opens on the cambio stagione and its suggestions.
+        try { sessionStorage.setItem("aura.openSeasonChange", "1"); } catch { /* storage unavailable */ }
+        setScreen("wardrobe");
+        window.dispatchEvent(new Event("aura:open-season-change")); // Wardrobe already on screen
+
       } else if (params.get("open") === "report-problem") {
         setScreen("settings-report-problem"); // an update on the person's own report
       } else if (params.get("admin") === "reports") {
