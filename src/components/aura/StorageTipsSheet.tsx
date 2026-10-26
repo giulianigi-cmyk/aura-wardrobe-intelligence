@@ -3,8 +3,8 @@ import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { storageTipsFor } from "@/lib/storage-tips";
 
-/** Consigli per il cambio armadio: what to do before putting clothes away, how to fold them,
- *  which containers to buy and where to keep them. Opened from the Cambio armadio view. */
+/** Consigli per il cambio stagione: what to do before putting clothes away, how to fold them,
+ *  which containers to buy and where to keep them. Opened from the Cambio stagione view. */
 export function StorageTipsSheet({ onClose }: { onClose: () => void }) {
   const { t, i18n } = useTranslation();
   const tips = storageTipsFor(i18n.language);

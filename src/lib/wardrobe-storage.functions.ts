@@ -7,7 +7,7 @@ const SetStoredSchema = z.object({
   stored: z.boolean(),
 });
 
-/** Puts pieces away in the cambio armadio (stored: true) or brings them back to the wardrobe. */
+/** Puts pieces away in the cambio stagione (stored: true) or brings them back to the wardrobe. */
 export const setItemsStored = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => SetStoredSchema.parse(input))

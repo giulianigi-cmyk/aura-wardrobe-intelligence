@@ -171,7 +171,7 @@ export async function runPlanWeatherRecheck(limit = 200): Promise<RecheckResult>
         .select("id, category, subcategory, colors, style, season, brand, material, location_id, active_loan_id, stored_at, length, toe_shape, style_tags, fit, occasion, formality, day_evening, sleeve_length, heel_height, closure, gender")
         .eq("user_id", userId)
         .eq("archived", false);
-      // Loaned out or put away in the cambio armadio = not physically available to re-plan into.
+      // Loaned out or put away in the cambio stagione = not physically available to re-plan into.
       const rows = (itemRows ?? []).filter((it: any) => !it.active_loan_id && !it.stored_at);
       rawWardrobe.set(userId, rows);
       wardrobeCache.set(userId, rows.map((it: any) => ({

@@ -54,7 +54,7 @@ const ItemSchema = z.object({
   // excluded before anything else runs — same hard-filter treatment as
   // location and dress preferences, not a prompt-level suggestion.
   activeLoanId: z.string().nullable().optional(),
-  // Put away in the cambio armadio: same hard filter as a loan, until it is brought back.
+  // Put away in the cambio stagione: same hard filter as a loan, until it is brought back.
   inStorage: z.boolean().optional(),
 });
 

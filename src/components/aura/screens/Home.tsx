@@ -106,7 +106,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
   const allItems = itemsQuery.data ?? [];
   const itemsLoaded = itemsQuery.isSuccess;
   // The candidate pool the outfit generator is allowed to pick from — archived (sold/donated),
-  // loaned-out and put-away (cambio armadio) pieces are physically not available to wear right now, exactly like Wardrobe.tsx's
+  // loaned-out and put-away (cambio stagione) pieces are physically not available to wear right now, exactly like Wardrobe.tsx's
   // own filters already treat them. allItems above stays the FULL set (unfiltered) for the "CAPI"
   // stat and "Dal tuo guardaroba", matching Wardrobe.tsx's own header count — only the generation
   // input and its cache fingerprint use the active-only set below.

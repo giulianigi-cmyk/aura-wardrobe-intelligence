@@ -127,7 +127,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
   const detailCanClose = useSheetCanClose(!!detail);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showLoaned, setShowLoaned] = useState(false);
-  // Cambio armadio: the pieces put away for the season, all in one place (see wardrobe-storage.ts).
+  // Cambio stagione: the pieces put away for the season, all in one place (see wardrobe-storage.ts).
   const [showStored, setShowStored] = useState(false);
   const [storing, setStoring] = useState(false);
   const [storageTipsOpen, setStorageTipsOpen] = useState(false);
@@ -600,7 +600,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
     }
   };
 
-  /** Puts pieces away in the cambio armadio, or brings them back: from the detail sheet (one) or
+  /** Puts pieces away in the cambio stagione, or brings them back: from the detail sheet (one) or
    *  from select mode (many). Nothing proposes a stored piece until it is back in the wardrobe. */
   const setStored = async (ids: string[], stored: boolean) => {
     if (ids.length === 0 || storing) return;
@@ -971,7 +971,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
           {showLoaned ? <><X size={11} /> {t("wardrobe.backToCloset")}</> : <><Users size={11} /> {t("wardrobe.loanedCount", { count: loanedCount })}</>}
         </button>
       )}
-      {/* Cambio armadio + Select: always here, so pieces can be put away (several at once) even by
+      {/* Cambio stagione + Select: always here, so pieces can be put away (several at once) even by
           someone with a single location; in the storage view, Select brings several back at once. */}
       {!showArchived && !showLoaned && (
         <div className="mx-6 mt-3 flex items-center justify-between gap-2">

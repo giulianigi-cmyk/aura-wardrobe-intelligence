@@ -1,4 +1,4 @@
--- Cambio armadio: segnare i capi messi via per la stagione (garage, cantina, sottovuoto…).
+-- Cambio stagione: segnare i capi messi via per la stagione (garage, cantina, sottovuoto…).
 --
 -- MOTIVO
 -- Un capo messo via resta di proprietà della persona (conta nelle analisi, il consiglio
@@ -34,4 +34,4 @@
 ALTER TABLE public.wardrobe_items ADD COLUMN IF NOT EXISTS stored_at timestamptz;
 
 COMMENT ON COLUMN public.wardrobe_items.stored_at IS
-  'Cambio armadio: quando il capo è stato messo via. NULL = nell''armadio. Un capo messo via non viene proposto.';
+  'Cambio stagione: quando il capo è stato messo via. NULL = nell''armadio. Un capo messo via non viene proposto.';

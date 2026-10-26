@@ -60,7 +60,7 @@ export function useWardrobeItems() {
 /** Convenience wrapper for the common case — Home's count, AIStylist's
  *  and Planner's suggestion pool, anything that should never include a
  *  sold/donated/archived piece, or one currently out on loan to someone
- *  else or put away in the cambio armadio (physically not in the wardrobe
+ *  else or put away in the cambio stagione (physically not in the wardrobe
  *  right now, same reasoning as archived). Reads from the same cache as useWardrobeItems (no second
  *  fetch), just filters the result. */
 export function useActiveWardrobeItems() {

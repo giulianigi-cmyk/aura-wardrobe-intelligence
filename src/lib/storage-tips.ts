@@ -1,4 +1,4 @@
-// Consigli per il cambio armadio — shown from the Cambio armadio view in Wardrobe. Plain editorial
+// Consigli per il cambio stagione — shown from the Cambio stagione view in Wardrobe. Plain editorial
 // advice, the same for everyone: no products, brands or links, only the kind of container to look for.
 import { BRAND_NAME } from "./brand";
 
@@ -6,7 +6,7 @@ export type StorageTipsSection = { id: string; title: string; tips: string[] };
 export type StorageTips = { title: string; intro: string; sections: StorageTipsSection[] };
 
 const it: StorageTips = {
-  title: "Consigli per il cambio armadio",
+  title: "Consigli per il cambio stagione",
   intro: "Pochi accorgimenti perché i capi ritornino come li hai lasciati: puliti, senza pieghe e senza tarme.",
   sections: [
     {
@@ -61,8 +61,8 @@ const it: StorageTips = {
       id: "app",
       title: `Con ${BRAND_NAME}`,
       tips: [
-        "Tocca «Seleziona», scegli i capi che metti via e tocca «Cambio armadio»: non verranno più proposti nei look, nei piani e nei viaggi.",
-        "Quando cambia la stagione apri il Cambio armadio, seleziona i capi e tocca «Riporta nell'armadio».",
+        "Tocca «Seleziona», scegli i capi che metti via e tocca «Cambio stagione»: non verranno più proposti nei look, nei piani e nei viaggi.",
+        "Quando cambia la stagione apri Cambio stagione, seleziona i capi e tocca «Riporta nell'armadio».",
       ],
     },
   ],

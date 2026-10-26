@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { isInStorage, isWearableNow } from "./wardrobe-storage";
 
-test("a piece put away in the cambio armadio is not wearable", () => {
+test("a piece put away in the cambio stagione is not wearable", () => {
   assert.equal(isInStorage({ stored_at: "2026-10-26T08:00:00Z" }), true);
   assert.equal(isWearableNow({ stored_at: "2026-10-26T08:00:00Z" }), false);
 });
