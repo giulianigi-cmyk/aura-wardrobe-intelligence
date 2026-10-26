@@ -160,7 +160,7 @@ export function FoldingDiagram({ kind, label, steps }: { kind: FoldDiagramKind; 
   return (
     <div role="img" aria-label={label} className="mt-2 grid grid-cols-3 gap-2 text-foreground">
       {panels.map((p, i) => (
-        <div key={i} className="rounded-xl bg-secondary/40 pt-1 pb-1.5 flex flex-col items-center">
+        <div key={i} className="rounded-xl bg-secondary/40 pt-1 pb-2.5 flex flex-col items-center">
           <svg viewBox="0 0 100 90" className="w-full h-auto" aria-hidden="true">
             <defs>
               <marker id={`${markerId}-${i}`} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
@@ -172,7 +172,7 @@ export function FoldingDiagram({ kind, label, steps }: { kind: FoldDiagramKind; 
             {p.folds && <path d={p.folds} fill="none" stroke="currentColor" strokeOpacity={0.45} strokeWidth={0.75} vectorEffect="non-scaling-stroke" strokeDasharray="3 3" />}
             {p.arrows?.map((d) => <path key={d} d={d} fill="none" stroke="currentColor" strokeOpacity={0.8} strokeWidth={1} vectorEffect="non-scaling-stroke" markerEnd={`url(#${markerId}-${i})`} />)}
           </svg>
-          <span className="px-1.5 text-center text-[10px] leading-snug text-muted-foreground">
+          <span className="self-stretch px-2 mt-0.5 text-left text-[13px] leading-snug text-foreground/80">
             <span className="tabular-nums">{i + 1}</span>{steps?.[i] ? `. ${steps[i]}` : ""}
           </span>
         </div>

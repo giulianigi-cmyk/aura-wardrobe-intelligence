@@ -76,7 +76,7 @@ export function SeasonChangeSheet({
                 </span>
               )}
             </div>
-            <p className="mt-1 text-[10px] leading-tight text-muted-foreground line-clamp-2">{note ? note(it) : label(it)}</p>
+            <p className="mt-1 text-[12px] leading-snug text-foreground/80 line-clamp-3">{note ? note(it) : label(it)}</p>
           </button>
         );
       })}
