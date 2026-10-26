@@ -283,7 +283,7 @@ export type GuideText = {
   articles: Record<string, { title: string; intro?: string; steps: string[]; tip?: string }>;
 };
 
-export const GUIDE_LANGUAGES = ["it", "en", "es", "fr"] as const;
+export const GUIDE_LANGUAGES = ["it", "en", "es", "fr", "zh"] as const;
 export type GuideLanguage = (typeof GUIDE_LANGUAGES)[number];
 
 /** Each language's text, downloaded only when the Guide opens. */
@@ -292,6 +292,7 @@ export const guideTextLoaders: Record<GuideLanguage, () => Promise<{ default: Gu
   en: () => import("./guide-text.en"),
   es: () => import("./guide-text.es"),
   fr: () => import("./guide-text.fr"),
+  zh: () => import("./guide-text.zh"),
 };
 
 /** Articles whose title, intro, steps or tip contain every word of the query (accents and case

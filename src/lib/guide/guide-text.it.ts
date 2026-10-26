@@ -283,7 +283,7 @@ const text: GuideText = {
         "Le mie taglie: le tue taglie per abbigliamento e scarpe.",
         "Preferenze di stile: dress code al lavoro, formalità e giorni lavorativi.",
         "Preferenze di abbigliamento: cosa preferisci evitare (spalle scoperte, gonne corte, tacchi alti…).",
-        "Lingua: italiano, inglese, spagnolo o francese.",
+        "Lingua: italiano, inglese, spagnolo, francese o cinese semplificato.",
       ],
     },
     "notifications-privacy": {

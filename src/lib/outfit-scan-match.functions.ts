@@ -14,7 +14,7 @@ import { parseAiJson } from "./ai-json";
 import { mapVisualScores, type VisualScore } from "./outfit-match";
 
 const MAX_CANDIDATES = 6;
-const LANGUAGE_NAMES: Record<string, string> = { it: "Italian", en: "English", es: "Spanish", fr: "French" };
+const LANGUAGE_NAMES: Record<string, string> = { it: "Italian", en: "English", es: "Spanish", fr: "French", zh: "Simplified Chinese" };
 
 const RerankInput = z.object({
   // JPEG crop of the garment's area in the outfit photo, downscaled by the client (~640px).

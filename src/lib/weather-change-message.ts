@@ -1,16 +1,17 @@
 // Text of the "weather changed for your planned outfit" notification, in the person's language
-// (it, en, es, fr; anything else falls back to English). It used to be English for everyone.
+// (it, en, es, fr, zh; anything else falls back to English). It used to be English for everyone.
 // Pieces are named by kind + brand ("borsa Uniqlo"): the stored colour and subcategory names are
 // English ("Pure White", "Pumps") and read as half-translated inside an Italian sentence.
 
-type Lang = "it" | "en" | "es" | "fr";
-const LOCALE: Record<Lang, string> = { it: "it-IT", en: "en-US", es: "es-ES", fr: "fr-FR" };
+type Lang = "it" | "en" | "es" | "fr" | "zh";
+const LOCALE: Record<Lang, string> = { it: "it-IT", en: "en-US", es: "es-ES", fr: "fr-FR", zh: "zh-CN" };
 
 const KIND: Record<Lang, Record<string, string>> = {
   it: { Tops: "top", Bottoms: "pantaloni", Dresses: "abito", Jumpsuits: "tuta", Outerwear: "capospalla", Shoes: "scarpe", Bags: "borsa", Accessories: "accessorio", Activewear: "capo sportivo", Swimwear: "costume" },
   en: { Tops: "top", Bottoms: "bottoms", Dresses: "dress", Jumpsuits: "jumpsuit", Outerwear: "jacket", Shoes: "shoes", Bags: "bag", Accessories: "accessory", Activewear: "activewear", Swimwear: "swimwear" },
   es: { Tops: "top", Bottoms: "pantalón", Dresses: "vestido", Jumpsuits: "mono", Outerwear: "abrigo", Shoes: "zapatos", Bags: "bolso", Accessories: "accesorio", Activewear: "ropa deportiva", Swimwear: "bañador" },
   fr: { Tops: "haut", Bottoms: "bas", Dresses: "robe", Jumpsuits: "combinaison", Outerwear: "veste", Shoes: "chaussures", Bags: "sac", Accessories: "accessoire", Activewear: "tenue de sport", Swimwear: "maillot" },
+  zh: { Tops: "上衣", Bottoms: "下装", Dresses: "连衣裙", Jumpsuits: "连体裤", Outerwear: "外套", Shoes: "鞋子", Bags: "包", Accessories: "配饰", Activewear: "运动服", Swimwear: "泳装" },
 };
 
 const WEATHER: Record<Lang, Record<string, string>> = {
@@ -18,6 +19,7 @@ const WEATHER: Record<Lang, Record<string, string>> = {
   en: { clear: "Clear skies", mostlyClear: "Mostly clear", partlyCloudy: "Partly cloudy", overcast: "Overcast", fog: "Fog", drizzle: "Drizzle", rain: "Rain", snow: "Snow", showers: "Showers", snowShowers: "Snow showers", thunderstorm: "Thunderstorms", unknown: "Changeable weather" },
   es: { clear: "Despejado", mostlyClear: "Poco nuboso", partlyCloudy: "Parcialmente nuboso", overcast: "Cubierto", fog: "Niebla", drizzle: "Llovizna", rain: "Lluvia", snow: "Nieve", showers: "Chubascos", snowShowers: "Chubascos de nieve", thunderstorm: "Tormenta", unknown: "Tiempo variable" },
   fr: { clear: "Ciel dégagé", mostlyClear: "Peu nuageux", partlyCloudy: "Partiellement nuageux", overcast: "Couvert", fog: "Brouillard", drizzle: "Bruine", rain: "Pluie", snow: "Neige", showers: "Averses", snowShowers: "Averses de neige", thunderstorm: "Orage", unknown: "Temps variable" },
+  zh: { clear: "晴", mostlyClear: "大致晴朗", partlyCloudy: "多云", overcast: "阴", fog: "雾", drizzle: "毛毛雨", rain: "雨", snow: "雪", showers: "阵雨", snowShowers: "阵雪", thunderstorm: "雷暴", unknown: "天气多变" },
 };
 
 const TEXT: Record<Lang, {
@@ -60,11 +62,19 @@ const TEXT: Record<Lang, {
     umbrella: (n) => `${n} % de risque de pluie : n'oublie pas ton parapluie.`,
     and: " et ",
   },
+  zh: {
+    title: (d) => `你${d}的穿搭遇到天气变化`,
+    dropped: (c, p) => `预计有${c}：${p}可能不太合适。`,
+    added: (p) => `建议改穿：${p}。`,
+    general: (c, t) => `预计${c}，气温约 ${t}°。`,
+    umbrella: (n) => `降雨概率 ${n}%：别忘了带伞。`,
+    and: "和",
+  },
 };
 
 export function langOf(language: string | null | undefined): Lang {
   const l = (language ?? "").slice(0, 2).toLowerCase();
-  return (l === "it" || l === "es" || l === "fr" ? l : "en") as Lang;
+  return (l === "it" || l === "es" || l === "fr" || l === "zh" ? l : "en") as Lang;
 }
 
 /** "borsa Uniqlo", "scarpe Le Silla": the piece's kind in the person's language plus its brand. */
@@ -72,7 +82,8 @@ export function pieceLabel(language: string | null | undefined, item: { category
   if (!item) return null;
   const kind = KIND[langOf(language)][item.category ?? ""] ?? null;
   const brand = (item.brand ?? "").trim();
-  const label = [kind, brand].filter(Boolean).join(" ");
+  // Chinese puts the brand first ("Uniqlo 包").
+  const label = (langOf(language) === "zh" ? [brand, kind] : [kind, brand]).filter(Boolean).join(" ");
   return label || null;
 }
 

@@ -52,3 +52,18 @@ test("option values read in the person's language; stored values never change", 
   assert.equal(garmentWithColor("Bags", "Pure White", "es"), "Bolsos blancos");
   assert.equal(garmentWithColor("Shoes", "Jet Black", "en"), "Jet Black Shoes");
 });
+
+test("Chinese: colour before the garment, no agreement, search in both languages", () => {
+  assert.equal(garmentWithColor("Sandals", "Jet Black", "zh"), "黑色凉鞋");
+  assert.equal(localizeLabel("Aquazzura · Jet Black · Sandals", "zh"), "Aquazzura · 黑色凉鞋");
+  assert.equal(localizeLabel("Striped · Shirt", "zh"), "条纹衬衫");
+  assert.equal(optionList("Autumn, Winter", "zh"), "秋季, 冬季");
+  assert.equal(garmentName("Some Brand Model", "zh"), "Some Brand Model");
+  const text = searchableText(["Sandals", "Jet Black"], "zh");
+  assert.ok(matchesSearch(text, "凉鞋") && matchesSearch(text, "黑色") && matchesSearch(text, "sandals"));
+});
+
+test("every palette colour and garment type has a Chinese name", () => {
+  for (const c of COLOR_NAMES) assert.ok(/[一-鿿]/.test(colorName(c, "zh")), c);
+  for (const s of Object.values(SUBCATEGORY_OPTIONS).flat()) assert.ok(/[一-鿿]/.test(garmentName(s, "zh")), s);
+});

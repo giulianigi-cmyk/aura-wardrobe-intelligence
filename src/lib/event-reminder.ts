@@ -48,6 +48,7 @@ const TEXT = {
   en: { one: (e: string) => `Tomorrow: ${e}`, many: (n: number) => `You have ${n} plans tomorrow`, at: "at", event: "an appointment", andMore: (n: number) => `and ${n} more`, cta: "What will you wear? Tap to ask your Stylist." },
   es: { one: (e: string) => `Mañana: ${e}`, many: (n: number) => `Mañana tienes ${n} planes`, at: "a las", event: "un plan", andMore: (n: number) => `y ${n} más`, cta: "¿Qué te pondrás? Toca y pregunta a tu Estilista." },
   fr: { one: (e: string) => `Demain : ${e}`, many: (n: number) => `Demain, vous avez ${n} rendez-vous`, at: "à", event: "un rendez-vous", andMore: (n: number) => `et ${n} autres`, cta: "Que porter ? Touchez pour demander à votre Styliste." },
+  zh: { one: (e: string) => `明天：${e}`, many: (n: number) => `明天你有 ${n} 个行程`, at: "时间", event: "一个行程", andMore: (n: number) => `等 ${n + 1} 个行程`, cta: "穿什么？点按问问你的造型师。" },
 } as const;
 
 export function eventReminderMessage(language: string | null | undefined, events: DayEvent[]): { title: string; body: string } | null {

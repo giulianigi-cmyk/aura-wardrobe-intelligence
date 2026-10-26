@@ -216,13 +216,14 @@ function countPairings(category: string, colors: string[], wardrobe: WardrobeIte
   return count;
 }
 
-const LANGUAGE_NAMES: Record<string, string> = { it: "Italian", en: "English", es: "Spanish", fr: "French" };
+const LANGUAGE_NAMES: Record<string, string> = { it: "Italian", en: "English", es: "Spanish", fr: "French", zh: "Simplified Chinese" };
 
 const INVALID_LINK: Record<string, string> = {
   it: "Link non valido.",
   en: "Invalid link.",
   es: "Enlace no válido.",
   fr: "Lien invalide.",
+  zh: "链接无效。",
 };
 
 const COULD_NOT_READ_PAGE: Record<string, string> = {
@@ -230,6 +231,7 @@ const COULD_NOT_READ_PAGE: Record<string, string> = {
   en: "Couldn't read this product page.",
   es: "No he podido leer esta página de producto.",
   fr: "Impossible de lire cette page produit.",
+  zh: "无法读取这个商品页面。",
 };
 
 /** Cuts `text` to at most `max` characters without breaking mid-word or mid-sentence when it can
@@ -302,7 +304,7 @@ const CONFLICT_FACT: Record<DressConflict, string> = {
   avoid_low_neckline: "they avoid low necklines, and this has one",
 };
 
-const PIECE_WORD: Record<string, string> = { it: "capo", en: "piece", es: "prenda", fr: "pièce" };
+const PIECE_WORD: Record<string, string> = { it: "capo", en: "piece", es: "prenda", fr: "pièce", zh: "单品" };
 
 /** "1.080,00 EUR" / "€1,080" → 1080 (only to order the same product by price). */
 function parsePriceNumber(price: string | null | undefined): number | null {
@@ -330,6 +332,7 @@ const FALLBACK_REASON: Record<string, string> = {
   en: "Couldn't generate the full explanation, but the wardrobe analysis is complete.",
   es: "No se pudo generar la explicación completa, pero el análisis del armario está completo.",
   fr: "Impossible de générer l'explication complète, mais l'analyse de la garde-robe est terminée.",
+  zh: "无法生成完整的说明，但衣橱分析已经完成。",
 };
 
 /** Downloads a remote image and returns it as a data URL, for feeding
@@ -862,6 +865,7 @@ const COULD_NOT_COMPARE: Record<string, string> = {
   en: "Couldn't compare these pieces.",
   es: "No he podido comparar estas prendas.",
   fr: "Impossible de comparer ces pièces.",
+  zh: "无法比较这些单品。",
 };
 
 /** Higher = more desirable. The first key of the comparison order (compareRanking): the softer

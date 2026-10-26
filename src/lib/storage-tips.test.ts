@@ -28,6 +28,7 @@ test("the folding drawings sit under knitwear, shirts, trousers and rolled T-shi
     en: ["Knitwear", "Shirts", "Trousers", "T-shirts"],
     fr: ["Pulls", "Chemises", "Pantalons", "T-shirts"],
     es: ["Jerséis", "Camisas", "Pantalones", "Camisetas"],
+    zh: ["毛衣", "衬衫", "长裤", "T 恤"],
   };
   for (const lang of STORAGE_TIPS_LANGUAGES) {
     const fold = storageTipsFor(lang).sections.find((s) => s.id === "fold")!;

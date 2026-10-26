@@ -1039,6 +1039,10 @@ const SHOE_CHANGE_NOTE: Record<string, { toEvent: string; toTravel: string }> = 
     toEvent: "Voyagez en baskets et emportez les chaussures de l'événement dans le cabas : changez-les avant d'entrer.",
     toTravel: "Après l'événement, remettez les chaussures de voyage et rangez la paire de l'événement dans le cabas.",
   },
+  zh: {
+    toEvent: "旅途中穿运动鞋，把活动要穿的鞋放进托特包：进场前再换上。",
+    toTravel: "活动结束后换回旅行鞋，把活动穿的那双放进托特包。",
+  },
 };
 export function shoeChangeNote(language: string | null | undefined, direction: "toEvent" | "toTravel"): string {
   return (SHOE_CHANGE_NOTE[(language ?? "it").slice(0, 2)] ?? SHOE_CHANGE_NOTE.it)[direction];

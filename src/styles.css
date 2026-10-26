@@ -193,3 +193,17 @@
 .animate-scale-in { animation: scale-in 0.2s cubic-bezier(0.22,1,0.36,1) backwards; }
 .animate-slide-up { animation: slide-up 0.28s cubic-bezier(0.22,1,0.36,1) both; }
 .animate-float { animation: float 4s ease-in-out infinite; }
+
+/* ── Simplified Chinese ────────────────────────────────────────────────────
+   Cormorant Garamond and Inter have no Chinese glyphs: the device's own Chinese fonts take over
+   (nothing extra is downloaded). Chinese type has no true italic and a slanted one reads badly,
+   so italic text stays upright. <html lang> follows the app language (i18n/config.ts). */
+html:lang(zh) {
+  --font-serif: "Cormorant Garamond", "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", serif;
+  --font-sans: "Inter", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+html:lang(zh) .italic,
+html:lang(zh) em,
+html:lang(zh) i {
+  font-style: normal;
+}

@@ -3,7 +3,7 @@ import { initReactI18next } from "react-i18next";
 import en from "./locales/en.json";
 import { BRAND_NAME } from "@/lib/brand";
 
-export const SUPPORTED_LANGUAGES = ["it", "en", "es", "fr"] as const;
+export const SUPPORTED_LANGUAGES = ["it", "en", "es", "fr", "zh"] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
 // Native-name labels for the language picker (Profile settings + onboarding
@@ -16,6 +16,7 @@ export const LANGUAGE_LABELS: Record<SupportedLanguage, string> = {
   en: "English",
   es: "Español",
   fr: "Français",
+  zh: "简体中文",
 };
 
 // Initialized once at module load, isomorphically (runs on both the SSR
@@ -57,6 +58,7 @@ const languageLoaders: Record<Exclude<SupportedLanguage, "en">, () => Promise<{ 
   it: () => import("./locales/it.json"),
   es: () => import("./locales/es.json"),
   fr: () => import("./locales/fr.json"),
+  zh: () => import("./locales/zh.json"),
 };
 
 const pendingLoads = new Map<string, Promise<void>>();
@@ -94,7 +96,11 @@ if (!i18n.isInitialized) {
   });
   // Every existing `i18n.changeLanguage(...)` call keeps working unchanged: switching to a
   // language that isn't loaded yet fetches it here.
-  i18n.on("languageChanged", (lng) => { void ensureLanguageLoaded(lng); });
+  i18n.on("languageChanged", (lng) => {
+    void ensureLanguageLoaded(lng);
+    // Lets the browser pick the right fonts and line breaking (Chinese in particular, see styles.css).
+    if (typeof document !== "undefined") document.documentElement.lang = lng === "zh" ? "zh-CN" : lng;
+  });
   // Start downloading the saved language now, so it is usually ready by the time it is applied.
   void ensureLanguageLoaded(storedLanguage());
 }

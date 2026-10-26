@@ -7,8 +7,9 @@ import it from "./guide-text.it";
 import en from "./guide-text.en";
 import es from "./guide-text.es";
 import fr from "./guide-text.fr";
+import zh from "./guide-text.zh";
 
-const texts: Record<string, GuideText> = { it, en, es, fr };
+const texts: Record<string, GuideText> = { it, en, es, fr, zh };
 const articles = GUIDE.flatMap((c) => c.articles);
 
 test("every language has every chapter and article, with one sentence per step", () => {
@@ -23,7 +24,7 @@ test("every language has every chapter and article, with one sentence per step",
   }
 });
 
-test("every label drawn in the Guide exists in all four app languages", () => {
+test("every label drawn in the Guide exists in every app language", () => {
   const locales = GUIDE_LANGUAGES.map((l) => [l, JSON.parse(readFileSync(new URL(`../../i18n/locales/${l}.json`, import.meta.url), "utf8"))] as const);
   const keysOf = (v: GuideVisual): string[] =>
     v.kind === "tab" ? [`tabBar.${{ home: "home", wardrobe: "closet", ai: "stylist", planner: "calendar", profile: "you" }[v.tab]}`]
@@ -46,6 +47,7 @@ test("search matches words across title and steps, ignoring accents and case", (
   assert.ok(searchGuide(it, "valigia").includes("trips"));
   assert.ok(searchGuide(fr, "DÉTOURE").includes("first-pieces"));
   assert.ok(searchGuide(en, "avatar photo").includes("create-avatar"));
+  assert.ok(searchGuide(zh, "行李").includes("trips"));
   assert.deepEqual(searchGuide(it, "   "), []);
   assert.deepEqual(searchGuide(it, "zzzz"), []);
 });
