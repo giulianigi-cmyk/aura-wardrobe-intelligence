@@ -276,6 +276,8 @@
     "storedSinceLabel": "Messo via il {{date}}",
     "storedHint": "Questi capi non vengono proposti in nessun look finché non li riporti nell'armadio.",
     "storageTipsButton": "Consigli per il cambio stagione",
+    "backToTopAria": "Torna in cima",
+    "fastScrollAria": "Scorri l'elenco",
     "storeItemButton": "Metti via per il cambio stagione",
     "unstoreItemButton": "Riporta nell'armadio",
     "storeSelectionButton": "Cambio stagione",

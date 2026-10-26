@@ -276,6 +276,8 @@
     "storedSinceLabel": "Guardado desde el {{date}}",
     "storedHint": "Estas prendas no se proponen en ningún look hasta que las devuelvas al armario.",
     "storageTipsButton": "Consejos para guardar la ropa",
+    "backToTopAria": "Volver arriba",
+    "fastScrollAria": "Desplazar la lista",
     "storeItemButton": "Guardar en el cambio de armario",
     "unstoreItemButton": "Devolver al armario",
     "storeSelectionButton": "Cambio de armario",
