@@ -2165,7 +2165,15 @@
     "culturalStartAdapting": "Adapter",
     "culturalStopAdapting": "Ne pas adapter",
     "culturalNowAdapting": "C'est fait : les prochaines tenues générées pour ces jours respecteront les usages locaux.",
-    "culturalNowNotAdapting": "C'est fait : les prochaines tenues ne seront pas adaptées."
+    "culturalNowNotAdapting": "C'est fait : les prochaines tenues ne seront pas adaptées.",
+    "storedOfferClimate": "Ce voyage (maximales autour de {{temp}}°) demande des pièces que vous avez rangées pour la saison : {{count}}.",
+    "storedOffer": "Ce voyage demande des pièces que vous avez rangées pour la saison : {{count}}.",
+    "storedOfferQuestion": "Puis-je les utiliser pour ce voyage ? Partout ailleurs, elles restent rangées.",
+    "storedOfferYes": "Oui, utilisez-les",
+    "storedOfferNo": "Non",
+    "storedOfferAdded_one": "{{count}} pièce rangée ajoutée au voyage",
+    "storedOfferAdded_other": "{{count}} pièces rangées ajoutées au voyage",
+    "storedOfferReminder": "Ce voyage comprend {{count}} pièces rangées pour la saison : pensez à les sortir avant de partir."
   },
   "materials": {
     "Cotton": "Coton",

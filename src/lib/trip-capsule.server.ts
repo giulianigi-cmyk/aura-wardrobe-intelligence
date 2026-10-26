@@ -1,4 +1,4 @@
-import { isWearableNow } from "./wardrobe-storage";
+import { isInStorage, isWearableNow } from "./wardrobe-storage";
 import { suggestOutfitCore, type SuggestOutfitItem } from "./ai-suggest-outfit.functions";
 import { groupIntoOutfitStates, type ActivityForTransition } from "./trip-transition";
 import { culturalNoteFor, isItemAllowedByCulture, type CulturalLevel } from "./cultural-dress-notes";
@@ -1341,7 +1341,7 @@ export async function generateTripCapsuleCore({ data, context }: {
         (supabase.from("trip_day_activities" as never) as any).select("*").eq("trip_id", data.tripId).order("activity_date"),
         (supabase.from("outfit_plans" as never) as any).select("trip_activity_id, item_ids").eq("trip_id", data.tripId),
         supabase.from("wardrobe_items").select("*").eq("user_id", userId),
-        (supabase.from("trip_capsule_items" as never) as any).select("wardrobe_item_id, removed_by_user").eq("trip_id", data.tripId),
+        (supabase.from("trip_capsule_items" as never) as any).select("wardrobe_item_id, removed_by_user, source").eq("trip_id", data.tripId),
       ]);
 
     const profile = profileRow as { dress_preferences?: DressPreferences; gender?: string | null; style_boldness?: string | null; language?: string | null } | null;
@@ -1591,7 +1591,12 @@ export async function generateTripCapsuleCore({ data, context }: {
     // above: a legacy row with archived left NULL (never explicitly touched) fails `= false` in SQL
     // and would have been silently excluded from every trip capsule, even though it isn't actually
     // archived. `!it.archived` correctly treats null/undefined the same as false.
-    const allItems = ((itemsRaw ?? []) as any[]).filter((it) => isWearableNow(it));
+    // Pieces in the cambio stagione stay out, unless the person chose them for this trip (the trip
+    // asks when its climate calls for them: see trip-stored.functions.ts).
+    const storedChosen = new Set(((capsuleRows ?? []) as { wardrobe_item_id: string; removed_by_user: boolean; source?: string }[])
+      .filter((r) => r.source === "user" && !r.removed_by_user).map((r) => r.wardrobe_item_id));
+    const allItems = ((itemsRaw ?? []) as any[]).filter((it) =>
+      isWearableNow(it) || (isInStorage(it) && !it.archived && !it.active_loan_id && storedChosen.has(it.id)));
     const locationFiltered = sourceLocationIds.length
       ? allItems.filter((it) => it.location_id == null || sourceLocationIds.includes(it.location_id))
       : allItems;

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { FOLD_DIAGRAMS, STORAGE_TIPS_LANGUAGES, storageTipsFor } from "./storage-tips";
+import { FOLD_DIAGRAMS, STORAGE_TIPS_LANGUAGES, foldDiagramsFor, storageTipsFor } from "./storage-tips";
 
 test("every language has the same sections, none empty", () => {
   const ids = storageTipsFor("it").sections.map((s) => s.id);
@@ -21,18 +21,13 @@ test("regional and unknown languages fall back sensibly", () => {
   assert.equal(storageTipsFor(undefined).title, storageTipsFor("en").title);
 });
 
-test("the folding drawings sit under knitwear, shirts, trousers and rolled T-shirts in every language", () => {
-  // The drawings are matched to the first tips of the "fold" section by position.
-  const markers: Record<string, string[]> = {
-    it: ["Maglion", "Camicie", "Pantaloni", "T-shirt"],
-    en: ["Knitwear", "Shirts", "Trousers", "T-shirts"],
-    fr: ["Pulls", "Chemises", "Pantalons", "T-shirts"],
-    es: ["Jerséis", "Camisas", "Pantalones", "Camisetas"],
-    zh: ["毛衣", "衬衫", "长裤", "T 恤"],
-  };
+test("every drawing has a caption in every language; bras for women, boxers for men", () => {
   for (const lang of STORAGE_TIPS_LANGUAGES) {
-    const fold = storageTipsFor(lang).sections.find((s) => s.id === "fold")!;
-    assert.ok(fold.tips.length >= FOLD_DIAGRAMS.length, lang);
-    markers[lang].forEach((m, i) => assert.ok(fold.tips[i].startsWith(m), `${lang} ${i}`));
+    const tips = storageTipsFor(lang);
+    for (const k of FOLD_DIAGRAMS) assert.ok(tips.diagramLabels[k]?.trim(), `${lang} ${k}`);
+    assert.ok(tips.diagramsTitle.trim(), lang);
   }
+  assert.ok(!foldDiagramsFor("Man").includes("bra") && foldDiagramsFor("Man").includes("boxers"));
+  assert.ok(!foldDiagramsFor("Woman").includes("boxers") && foldDiagramsFor("Woman").includes("bra"));
+  assert.deepEqual(foldDiagramsFor(null), [...FOLD_DIAGRAMS]);
 });

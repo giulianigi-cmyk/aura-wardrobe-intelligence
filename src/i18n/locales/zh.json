@@ -1296,7 +1296,15 @@
     "culturalStartAdapting": "调整",
     "culturalStopAdapting": "不调整",
     "culturalNowAdapting": "好的：之后为这些日子生成的穿搭会遵循当地习俗。",
-    "culturalNowNotAdapting": "好的：之后的穿搭不会做调整。"
+    "culturalNowNotAdapting": "好的：之后的穿搭不会做调整。",
+    "storedOfferClimate": "这次旅行（最高气温约 {{temp}}°）需要你放进换季收纳的单品：{{count}} 件。",
+    "storedOffer": "这次旅行需要你放进换季收纳的单品：{{count}} 件。",
+    "storedOfferQuestion": "可以在这次旅行中使用它们吗？其他情况下它们仍保持收纳。",
+    "storedOfferYes": "可以，使用它们",
+    "storedOfferNo": "不用",
+    "storedOfferAdded_one": "已将 {{count}} 件收纳的单品加入旅行",
+    "storedOfferAdded_other": "已将 {{count}} 件收纳的单品加入旅行",
+    "storedOfferReminder": "这次旅行包含 {{count}} 件换季收纳的单品：出发前记得把它们取出来。"
   },
   "batchReview": {
     "couldntLoadBatch": "无法加载这一批。",

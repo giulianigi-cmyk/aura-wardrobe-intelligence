@@ -32,7 +32,8 @@ import type { BuilderInit } from "../AuraApp";
 import { listCalendarEventsForTrip, importCalendarEventToTrip, linkExistingOutfitToTripActivity, type CalendarEventForTrip } from "@/lib/trip-calendar-link.functions";
 import { CalendarPlus } from "lucide-react";
 import { essentialCategoryLabel, essentialNameLabel } from "@/lib/essential-labels";
-import { isWearableNow } from "@/lib/wardrobe-storage";
+import { isInStorage, isWearableNow } from "@/lib/wardrobe-storage";
+import { addStoredPiecesToTrip, storedPiecesForTrip } from "@/lib/trip-stored.functions";
 
 
 const TYPE_ICON: Record<TripType, typeof Briefcase> = { work: Briefcase, leisure: Palmtree, mixed: Shuffle };
@@ -134,6 +135,12 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
   const [wardrobeLoading, setWardrobeLoading] = useState(false);
   const [pendingItemId, setPendingItemId] = useState<string | null>(null);
   const [dismissedNotes, setDismissedNotes] = useState<string[]>([]);
+  // Pieces in the cambio stagione this trip's climate calls for: the trip asks before using them.
+  const [storedOffer, setStoredOffer] = useState<{ suggestedIds: string[]; acceptedIds: string[]; avgMax: number | null } | null>(null);
+  const [storedOfferDismissed, setStoredOfferDismissed] = useState(false);
+  const [storedAdding, setStoredAdding] = useState(false);
+  const fetchStoredOffer = useServerFn(storedPiecesForTrip);
+  const addStoredFn = useServerFn(addStoredPiecesToTrip);
   // Manual editing of a single activity's outfit — each trip plan is its
   // own row keyed on trip_activity_id, so these never touch neighbours.
   const [editingPlan, setEditingPlan] = useState<OutfitPlan | null>(null);
@@ -202,21 +209,28 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
         // generated outfits can reference wardrobe pieces before the
         // picker's ever been opened, and both need real thumbnails.
         if (user) {
+          const { data: capsuleRows } = await (supabase.from("trip_capsule_items" as never) as any)
+            .select("id, wardrobe_item_id, source")
+            .eq("trip_id", tripId)
+            .eq("removed_by_user", false);
+          const capsule = (capsuleRows ?? []) as { id: string; wardrobe_item_id: string; source: string }[];
+          setCapsuleItems(capsule);
+          const chosenForTrip = new Set(capsule.filter((c) => c.source === "user").map((c) => c.wardrobe_item_id));
           const { data: wItems, error } = await supabase
             .from("wardrobe_items").select("*").eq("user_id", user.id).eq("archived", false)
             .order("created_at", { ascending: false });
           if (!error) {
             // Loaned out = not physically available to pack or wear on this trip, same reasoning
-            // as archived just above.
-            const list = ((wItems ?? []) as WardrobeItem[]).filter((it) => isWearableNow(it as never));
+            // as archived just above. Put away in the cambio stagione: only if chosen for this trip.
+            const list = ((wItems ?? []) as WardrobeItem[]).filter((it) =>
+              isWearableNow(it as never) || (isInStorage(it) && !it.active_loan_id && chosenForTrip.has(it.id)));
             setWardrobeItems(list);
             setWardrobeSigned(await resolveWardrobeUrls(list));
           }
-          const { data: capsuleRows } = await (supabase.from("trip_capsule_items" as never) as any)
-            .select("id, wardrobe_item_id, source")
-            .eq("trip_id", tripId)
-            .eq("removed_by_user", false);
-          setCapsuleItems((capsuleRows ?? []) as { id: string; wardrobe_item_id: string; source: string }[]);
+          fetchStoredOffer({ data: { tripId } })
+            .then((r) => setStoredOffer(r))
+            .catch((e) => console.error("[AURA trip-detail] stored pieces check failed", e));
+          try { setStoredOfferDismissed(localStorage.getItem(`aura.tripStoredDismissed.${tripId}`) === "1"); } catch { /* storage unavailable */ }
         }
       })
       .catch((e) => { console.error("[AURA trip-detail] load failed", e); toast.error(t("tripDetail.couldntLoadTrip")); })
@@ -1341,6 +1355,55 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
       )}
 
       <section className="px-6 mt-8">
+        {storedOffer && (() => {
+          const pending = storedOffer.suggestedIds.filter((id) => !storedOffer.acceptedIds.includes(id));
+          if (pending.length && !storedOfferDismissed) {
+            return (
+              <div className="mb-4 rounded-2xl border border-border/60 bg-secondary/40 p-3.5 text-[12px] leading-relaxed text-muted-foreground">
+                <p>
+                  {storedOffer.avgMax != null
+                    ? t("tripDetail.storedOfferClimate", { temp: storedOffer.avgMax, count: pending.length })
+                    : t("tripDetail.storedOffer", { count: pending.length })}
+                </p>
+                <p className="mt-1">{t("tripDetail.storedOfferQuestion")}</p>
+                <div className="mt-2.5 flex gap-2">
+                  <button
+                    disabled={storedAdding}
+                    onClick={async () => {
+                      setStoredAdding(true);
+                      try {
+                        await addStoredFn({ data: { tripId, itemIds: pending } });
+                        toast.success(t("tripDetail.storedOfferAdded", { count: pending.length }));
+                        load();
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : t("tripDetail.couldntUpdateCapsule"));
+                      } finally {
+                        setStoredAdding(false);
+                      }
+                    }}
+                    className="h-9 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] inline-flex items-center gap-1.5 disabled:opacity-50"
+                  >{storedAdding && <Loader2 size={11} className="animate-spin" />}{t("tripDetail.storedOfferYes")}</button>
+                  <button
+                    onClick={() => {
+                      setStoredOfferDismissed(true);
+                      try { localStorage.setItem(`aura.tripStoredDismissed.${tripId}`, "1"); } catch { /* storage unavailable */ }
+                    }}
+                    className="h-9 px-4 rounded-full border border-border text-[10px] uppercase tracking-[0.2em]"
+                  >{t("tripDetail.storedOfferNo")}</button>
+                </div>
+              </div>
+            );
+          }
+          if (storedOffer.acceptedIds.length) {
+            return (
+              <p className="mb-4 flex items-start gap-2 text-[12px] leading-relaxed text-muted-foreground">
+                <Info size={14} className="shrink-0 mt-0.5" />
+                <span>{t("tripDetail.storedOfferReminder", { count: storedOffer.acceptedIds.length })}</span>
+              </p>
+            );
+          }
+          return null;
+        })()}
         {visibleCulturalNotes.length > 0 && (
           <div className="mb-4 rounded-2xl border border-border/60 bg-secondary/40 p-3.5 space-y-3">
             {visibleCulturalNotes.map((note) => {

@@ -118,6 +118,19 @@ const text: GuideText = {
         "Tocca «Luoghi del guardaroba» e crea i tuoi luoghi.",
       ],
     },
+    storage: {
+      title: "Cambio stagione",
+      intro: "Metti via i capi fuori stagione (in garage, in cantina, nel sottovuoto): restano tuoi, ma non vengono proposti finché non li riporti nell'armadio.",
+      steps: [
+        "Apri Capi.",
+        "Tocca «Seleziona» e scegli i capi che metti via.",
+        "Tocca «Cambio stagione». Per un capo solo puoi anche aprire la sua scheda e toccare «Metti via per il cambio stagione».",
+        "Li ritrovi tutti in «Cambio stagione», sotto i filtri, con la data in cui li hai messi via.",
+        "Quando cambia la stagione apri «Cambio stagione», seleziona i capi e tocca «Riporta nell'armadio».",
+        "In «Cambio stagione» trovi anche i consigli: come preparare i capi, come piegarli (con i disegni) e quali contenitori usare.",
+      ],
+      tip: "Nei viaggi, se la destinazione ha un clima diverso, ti chiediamo se usare anche i capi del cambio stagione.",
+    },
     today: {
       title: "Il look di oggi",
       steps: [

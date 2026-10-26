@@ -4,15 +4,27 @@ import { BRAND_NAME } from "./brand";
 
 export type StorageTipsSection = { id: string; title: string; tips: string[] };
 
-/** Line drawings shown under the first tips of the "fold" section, in this order, in every
- *  language: knitwear, shirts, trousers, rolled T-shirts (see FoldingDiagram.tsx). */
-export const FOLD_DIAGRAMS = ["sweater", "shirt", "trousers", "roll"] as const;
+/** The step-by-step folding drawings, all together at the end of the tips (FoldingDiagram.tsx). */
+export const FOLD_DIAGRAMS = ["sweater", "shirt", "trousers", "roll", "jacket", "socks", "briefs", "boxers", "bra"] as const;
 export type FoldDiagramKind = (typeof FOLD_DIAGRAMS)[number];
-export type StorageTips = { title: string; intro: string; sections: StorageTipsSection[] };
+
+/** The drawings for this person: bras only for women, boxers only for men; no gender set, all of them. */
+export function foldDiagramsFor(gender: string | null | undefined): FoldDiagramKind[] {
+  return FOLD_DIAGRAMS.filter((k) => !(k === "bra" && gender === "Man") && !(k === "boxers" && gender === "Woman"));
+}
+export type StorageTips = {
+  title: string;
+  intro: string;
+  sections: StorageTipsSection[];
+  diagramsTitle: string;
+  diagramLabels: Record<FoldDiagramKind, string>;
+};
 
 const it: StorageTips = {
   title: "Consigli per il cambio stagione",
   intro: "Pochi accorgimenti perché i capi ritornino come li hai lasciati: puliti, senza pieghe e senza tarme.",
+  diagramsTitle: "Come piegare, passo passo",
+  diagramLabels: { sweater: "Maglione", shirt: "Camicia", trousers: "Pantaloni", roll: "T-shirt arrotolata", jacket: "Giacca (se non puoi appenderla)", socks: "Calzini", briefs: "Slip e mutande", boxers: "Boxer", bra: "Reggiseno" },
   sections: [
     {
       id: "before",
@@ -36,6 +48,10 @@ const it: StorageTips = {
         "Seta e capi delicati: metti un foglio di carta velina senza acidi tra le pieghe per non segnare il tessuto.",
         "Cappotti, blazer e abiti strutturati: lasciali appesi su grucce sagomate, nella loro custodia, invece di piegarli.",
         "Metti i capi più pesanti sul fondo e quelli leggeri sopra, senza schiacciare troppo.",
+        "Giacche, se non puoi appenderle: rovescia una spalla e infilaci dentro l'altra, poi piega a metà. Così la parte esterna resta protetta e le spalle non si schiacciano.",
+        "Calzini: sovrapponi i due calzini, piegali a metà e infila la seconda metà nel bordo del primo. Non arrotolare il bordo su se stesso: l'elastico si sforma.",
+        "Slip, mutande e boxer: piega i lati verso il centro, poi dal basso verso l'elastico.",
+        "Reggiseni: non piegarli mai a metà se hanno le coppe imbottite o il ferretto. Metti una coppa dentro l'altra e infila spalline e fascia nella coppa.",
       ],
     },
     {
@@ -76,6 +92,8 @@ const it: StorageTips = {
 const en: StorageTips = {
   title: "Seasonal storage tips",
   intro: "A few habits so your pieces come back the way you left them: clean, crease-free and moth-free.",
+  diagramsTitle: "How to fold, step by step",
+  diagramLabels: { sweater: "Sweater", shirt: "Shirt", trousers: "Trousers", roll: "Rolled T-shirt", jacket: "Jacket (if you can't hang it)", socks: "Socks", briefs: "Briefs and knickers", boxers: "Boxers", bra: "Bra" },
   sections: [
     {
       id: "before",
@@ -99,6 +117,10 @@ const en: StorageTips = {
         "Silk and delicates: lay a sheet of acid-free tissue paper between the folds so the fabric isn't marked.",
         "Coats, blazers and structured pieces: keep them hanging on shaped hangers in their cover instead of folding them.",
         "Put heavier pieces at the bottom and lighter ones on top, without packing them too tight.",
+        "Jackets, if you can't hang them: turn one shoulder inside out and tuck the other shoulder into it, then fold in half. The outside stays protected and the shoulders don't get crushed.",
+        "Socks: lay the pair on top of each other, fold in half and tuck the second half into the cuff of the first. Don't roll the cuff back on itself: the elastic stretches out.",
+        "Briefs, knickers and boxers: fold the sides to the centre, then from the bottom up to the waistband.",
+        "Bras: never fold them in half if they have padded cups or underwire. Nest one cup inside the other and tuck the straps and band into the cup.",
       ],
     },
     {
@@ -139,6 +161,8 @@ const en: StorageTips = {
 const fr: StorageTips = {
   title: "Conseils pour le rangement saisonnier",
   intro: "Quelques gestes pour retrouver vos pièces comme vous les avez laissées : propres, sans plis et sans mites.",
+  diagramsTitle: "Comment plier, pas à pas",
+  diagramLabels: { sweater: "Pull", shirt: "Chemise", trousers: "Pantalon", roll: "T-shirt roulé", jacket: "Veste (si elle ne peut pas être suspendue)", socks: "Chaussettes", briefs: "Culottes et slips", boxers: "Caleçons", bra: "Soutien-gorge" },
   sections: [
     {
       id: "before",
@@ -162,6 +186,10 @@ const fr: StorageTips = {
         "Soie et pièces délicates : glissez une feuille de papier de soie sans acide entre les plis pour ne pas marquer le tissu.",
         "Manteaux, blazers et pièces structurées : laissez-les suspendus sur des cintres galbés, dans leur housse, plutôt que de les plier.",
         "Mettez les pièces lourdes au fond et les légères dessus, sans trop tasser.",
+        "Vestes, si vous ne pouvez pas les suspendre : retournez une épaule et glissez l'autre épaule dedans, puis pliez en deux. L'extérieur reste protégé et les épaules ne s'écrasent pas.",
+        "Chaussettes : superposez la paire, pliez en deux et glissez la seconde moitié dans le bord de la première. Ne roulez pas le bord sur lui-même : l'élastique se détend.",
+        "Culottes, slips et caleçons : repliez les côtés vers le centre, puis du bas vers la ceinture.",
+        "Soutiens-gorge : ne les pliez jamais en deux s'ils ont des bonnets rembourrés ou des armatures. Emboîtez un bonnet dans l'autre et glissez bretelles et bande dans le bonnet.",
       ],
     },
     {
@@ -202,6 +230,8 @@ const fr: StorageTips = {
 const es: StorageTips = {
   title: "Consejos para el cambio de armario",
   intro: "Unos pocos gestos para que tus prendas vuelvan como las dejaste: limpias, sin arrugas y sin polillas.",
+  diagramsTitle: "Cómo doblar, paso a paso",
+  diagramLabels: { sweater: "Jersey", shirt: "Camisa", trousers: "Pantalón", roll: "Camiseta enrollada", jacket: "Chaqueta (si no puedes colgarla)", socks: "Calcetines", briefs: "Braguitas y calzoncillos", boxers: "Bóxers", bra: "Sujetador" },
   sections: [
     {
       id: "before",
@@ -225,6 +255,10 @@ const es: StorageTips = {
         "Seda y prendas delicadas: pon una hoja de papel de seda sin ácido entre los pliegues para no marcar el tejido.",
         "Abrigos, americanas y prendas estructuradas: déjalos colgados en perchas con forma, dentro de su funda, en lugar de doblarlos.",
         "Pon las prendas pesadas al fondo y las ligeras encima, sin apretar demasiado.",
+        "Chaquetas, si no puedes colgarlas: da la vuelta a un hombro y mete el otro hombro dentro, luego dobla por la mitad. El exterior queda protegido y los hombros no se aplastan.",
+        "Calcetines: pon uno encima del otro, dóblalos por la mitad y mete la segunda mitad en el borde del primero. No enrolles el borde sobre sí mismo: el elástico se da de sí.",
+        "Braguitas, calzoncillos y bóxers: dobla los lados hacia el centro y luego desde abajo hasta la cinturilla.",
+        "Sujetadores: no los dobles nunca por la mitad si tienen copas acolchadas o aros. Mete una copa dentro de la otra y guarda tirantes y banda dentro de la copa.",
       ],
     },
     {
@@ -265,6 +299,8 @@ const es: StorageTips = {
 const zh: StorageTips = {
   title: "换季收纳小贴士",
   intro: "几个小习惯，让你的衣物取出来时和收起来时一样：干净、平整、没有虫蛀。",
+  diagramsTitle: "一步步学折叠",
+  diagramLabels: { sweater: "毛衣", shirt: "衬衫", trousers: "长裤", roll: "卷起的 T 恤", jacket: "外套（无法悬挂时）", socks: "袜子", briefs: "内裤", boxers: "平角内裤", bra: "文胸" },
   sections: [
     {
       id: "before",
@@ -288,6 +324,10 @@ const zh: StorageTips = {
         "真丝和精致衣物：在折痕之间垫一张无酸薄纸，避免面料留下印痕。",
         "大衣、西装外套和有结构感的衣物：用有弧度的衣架挂好，套上防尘罩，不要折叠。",
         "重的衣物放在下面，轻的放在上面，不要压得太紧。",
+        "外套如果无法悬挂：把一侧肩部翻过来，把另一侧肩部塞进去，再对折。这样外面一层受到保护，肩部也不会被压扁。",
+        "袜子：两只袜子叠在一起，对折，把后半截塞进第一只的袜口。不要把袜口卷起来翻折：松紧带会被撑松。",
+        "内裤和平角内裤：两侧向中间折，再从下往上折到腰头。",
+        "文胸：有衬垫或钢圈的文胸千万不要对折。把一个罩杯套进另一个罩杯，再把肩带和下围收进罩杯里。",
       ],
     },
     {

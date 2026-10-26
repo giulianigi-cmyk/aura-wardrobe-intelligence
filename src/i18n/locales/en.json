@@ -1296,7 +1296,15 @@
     "culturalStartAdapting": "Adapt",
     "culturalStopAdapting": "Don't adapt",
     "culturalNowAdapting": "Done: the next outfits generated for those days will follow local customs.",
-    "culturalNowNotAdapting": "Done: the next outfits won't be adapted."
+    "culturalNowNotAdapting": "Done: the next outfits won't be adapted.",
+    "storedOfferClimate": "This trip (highs around {{temp}}°) calls for pieces you put in seasonal storage: {{count}}.",
+    "storedOffer": "This trip calls for pieces you put in seasonal storage: {{count}}.",
+    "storedOfferQuestion": "May I use them for this trip? Everywhere else they stay in storage.",
+    "storedOfferYes": "Yes, use them",
+    "storedOfferNo": "No",
+    "storedOfferAdded_one": "{{count}} piece from storage added to the trip",
+    "storedOfferAdded_other": "{{count}} pieces from storage added to the trip",
+    "storedOfferReminder": "This trip includes {{count}} pieces from seasonal storage: remember to get them out before you leave."
   },
   "batchReview": {
     "couldntLoadBatch": "Couldn't load this batch.",
