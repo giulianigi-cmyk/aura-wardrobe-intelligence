@@ -166,33 +166,42 @@ export type Database = {
       }
       app_problem_reports: {
         Row: {
+          admin_reply: string | null
           app_version: string | null
           created_at: string
           id: number
           message: string
           platform: string | null
+          replied_at: string | null
           screen: string | null
           status: string
+          updated_at: string
           user_id: string | null
         }
         Insert: {
+          admin_reply?: string | null
           app_version?: string | null
           created_at?: string
           id?: never
           message: string
           platform?: string | null
+          replied_at?: string | null
           screen?: string | null
           status?: string
+          updated_at?: string
           user_id?: string | null
         }
         Update: {
+          admin_reply?: string | null
           app_version?: string | null
           created_at?: string
           id?: never
           message?: string
           platform?: string | null
+          replied_at?: string | null
           screen?: string | null
           status?: string
+          updated_at?: string
           user_id?: string | null
         }
         Relationships: []
