@@ -21,7 +21,7 @@ import { ItemCropAdjuster } from "@/components/aura/ItemCropAdjuster";
 import type { FractionalBox } from "@/components/aura/ItemCropAdjuster";
 import { compressImageForUpload } from "@/lib/image-compress";
 import { trimWhiteMargins } from "@/lib/auto-crop";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useTranslation } from "react-i18next";
 import type { Screen, BuilderInit } from "../AuraApp";
@@ -56,6 +56,7 @@ import { listLocations, moveItemsToLocation } from "@/lib/wardrobe-locations.fun
 import { setItemsStored } from "@/lib/wardrobe-storage.functions";
 import { isInStorage } from "@/lib/wardrobe-storage";
 import { StorageTipsSheet } from "@/components/aura/StorageTipsSheet";
+import { FastScroller } from "@/components/aura/FastScroller";
 import type { WardrobeLocation } from "@/lib/wardrobe-location";
 import i18n from "@/i18n/config";
 import {
@@ -131,6 +132,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
   const [showStored, setShowStored] = useState(false);
   const [storing, setStoring] = useState(false);
   const [storageTipsOpen, setStorageTipsOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [loansByItemId, setLoansByItemId] = useState<Record<string, WardrobeLoan>>({});
   const [loanSheetOpen, setLoanSheetOpen] = useState(false);
   const [borrowerName, setBorrowerName] = useState("");
@@ -838,7 +840,8 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
   const wLabel = w ? describeWeather(w.weatherCode, w.isDay) : null;
 
   return (
-    <div className="h-full overflow-y-auto no-scrollbar pb-[calc(7rem+env(safe-area-inset-bottom))]">
+    <div ref={scrollRef} className="h-full overflow-y-auto no-scrollbar pb-[calc(7rem+env(safe-area-inset-bottom))]">
+      <FastScroller target={scrollRef} contentKey={filtered} />
       <header className="px-6 pt-14 pb-2 flex items-end justify-between">
         <div>
           <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("wardrobe.piecesCount", { count: items.length })}</p>

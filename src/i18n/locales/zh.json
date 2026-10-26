@@ -276,6 +276,8 @@
     "storedSinceLabel": "{{date}} 收纳",
     "storedHint": "在你把这些单品放回衣橱之前，它们不会出现在任何造型推荐中。",
     "storageTipsButton": "换季收纳小贴士",
+    "backToTopAria": "回到顶部",
+    "fastScrollAria": "滚动列表",
     "storeItemButton": "换季收纳",
     "unstoreItemButton": "放回衣橱",
     "storeSelectionButton": "换季收纳",

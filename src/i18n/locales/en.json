@@ -276,6 +276,8 @@
     "storedSinceLabel": "In storage since {{date}}",
     "storedHint": "These pieces aren't suggested in any look until you bring them back to the wardrobe.",
     "storageTipsButton": "Storage tips",
+    "backToTopAria": "Back to top",
+    "fastScrollAria": "Scroll the list",
     "storeItemButton": "Put in seasonal storage",
     "unstoreItemButton": "Bring back to the wardrobe",
     "storeSelectionButton": "Storage",
