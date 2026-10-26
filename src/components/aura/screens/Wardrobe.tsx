@@ -1205,7 +1205,8 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
               const src = path ? signed[path] : "";
               return (
                 <>
-                  <div className="mt-6 rounded-2xl overflow-hidden mx-auto aspect-square max-w-[240px]" style={{ background: "#FFFFFF" }}>
+                  {/* Fixed height instead of a square: a wide piece (shoes, bags) left big empty bands above and below. */}
+                  <div className="mt-4 rounded-2xl overflow-hidden mx-auto h-44 w-full max-w-[280px]" style={{ background: "#FFFFFF" }}>
                     {src ? (
                       <img src={src} alt="" className="h-full w-full object-contain p-3" />
                     ) : (
@@ -1213,13 +1214,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                     )}
                   </div>
                   {src && !editing && (
-                    <div className="mx-auto mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-                      <button
-                        onClick={() => setColorWheelOpen(true)}
-                        className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.2em] text-muted-foreground active:scale-95"
-                      >
-                        🎨 {t("wardrobe.colorHarmonyButton")}
-                      </button>
+                    <div className="mx-auto mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
                       <button
                         onClick={() => setAdjustingCrop(true)}
                         className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.2em] text-muted-foreground active:scale-95"
@@ -1249,7 +1244,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                   {!editing && (
                     <button
                       onClick={() => { setDetail(null); openBuilder({ itemIds: [], anchorItemId: detail.id }); }}
-                      className="mt-4 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 active:scale-[0.98]"
+                      className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 active:scale-[0.98]"
                     ><Sparkles size={14} /> {t("wardrobe.createOutfitFromThisButton")}</button>
                   )}
                 </>
@@ -1292,7 +1287,20 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                   const pal = cname
                     ? COLOR_PALETTE.find((p) => p.name.toLowerCase() === cname.toLowerCase())
                     : undefined;
-                  if (!pal) return null;
+                  const imgPath = toStoragePath(detail.image_url);
+                  const harmonyButton = imgPath && signed[imgPath] ? (
+                    <button
+                      onClick={() => setColorWheelOpen(true)}
+                      className="mt-3 text-[12px] underline underline-offset-2 text-foreground/80"
+                    >🎨 {t("wardrobe.colorHarmonyButton")} ›</button>
+                  ) : null;
+                  if (!pal) {
+                    return harmonyButton ? (
+                      <div className="mt-4">
+                        <DetailSection title={t("wardrobe.colorsSectionTitle")}>{harmonyButton}</DetailSection>
+                      </div>
+                    ) : null;
+                  }
                   const { h, s } = hexToHsl(pal.hex);
                   const neutral = s < 0.12;
                   const wheelKey = (name: string) => name.replace(/[^A-Za-z]+(.)/g, (_, c: string) => c.toUpperCase()).replace(/^./, (c) => c.toLowerCase());
@@ -1304,7 +1312,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                     if (g) g.hexes.push(hm.hex); else groups.push({ label: hm.label, hexes: [hm.hex] });
                   }
                   return (
-                    <div className="mt-5">
+                    <div className="mt-4">
                       <DetailSection
                         title={t("wardrobe.colorsSectionTitle")}
                         summary={
@@ -1341,6 +1349,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                             </div>
                           </>
                         )}
+                        <div>{harmonyButton}</div>
                       </DetailSection>
                     </div>
                   );
