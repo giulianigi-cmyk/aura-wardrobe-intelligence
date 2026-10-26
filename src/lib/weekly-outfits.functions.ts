@@ -138,6 +138,7 @@ export const generateWeeklyOutfits = createServerFn({ method: "POST" })
       gender: it.gender ?? "",
       styleTags: it.style_tags ?? [],
       activeLoanId: it.active_loan_id ?? null,
+      inStorage: Boolean(it.stored_at),
       occasion: it.occasion ?? "",
       details: Array.isArray(it.details) ? it.details : [],
     }));

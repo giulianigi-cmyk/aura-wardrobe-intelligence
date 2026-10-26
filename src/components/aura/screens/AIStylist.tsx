@@ -366,8 +366,8 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
 
   const aiPick = async () => {
     const activeItems = items.filter((it) => {
-      const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null };
-      return !raw.archived && !raw.active_loan_id;
+      const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null; stored_at?: string | null };
+      return !raw.archived && !raw.active_loan_id && !raw.stored_at;
     });
     if (activeItems.length < 3) {
       toast.error(t("aiStylist.notEnoughActivePieces", { count: activeItems.length }));
@@ -1339,8 +1339,8 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
             : (plans.find((p) => p.id === upcomingPickerFor)?.item_ids ?? [])
         );
         const activeOnly = items.filter((it) => {
-          const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null };
-          return !raw.archived && !raw.active_loan_id;
+          const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null; stored_at?: string | null };
+          return !raw.archived && !raw.active_loan_id && !raw.stored_at;
         });
         const q = pickerQuery.trim().toLowerCase();
         const matches = activeOnly.filter((it) => {

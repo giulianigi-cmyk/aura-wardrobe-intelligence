@@ -32,6 +32,7 @@ import type { BuilderInit } from "../AuraApp";
 import { listCalendarEventsForTrip, importCalendarEventToTrip, linkExistingOutfitToTripActivity, type CalendarEventForTrip } from "@/lib/trip-calendar-link.functions";
 import { CalendarPlus } from "lucide-react";
 import { essentialCategoryLabel, essentialNameLabel } from "@/lib/essential-labels";
+import { isWearableNow } from "@/lib/wardrobe-storage";
 
 
 const TYPE_ICON: Record<TripType, typeof Briefcase> = { work: Briefcase, leisure: Palmtree, mixed: Shuffle };
@@ -207,7 +208,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
           if (!error) {
             // Loaned out = not physically available to pack or wear on this trip, same reasoning
             // as archived just above.
-            const list = ((wItems ?? []) as WardrobeItem[]).filter((it) => !(it as unknown as { active_loan_id?: string | null }).active_loan_id);
+            const list = ((wItems ?? []) as WardrobeItem[]).filter((it) => isWearableNow(it as never));
             setWardrobeItems(list);
             setWardrobeSigned(await resolveWardrobeUrls(list));
           }
@@ -521,7 +522,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
         .order("created_at", { ascending: false });
       if (error) throw error;
       // Loaned out = not physically available to pack or wear on this trip.
-      const list = ((data ?? []) as WardrobeItem[]).filter((it) => !(it as unknown as { active_loan_id?: string | null }).active_loan_id);
+      const list = ((data ?? []) as WardrobeItem[]).filter((it) => isWearableNow(it as never));
       setWardrobeItems(list);
       setWardrobeSigned(await resolveWardrobeUrls(list));
     } catch (e) {

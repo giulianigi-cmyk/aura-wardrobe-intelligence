@@ -538,8 +538,8 @@ function DayDetail({
   // NEW suggestion draw from".
   const activeItems = useMemo(
     () => items.filter((it) => {
-      const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null };
-      return !raw.archived && !raw.active_loan_id;
+      const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null; stored_at?: string | null };
+      return !raw.archived && !raw.active_loan_id && !raw.stored_at;
     }),
     [items],
   );

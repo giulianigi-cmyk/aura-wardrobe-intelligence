@@ -163,16 +163,16 @@ export async function runPlanWeatherRecheck(limit = 200): Promise<RecheckResult>
   const forecastCache = new Map<string, Forecast | null>();
   const wardrobeCache = new Map<string, SuggestOutfitItem[]>();
   const rawWardrobe = new Map<string, any[]>();
-  /** The person's available pieces (not archived, not lent), loaded once per run. */
+  /** The person's available pieces (not archived, not lent, not put away), loaded once per run. */
   const loadWardrobe = async (userId: string): Promise<SuggestOutfitItem[]> => {
     if (!wardrobeCache.has(userId)) {
       const { data: itemRows } = await db
         .from("wardrobe_items")
-        .select("id, category, subcategory, colors, style, season, brand, material, location_id, active_loan_id, length, toe_shape, style_tags, fit, occasion, formality, day_evening, sleeve_length, heel_height, closure, gender")
+        .select("id, category, subcategory, colors, style, season, brand, material, location_id, active_loan_id, stored_at, length, toe_shape, style_tags, fit, occasion, formality, day_evening, sleeve_length, heel_height, closure, gender")
         .eq("user_id", userId)
         .eq("archived", false);
-      // Loaned out = not physically available to re-plan into, same reasoning as archived.
-      const rows = (itemRows ?? []).filter((it: any) => !it.active_loan_id);
+      // Loaned out or put away in the cambio armadio = not physically available to re-plan into.
+      const rows = (itemRows ?? []).filter((it: any) => !it.active_loan_id && !it.stored_at);
       rawWardrobe.set(userId, rows);
       wardrobeCache.set(userId, rows.map((it: any) => ({
         id: it.id,

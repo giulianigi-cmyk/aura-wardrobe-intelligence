@@ -625,10 +625,10 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
     const anchorId = opts?.anchorId ?? anchorItemId ?? null;
     const occ = opts?.occasion ?? occasion;
     // The starting piece must be in the outfit. If it is no longer in the active wardrobe
-    // (deleted, archived, on loan), say so instead of generating a different outfit.
+    // (deleted, archived, on loan, put away), say so instead of generating a different outfit.
     if (anchorId) {
       const anchor = items.find((it) => it.id === anchorId);
-      if (!anchor || anchor.active_loan_id) {
+      if (!anchor || anchor.active_loan_id || anchor.stored_at) {
         toast.error(t("outfitBuilder.anchorUnavailable"));
         return;
       }
@@ -664,6 +664,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
             styleTags: it.style_tags ?? [],
             occasion: it.occasion ?? null,
             activeLoanId: it.active_loan_id ?? null,
+            inStorage: Boolean(it.stored_at),
           })),
         },
       });

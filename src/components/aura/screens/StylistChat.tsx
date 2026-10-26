@@ -138,8 +138,8 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
           // treats null/undefined the same as false — only an explicit `true` is excluded. A loaned-
           // out piece is excluded the same way: not physically available to wear right now.
           const list = ((data ?? []) as WardrobeItem[]).filter((it) => {
-            const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null };
-            return !raw.archived && !raw.active_loan_id;
+            const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null; stored_at?: string | null };
+            return !raw.archived && !raw.active_loan_id && !raw.stored_at;
           });
           setItems(list);
           setSigned(await resolveWardrobeUrls(list));

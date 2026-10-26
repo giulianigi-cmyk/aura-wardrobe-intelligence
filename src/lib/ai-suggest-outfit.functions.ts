@@ -54,6 +54,8 @@ const ItemSchema = z.object({
   // excluded before anything else runs — same hard-filter treatment as
   // location and dress preferences, not a prompt-level suggestion.
   activeLoanId: z.string().nullable().optional(),
+  // Put away in the cambio armadio: same hard filter as a loan, until it is brought back.
+  inStorage: z.boolean().optional(),
 });
 
 const InputSchema = z.object({
@@ -222,7 +224,7 @@ export async function suggestOutfitCore(params: {
   // through with activeLocations staying [], which isItemAtAnyLocation
   // already treats as "no restriction" — same as never scoping at all.
   let eligibleItems = params.items
-    .filter((it) => !it.activeLoanId)
+    .filter((it) => !it.activeLoanId && !it.inStorage)
     .filter((it) =>
       isItemAtAnyLocation({ location_id: it.locationId ?? null }, activeLocations));
 
@@ -298,7 +300,7 @@ export async function suggestOutfitCore(params: {
   // different outfit generated silently.
   if (params.mustIncludeItemId) {
     const anchor = params.items.find((it) => it.id === params.mustIncludeItemId);
-    if (!anchor || anchor.activeLoanId) return { ok: false, error: ANCHOR_UNAVAILABLE };
+    if (!anchor || anchor.activeLoanId || anchor.inStorage) return { ok: false, error: ANCHOR_UNAVAILABLE };
     if (!eligibleItems.some((it) => it.id === anchor.id)) eligibleItems = [anchor, ...eligibleItems];
   }
 

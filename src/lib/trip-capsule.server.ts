@@ -1,3 +1,4 @@
+import { isWearableNow } from "./wardrobe-storage";
 import { suggestOutfitCore, type SuggestOutfitItem } from "./ai-suggest-outfit.functions";
 import { groupIntoOutfitStates, type ActivityForTransition } from "./trip-transition";
 import { culturalNoteFor, isItemAllowedByCulture, type CulturalLevel } from "./cultural-dress-notes";
@@ -1586,7 +1587,7 @@ export async function generateTripCapsuleCore({ data, context }: {
     // above: a legacy row with archived left NULL (never explicitly touched) fails `= false` in SQL
     // and would have been silently excluded from every trip capsule, even though it isn't actually
     // archived. `!it.archived` correctly treats null/undefined the same as false.
-    const allItems = ((itemsRaw ?? []) as any[]).filter((it) => !it.archived && !it.active_loan_id);
+    const allItems = ((itemsRaw ?? []) as any[]).filter((it) => isWearableNow(it));
     const locationFiltered = sourceLocationIds.length
       ? allItems.filter((it) => it.location_id == null || sourceLocationIds.includes(it.location_id))
       : allItems;

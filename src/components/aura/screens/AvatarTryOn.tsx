@@ -18,6 +18,7 @@ import { classifyTryOnError, type TryOnErrorKind } from "@/lib/tryon-error";
 import { PiecePicker } from "../PiecePicker";
 import type { WardrobeItem as FullWardrobeItem } from "@/lib/aura-types";
 import type { Screen } from "../AuraApp";
+import { isWearableNow } from "@/lib/wardrobe-storage";
 
 type WardrobeItem = FullWardrobeItem;
 // The try-on server refuses these categories: not offered in the picker instead of failing later.
@@ -108,7 +109,7 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
         .order("created_at", { ascending: false });
       // Loaned out = not physically available to try on right now.
       const items = ((data ?? []) as WardrobeItem[])
-        .filter((it) => !(it as unknown as { active_loan_id?: string | null }).active_loan_id && !NOT_TRYABLE.has(it.category ?? ""));
+        .filter((it) => isWearableNow(it as never) && !NOT_TRYABLE.has(it.category ?? ""));
       setWardrobe(items);
       setWardrobeUrls(await resolveWardrobeUrls(items as never));
       setLoadingWardrobe(false);

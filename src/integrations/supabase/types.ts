@@ -2747,6 +2747,7 @@ export type Database = {
           size: string | null
           sleeve_length: string | null
           source: string | null
+          stored_at: string | null
           style: string | null
           style_tags: string[]
           subcategory: string | null
@@ -2795,6 +2796,7 @@ export type Database = {
           size?: string | null
           sleeve_length?: string | null
           source?: string | null
+          stored_at?: string | null
           style?: string | null
           style_tags?: string[]
           subcategory?: string | null
@@ -2843,6 +2845,7 @@ export type Database = {
           size?: string | null
           sleeve_length?: string | null
           source?: string | null
+          stored_at?: string | null
           style?: string | null
           style_tags?: string[]
           subcategory?: string | null

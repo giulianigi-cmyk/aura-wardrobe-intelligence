@@ -15,6 +15,7 @@ import { detectOutfitItems } from "./outfit-detect.server";
 import { findTopMatches } from "./outfit-dedupe";
 import { submitOutfitFeedback } from "./outfit-feedback.functions";
 import type { WardrobeItem } from "./aura-types";
+import { isWearableNow } from "@/lib/wardrobe-storage";
 
 type DetectionCandidate = {
   detectionId: string;
@@ -75,7 +76,7 @@ export const startOutfitPhotoDetection = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .eq("archived", false);
     // Loaned out = can't be what's actually being worn in the photo right now.
-    const wardrobeList = ((wardrobe ?? []) as WardrobeItem[]).filter((it) => !(it as unknown as { active_loan_id?: string | null }).active_loan_id);
+    const wardrobeList = ((wardrobe ?? []) as WardrobeItem[]).filter((it) => isWearableNow(it as never));
 
     const detections: Detection[] = detectResult.items.map((it, i) => ({
       detectionId: `d${i}`,
