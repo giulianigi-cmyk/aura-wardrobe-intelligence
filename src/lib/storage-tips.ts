@@ -61,7 +61,7 @@ const it: StorageTips = {
       id: "containers",
       title: "Contenitori da acquistare",
       tips: [
-        "Sacche o scatole in cotone o in tessuto non tessuto traspirante, meglio se con una finestrella: le più adatte per lana, cashmere e seta.",
+        "Scatole rigide rivestite in cotone o in tessuto traspirante, meglio se con una finestrella: tengono la forma, si impilano e sono le più adatte per lana, cashmere e seta.",
         "Sacchetti sottovuoto: utili per capi sintetici e voluminosi, come pile, imbottiti sintetici e coperte. Evitali per lana, cashmere, piumini in piuma d'oca e pelle, che si schiacciano e hanno bisogno di respirare.",
         "Custodie per abiti in tessuto traspirante per cappotti e capi eleganti: la plastica della lavanderia trattiene l'umidità, toglila sempre.",
         "Scatole per scarpe, trasparenti o con un'etichetta; dentro le scarpe carta o forme in legno di cedro per tenerne la forma.",
@@ -131,7 +131,7 @@ const en: StorageTips = {
       id: "containers",
       title: "Containers to buy",
       tips: [
-        "Bags or boxes in cotton or breathable non-woven fabric, ideally with a window: the best choice for wool, cashmere and silk.",
+        "Rigid boxes covered in cotton or breathable fabric, ideally with a window: they keep their shape, stack easily and are the best choice for wool, cashmere and silk.",
         "Vacuum bags: useful for bulky synthetics such as fleece, synthetic padded jackets and blankets. Avoid them for wool, cashmere, down jackets and leather, which get crushed and need to breathe.",
         "Breathable fabric garment covers for coats and smart pieces: dry-cleaner plastic traps moisture, always take it off.",
         "Shoe boxes, clear or labelled; paper or cedar shoe trees inside to keep the shape.",
@@ -201,7 +201,7 @@ const fr: StorageTips = {
       id: "containers",
       title: "Contenants à acheter",
       tips: [
-        "Sacs ou boîtes en coton ou en tissu non tissé respirant, de préférence avec une fenêtre : les plus adaptés à la laine, au cachemire et à la soie.",
+        "Boîtes rigides recouvertes de coton ou de tissu respirant, de préférence avec une fenêtre : elles gardent leur forme, s'empilent et sont les plus adaptées à la laine, au cachemire et à la soie.",
         "Sacs sous vide : pratiques pour les synthétiques volumineux comme la polaire, les doudounes synthétiques et les couvertures. À éviter pour la laine, le cachemire, les doudounes en duvet et le cuir, qui s'écrasent et ont besoin de respirer.",
         "Housses en tissu respirant pour les manteaux et les pièces habillées : le plastique du pressing retient l'humidité, retirez-le toujours.",
         "Boîtes à chaussures transparentes ou étiquetées ; du papier ou des embauchoirs en cèdre à l'intérieur pour garder la forme.",
@@ -271,7 +271,7 @@ const es: StorageTips = {
       id: "containers",
       title: "Contenedores que comprar",
       tips: [
-        "Bolsas o cajas de algodón o de tejido no tejido transpirable, mejor con una ventanita: las más adecuadas para lana, cachemir y seda.",
+        "Cajas rígidas forradas de algodón o de tejido transpirable, mejor con una ventanita: mantienen la forma, se apilan y son las más adecuadas para lana, cachemir y seda.",
         "Bolsas al vacío: útiles para prendas sintéticas voluminosas como forros polares, plumíferos sintéticos y mantas. Evítalas para lana, cachemir, plumíferos de pluma y piel, que se aplastan y necesitan respirar.",
         "Fundas de tela transpirable para abrigos y prendas de vestir: el plástico de la tintorería retiene la humedad, quítalo siempre.",
         "Cajas para zapatos, transparentes o con etiqueta; dentro, papel o hormas de madera de cedro para mantener la forma.",
@@ -341,7 +341,7 @@ const zh: StorageTips = {
       id: "containers",
       title: "需要购买的收纳用品",
       tips: [
-        "棉质或透气无纺布的收纳袋或收纳箱，最好带透明窗口：最适合羊毛、羊绒和真丝。",
+        "外覆棉布或透气面料的硬质收纳箱，最好带透明窗口：不易变形、方便叠放，最适合羊毛、羊绒和真丝。",
         "真空压缩袋：适合抓绒、合成棉服和毯子等蓬松的合成材质。羊毛、羊绒、羽绒服和皮革不要用，它们会被压坏，而且需要透气。",
         "大衣和正式衣物用透气布料防尘罩：干洗店的塑料袋会闷住湿气，一定要取下来。",
         "鞋盒选透明的或贴上标签；鞋里塞纸或放雪松木鞋撑，保持鞋形。",
