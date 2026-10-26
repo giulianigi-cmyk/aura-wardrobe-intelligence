@@ -2616,6 +2616,11 @@
     "bringBackHint": "Prendas guardadas que van bien para las próximas semanas.",
     "bringBackButton": "Devolver {{count}}",
     "bringBackNone": "Nada que recuperar del cambio de armario.",
-    "untaggedNote": "Las prendas sin temporada, o para todas las temporadas, nunca se mueven."
+    "untaggedNote": "Las prendas sin temporada, o para todas las temporadas, nunca se mueven.",
+    "askStylist": "Preguntar al Estilista",
+    "askIntro": "Estoy haciendo el cambio de armario: en las próximas dos semanas las máximas van de {{min}}° a {{max}}°.",
+    "askAway": "Pensaba guardar: {{names}}.",
+    "askBack": "Y recuperar: {{names}}.",
+    "askQuestion": "¿Qué me aconsejas dejar fuera y qué guardar?"
   }
 }

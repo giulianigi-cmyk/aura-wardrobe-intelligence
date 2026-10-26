@@ -2616,6 +2616,11 @@
     "bringBackHint": "收纳中适合未来几周的单品。",
     "bringBackButton": "放回衣橱 {{count}} 件",
     "bringBackNone": "换季收纳里没有需要取出的单品。",
-    "untaggedNote": "没有季节标签或四季皆宜的单品永远不会被移动。"
+    "untaggedNote": "没有季节标签或四季皆宜的单品永远不会被移动。",
+    "askStylist": "问问造型师",
+    "askIntro": "我正在换季收纳：未来两周最高气温在 {{min}}° 至 {{max}}° 之间。",
+    "askAway": "我打算收起：{{names}}。",
+    "askBack": "并取出：{{names}}。",
+    "askQuestion": "你建议我留下哪些、收起哪些？"
   }
 }

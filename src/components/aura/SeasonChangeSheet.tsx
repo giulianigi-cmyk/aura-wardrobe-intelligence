@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { Check, Loader2, X } from "lucide-react";
+import { Check, Loader2, Sparkles, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { thumbSrc } from "@/lib/wardrobe-image";
@@ -14,7 +14,7 @@ const DAYS = 14;
  *  (pre-ticked), those to keep out anyway (planned or worn recently) and those to take back from the
  *  cambio stagione (pre-ticked). Rules only, no AI: see seasonChangeSuggestions. */
 export function SeasonChangeSheet({
-  items, signed, dailyMax, userId, onStore, onClose,
+  items, signed, dailyMax, userId, onStore, onAskStylist, onClose,
 }: {
   items: WardrobeItem[];
   signed: Record<string, string>;
@@ -22,6 +22,8 @@ export function SeasonChangeSheet({
   dailyMax: number[];
   userId: string | undefined;
   onStore: (ids: string[], stored: boolean) => Promise<void>;
+  /** Opens the Stylist chat with a question about this season change already written. */
+  onAskStylist?: (message: string) => void;
   onClose: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -141,6 +143,22 @@ export function SeasonChangeSheet({
                 </>
               ) : <p className="text-sm text-muted-foreground">{t("seasonChange.bringBackNone")}</p>}
             </section>
+
+            {onAskStylist && (
+              <button
+                onClick={() => {
+                  const names = (list: WardrobeItem[]) => list.slice(0, 8).map(label).filter(Boolean).join(", ");
+                  const parts = [
+                    t("seasonChange.askIntro", { min: Math.round(Math.min(...highs)), max: Math.round(Math.max(...highs)) }),
+                    away.size ? t("seasonChange.askAway", { names: names(plan.putAway.filter((i) => away.has(i.id))) }) : "",
+                    back.size ? t("seasonChange.askBack", { names: names(plan.bringBack.filter((i) => back.has(i.id))) }) : "",
+                    t("seasonChange.askQuestion"),
+                  ];
+                  onAskStylist(parts.filter(Boolean).join(" "));
+                }}
+                className="mt-6 w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.25em] inline-flex items-center justify-center gap-2"
+              ><Sparkles size={12} /> {t("seasonChange.askStylist")}</button>
+            )}
 
             <p className="mt-6 text-[11px] text-muted-foreground">{t("seasonChange.untaggedNote")}</p>
           </>

@@ -2616,6 +2616,11 @@
     "bringBackHint": "Capi nel Cambio stagione adatti alle prossime settimane.",
     "bringBackButton": "Riporta nell'armadio {{count}}",
     "bringBackNone": "Niente da riprendere dal Cambio stagione.",
-    "untaggedNote": "I capi senza stagione o per tutte le stagioni non vengono mai spostati."
+    "untaggedNote": "I capi senza stagione o per tutte le stagioni non vengono mai spostati.",
+    "askStylist": "Chiedi allo Stylist",
+    "askIntro": "Sto facendo il cambio stagione: nelle prossime due settimane le massime vanno da {{min}}° a {{max}}°.",
+    "askAway": "Pensavo di mettere via: {{names}}.",
+    "askBack": "E di riprendere: {{names}}.",
+    "askQuestion": "Cosa mi consigli di tenere fuori e cosa mettere via?"
   }
 }

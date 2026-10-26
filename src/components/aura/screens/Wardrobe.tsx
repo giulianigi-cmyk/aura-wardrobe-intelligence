@@ -24,7 +24,7 @@ import { trimWhiteMargins } from "@/lib/auto-crop";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useTranslation } from "react-i18next";
-import type { Screen, BuilderInit } from "../AuraApp";
+import type { Screen, BuilderInit, StylistChatInit } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { syncMySharedLibrary } from "@/lib/shared-library.functions";
 import type { WardrobeItem } from "@/lib/aura-types";
@@ -78,11 +78,12 @@ const ICONICITY_OPTIONS: Iconicity[] = ["iconic", "timeless", "classic", "season
 const splitCsv = (v: string | null | undefined) =>
   (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 
-export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
+export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openStylistChat }: {
   go: (s: Screen) => void;
   gapFilter?: "price" | "purchase_date" | null;
   onClearGapFilter?: () => void;
   openBuilder: (init: BuilderInit) => void;
+  openStylistChat?: (init: NonNullable<StylistChatInit>) => void;
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -1037,6 +1038,10 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
           dailyMax={(weather?.daily ?? []).map((d) => d.tempMax)}
           userId={user?.id}
           onStore={(ids, stored) => setStored(ids, stored)}
+          onAskStylist={openStylistChat ? (message) => {
+            setSeasonChangeOpen(false);
+            openStylistChat({ message, temperature: weather?.current?.temperature ?? null, condition: null });
+          } : undefined}
           onClose={() => setSeasonChangeOpen(false)}
         />
       )}
