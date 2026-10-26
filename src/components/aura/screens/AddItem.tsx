@@ -1244,7 +1244,9 @@ export function AddItem({ onClose, initialGarment }: {
                     disabled={libraryLoadingId !== null}
                     className="rounded-xl border border-border bg-card overflow-hidden active:scale-[0.98] transition disabled:opacity-60"
                   >
-                    <div className="aspect-square w-full bg-secondary/40 relative">
+                    {/* White like the wardrobe grid: grid thumbnails are JPEGs flattened on white, while pieces
+                        without one show the transparent cut-out, so a tinted tile made only some look boxed. */}
+                    <div className="aspect-square w-full relative" style={{ background: "#FFFFFF" }}>
                       {(s.thumb_url || s.signed_url) && (
                         <img src={s.thumb_url || s.signed_url || ""} alt="" loading="lazy" decoding="async" className="h-full w-full object-contain" />
                       )}
@@ -1281,7 +1283,7 @@ export function AddItem({ onClose, initialGarment }: {
                 disabled={libraryLoadingId !== null}
                 className="rounded-xl border border-border bg-card overflow-hidden active:scale-[0.98] transition disabled:opacity-60"
               >
-                <div className="aspect-square w-full bg-secondary/40 relative">
+                <div className="aspect-square w-full relative" style={{ background: "#FFFFFF" }}>
                   {p.canonical_image_url && (
                     <img src={p.canonical_image_url} alt="" loading="lazy" className="h-full w-full object-contain" />
                   )}
