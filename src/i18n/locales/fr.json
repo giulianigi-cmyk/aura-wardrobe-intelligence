@@ -111,6 +111,8 @@
     "notifOutfitShareSub": "Quand un ami partage une tenue avec vous dans le chat",
     "notifWeatherChange": "Alerte météo pour les tenues planifiées",
     "notifWeatherChangeSub": "Quand les prévisions changent pour un jour où vous avez déjà planifié une tenue",
+    "notifSeasonChange": "Rangement saisonnier",
+    "notifSeasonChangeSub": "Au plus deux fois par an, avec le look du matin, quand les températures changent et qu'il y a des pièces à déplacer",
     "notifSystem": "Mises à jour du système",
     "notifSystemSub": "Annonces importantes concernant {{appName}}",
     "sharedLibrary": "Bibliothèque partagée",
@@ -276,6 +278,7 @@
     "storedSinceLabel": "Rangé depuis le {{date}}",
     "storedHint": "Ces pièces ne sont proposées dans aucun look tant que vous ne les remettez pas dans la garde-robe.",
     "storageTipsButton": "Conseils de rangement",
+    "seasonChangeButton": "Que ranger ?",
     "backToTopAria": "Revenir en haut",
     "fastScrollAria": "Faire défiler la liste",
     "storeItemButton": "Ranger pour la saison",
@@ -2596,5 +2599,23 @@
     "title": "Rappel des rendez-vous",
     "sub": "La veille, les rendez-vous du lendemain de votre calendrier connecté",
     "enabled": "C'est fait : la veille à {{time}}, si vous avez des rendez-vous"
+  },
+  "seasonChange": {
+    "title": "Que ranger ?",
+    "noWeather": "Pour vous conseiller, j'ai besoin de la météo de votre ville : définissez votre position dans Garde-robe ou sur l'Accueil.",
+    "forecast": "Dans les deux prochaines semaines, les maximales vont de {{min}}° à {{max}}°.",
+    "putAwayTitle": "À ranger ({{count}})",
+    "putAwayHint": "Pièces réservées à des saisons dont vous n'aurez pas besoin ces prochaines semaines. Décochez celles à garder.",
+    "putAwayButton": "Ranger {{count}}",
+    "putAwayNone": "Rien à ranger pour l'instant.",
+    "keepOutTitle": "À garder sous la main ({{count}})",
+    "keepOutHint": "Hors saison, mais encore utiles.",
+    "reasonPlanned": "dans votre calendrier",
+    "reasonRecent": "porté récemment",
+    "bringBackTitle": "À ressortir ({{count}})",
+    "bringBackHint": "Pièces rangées adaptées aux prochaines semaines.",
+    "bringBackButton": "Remettre {{count}}",
+    "bringBackNone": "Rien à ressortir du rangement.",
+    "untaggedNote": "Les pièces sans saison, ou toutes saisons, ne sont jamais déplacées."
   }
 }

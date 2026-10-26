@@ -36,3 +36,30 @@ test("a hot trip asks for the summer pieces put away, a cold one for the winter 
   assert.deepEqual(lapland.map((i) => i.id), ["down"]);
   assert.deepEqual(storedPiecesForSeasons(items, new Set()), []);
 });
+
+import { seasonChangeSuggestions } from "./wardrobe-storage";
+
+test("cosa mettere via: summer pieces go away in a cold fortnight, winter pieces come back", () => {
+  const stored = "2026-06-01T00:00:00Z";
+  const items = [
+    { id: "linen", season: "Summer" },
+    { id: "sandals", season: "Summer", last_worn: "2026-10-20" },
+    { id: "swim", season: "Summer" },
+    { id: "trench", season: "Spring, Autumn" },
+    { id: "tee", season: "All Seasons" },
+    { id: "untagged", season: "" },
+    { id: "coat", season: "Winter", stored_at: stored },
+    { id: "beach", season: "Summer", stored_at: stored },
+    { id: "lent", season: "Summer", active_loan_id: "l1" },
+  ];
+  const plan = seasonChangeSuggestions(items, [12, 11, 9, 13, 10], { today: "2026-10-26", plannedIds: new Set(["swim"]) });
+  assert.deepEqual(plan.putAway.map((i) => i.id), ["linen"]);
+  assert.deepEqual(plan.keepOut.map((k) => [k.item.id, k.reason]), [["sandals", "recent"], ["swim", "planned"]]);
+  assert.deepEqual(plan.bringBack.map((i) => i.id), ["coat"]);
+});
+
+test("a warm late October (22° and up) keeps summer pieces out, and no forecast suggests nothing", () => {
+  const items = [{ id: "linen", season: "Summer" }];
+  assert.deepEqual(seasonChangeSuggestions(items, [23, 21, 22], { today: "2026-10-26", plannedIds: new Set() }).putAway, []);
+  assert.deepEqual(seasonChangeSuggestions(items, [], { today: "2026-10-26", plannedIds: new Set() }).putAway, []);
+});

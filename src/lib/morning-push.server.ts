@@ -1,5 +1,6 @@
 // Scheduled notifications, run every 15 minutes (pg_cron → /api/public/hooks/send-morning-looks):
-// the morning look and the evening reminder of tomorrow's appointments. For every person who turned
+// the morning look (with, a few times a year, the season-change notice) and the evening reminder of
+// tomorrow's appointments. For every person who turned
 // one on and has a subscribed device: when their chosen time comes in their own time zone
 // (user_plans.time_zone, synced from the phone), once a day per kind (push_send_log). No AI call:
 // the morning one carries the day's temperatures, the evening one tomorrow's appointments; the look
@@ -9,8 +10,10 @@ import { isDue, localClock, morningMessage, morningTimeOf, type DayWeather, type
 import { eveningTimeOf, eventReminderMessage, eventsOn, nextDate, type CalendarEvent, type EventReminderPrefs } from "./event-reminder";
 import { sendPushToUser } from "./push.server";
 import { fetchMetnoDaily, utcOffsetSeconds } from "./weather-metno";
+import { seasonChangeSuggestions } from "./wardrobe-storage";
+import { SEASON_CHANGE_GAP_DAYS, seasonChangeMessage, seasonChangeWorthTelling } from "./season-change-message";
 
-type Candidate = { id: string; language: string | null; latitude: number | null; longitude: number | null; notification_preferences: (MorningPrefs & EventReminderPrefs) | null };
+type Candidate = { id: string; language: string | null; latitude: number | null; longitude: number | null; notification_preferences: (MorningPrefs & EventReminderPrefs & { season_change?: boolean }) | null };
 
 /** Today from MET Norway, when Open-Meteo refuses the request (see weather-metno.ts). */
 async function metnoDayWeather(lat: number, lon: number, timeZone: string): Promise<DayWeather | null> {
@@ -33,6 +36,50 @@ async function dayWeather(lat: number, lon: number, timeZone: string): Promise<D
   } catch {
     return null; // the notification goes out without the weather line
   }
+}
+
+/** Daytime highs of the next two weeks (Open-Meteo); empty when the forecast can't be read. */
+async function twoWeekHighs(lat: number, lon: number, timeZone: string): Promise<number[]> {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(2)}&longitude=${lon.toFixed(2)}&daily=temperature_2m_max&forecast_days=14&timezone=${encodeURIComponent(timeZone)}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) }).catch(() => null);
+    if (!res || !res.ok) return [];
+    const d = (await res.json()) as { daily?: { temperature_2m_max?: (number | null)[] } };
+    return (d.daily?.temperature_2m_max ?? []).filter((x): x is number => typeof x === "number");
+  } catch {
+    return [];
+  }
+}
+
+/** The season-change notice (season-change-message.ts): sent with the morning look when the next two
+ *  weeks make it worth moving at least a few pieces, at most once every SEASON_CHANGE_GAP_DAYS. */
+async function maybeSeasonChange(admin: any, p: Candidate, timeZone: string, today: string): Promise<{ sent: number; failed: number } | null> {
+  if (p.notification_preferences?.season_change === false || p.latitude == null || p.longitude == null) return null;
+  const since = new Date(`${today}T00:00:00Z`);
+  since.setUTCDate(since.getUTCDate() - SEASON_CHANGE_GAP_DAYS);
+  const { data: recent } = await admin.from("push_send_log").select("local_date")
+    .eq("user_id", p.id).eq("kind", "season_change").gte("local_date", since.toISOString().slice(0, 10)).limit(1);
+  if (recent?.length) return null;
+  const highs = await twoWeekHighs(p.latitude, p.longitude, timeZone);
+  if (!highs.length) return null;
+  const until = new Date(`${today}T00:00:00Z`);
+  until.setUTCDate(until.getUTCDate() + highs.length);
+  const [{ data: items }, { data: plans }] = await Promise.all([
+    admin.from("wardrobe_items").select("id, season, stored_at, archived, active_loan_id, last_worn").eq("user_id", p.id),
+    admin.from("outfit_plans").select("item_ids").eq("user_id", p.id).gte("date", today).lte("date", until.toISOString().slice(0, 10)),
+  ]);
+  const plannedIds = new Set(((plans ?? []) as { item_ids: string[] | null }[]).flatMap((r) => r.item_ids ?? []));
+  const plan = seasonChangeSuggestions((items ?? []) as any[], highs, { today, plannedIds });
+  if (!seasonChangeWorthTelling(plan.putAway.length, plan.bringBack.length)) return null;
+  const { data: claimed, error } = await admin.from("push_send_log")
+    .upsert({ user_id: p.id, kind: "season_change", local_date: today }, { onConflict: "user_id,kind,local_date", ignoreDuplicates: true })
+    .select("user_id");
+  if (error || !claimed?.length) return null;
+  const message = seasonChangeMessage(p.language, {
+    putAway: plan.putAway.length, bringBack: plan.bringBack.length,
+    minHigh: Math.round(Math.min(...highs)), maxHigh: Math.round(Math.max(...highs)),
+  });
+  return sendPushToUser(p.id, { ...message, url: "/?open=season-change", tag: "season-change" });
 }
 
 type Counts = { checked: number; due: number; sent: number; failed: number };
@@ -80,6 +127,9 @@ export async function runScheduledPush(now = new Date()): Promise<{ morning: Cou
         const r = await sendPushToUser(p.id, { ...morningMessage(p.language, weather), url: "/", tag: "morning-look" });
         morning.sent += r.sent;
         morning.failed += r.failed;
+        // A failure here never holds back the rest of the run.
+        const sc = await maybeSeasonChange(admin, p, tz, clock.date).catch(() => null);
+        if (sc) { morning.sent += sc.sent; morning.failed += sc.failed; }
       }
     }
 

@@ -111,6 +111,8 @@
     "notifOutfitShareSub": "Quando un amico ti condivide un outfit in chat",
     "notifWeatherChange": "Allerta meteo per outfit pianificati",
     "notifWeatherChangeSub": "Quando le previsioni cambiano per un giorno in cui hai già pianificato un outfit",
+    "notifSeasonChange": "Cambio stagione",
+    "notifSeasonChangeSub": "Al massimo un paio di volte l'anno, con il look del mattino, quando le temperature cambiano e ci sono capi da spostare",
     "notifSystem": "Aggiornamenti di sistema",
     "notifSystemSub": "Comunicazioni importanti su {{appName}}",
     "sharedLibrary": "Libreria condivisa",
@@ -276,6 +278,7 @@
     "storedSinceLabel": "Messo via il {{date}}",
     "storedHint": "Questi capi non vengono proposti in nessun look finché non li riporti nell'armadio.",
     "storageTipsButton": "Consigli per il cambio stagione",
+    "seasonChangeButton": "Cosa mettere via?",
     "backToTopAria": "Torna in cima",
     "fastScrollAria": "Scorri l'elenco",
     "storeItemButton": "Metti via per il cambio stagione",
@@ -2596,5 +2599,23 @@
     "title": "Promemoria impegni",
     "sub": "La sera prima, gli impegni di domani dal tuo calendario collegato",
     "enabled": "Fatto: la sera prima alle {{time}}, se domani hai impegni"
+  },
+  "seasonChange": {
+    "title": "Cosa mettere via?",
+    "noWeather": "Per consigliarti serve il meteo della tua città: imposta la posizione in Capi o in Home.",
+    "forecast": "Nelle prossime due settimane le massime vanno da {{min}}° a {{max}}°.",
+    "putAwayTitle": "Da mettere via ({{count}})",
+    "putAwayHint": "Capi solo per stagioni che non servono nelle prossime settimane. Togli la spunta a quelli che vuoi tenere.",
+    "putAwayButton": "Metti via {{count}}",
+    "putAwayNone": "Nessun capo da mettere via per ora.",
+    "keepOutTitle": "Da lasciare fuori ({{count}})",
+    "keepOutHint": "Fuori stagione, ma ti servono ancora.",
+    "reasonPlanned": "in calendario",
+    "reasonRecent": "messo di recente",
+    "bringBackTitle": "Da riprendere ({{count}})",
+    "bringBackHint": "Capi nel Cambio stagione adatti alle prossime settimane.",
+    "bringBackButton": "Riporta nell'armadio {{count}}",
+    "bringBackNone": "Niente da riprendere dal Cambio stagione.",
+    "untaggedNote": "I capi senza stagione o per tutte le stagioni non vengono mai spostati."
   }
 }

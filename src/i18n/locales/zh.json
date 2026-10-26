@@ -111,6 +111,8 @@
     "notifOutfitShareSub": "当好友在聊天中与你分享穿搭时",
     "notifWeatherChange": "已规划穿搭的天气提醒",
     "notifWeatherChangeSub": "当你已规划穿搭的日子天气预报发生变化时",
+    "notifSeasonChange": "换季提醒",
+    "notifSeasonChangeSub": "每年最多一两次，随早安造型发送：气温变化且有单品需要收纳或取出时",
     "notifSystem": "系统更新",
     "notifSystemSub": "关于 {{appName}} 的重要公告",
     "sharedLibrary": "共享单品库",
@@ -276,6 +278,7 @@
     "storedSinceLabel": "{{date}} 收纳",
     "storedHint": "在你把这些单品放回衣橱之前，它们不会出现在任何造型推荐中。",
     "storageTipsButton": "换季收纳小贴士",
+    "seasonChangeButton": "该收起什么？",
     "backToTopAria": "回到顶部",
     "fastScrollAria": "滚动列表",
     "storeItemButton": "换季收纳",
@@ -2596,5 +2599,23 @@
     "title": "行程提醒",
     "sub": "前一天晚上，提醒你已连接日历中明天的行程",
     "enabled": "好的：有行程时，前一天晚上 {{time}} 提醒"
+  },
+  "seasonChange": {
+    "title": "该收起什么？",
+    "noWeather": "需要知道你所在城市的天气才能给出建议：请在衣橱或首页设置位置。",
+    "forecast": "未来两周最高气温在 {{min}}° 至 {{max}}° 之间。",
+    "putAwayTitle": "可以收起来（{{count}}）",
+    "putAwayHint": "只适合未来几周用不上的季节的单品。取消勾选你想留下的。",
+    "putAwayButton": "收起 {{count}} 件",
+    "putAwayNone": "目前没有需要收起来的单品。",
+    "keepOutTitle": "先留在外面（{{count}}）",
+    "keepOutHint": "虽然不当季，但你还用得上。",
+    "reasonPlanned": "已排进日历",
+    "reasonRecent": "最近穿过",
+    "bringBackTitle": "可以取出来（{{count}}）",
+    "bringBackHint": "收纳中适合未来几周的单品。",
+    "bringBackButton": "放回衣橱 {{count}} 件",
+    "bringBackNone": "换季收纳里没有需要取出的单品。",
+    "untaggedNote": "没有季节标签或四季皆宜的单品永远不会被移动。"
   }
 }
