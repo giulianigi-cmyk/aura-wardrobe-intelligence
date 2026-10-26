@@ -25,6 +25,7 @@ test("every drawing has a caption in every language; bras for women, boxers for 
   for (const lang of STORAGE_TIPS_LANGUAGES) {
     const tips = storageTipsFor(lang);
     for (const k of FOLD_DIAGRAMS) assert.ok(tips.diagramLabels[k]?.trim(), `${lang} ${k}`);
+    for (const k of FOLD_DIAGRAMS) assert.ok(tips.diagramSteps[k]?.length === 3 && tips.diagramSteps[k].every((x) => x.trim()), `${lang} ${k} steps`);
     assert.ok(tips.diagramsTitle.trim(), lang);
   }
   assert.ok(!foldDiagramsFor("Man").includes("bra") && foldDiagramsFor("Man").includes("boxers"));
