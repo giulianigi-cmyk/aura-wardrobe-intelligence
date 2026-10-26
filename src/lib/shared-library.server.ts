@@ -18,6 +18,8 @@
  *    source_image_path revocata in SELECT per authenticated).
  */
 
+import { SHARED_LIBRARY_SOURCE } from "./shared-library-source";
+
 const SHARED_BUCKET = "shared-library";
 
 type Admin = Awaited<typeof import("@/integrations/supabase/client.server")>["supabaseAdmin"];
@@ -111,6 +113,9 @@ export async function syncSharedLibrary(userId: string): Promise<{ synced: numbe
   let synced = 0;
 
   for (const item of items ?? []) {
+    // Taken from someone else's piece in the library: it is already there, sharing it again would
+    // only add a duplicate of the same photo.
+    if (item.source === SHARED_LIBRARY_SOURCE) continue;
     const sourcePath = toStoragePath(item.image_url);
     if (!sourcePath) continue;
     liveIds.add(item.id);

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+export { SHARED_LIBRARY_SOURCE } from "./shared-library-source";
 
 /** Riallinea la libreria condivisa dell'utente (o la svuota se il consenso è spento). */
 export const syncMySharedLibrary = createServerFn({ method: "POST" })
