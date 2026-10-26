@@ -33,11 +33,11 @@ const it: StorageTips = {
       id: "before",
       title: "Prima di mettere via",
       tips: [
-        "Lava o fai pulire tutto, anche ciò che sembra pulito: sudore, profumo e piccole macchie col tempo ingialliscono e attirano le tarme.",
-        "Fai asciugare completamente ogni capo: anche poca umidità chiusa in una scatola fa muffa.",
-        "Ripara adesso bottoni, orli e cuciture: alla prossima stagione il capo sarà pronto da mettere.",
-        "Fai una selezione: ciò che non hai mai messo in tutta la stagione puoi archiviarlo, regalarlo o venderlo invece di riporlo.",
-        "Svuota le tasche e chiudi zip e bottoni, così i capi mantengono la forma.",
+        "Riponi i capi lavati e puliti, anche quelli che sembrano a posto: sudore, profumo e piccole macchie col tempo ingialliscono e attirano le tarme.",
+        "Assicurati che siano ben asciutti: anche un po' di umidità chiusa in una scatola può fare muffa.",
+        "È il momento giusto per sistemare bottoni, orli e cuciture: alla prossima stagione il capo sarà subito pronto.",
+        "Approfittane per fare una selezione: ciò che non hai mai indossato in tutta la stagione puoi archiviarlo, regalarlo o venderlo invece di riporlo.",
+        "Tasche vuote, zip e bottoni chiusi: così i capi mantengono meglio la forma.",
       ],
     },
     {
