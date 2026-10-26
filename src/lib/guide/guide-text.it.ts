@@ -124,7 +124,7 @@ const text: GuideText = {
       steps: [
         "Apri Capi.",
         "Tocca «Seleziona» e scegli i capi che metti via.",
-        "Tocca «Cambio stagione». Per un capo solo puoi anche aprire la sua scheda e toccare «Metti via per il cambio stagione».",
+        "Tocca «Cambio stagione». Per un capo solo puoi anche aprire la sua scheda e toccare «Metti via».",
         "Li ritrovi tutti in «Cambio stagione», sotto i filtri, con la data in cui li hai messi via.",
         "Quando cambia la stagione apri «Cambio stagione», seleziona i capi e tocca «Riporta nell'armadio».",
         "In «Cambio stagione» trovi anche i consigli: come preparare i capi, come piegarli (con i disegni) e quali contenitori usare.",

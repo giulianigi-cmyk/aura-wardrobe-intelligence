@@ -124,7 +124,7 @@ const text: GuideText = {
       steps: [
         "Abre Armario.",
         "Toca «Seleccionar» y elige las prendas que guardas.",
-        "Toca «Cambio de armario». Para una sola prenda también puedes abrir su ficha y tocar «Guardar en el cambio de armario».",
+        "Toca «Cambio de armario». Para una sola prenda también puedes abrir su ficha y tocar «Guardar».",
         "Las encuentras todas en «Cambio de armario», debajo de los filtros, con la fecha en que las guardaste.",
         "Cuando cambie la temporada, abre «Cambio de armario», selecciona las prendas y toca «Devolver».",
         "En «Cambio de armario» también hay consejos: cómo preparar las prendas, cómo doblarlas (con dibujos) y qué contenedores usar.",
