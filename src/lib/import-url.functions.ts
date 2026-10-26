@@ -199,6 +199,8 @@ const FIBER_MAP: Array<[RegExp, string]> = [
   [/\b(elastane|elastan|elastanne|spandex|lycra)\b/i, "Elastane"],
   [/\b(acrylic|acrilico|acrylique)\b/i, "Acrylic"],
   [/\b(denim)\b/i, "Denim"],
+  [/\b(patent|vernice|verni|charol|lackleder)\b/i, "Patent Leather"],
+  [/\b(cavallino|calf hair|pony hair|poulain|potro)\b/i, "Calf Hair"],
   [/\b(leather|pelle|cuir|leder|cuero)\b/i, "Leather"],
   [/\b(suede|camoscio|daim|wildleder|ante)\b/i, "Suede"],
   [/\b(shearling|montone)\b/i, "Shearling"],
