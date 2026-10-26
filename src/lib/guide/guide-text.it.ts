@@ -131,6 +131,16 @@ const text: GuideText = {
       ],
       tip: "Nei viaggi, se la destinazione ha un clima diverso, ti chiediamo se usare anche i capi del cambio stagione.",
     },
+    laundry: {
+      title: "Lavaggio",
+      intro: "Come lavare ogni capo e cosa significano i simboli dell'etichetta.",
+      steps: [
+        "Apri Capi.",
+        "Tocca «Lavaggio», sotto i filtri: trovi i simboli dell'etichetta disegnati e spiegati, i programmi della lavatrice e qualche consiglio.",
+        "Apri un capo: sotto il materiale trovi «Come lavarlo», con programma, asciugatura e stiro adatti a quel tessuto.",
+      ],
+      tip: "Se l'etichetta del capo dice diversamente, vale sempre l'etichetta.",
+    },
     today: {
       title: "Il look di oggi",
       steps: [

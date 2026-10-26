@@ -278,6 +278,8 @@
     "storedSinceLabel": "Rangé depuis le {{date}}",
     "storedHint": "Ces pièces ne sont proposées dans aucun look tant que vous ne les remettez pas dans la garde-robe.",
     "storageTipsButton": "Conseils de rangement",
+    "laundryButton": "Lavage",
+    "careBoxTitle": "Comment le laver",
     "seasonChangeButton": "Que ranger ?",
     "backToTopAria": "Revenir en haut",
     "fastScrollAria": "Faire défiler la liste",

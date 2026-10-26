@@ -278,6 +278,8 @@
     "storedSinceLabel": "In storage since {{date}}",
     "storedHint": "These pieces aren't suggested in any look until you bring them back to the wardrobe.",
     "storageTipsButton": "Storage tips",
+    "laundryButton": "Laundry",
+    "careBoxTitle": "How to wash it",
     "seasonChangeButton": "What to put away?",
     "backToTopAria": "Back to top",
     "fastScrollAria": "Scroll the list",

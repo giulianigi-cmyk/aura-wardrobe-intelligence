@@ -6,7 +6,7 @@ import { isShoeCategory, sizeEquivalences } from "@/lib/size-conversion";
 import { MaterialCombobox } from "@/components/aura/MaterialCombobox";
 import { AddSourceSheet } from "@/components/aura/AddSourceSheet";
 
-import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown, Package, PackageOpen, Lightbulb } from "lucide-react";
+import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown, Package, PackageOpen, Lightbulb, WashingMachine } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { migrateLegacyTaxonomy } from "@/lib/migrate-legacy-taxonomy.functions";
@@ -56,6 +56,7 @@ import { listLocations, moveItemsToLocation } from "@/lib/wardrobe-locations.fun
 import { setItemsStored } from "@/lib/wardrobe-storage.functions";
 import { isInStorage } from "@/lib/wardrobe-storage";
 import { StorageTipsSheet } from "@/components/aura/StorageTipsSheet";
+import { CareBox, LaundryGuideSheet } from "@/components/aura/LaundryGuide";
 import { SeasonChangeSheet } from "@/components/aura/SeasonChangeSheet";
 import { FastScroller } from "@/components/aura/FastScroller";
 import type { WardrobeLocation } from "@/lib/wardrobe-location";
@@ -134,6 +135,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
   const [showStored, setShowStored] = useState(false);
   const [storing, setStoring] = useState(false);
   const [storageTipsOpen, setStorageTipsOpen] = useState(false);
+  const [laundryOpen, setLaundryOpen] = useState(false);
   const [seasonChangeOpen, setSeasonChangeOpen] = useState(false);
   // Opened from the season-change notification (AuraApp sets the flag before showing Wardrobe).
   useEffect(() => {
@@ -1003,6 +1005,14 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
               {showStored ? <><X size={11} /> {t("wardrobe.backToCloset")}</> : <><Package size={11} /> {t("wardrobe.storedCount", { count: storedCount })}</>}
             </button>
           )}
+          {!showStored && (
+            <button
+              onClick={() => setLaundryOpen(true)}
+              className="mr-auto ml-3 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
+            >
+              <WashingMachine size={11} /> {t("wardrobe.laundryButton")}
+            </button>
+          )}
           <button
             onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
             className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] uppercase tracking-widest border ${selectMode ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"}`}
@@ -1031,6 +1041,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
         </div>
       )}
       {storageTipsOpen && <StorageTipsSheet onClose={() => setStorageTipsOpen(false)} />}
+      {laundryOpen && <LaundryGuideSheet onClose={() => setLaundryOpen(false)} />}
       {seasonChangeOpen && (
         <SeasonChangeSheet
           items={items}
@@ -1676,6 +1687,13 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                   options={MATERIAL_OPTIONS}
                   values={edit.materials}
                   onChange={(v) => setEdit((s) => ({ ...s, materials: v }))}
+                />
+
+                <CareBox
+                  materials={edit.materials}
+                  category={edit.category}
+                  subcategory={edit.subcategory}
+                  onOpenGuide={() => setLaundryOpen(true)}
                 />
 
                 {([

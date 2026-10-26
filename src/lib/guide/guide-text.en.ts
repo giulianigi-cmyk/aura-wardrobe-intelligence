@@ -131,6 +131,16 @@ const text: GuideText = {
       ],
       tip: "On trips, if the destination has a different climate, we ask whether to use the pieces in storage too.",
     },
+    laundry: {
+      title: "Laundry",
+      intro: "How to wash each piece and what the care-label symbols mean.",
+      steps: [
+        "Open Closet.",
+        "Tap “Laundry”, below the filters: you'll find the care-label symbols drawn and explained, the washing-machine programmes and a few tips.",
+        "Open a piece: below the material you'll find “How to wash it”, with the right programme, drying and ironing for that fabric.",
+      ],
+      tip: "If the piece's label says otherwise, the label always wins.",
+    },
     today: {
       title: "Today's look",
       steps: [

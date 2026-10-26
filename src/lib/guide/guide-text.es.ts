@@ -131,6 +131,16 @@ const text: GuideText = {
       ],
       tip: "En los viajes, si el destino tiene otro clima, te preguntamos si usar también las prendas guardadas.",
     },
+    laundry: {
+      title: "Lavado",
+      intro: "Cómo lavar cada prenda y qué significan los símbolos de la etiqueta.",
+      steps: [
+        "Abre Armario.",
+        "Toca «Lavado», debajo de los filtros: encontrarás los símbolos de la etiqueta dibujados y explicados, los programas de la lavadora y algunos consejos.",
+        "Abre una prenda: debajo del material encontrarás «Cómo lavarlo», con el programa, el secado y el planchado adecuados para ese tejido.",
+      ],
+      tip: "Si la etiqueta de la prenda dice otra cosa, siempre vale la etiqueta.",
+    },
     today: {
       title: "El look de hoy",
       steps: [
