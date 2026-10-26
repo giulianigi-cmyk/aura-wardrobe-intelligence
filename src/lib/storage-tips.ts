@@ -3,6 +3,11 @@
 import { BRAND_NAME } from "./brand";
 
 export type StorageTipsSection = { id: string; title: string; tips: string[] };
+
+/** Line drawings shown under the first tips of the "fold" section, in this order, in every
+ *  language: knitwear, shirts, trousers, rolled T-shirts (see FoldingDiagram.tsx). */
+export const FOLD_DIAGRAMS = ["sweater", "shirt", "trousers", "roll"] as const;
+export type FoldDiagramKind = (typeof FOLD_DIAGRAMS)[number];
 export type StorageTips = { title: string; intro: string; sections: StorageTipsSection[] };
 
 const it: StorageTips = {

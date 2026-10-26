@@ -1,7 +1,8 @@
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import { storageTipsFor } from "@/lib/storage-tips";
+import { FOLD_DIAGRAMS, storageTipsFor } from "@/lib/storage-tips";
+import { FoldingDiagram } from "@/components/aura/FoldingDiagram";
 
 /** Consigli per il cambio stagione: what to do before putting clothes away, how to fold them,
  *  which containers to buy and where to keep them. Opened from the Cambio stagione view. */
@@ -25,9 +26,12 @@ export function StorageTipsSheet({ onClose }: { onClose: () => void }) {
               <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">{section.title}</p>
               <ul className="space-y-2.5">
                 {section.tips.map((tip, i) => (
-                  <li key={i} className="flex gap-2.5 text-sm leading-relaxed">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-foreground/60 shrink-0" />
-                    <span>{tip}</span>
+                  <li key={i} className="text-sm leading-relaxed">
+                    <div className="flex gap-2.5">
+                      <span className="mt-2 h-1.5 w-1.5 rounded-full bg-foreground/60 shrink-0" />
+                      <span>{tip}</span>
+                    </div>
+                    {section.id === "fold" && FOLD_DIAGRAMS[i] && <FoldingDiagram kind={FOLD_DIAGRAMS[i]} label={tip} />}
                   </li>
                 ))}
               </ul>
