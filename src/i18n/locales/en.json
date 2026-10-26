@@ -2616,6 +2616,11 @@
     "bringBackHint": "Pieces in storage that suit the coming weeks.",
     "bringBackButton": "Bring back {{count}}",
     "bringBackNone": "Nothing to bring back from storage.",
-    "untaggedNote": "Pieces with no season, or for all seasons, are never moved."
+    "untaggedNote": "Pieces with no season, or for all seasons, are never moved.",
+    "askStylist": "Ask the Stylist",
+    "askIntro": "I'm doing my seasonal switch: over the next two weeks highs range from {{min}}° to {{max}}°.",
+    "askAway": "I was going to put away: {{names}}.",
+    "askBack": "And bring back: {{names}}.",
+    "askQuestion": "What would you keep out and what would you put away?"
   }
 }

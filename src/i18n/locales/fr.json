@@ -2616,6 +2616,11 @@
     "bringBackHint": "Pièces rangées adaptées aux prochaines semaines.",
     "bringBackButton": "Remettre {{count}}",
     "bringBackNone": "Rien à ressortir du rangement.",
-    "untaggedNote": "Les pièces sans saison, ou toutes saisons, ne sont jamais déplacées."
+    "untaggedNote": "Les pièces sans saison, ou toutes saisons, ne sont jamais déplacées.",
+    "askStylist": "Demander au Styliste",
+    "askIntro": "Je fais mon rangement saisonnier : dans les deux prochaines semaines, les maximales vont de {{min}}° à {{max}}°.",
+    "askAway": "Je pensais ranger : {{names}}.",
+    "askBack": "Et ressortir : {{names}}.",
+    "askQuestion": "Que me conseillez-vous de garder sous la main et de ranger ?"
   }
 }
