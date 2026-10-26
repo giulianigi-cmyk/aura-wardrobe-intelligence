@@ -6,7 +6,7 @@ import { isShoeCategory, sizeEquivalences } from "@/lib/size-conversion";
 import { MaterialCombobox } from "@/components/aura/MaterialCombobox";
 import { AddSourceSheet } from "@/components/aura/AddSourceSheet";
 
-import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown, Package, PackageOpen } from "lucide-react";
+import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown, Package, PackageOpen, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { migrateLegacyTaxonomy } from "@/lib/migrate-legacy-taxonomy.functions";
@@ -55,6 +55,7 @@ import {
 import { listLocations, moveItemsToLocation } from "@/lib/wardrobe-locations.functions";
 import { setItemsStored } from "@/lib/wardrobe-storage.functions";
 import { isInStorage } from "@/lib/wardrobe-storage";
+import { StorageTipsSheet } from "@/components/aura/StorageTipsSheet";
 import type { WardrobeLocation } from "@/lib/wardrobe-location";
 import i18n from "@/i18n/config";
 import {
@@ -129,6 +130,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
   // Cambio armadio: the pieces put away for the season, all in one place (see wardrobe-storage.ts).
   const [showStored, setShowStored] = useState(false);
   const [storing, setStoring] = useState(false);
+  const [storageTipsOpen, setStorageTipsOpen] = useState(false);
   const [loansByItemId, setLoansByItemId] = useState<Record<string, WardrobeLoan>>({});
   const [loanSheetOpen, setLoanSheetOpen] = useState(false);
   const [borrowerName, setBorrowerName] = useState("");
@@ -988,8 +990,19 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder }: {
         </div>
       )}
       {showStored && (
-        <p className="mx-6 mt-2 text-[11px] text-muted-foreground">{t("wardrobe.storedHint")}</p>
+        <div className="mx-6 mt-2">
+          <p className="text-[11px] text-muted-foreground">{t("wardrobe.storedHint")}</p>
+          <button
+            onClick={() => setStorageTipsOpen(true)}
+            className="mt-2 w-full rounded-2xl bg-secondary/50 px-4 py-3 text-left text-sm flex items-center gap-2 active:scale-[0.99]"
+          >
+            <Lightbulb size={14} className="shrink-0" />
+            <span className="flex-1">{t("wardrobe.storageTipsButton")}</span>
+            <span className="text-muted-foreground">›</span>
+          </button>
+        </div>
       )}
+      {storageTipsOpen && <StorageTipsSheet onClose={() => setStorageTipsOpen(false)} />}
       {locations.length > 1 && !showArchived && !showLoaned && !showStored && (
         <div className="mx-6 mt-3 flex items-center gap-2">
           <div className="flex gap-2 overflow-x-auto no-scrollbar flex-1">

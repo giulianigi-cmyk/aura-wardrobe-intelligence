@@ -275,6 +275,7 @@
     "storedBadge": "Cambio armadio",
     "storedSinceLabel": "Nel cambio armadio dal {{date}}",
     "storedHint": "Questi capi non vengono proposti in nessun look finché non li riporti nell'armadio.",
+    "storageTipsButton": "Consigli per il cambio armadio",
     "storeItemButton": "Metti nel cambio armadio",
     "unstoreItemButton": "Riporta nell'armadio",
     "storeSelectionButton": "Cambio armadio",
