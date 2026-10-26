@@ -22,7 +22,7 @@ import { importProductFromUrl, type CompositionEntry } from "@/lib/import-url.fu
 import { listLocations } from "@/lib/wardrobe-locations.functions";
 import { downloadImportImage } from "@/lib/import-image.functions";
 import { searchProductLibrary, browseProductLibrary, type ProductLibraryItem } from "@/lib/product-library";
-import { browseSharedLibrary, searchSharedLibrary, syncMySharedLibrary, SHARED_PAGE_SIZE, type SharedLibraryItem } from "@/lib/shared-library.functions";
+import { browseSharedLibrary, searchSharedLibrary, syncMySharedLibrary, SHARED_PAGE_SIZE, SHARED_LIBRARY_SOURCE, type SharedLibraryItem } from "@/lib/shared-library.functions";
 import { buildProductSearchQuery, buildGoogleSearchUrl, buildGoogleLensUrl } from "@/lib/search-online";
 
 import { compressImageForUpload } from "@/lib/image-compress";
@@ -287,6 +287,9 @@ export function AddItem({ onClose, initialGarment }: {
   // Timing of the add-a-piece flow for the usage statistics (telemetry-client.ts): only durations
   // and outcomes, never the photo or what was typed.
   const flowRef = useRef<{ start: number; source: string; saved: boolean } | null>(null);
+  // The photo came from someone else's piece in the shared library: the saved piece is marked so it is
+  // not shared back into the library as a second copy of the same photo.
+  const fromSharedRef = useRef(false);
   const flowStep = (step: string, extra: { ms?: number; outcome?: "ok" | "error" | "cancelled" } = {}) => {
     const f = flowRef.current;
     if (!f) return;
@@ -392,7 +395,9 @@ export function AddItem({ onClose, initialGarment }: {
     category?: string; subcategory?: string; colors?: string[]; season?: string;
     currentRetailPrice?: string; currentRetailFromImport?: boolean;
     historicalRetailPrice?: string; historicalRetailFromImport?: boolean;
+    fromShared?: boolean;
   }) => {
+    fromSharedRef.current = !!opts?.fromShared;
 
     {
       const prev = flowRef.current;
@@ -648,6 +653,7 @@ export function AddItem({ onClose, initialGarment }: {
       await runPipeline(f, {
         brand: s.brand || undefined,
         source: "library",
+        fromShared: true,
         category: s.category || undefined,
         subcategory: s.subcategory || undefined,
         colors: s.colors?.length ? s.colors : (s.color ? [s.color] : undefined),
@@ -937,6 +943,7 @@ export function AddItem({ onClose, initialGarment }: {
         historical_retail_source: historicalRetailPrice.trim() === "" ? null : (historicalRetailFromImport ? "import_estimate" : "user"),
         model: model.trim() || null,
         bag_size_class: bagSizeClass || null,
+        ...(fromSharedRef.current ? { source: SHARED_LIBRARY_SOURCE } : {}),
       } as unknown as TablesInsert<"wardrobe_items">;
       let { data: inserted, error: insErr } = await supabase
         .from("wardrobe_items").insert(fullPayload).select("*").single();
