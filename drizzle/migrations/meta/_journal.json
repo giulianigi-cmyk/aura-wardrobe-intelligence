@@ -29,6 +29,13 @@
       "when": 1790433772446,
       "tag": "0003_purge_shared_library_on_consent_revoke",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793003423079,
+      "tag": "0004_restrict_shared_library_column_grants",
+      "breakpoints": true
     }
   ]
 }
