@@ -96,7 +96,7 @@ const text: GuideText = {
       title: "Finding a piece",
       steps: [
         "Open Closet.",
-        "Choose whether to see only this season's pieces or all seasons.",
+        "You see every piece you have to hand: those in seasonal storage, on loan or archived are in their own sections, below the filters.",
         "Use search and the categories at the top to narrow the list.",
       ],
     },

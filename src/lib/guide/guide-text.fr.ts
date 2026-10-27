@@ -96,7 +96,7 @@ const text: GuideText = {
       title: "Trouver une pièce",
       steps: [
         "Ouvrez Garde-robe.",
-        "Choisissez de voir seulement les pièces de cette saison ou toutes les saisons.",
+        "Vous voyez toutes les pièces à disposition : celles rangées pour la saison, prêtées ou archivées sont dans leurs sections, sous les filtres.",
         "Utilisez la recherche et les catégories en haut pour affiner la liste.",
       ],
     },

@@ -13,6 +13,22 @@ const STYLES = [
   "Minimal", "Editorial", "Quiet luxury", "Parisian", "Street",
   "Romantic", "Tailored", "Bohemian", "Sporty", "Vintage", "Avant-garde", "Coastal",
 ];
+/** A few typical colours per style: a small visual cue next to each description, so someone who
+ *  doesn't know the fashion terms can still recognise the look. */
+const STYLE_SWATCHES: Record<string, string[]> = {
+  Minimal: ["#FFFFFF", "#D9D6D0", "#8C8C8C", "#1C1C1C"],
+  Editorial: ["#111111", "#C8102E", "#F2F2F2", "#6B3FA0"],
+  "Quiet luxury": ["#F3EDE3", "#C8B89A", "#8B7355", "#2F3A4A"],
+  Parisian: ["#1F2A44", "#FFFFFF", "#C0392B", "#D8C3A5"],
+  Street: ["#2B2B2B", "#7A7A7A", "#E2E2E2", "#F28C28"],
+  Romantic: ["#F6D6DE", "#E8B4C3", "#FFF5EE", "#C9A0DC"],
+  Tailored: ["#2C3E50", "#7F8C8D", "#FFFFFF", "#4A3728"],
+  Bohemian: ["#B5651D", "#D4A373", "#6B8E23", "#8B4513"],
+  Sporty: ["#FFFFFF", "#1E90FF", "#000000", "#C6FF00"],
+  Vintage: ["#8B5A2B", "#C19A6B", "#556B2F", "#B22222"],
+  "Avant-garde": ["#000000", "#FFFFFF", "#7F00FF", "#9E9E9E"],
+  Coastal: ["#F5F0E6", "#A7C7E7", "#1F4E79", "#E3D5B8"],
+};
 const BRANDS = [
   "The Row", "Toteme", "Khaite", "Lemaire", "Jacquemus", "Loewe",
   "Bottega Veneta", "Celine", "Hermès", "Prada", "Chloé", "Acne Studios",
@@ -46,7 +62,14 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
   const [usernameCheckFailed, setUsernameCheckFailed] = useState(false);
   const [birthDate, setBirthDate] = useState<string>("");
   const [gender, setGender] = useState<string>("");
-  const [language, setLanguage] = useState<SupportedLanguage | "">("");
+  // The language picked before signing up (onboarding) is already selected here: one tap to confirm.
+  const [language, setLanguage] = useState<SupportedLanguage | "">(() => {
+    try {
+      if (localStorage.getItem("aura.language_chosen") !== "1") return "";
+      const stored = localStorage.getItem("aura.language");
+      return stored && (SUPPORTED_LANGUAGES as readonly string[]).includes(stored) ? (stored as SupportedLanguage) : "";
+    } catch { return ""; }
+  });
   const [styles, setStyles] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
   const [shareLibrary, setShareLibrary] = useState(false);
@@ -265,13 +288,26 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
           {step === 3 && (
             <div>
               <p className="text-xs text-muted-foreground mb-4">{t("profileSetup.stylesHint")}</p>
-              <div className="flex flex-wrap gap-2">
+              {/* Each style with what it means and its typical colours: many people don't know the terms. */}
+              <div className="flex flex-col gap-2">
                 {STYLES.map(s => {
                   const on = styles.includes(s);
-                                    return (
+                  return (
                     <button key={s} onClick={() => toggle(styles, setStyles, s)}
-                      className={`rounded-full px-4 py-2 text-xs border transition ${on ? "bg-foreground text-background border-foreground" : "border-border bg-card"}`}>
-                      {t(`profileScreen.styleTerm.${s}`)}
+                      aria-pressed={on}
+                      className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-left border transition ${on ? "border-foreground bg-foreground/5" : "border-border bg-card"}`}>
+                      <span className="grid grid-cols-2 gap-1 shrink-0">
+                        {(STYLE_SWATCHES[s] ?? []).map((hex) => (
+                          <span key={hex} className="h-3.5 w-3.5 rounded-full border border-border" style={{ background: hex }} />
+                        ))}
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-medium">{t(`profileScreen.styleTerm.${s}`)}</span>
+                        <span className="block text-[12px] leading-snug text-muted-foreground">{t(`profileScreen.styleDesc.${s}`)}</span>
+                      </span>
+                      <span className={`h-5 w-5 shrink-0 rounded-full border flex items-center justify-center ${on ? "bg-foreground border-foreground text-background" : "border-border"}`}>
+                        {on && <Check size={12} />}
+                      </span>
                     </button>
                   );
                 })}
