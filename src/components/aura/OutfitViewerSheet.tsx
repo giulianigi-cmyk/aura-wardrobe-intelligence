@@ -17,6 +17,7 @@ import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { composeOutfitImage, computeBuilderLayout, type BuilderLayoutEntry, type ComposeItem } from "@/lib/compose-outfit-canvas";
 import { ShareOutfitSheet } from "./ShareOutfitSheet";
+import { optionLabel } from "@/lib/garment-names";
 
 type View = "canvas" | "pieces" | "photo";
 
@@ -289,7 +290,7 @@ export function OutfitViewerSheet({
       <div className="px-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(2rem+env(safe-area-inset-bottom))] max-w-md mx-auto">
         <div className="flex items-center justify-between gap-3 mb-4">
           <p className="min-w-0 truncate text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-            {title || occasion || t("home.todayFallback")}
+            {title || (occasion ? optionLabel(occasion, i18n.language) : t("home.todayFallback"))}
           </p>
           <button onClick={onClose} aria-label={t("avatar.backAria")} className="h-10 w-10 shrink-0 rounded-full bg-secondary/60 flex items-center justify-center active:scale-90">
             <X size={16} />

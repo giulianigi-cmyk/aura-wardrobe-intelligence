@@ -11,6 +11,7 @@ import { filterForRain, isWetCondition, rainLayerFor, rainReason, RAIN_PROMPT_RU
 import { isWarmOuter, isWarmAndRainReady, isDressyOuter, coatOverBareArms, COAT_SLEEVES_PROMPT_RULE } from "./warm-outer";
 import { editorialPairingRule, naturePairingRule } from "./nature-color-pairings";
 import { CATALOG_MAX_ITEMS, compactCatalogJson } from "./wardrobe-catalog";
+import { bagClashesWithDressyLook, DRESSY_EVENING_BAG_PROMPT_RULE } from "./outfit-styling-rules";
 import { TALL_BOOTS_PROMPT_RULE, violatesTallBootsRule, isTallBoot, clashesWithTallBoots } from "./tall-boots-rule";
 import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
@@ -528,6 +529,7 @@ export async function suggestOutfitCore(params: {
     ACCESSORY_OCCASION_PROMPT_RULE,
     OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
     TALL_BOOTS_PROMPT_RULE,
+    DRESSY_EVENING_BAG_PROMPT_RULE,
     "For a 'Work' occasion specifically, exclude anything sequinned, sparkly, feathered, fringed, or overtly evening/party-coded (check the material and styleTags fields), exclude cocktail or evening dresses, and exclude very short skirts (mini-length). Separately, exclude genuinely bare-shoulder construction — off-shoulder, bardot, halter, strapless, one-shoulder, bandeau (check subcategory and styleTags for these terms) — but a plain sleeveless top or dress (sleeveLength: Sleeveless, no other bare-shoulder signal) is completely normal workwear and must NOT be excluded just for having no sleeves; judge it on formality/coverage like any other piece. Also treat dayEvening \"evening\" or formality 4-5 as a strong signal the piece belongs in an Evening look, not Work — these read as going-out wear, not workwear, even if the color looks fine on paper. Exclude logo, slogan or graphic-print T-shirts and sweatshirts too (a \"logo\" entry in details, or a graphic/print in subcategory or styleTags) — they read as weekend, not work; a plain T-shirt is fine.",
     "Color palette by occasion, when choosing between otherwise-equal options: 'Formal'/'Business Formal' favors navy, grey, black, black-and-white; 'Work'/'Business Casual' favors khaki, light grey, navy, brown as a base with bordeaux, olive, camel, or light blue as accents; 'Smart Casual'/'Weekend' allows one clearly colorful statement piece against a simple base. This is a preference between similarly-fitting options, not a hard exclusion — don't reject an otherwise great outfit purely for using an off-palette color.",
     "Sequins, sparkle, or lurex/metallic fabric are for evening only — never pick a sequinned or sparkly piece for a Day segment, regardless of occasion, even outside a Work context specifically.",
@@ -713,6 +715,12 @@ export async function suggestOutfitCore(params: {
   // Knee / over-the-knee boots with trousers that can't go inside them (tall-boots-rule.ts).
   const violatesTallBoots = (ids: string[]): boolean =>
     violatesTallBootsRule(ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => !!c));
+  // A printed or casual bag in a sequins-and-velvet evening look (outfit-styling-rules.ts).
+  const clashingBagId = (ids: string[]): string | null => {
+    const pieces = ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => !!c);
+    const bag = pieces.find((c) => c.category === "Bags");
+    return bag && bagClashesWithDressyLook(bag, pieces) ? bag.id : null;
+  };
 
   // A piece the person has explicitly tagged as "Travel", "Sport" or
   // "Resort" only (via Wardrobe → edit → Occasion) is situational — it
@@ -830,6 +838,7 @@ export async function suggestOutfitCore(params: {
     if (missingMandatoryBag(ids)) return false;
     if (violatesFootwearRule(ids)) return false;
     if (violatesTallBoots(ids)) return false;
+    if (clashingBagId(ids)) return false;
     if (violatesOccasionTag(ids)) return false;
     if (violatesSleeve(ids)) return false;
     if (coatOverBareArms(ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is NonNullable<typeof c> => !!c))) return false;
@@ -944,6 +953,11 @@ export async function suggestOutfitCore(params: {
         && !(isWorkOccasion && violatesWorkRules([id])) && !violatesPlaceRequirements([id]) && !violatesFootwearRule([id])
         && !violatesOccasionTag([id]) && !violatesEveningSunglasses([id])));
 
+    // A bag that doesn't match a dressed-up evening look goes (unless it is the person's starting
+    // piece); the bag step below picks one that does.
+    const offBag = clashingBagId(item_ids);
+    if (offBag && offBag !== params.mustIncludeItemId) item_ids = item_ids.filter((id) => id !== offBag);
+
     // Tall boots with trousers that can't go inside them: the boots go (the shoe step below picks
     // another pair) — unless the boots are the person's starting piece, then the trousers go and
     // the bottom step picks one that fits inside them.
@@ -988,8 +1002,11 @@ export async function suggestOutfitCore(params: {
         c.category === category && notUsed(c) && !violatesWeather([c.id])
         && !violatesOccasionTag([c.id]) && !violatesBeachBag([c.id]));
       const fresh = (list: typeof catalog) => (list.some((c) => !avoidSet.has(c.id)) ? list.filter((c) => !avoidSet.has(c.id)) : list);
-      const pool = strict.length ? fresh(strict) : fresh(relaxed);
-      if (!pool.length) return null;
+      const anyPool = strict.length ? fresh(strict) : fresh(relaxed);
+      if (!anyPool.length) return null;
+      // A bag that matches a dressed-up evening look comes first; one that doesn't only if nothing else exists.
+      const matching = category === "Bags" ? anyPool.filter((c) => clashingBagId([...item_ids, c.id]) !== c.id) : anyPool;
+      const pool = matching.length ? matching : anyPool;
       const fs = item_ids.map((id) => catalog.find((c) => c.id === id)?.formality).filter((f): f is number => typeof f === "number");
       const target = fs.length ? fs.reduce((a, b) => a + b, 0) / fs.length : 3;
       return [...pool].sort((a, b) => Math.abs((a.formality ?? target) - target) - Math.abs((b.formality ?? target) - target))[0];
