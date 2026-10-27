@@ -1,4 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type ComponentType } from "react";
+import { LegalConsentGate } from "@/components/aura/LegalDocs";
+import { hasAcceptedLegal } from "@/lib/legal/legal";
 import { Splash } from "./screens/Splash";
 import { Onboarding } from "./screens/Onboarding";
 import { Auth } from "./screens/Auth";
@@ -554,6 +556,9 @@ function Inner() {
             </ErrorBoundary>
           </div>
         )}
+
+        {/* Privacy policy and terms must be accepted (again, when LEGAL_VERSION changes) before using the app. */}
+        {user && !hasAcceptedLegal(user.user_metadata) && !["splash", "onboarding", "auth", "reset"].includes(screen) && <LegalConsentGate />}
 
         {/* Everything else — unchanged mount-on-demand behavior. */}
         {!isMainTab && (

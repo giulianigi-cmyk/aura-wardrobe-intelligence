@@ -3,12 +3,14 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/use-auth";
 import { Sparkles, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { LanguagePicker } from "../LanguagePicker";
+import { LegalDocSheet } from "../LegalDocs";
+import { consentTextFor, type LegalDoc } from "@/lib/legal/legal";
 import { BRAND_NAME, BRAND_WORDMARK } from "@/lib/brand";
 
 type Mode = "signin" | "signup" | "forgot";
 
 export function Auth() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { signIn, signUp, resetPassword, signInWithProvider } = useAuth();
   const [mode, setMode] = useState<Mode>("signin");
   // The language picker is shown exactly once, the moment someone taps
@@ -19,6 +21,7 @@ export function Auth() {
   // skipped entirely if the flag is already set (e.g. reinstalling the
   // app after already picking a language once).
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null);
   const languageAlreadyChosen = typeof window !== "undefined" && localStorage.getItem("aura.language_chosen") === "1";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -172,6 +175,12 @@ export function Auth() {
           </button>
         )}
       </div>
+      {/* Readable before signing up; acceptance itself is asked right after sign-in (LegalConsentGate). */}
+      <div className="mt-4 flex justify-center gap-4 text-[11px] text-muted-foreground">
+        <button type="button" onClick={() => setLegalDoc("privacy")} className="underline underline-offset-2">{consentTextFor(i18n.language).privacy}</button>
+        <button type="button" onClick={() => setLegalDoc("terms")} className="underline underline-offset-2">{consentTextFor(i18n.language).terms}</button>
+      </div>
+      {legalDoc && <LegalDocSheet doc={legalDoc} onClose={() => setLegalDoc(null)} />}
       {showLanguagePicker && (
         <div className="fixed inset-0 z-[100]">
           <LanguagePicker onDone={() => setShowLanguagePicker(false)} />
