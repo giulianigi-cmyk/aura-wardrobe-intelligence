@@ -55,7 +55,11 @@ Molte funzioni usano l'intelligenza artificiale: vedi il punto 6.
 - L'app può mostrare link a negozi online o importare un capo da una pagina web. Non siamo responsabili dei siti di terzi, dei loro prodotti, prezzi o condizioni.
 - Se colleghi servizi esterni (Google, Outlook o iCloud Calendar, accesso con Google o Apple), valgono anche i loro termini.
 
-## 8. Uso corretto
+## 8. Link affiliati
+
+Alcuni link a negozi o siti di rivendita sono link affiliati: se compri tramite questi link possiamo ricevere una commissione, senza costi in più per te. I suggerimenti non dipendono dalle commissioni.
+
+## 9. Uso corretto
 
 Non è consentito:
 - usare l'app per scopi illeciti;
@@ -66,32 +70,32 @@ Non è consentito:
 
 In caso di violazioni possiamo sospendere o chiudere l'account, dopo averti avvisato quando è possibile.
 
-## 9. Proprietà dell'app
+## 10. Proprietà dell'app
 
 Il nome e il marchio Nimbèa, il logo, il design e il software dell'app appartengono a Giulia Nigi. Puoi usarli solo per usare l'app come previsto da questi termini.
 
-## 10. Disponibilità del servizio
+## 11. Disponibilità del servizio
 
 - Facciamo il possibile perché l'app funzioni sempre bene, ma non possiamo garantire che sia sempre disponibile o priva di errori.
 - Possiamo aggiornare, modificare o interrompere funzioni. Se decidessimo di chiudere il servizio ti avviseremo con un ragionevole preavviso, così potrai salvare ciò che ti serve.
 - Ti consigliamo di non usare l'app come unico archivio di foto importanti.
 
-## 11. Responsabilità
+## 12. Responsabilità
 
 - L'app è fornita gratuitamente "così com'è".
 - Nei limiti consentiti dalla legge non rispondiamo di danni indiretti derivanti dall'uso dell'app o dei suggerimenti generati, per esempio un acquisto o un outfit che non ti soddisfa.
 - Restano salvi i casi di dolo o colpa grave e i diritti che la legge riconosce al consumatore, che questi termini non limitano.
 
-## 12. Modifiche ai termini
+## 13. Modifiche ai termini
 
 Possiamo aggiornare questi termini. Se le modifiche sono importanti te lo diremo nell'app e ti chiederemo di accettarle di nuovo prima di continuare a usarla. Se non sei d'accordo puoi cancellare l'account.
 
-## 13. Legge applicabile e controversie
+## 14. Legge applicabile e controversie
 
 - Questi termini sono regolati dalla legge italiana.
 - Se sei un consumatore, per le controversie è competente il giudice del luogo in cui risiedi.
 
-## 14. Contatti
+## 15. Contatti
 
 Per domande o segnalazioni:
 - usa "Segnala un problema" nelle Impostazioni dell'app;
