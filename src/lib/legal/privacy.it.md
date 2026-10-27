@@ -65,24 +65,16 @@ Dire di no a queste scelte non limita in alcun modo l'uso dell'app.
 
 ## 5. Con chi condividiamo i dati
 
-Non vendiamo i tuoi dati e non li usiamo per pubblicità. Li condividiamo solo con i fornitori che servono a far funzionare l'app, che li trattano per nostro conto come responsabili del trattamento:
+Non vendiamo i tuoi dati e non li usiamo per pubblicità. Li condividiamo solo con fornitori che servono a far funzionare l'app e che li trattano per nostro conto, come responsabili del trattamento:
+- hosting, database e archivio delle foto;
+- intelligenza artificiale per analizzare le foto e proporre outfit e consigli;
+- meteo e mappe;
+- accesso con account esterni e calendario, solo se li colleghi;
+- invio di email e notifiche.
 
-| Fornitore | Per cosa | Dove |
-|---|---|---|
-| Lovable / Supabase | Hosting dell'app, database, archivio delle foto, autenticazione | UE o USA |
-| Google (Gemini, tramite il gateway AI di Lovable) | Analisi delle foto dei capi, proposte di outfit, Stylist, liste di viaggio | USA |
-| OpenAI | Generazione di immagini, trascrizione dei messaggi vocali e sintesi vocale | USA |
-| FASHN | Prova virtuale sull'avatar | USA |
-| Firecrawl | Lettura delle pagine prodotto quando importi un capo da un link | USA |
-| Open-Meteo | Previsioni meteo dalla posizione o dalla città (riceve solo le coordinate) | UE |
-| BigDataCloud, Photon (Komoot) | Nome della città dalle coordinate, ricerca delle destinazioni | Australia, Germania |
-| Google, Microsoft, Apple | Accesso con il loro account e collegamento del calendario, solo se lo scegli | USA |
-| Apple, Google, Mozilla, Microsoft (servizi push) | Consegna delle notifiche | USA |
-| Resend | Invio delle email di risposta alle segnalazioni | USA |
+Con i partner commerciali condividiamo dati solo se lo hai scelto (sezione 4). L'elenco dei fornitori è disponibile su richiesta all'indirizzo della sezione 1.
 
-La rimozione dello sfondo dalle foto dei capi avviene direttamente sul tuo dispositivo.
-
-Quando i dati vanno fuori dall'Unione Europea, il trasferimento si basa sulle decisioni di adeguatezza della Commissione europea (EU-US Data Privacy Framework) o sulle clausole contrattuali standard previste dal GDPR.
+Alcuni fornitori si trovano fuori dall'Unione Europea, per esempio negli Stati Uniti: il trasferimento si basa sulle decisioni di adeguatezza della Commissione europea o sulle clausole contrattuali standard previste dal GDPR.
 
 ## 6. Per quanto tempo li conserviamo
 

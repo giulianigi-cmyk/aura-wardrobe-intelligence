@@ -65,24 +65,16 @@ Saying no to these choices does not limit your use of the app in any way.
 
 ## 5. Who we share data with
 
-We do not sell your data or use it for advertising. We share it only with the providers needed to run the app, which process it on our behalf as data processors:
+We do not sell your data or use it for advertising. We share it only with providers needed to run the app, which process it on our behalf as data processors:
+- hosting, database and photo storage;
+- artificial intelligence to analyse photos and suggest outfits and advice;
+- weather and maps;
+- sign-in with external accounts and calendar, only if you connect them;
+- sending emails and notifications.
 
-| Provider | What for | Where |
-|---|---|---|
-| Lovable / Supabase | App hosting, database, photo storage, authentication | EU or USA |
-| Google (Gemini, through Lovable's AI gateway) | Analysis of piece photos, outfit suggestions, Stylist, packing lists | USA |
-| OpenAI | Image generation, voice message transcription and text-to-speech | USA |
-| FASHN | Virtual try-on on the avatar | USA |
-| Firecrawl | Reading product pages when you import a piece from a link | USA |
-| Open-Meteo | Weather forecasts from your location or city (receives only coordinates) | EU |
-| BigDataCloud, Photon (Komoot) | City name from coordinates, destination search | Australia, Germany |
-| Google, Microsoft, Apple | Sign-in with their account and calendar connection, only if you choose it | USA |
-| Apple, Google, Mozilla, Microsoft (push services) | Delivering notifications | USA |
-| Resend | Sending email replies to reports | USA |
+We share data with commercial partners only if you chose to (section 4). The list of providers is available on request at the address in section 1.
 
-Background removal from piece photos happens directly on your device.
-
-When data leaves the European Union, the transfer relies on the European Commission's adequacy decisions (EU-US Data Privacy Framework) or on the standard contractual clauses provided by the GDPR.
+Some providers are located outside the European Union, for example in the United States: the transfer relies on the European Commission's adequacy decisions or on the standard contractual clauses provided by the GDPR.
 
 ## 6. How long we keep it
 

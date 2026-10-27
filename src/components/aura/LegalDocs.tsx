@@ -29,12 +29,12 @@ export function LegalMarkdown({ text }: { text: string }) {
       }
       i--;
       out.push(
-        <div key={i} className="mt-2 space-y-1.5">
+        <div key={i} className="mt-2 divide-y divide-border/60">
           {rows.slice(1).map((r, ri) => (
-            <div key={ri} className="rounded-xl bg-secondary/40 px-3 py-2 text-[13px] leading-snug">
-              <p className="font-medium">{inline(r[0])}</p>
-              {r.slice(1).map((c, ci) => <p key={ci} className="text-muted-foreground">{inline(c)}</p>)}
-            </div>
+            <p key={ri} className="py-1.5 text-[13px] leading-snug">
+              {inline(r[0])}
+              {r.slice(1).map((c, ci) => <span key={ci} className="text-muted-foreground"> · {inline(c)}</span>)}
+            </p>
           ))}
         </div>,
       );
