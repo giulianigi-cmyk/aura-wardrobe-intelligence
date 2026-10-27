@@ -106,7 +106,7 @@ const text: GuideText = {
         "En Armario toca una prenda para abrir su ficha.",
         "Desde aquí puedes editar los detalles, quitar el fondo o ajustar el recorte de la foto.",
         "«Crear outfit a partir de esto» te propone looks pensados alrededor de esa prenda.",
-        "Puedes marcarla como prestada, archivarla si ya no la usas o eliminarla.",
+        "Puedes archivarla si ya no la usas, pasarla al cambio de armario, prestarla o eliminarla.",
       ],
     },
     locations: {
@@ -135,9 +135,10 @@ const text: GuideText = {
       title: "Lavado",
       intro: "Cómo lavar cada prenda y qué significan los símbolos de la etiqueta.",
       steps: [
-        "Abre Tú › Ajustes.",
+        "Abre Tú.",
+        "Toca el engranaje para abrir Ajustes.",
         "En Armario, toca «Guía de lavado»: encontrarás los símbolos de la etiqueta dibujados y explicados, los programas de la lavadora y algunos consejos.",
-        "Abre una prenda: debajo del material encontrarás «Cómo lavarlo», con el programa, el secado y el planchado adecuados para ese tejido.",
+        "Abre una prenda y toca «Cómo lavarlo»: encontrarás los materiales, el programa, el secado y el planchado adecuados para ese tejido, con los símbolos de la etiqueta.",
       ],
       tip: "Si la etiqueta de la prenda dice otra cosa, siempre vale la etiqueta.",
     },
@@ -313,7 +314,7 @@ const text: GuideText = {
       title: "Notificaciones y privacidad",
       steps: [
         "Notificaciones: elige qué avisos recibir, por ejemplo cuando cambia el tiempo para un outfit planificado.",
-        "Privacidad: decide si compartir tus prendas en la biblioteca común, de forma anónima.",
+        "Privacidad: compartir tus prendas de forma anónima en la biblioteca común y «Tus decisiones sobre los datos» (novedades y ofertas por email, ofertas de socios, estadísticas anónimas).",
       ],
     },
     plan: {

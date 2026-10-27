@@ -106,7 +106,7 @@ const text: GuideText = {
         "In Guardaroba tocca un capo per aprirne la scheda.",
         "Da qui puoi modificare i dettagli, rimuovere lo sfondo o regolare il ritaglio della foto.",
         "«Crea outfit partendo da questo» ti propone look costruiti intorno a quel capo.",
-        "Puoi segnarlo come prestato, archiviarlo se non lo usi più o eliminarlo.",
+        "Puoi archiviarlo se non lo usi più, spostarlo nel cambio stagione, prestarlo o eliminarlo.",
       ],
     },
     locations: {
@@ -122,7 +122,7 @@ const text: GuideText = {
       title: "Cambio stagione",
       intro: "Sposta nel cambio stagione i capi fuori stagione (in garage, in cantina, nel sottovuoto): restano tuoi, ma non vengono proposti finché non li riprendi.",
       steps: [
-        "Apri Capi.",
+        "Apri Guardaroba.",
         "Tocca «Seleziona» e scegli i capi da spostare.",
         "Tocca «Cambio stagione». Per un capo solo puoi anche aprire la sua scheda e toccare «Cambio stagione».",
         "Li ritrovi tutti in «Cambio stagione», sotto i filtri, con la data in cui li hai spostati.",
@@ -135,9 +135,10 @@ const text: GuideText = {
       title: "Lavaggio",
       intro: "Come lavare ogni capo e cosa significano i simboli dell'etichetta.",
       steps: [
-        "Apri Tu › Impostazioni.",
+        "Apri Tu.",
+        "Tocca l'ingranaggio per aprire Impostazioni.",
         "In Guardaroba tocca «Guida al lavaggio»: trovi i simboli dell'etichetta disegnati e spiegati, i programmi della lavatrice e qualche consiglio.",
-        "Apri un capo: sotto il materiale trovi «Come lavarlo», con programma, asciugatura e stiro adatti a quel tessuto.",
+        "Apri un capo e tocca «Come lavarlo»: trovi i materiali, il programma, l'asciugatura e lo stiro adatti a quel tessuto, con i simboli dell'etichetta.",
       ],
       tip: "Se l'etichetta del capo dice diversamente, vale sempre l'etichetta.",
     },
@@ -313,7 +314,7 @@ const text: GuideText = {
       title: "Notifiche e privacy",
       steps: [
         "Notifiche: scegli quali avvisi ricevere, per esempio quando il meteo cambia per un outfit pianificato.",
-        "Privacy: decidi se condividere i tuoi capi nella libreria comune, in forma anonima.",
+        "Privacy: la condivisione anonima dei tuoi capi nella libreria comune e «Le tue scelte sui dati» (novità e offerte via email, offerte dei partner, statistiche anonime).",
       ],
     },
     plan: {
