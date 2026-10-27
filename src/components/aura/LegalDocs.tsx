@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Check, Loader2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { CONSENT_KEYS, consentTextFor, DEFAULT_CONSENTS, LEGAL_VERSION, legalDocText, type Consents, type LegalDoc } from "@/lib/legal/legal";
+import { consentTextFor, DEFAULT_CONSENTS, LEGAL_VERSION, legalDocText, type Consents, type LegalDoc } from "@/lib/legal/legal";
 
 /** **bold** inside a line. */
 function inline(text: string): ReactNode[] {
@@ -82,16 +82,17 @@ export function LegalDocSheet({ doc, onClose }: { doc: LegalDoc; onClose: () => 
 export function LegalConsentGate() {
   const { i18n } = useTranslation();
   const text = consentTextFor(i18n.language);
-  const [checked, setChecked] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
   const [open, setOpen] = useState<LegalDoc | null>(null);
-  // Separate, optional choices: marketing and partners start unticked, anonymous statistics ticked.
-  const [consents, setConsents] = useState<Consents>(DEFAULT_CONSENTS);
+  // Like real sign-up screens: the button accepts the terms, the email offers are the one opt-in
+  // asked here (unticked); partners and statistics keep their defaults and live in Settings › Privacy.
+  const [marketing, setMarketing] = useState(false);
 
   const accept = async () => {
     setSaving(true); setError(false);
     const now = new Date().toISOString();
+    const consents: Consents = { ...DEFAULT_CONSENTS, marketing };
     const { error: err } = await supabase.auth.updateUser({
       data: { legal_version: LEGAL_VERSION, legal_accepted_at: now, consents: { ...consents, updated_at: now } },
     });
@@ -99,50 +100,35 @@ export function LegalConsentGate() {
     if (err) { console.error("[AURA legal] could not save acceptance", err); setError(true); }
   };
 
+  const link = (doc: LegalDoc, label: string) => (
+    <button key={doc} type="button" onClick={() => setOpen(doc)} className="underline underline-offset-2 text-foreground">{label}</button>
+  );
+  const agreement = text.agreement.split(/(\{terms\}|\{privacy\})/).map((part, i) =>
+    part === "{terms}" ? link("terms", text.termsLink) : part === "{privacy}" ? link("privacy", text.privacyLink) : <span key={i}>{part}</span>);
+
   return (
     <div className="fixed inset-0 z-[110] bg-background overflow-y-auto px-8 pt-16 pb-[calc(2rem+env(safe-area-inset-bottom))]">
       <div className="min-h-full flex flex-col justify-center max-w-md w-full mx-auto">
         <h1 className="font-serif italic text-4xl leading-tight">{text.title}</h1>
-        <p className="mt-3 text-sm text-muted-foreground">{text.intro}</p>
-        <div className="mt-6 flex flex-col gap-2">
-          <button onClick={() => setOpen("privacy")} className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-left text-sm flex justify-between">{text.privacy}<span className="text-muted-foreground">›</span></button>
-          <button onClick={() => setOpen("terms")} className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-left text-sm flex justify-between">{text.terms}<span className="text-muted-foreground">›</span></button>
-        </div>
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{agreement}</p>
         <button
-          type="button" role="checkbox" aria-checked={checked} onClick={() => setChecked((v) => !v)}
+          type="button" role="checkbox" aria-checked={marketing} onClick={() => setMarketing((v) => !v)}
           className="mt-6 flex items-start gap-3 text-left"
         >
-          <span className={`mt-0.5 h-5 w-5 shrink-0 rounded-md border flex items-center justify-center ${checked ? "bg-foreground border-foreground text-background" : "border-border"}`}>
-            {checked && <Check size={13} />}
+          <span className={`mt-0.5 h-5 w-5 shrink-0 rounded-md border flex items-center justify-center ${marketing ? "bg-foreground border-foreground text-background" : "border-foreground/40 bg-transparent"}`}>
+            {marketing && <Check size={13} />}
           </span>
-          <span className="text-[13px] leading-snug">{text.checkbox}</span>
+          <span className="text-[13px] leading-snug">{text.marketingOptIn}</span>
         </button>
-        <p className="mt-6 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{text.optionalTitle}</p>
-        <div className="mt-2 space-y-3">
-          {CONSENT_KEYS.map((key) => (
-            <button
-              key={key} type="button" role="checkbox" aria-checked={consents[key]}
-              onClick={() => setConsents((c) => ({ ...c, [key]: !c[key] }))}
-              className="flex items-start gap-3 text-left"
-            >
-              <span className={`mt-0.5 h-5 w-5 shrink-0 rounded-md border flex items-center justify-center ${consents[key] ? "bg-foreground border-foreground text-background" : "border-border"}`}>
-                {consents[key] && <Check size={13} />}
-              </span>
-              <span>
-                <span className="block text-[13px] leading-snug">{text.options[key].label}</span>
-                <span className="block text-[11px] leading-snug text-muted-foreground">{text.options[key].desc}</span>
-              </span>
-            </button>
-          ))}
-        </div>
         {error && <p className="mt-3 text-xs text-red-700">{text.error}</p>}
         <button
           onClick={() => void accept()}
-          disabled={!checked || saving}
-          className="mt-6 w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 disabled:opacity-40"
+          disabled={saving}
+          className="mt-8 w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 disabled:opacity-40"
         >
           {saving && <Loader2 size={12} className="animate-spin" />}{text.accept}
         </button>
+        <p className="mt-4 text-[11px] leading-snug text-muted-foreground text-center">{text.settingsNote}</p>
       </div>
       {open && <LegalDocSheet doc={open} onClose={() => setOpen(null)} />}
     </div>

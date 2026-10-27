@@ -135,8 +135,8 @@ const text: GuideText = {
       title: "Lavage",
       intro: "Comment laver chaque pièce et ce que veulent dire les symboles de l'étiquette.",
       steps: [
-        "Ouvrez Garde-robe.",
-        "Touchez « Lavage », sous les filtres : vous y trouvez les symboles de l'étiquette dessinés et expliqués, les programmes du lave-linge et quelques conseils.",
+        "Ouvrez Vous › Paramètres.",
+        "Dans Garde-robe, touchez « Guide du lavage » : vous y trouvez les symboles de l'étiquette dessinés et expliqués, les programmes du lave-linge et quelques conseils.",
         "Ouvrez une pièce : sous la matière, « Comment le laver » indique le programme, le séchage et le repassage adaptés à ce tissu.",
       ],
       tip: "Si l'étiquette du vêtement dit autre chose, c'est toujours l'étiquette qui compte.",

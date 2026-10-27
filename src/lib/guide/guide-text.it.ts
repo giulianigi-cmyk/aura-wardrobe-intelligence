@@ -96,7 +96,7 @@ const text: GuideText = {
       title: "Trovare un capo",
       steps: [
         "Apri Guardaroba.",
-        "Vedi tutti i capi che hai a disposizione: quelli messi via per il cambio stagione, prestati o archiviati sono nelle loro sezioni, sotto i filtri.",
+        "Vedi tutti i capi che hai a disposizione: quelli nel cambio stagione, prestati o archiviati sono nelle loro sezioni, sotto i filtri.",
         "Usa la ricerca e le categorie in alto per restringere l'elenco.",
       ],
     },
@@ -120,13 +120,13 @@ const text: GuideText = {
     },
     storage: {
       title: "Cambio stagione",
-      intro: "Metti via i capi fuori stagione (in garage, in cantina, nel sottovuoto): restano tuoi, ma non vengono proposti finché non li riporti nell'armadio.",
+      intro: "Sposta nel cambio stagione i capi fuori stagione (in garage, in cantina, nel sottovuoto): restano tuoi, ma non vengono proposti finché non li riprendi.",
       steps: [
         "Apri Capi.",
-        "Tocca «Seleziona» e scegli i capi che metti via.",
-        "Tocca «Cambio stagione». Per un capo solo puoi anche aprire la sua scheda e toccare «Metti via».",
-        "Li ritrovi tutti in «Cambio stagione», sotto i filtri, con la data in cui li hai messi via.",
-        "Quando cambia la stagione apri «Cambio stagione», seleziona i capi e tocca «Riporta nell'armadio».",
+        "Tocca «Seleziona» e scegli i capi da spostare.",
+        "Tocca «Cambio stagione». Per un capo solo puoi anche aprire la sua scheda e toccare «Cambio stagione».",
+        "Li ritrovi tutti in «Cambio stagione», sotto i filtri, con la data in cui li hai spostati.",
+        "Quando cambia la stagione apri «Cambio stagione», seleziona i capi e tocca «Riprendi dal cambio stagione».",
         "In «Cambio stagione» trovi anche i consigli: come preparare i capi, come piegarli (con i disegni) e quali contenitori usare.",
       ],
       tip: "Nei viaggi, se la destinazione ha un clima diverso, ti chiediamo se usare anche i capi del cambio stagione.",
@@ -135,8 +135,8 @@ const text: GuideText = {
       title: "Lavaggio",
       intro: "Come lavare ogni capo e cosa significano i simboli dell'etichetta.",
       steps: [
-        "Apri Capi.",
-        "Tocca «Lavaggio», sotto i filtri: trovi i simboli dell'etichetta disegnati e spiegati, i programmi della lavatrice e qualche consiglio.",
+        "Apri Tu › Impostazioni.",
+        "In Guardaroba tocca «Guida al lavaggio»: trovi i simboli dell'etichetta disegnati e spiegati, i programmi della lavatrice e qualche consiglio.",
         "Apri un capo: sotto il materiale trovi «Come lavarlo», con programma, asciugatura e stiro adatti a quel tessuto.",
       ],
       tip: "Se l'etichetta del capo dice diversamente, vale sempre l'etichetta.",

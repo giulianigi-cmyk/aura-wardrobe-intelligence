@@ -31,7 +31,7 @@ const it: StorageTips = {
   sections: [
     {
       id: "before",
-      title: "Prima di mettere via",
+      title: "Prima del cambio stagione",
       tips: [
         "Riponi i capi lavati e puliti, anche quelli che sembrano a posto: sudore, profumo e piccole macchie col tempo ingialliscono e attirano le tarme.",
         "Assicurati che siano ben asciutti: anche un po' di umidità chiusa in una scatola può fare muffa.",
@@ -85,8 +85,8 @@ const it: StorageTips = {
       id: "app",
       title: `Con ${BRAND_NAME}`,
       tips: [
-        "Tocca «Seleziona», scegli i capi che metti via e tocca «Cambio stagione»: non verranno più proposti nei look, nei piani e nei viaggi.",
-        "Quando cambia la stagione apri Cambio stagione, seleziona i capi e tocca «Riporta nell'armadio».",
+        "Tocca «Seleziona», scegli i capi da spostare e tocca «Cambio stagione»: non verranno più proposti nei look, nei piani e nei viaggi.",
+        "Quando cambia la stagione apri Cambio stagione, seleziona i capi e tocca «Riprendi dal cambio stagione».",
       ],
     },
   ],
@@ -101,7 +101,7 @@ const en: StorageTips = {
   sections: [
     {
       id: "before",
-      title: "Before you put things away",
+      title: "Before seasonal storage",
       tips: [
         "Wash or dry-clean everything, even what looks clean: sweat, perfume and small stains turn yellow over time and attract moths.",
         "Let every piece dry completely: even a little moisture sealed in a box causes mould.",
@@ -155,8 +155,8 @@ const en: StorageTips = {
       id: "app",
       title: `With ${BRAND_NAME}`,
       tips: [
-        "Tap “Select”, choose the pieces you're putting away and tap “Storage”: they won't be suggested in looks, plans or trips any more.",
-        "When the season changes, open Seasonal storage, select the pieces and tap “Bring back”.",
+        "Tap “Select”, choose the pieces to move and tap “Seasonal storage”: they won't be suggested in looks, plans or trips any more.",
+        "When the season changes, open Seasonal storage, select the pieces and tap “Take out of seasonal storage”.",
       ],
     },
   ],

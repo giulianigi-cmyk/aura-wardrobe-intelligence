@@ -6,7 +6,7 @@ import { isShoeCategory, sizeEquivalences } from "@/lib/size-conversion";
 import { MaterialCombobox } from "@/components/aura/MaterialCombobox";
 import { AddSourceSheet } from "@/components/aura/AddSourceSheet";
 
-import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown, Package, PackageOpen, Lightbulb, WashingMachine } from "lucide-react";
+import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown, Package, PackageOpen, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { migrateLegacyTaxonomy } from "@/lib/migrate-legacy-taxonomy.functions";
@@ -31,7 +31,7 @@ import type { WardrobeItem } from "@/lib/aura-types";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "@/hooks/use-location";
 import { useWeather } from "@/hooks/use-weather";
-import { describeWeather } from "@/lib/weather";
+import { weatherLabelKey, describeWeather } from "@/lib/weather";
 import { currentSeason, resolveWardrobeUrls, toStoragePath, thumbSrc } from "@/lib/wardrobe-image";
 import { useWardrobeItems, useWardrobeCacheActions, wardrobeItemsQueryKey } from "@/lib/wardrobe-query";
 import { useQueryClient } from "@tanstack/react-query";
@@ -861,6 +861,19 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
 
   const w = weather?.current;
   const wLabel = w ? describeWeather(w.weatherCode, w.isDay) : null;
+  // Today's date and time from the phone, in the person's language ("martedì 27 ottobre, 19:23").
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const nowLabel = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat(i18n.language || undefined, { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(now);
+    } catch {
+      return now.toLocaleString();
+    }
+  }, [now, i18n.language]);
 
   return (
     <div ref={scrollRef} className="h-full overflow-y-auto no-scrollbar pb-[calc(7rem+env(safe-area-inset-bottom))]">
@@ -928,14 +941,15 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
 
       <div className="mx-6 mt-4 rounded-2xl bg-card border border-border/60 p-4 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{season} · {city ?? t("wardrobe.yourArea")}</p>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{optionLabel(season, i18n.language)} · {city ?? t("wardrobe.yourArea")}</p>
           {w ? (
             <p className="font-serif text-xl mt-0.5">
-              {Math.round(w.temperature)}° · {wLabel?.label}
+              {Math.round(w.temperature)}° · {t(weatherLabelKey(w.weatherCode))}
             </p>
           ) : (
             <p className="font-serif text-lg mt-0.5 italic text-muted-foreground">{t("wardrobe.weatherUnavailable")}</p>
           )}
+          <p className="text-[12px] text-muted-foreground mt-0.5 first-letter:uppercase">{nowLabel}</p>
         </div>
         <div className="flex flex-col items-end gap-2 shrink-0">
           {wLabel && <span className="text-3xl leading-none">{wLabel.icon}</span>}
@@ -996,14 +1010,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
               className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
             >
               {showStored ? <><X size={11} /> {t("wardrobe.backToCloset")}</> : <><Package size={11} /> {t("wardrobe.storedCount", { count: storedCount })}</>}
-            </button>
-          )}
-          {!showStored && (
-            <button
-              onClick={() => setLaundryOpen(true)}
-              className="mr-auto ml-3 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
-            >
-              <WashingMachine size={11} /> {t("wardrobe.laundryButton")}
             </button>
           )}
           <button
