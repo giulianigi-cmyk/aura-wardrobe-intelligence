@@ -106,7 +106,7 @@ const text: GuideText = {
         "Dans Garde-robe, touchez une pièce pour ouvrir sa fiche.",
         "De là, vous pouvez modifier les détails, retirer le fond ou ajuster le recadrage de la photo.",
         "« Créer une tenue à partir de ceci » vous propose des looks construits autour de cette pièce.",
-        "Vous pouvez la marquer comme prêtée, l'archiver si vous ne la portez plus, ou la supprimer.",
+        "Vous pouvez l'archiver si vous ne la portez plus, la mettre au rangement saisonnier, la prêter ou la supprimer.",
       ],
     },
     locations: {
@@ -135,9 +135,10 @@ const text: GuideText = {
       title: "Lavage",
       intro: "Comment laver chaque pièce et ce que veulent dire les symboles de l'étiquette.",
       steps: [
-        "Ouvrez Vous › Paramètres.",
+        "Ouvrez Vous.",
+        "Touchez l'engrenage pour ouvrir les Paramètres.",
         "Dans Garde-robe, touchez « Guide du lavage » : vous y trouvez les symboles de l'étiquette dessinés et expliqués, les programmes du lave-linge et quelques conseils.",
-        "Ouvrez une pièce : sous la matière, « Comment le laver » indique le programme, le séchage et le repassage adaptés à ce tissu.",
+        "Ouvrez une pièce et touchez « Comment le laver » : vous y trouvez les matières, le programme, le séchage et le repassage adaptés à ce tissu, avec les symboles de l'étiquette.",
       ],
       tip: "Si l'étiquette du vêtement dit autre chose, c'est toujours l'étiquette qui compte.",
     },
@@ -313,7 +314,7 @@ const text: GuideText = {
       title: "Notifications et confidentialité",
       steps: [
         "Notifications : choisissez les alertes à recevoir, par exemple quand la météo change pour une tenue planifiée.",
-        "Confidentialité : décidez de partager ou non vos pièces dans la bibliothèque commune, de façon anonyme.",
+        "Confidentialité : le partage anonyme de vos pièces dans la bibliothèque commune et « Vos choix sur les données » (nouveautés et offres par email, offres des partenaires, statistiques anonymes).",
       ],
     },
     plan: {

@@ -106,7 +106,7 @@ const text: GuideText = {
         "In Closet tap a piece to open its card.",
         "From here you can edit the details, remove the background or adjust the photo crop.",
         "“Create outfit from this” suggests looks built around that piece.",
-        "You can mark it as lent, archive it if you no longer wear it, or delete it.",
+        "You can archive it if you no longer wear it, move it to seasonal storage, lend it or delete it.",
       ],
     },
     locations: {
@@ -135,9 +135,10 @@ const text: GuideText = {
       title: "Laundry",
       intro: "How to wash each piece and what the care-label symbols mean.",
       steps: [
-        "Open You › Settings.",
+        "Open You.",
+        "Tap the gear to open Settings.",
         "Under Wardrobe, tap “Laundry guide”: you'll find the care-label symbols drawn and explained, the washing-machine programmes and a few tips.",
-        "Open a piece: below the material you'll find “How to wash it”, with the right programme, drying and ironing for that fabric.",
+        "Open a piece and tap “How to wash it”: you'll find its materials, the right programme, drying and ironing for that fabric, with the care-label symbols.",
       ],
       tip: "If the piece's label says otherwise, the label always wins.",
     },
@@ -313,7 +314,7 @@ const text: GuideText = {
       title: "Notifications and privacy",
       steps: [
         "Notifications: choose which alerts you get, for example when the weather changes for a planned outfit.",
-        "Privacy: decide whether to share your pieces in the common library, anonymously.",
+        "Privacy: sharing your pieces anonymously in the common library, and “Your data choices” (email news and offers, partner offers, anonymous statistics).",
       ],
     },
     plan: {

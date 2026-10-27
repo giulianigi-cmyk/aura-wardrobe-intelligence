@@ -60,6 +60,7 @@
     "groupWardrobe": "Guardaroba",
     "wardrobeLocations": "Luoghi del guardaroba",
     "dressPreferences": "Preferenze di abbigliamento",
+    "laundryGuide": "Guida al lavaggio",
     "groupApp": "App",
     "notifications": "Notifiche",
     "calendar": "Calendario",
@@ -2624,7 +2625,7 @@
   },
   "seasonChange": {
     "title": "Cosa spostare nel cambio stagione?",
-    "noWeather": "Per consigliarti serve il meteo della tua città: imposta la posizione in Capi o in Home.",
+    "noWeather": "Per consigliarti serve il meteo della tua città: imposta la posizione in Guardaroba o in Home.",
     "forecast": "Nelle prossime due settimane le massime vanno da {{min}}° a {{max}}°.",
     "putAwayTitle": "Da spostare nel cambio stagione ({{count}})",
     "putAwayHint": "Capi solo per stagioni che non servono nelle prossime settimane. Togli la spunta a quelli che vuoi tenere.",

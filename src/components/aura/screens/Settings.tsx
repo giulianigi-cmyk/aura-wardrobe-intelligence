@@ -12,7 +12,6 @@ import i18n, { LANGUAGE_LABELS, type SupportedLanguage } from "@/i18n/config";
 import { LegalDocSheet } from "@/components/aura/LegalDocs";
 import { consentTextFor, type LegalDoc } from "@/lib/legal/legal";
 import { LaundryGuideSheet } from "@/components/aura/LaundryGuide";
-import { laundryTextFor } from "@/lib/laundry-care";
 
 function Row({ label, sub, onClick }: { label: string; sub?: string; onClick: () => void }) {
   return (
@@ -92,7 +91,7 @@ export function Settings({ go }: { go: (s: Screen) => void }) {
       <Group>
         <Row label={t("settings.wardrobeLocations")} onClick={() => go("settings-wardrobe-locations")} />
         <Row label={t("settings.dressPreferences")} onClick={() => go("settings-dress-preferences")} />
-        <Row label={laundryTextFor(i18n.language).title} onClick={() => setLaundryOpen(true)} />
+        <Row label={t("settings.laundryGuide")} onClick={() => setLaundryOpen(true)} />
         {laundryOpen && <LaundryGuideSheet onClose={() => setLaundryOpen(false)} />}
       </Group>
 
