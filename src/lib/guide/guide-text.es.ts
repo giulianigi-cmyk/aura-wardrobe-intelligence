@@ -96,7 +96,7 @@ const text: GuideText = {
       title: "Encontrar una prenda",
       steps: [
         "Abre Armario.",
-        "Ves todas las prendas que tienes a mano: las guardadas por cambio de armario, prestadas o archivadas están en sus secciones, debajo de los filtros.",
+        "Ves todas las prendas que tienes a mano: las del cambio de armario, prestadas o archivadas están en sus secciones, debajo de los filtros.",
         "Usa la búsqueda y las categorías de arriba para acotar la lista.",
       ],
     },
@@ -120,16 +120,16 @@ const text: GuideText = {
     },
     storage: {
       title: "Cambio de armario",
-      intro: "Guarda las prendas fuera de temporada (en el garaje, el trastero, bolsas al vacío): siguen siendo tuyas, pero no se proponen hasta que las devuelvas al armario.",
+      intro: "Pasa al cambio de armario las prendas fuera de temporada (en el garaje, el trastero, bolsas al vacío): siguen siendo tuyas, pero no se proponen hasta que las saques.",
       steps: [
         "Abre Armario.",
-        "Toca «Seleccionar» y elige las prendas que guardas.",
-        "Toca «Cambio de armario». Para una sola prenda también puedes abrir su ficha y tocar «Guardar».",
-        "Las encuentras todas en «Cambio de armario», debajo de los filtros, con la fecha en que las guardaste.",
-        "Cuando cambie la temporada, abre «Cambio de armario», selecciona las prendas y toca «Devolver».",
+        "Toca «Seleccionar» y elige las prendas.",
+        "Toca «Cambio de armario». Para una sola prenda también puedes abrir su ficha y tocar «Cambio de armario».",
+        "Las encuentras todas en «Cambio de armario», debajo de los filtros, con la fecha en que las pasaste.",
+        "Cuando cambie la temporada, abre «Cambio de armario», selecciona las prendas y toca «Sacar del cambio de armario».",
         "En «Cambio de armario» también hay consejos: cómo preparar las prendas, cómo doblarlas (con dibujos) y qué contenedores usar.",
       ],
-      tip: "En los viajes, si el destino tiene otro clima, te preguntamos si usar también las prendas guardadas.",
+      tip: "En los viajes, si el destino tiene otro clima, te preguntamos si usar también las prendas del cambio de armario.",
     },
     laundry: {
       title: "Lavado",

@@ -171,7 +171,7 @@ const fr: StorageTips = {
   sections: [
     {
       id: "before",
-      title: "Avant de ranger",
+      title: "Avant le rangement saisonnier",
       tips: [
         "Lavez ou faites nettoyer tout, même ce qui semble propre : la transpiration, le parfum et les petites taches jaunissent avec le temps et attirent les mites.",
         "Laissez chaque pièce sécher complètement : un peu d'humidité enfermée dans une boîte suffit à faire des moisissures.",
@@ -225,8 +225,8 @@ const fr: StorageTips = {
       id: "app",
       title: `Avec ${BRAND_NAME}`,
       tips: [
-        "Touchez « Sélectionner », choisissez les pièces que vous rangez et touchez « Ranger » : elles ne seront plus proposées dans les looks, les plannings et les voyages.",
-        "Au changement de saison, ouvrez le Rangement saisonnier, sélectionnez les pièces et touchez « Remettre ».",
+        "Touchez « Sélectionner », choisissez les pièces et touchez « Rangement saisonnier » : elles ne seront plus proposées dans les looks, les plannings et les voyages.",
+        "Au changement de saison, ouvrez Rangement saisonnier, sélectionnez les pièces et touchez « Sortir du rangement saisonnier ».",
       ],
     },
   ],
@@ -241,7 +241,7 @@ const es: StorageTips = {
   sections: [
     {
       id: "before",
-      title: "Antes de guardar",
+      title: "Antes del cambio de armario",
       tips: [
         "Lava o lleva a la tintorería todo, incluso lo que parece limpio: el sudor, el perfume y las manchas pequeñas amarillean con el tiempo y atraen a las polillas.",
         "Deja que cada prenda se seque del todo: un poco de humedad cerrada en una caja basta para que salga moho.",
@@ -295,8 +295,8 @@ const es: StorageTips = {
       id: "app",
       title: `Con ${BRAND_NAME}`,
       tips: [
-        "Toca «Seleccionar», elige las prendas que guardas y toca «Cambio de armario»: ya no se propondrán en looks, planes ni viajes.",
-        "Cuando cambie la temporada, abre el Cambio de armario, selecciona las prendas y toca «Devolver».",
+        "Toca «Seleccionar», elige las prendas y toca «Cambio de armario»: ya no se propondrán en looks, planes ni viajes.",
+        "Cuando cambie la temporada, abre Cambio de armario, selecciona las prendas y toca «Sacar del cambio de armario».",
       ],
     },
   ],
@@ -311,7 +311,7 @@ const zh: StorageTips = {
   sections: [
     {
       id: "before",
-      title: "收纳之前",
+      title: "移入换季收纳之前",
       tips: [
         "所有衣物都要洗净或干洗，看起来干净的也不例外：汗渍、香水和小污渍久了会发黄，还会招来蛀虫。",
         "每件衣物都要彻底晾干：哪怕一点点湿气封在箱子里，也会发霉。",
@@ -365,8 +365,8 @@ const zh: StorageTips = {
       id: "app",
       title: `在 ${BRAND_NAME} 中`,
       tips: [
-        "点按“选择”，选出你要收起来的单品，再点按“换季收纳”：它们不会再出现在造型、规划和旅行中。",
-        "换季时打开“换季收纳”，选择单品，点按“放回衣橱”。",
+        "点按“选择”，选出单品，再点按“换季收纳”：它们不会再出现在造型、规划和旅行中。",
+        "换季时打开“换季收纳”，选择单品，点按“从换季收纳取出”。",
       ],
     },
   ],
