@@ -9,6 +9,8 @@ import { useProfile } from "@/hooks/use-profile";
 import { deleteMyAccount } from "@/lib/delete-account.functions";
 import { amIReportAdmin } from "@/lib/problem-reports.functions";
 import i18n, { LANGUAGE_LABELS, type SupportedLanguage } from "@/i18n/config";
+import { LegalDocSheet } from "@/components/aura/LegalDocs";
+import { consentTextFor, type LegalDoc } from "@/lib/legal/legal";
 
 function Row({ label, sub, onClick }: { label: string; sub?: string; onClick: () => void }) {
   return (
@@ -36,6 +38,7 @@ export function Settings({ go }: { go: (s: Screen) => void }) {
   const { profile } = useProfile();
   const currentLanguage = ((profile?.language as SupportedLanguage | null) ?? (i18n.language as SupportedLanguage)) ?? "en";
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null);
   const [deleting, setDeleting] = useState(false);
   const callDeleteMyAccount = useServerFn(deleteMyAccount);
   // "Gestione segnalazioni" only for the accounts that manage reports (checked on the server).
@@ -94,6 +97,9 @@ export function Settings({ go }: { go: (s: Screen) => void }) {
         <Row label={t("settings.notifications")} onClick={() => go("settings-notifications")} />
         <Row label={t("settings.calendar")} onClick={() => go("settings-calendar")} />
         <Row label={t("settings.privacy")} onClick={() => go("settings-privacy")} />
+        <Row label={consentTextFor(i18n.language).privacy} onClick={() => setLegalDoc("privacy")} />
+        <Row label={consentTextFor(i18n.language).terms} onClick={() => setLegalDoc("terms")} />
+        {legalDoc && <LegalDocSheet doc={legalDoc} onClose={() => setLegalDoc(null)} />}
         <Row label={t("settings.reportProblem")} sub={t("settings.reportProblemSub")} onClick={() => go("settings-report-problem")} />
         {reportAdmin && <Row label={t("adminReports.settingsRow")} sub={t("adminReports.settingsRowSub")} onClick={() => go("settings-admin-reports")} />}
       </Group>
