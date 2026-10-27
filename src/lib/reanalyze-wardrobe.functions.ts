@@ -35,6 +35,7 @@ type CandidateRow = {
   day_evening: string | null;
   sleeve_length: string | null;
   fit: string | null;
+  leg_shape?: string | null;
   heel_height: string | null;
   toe_shape: string | null;
   closure: string | null;
@@ -75,7 +76,7 @@ function isIncomplete(item: CandidateRow): boolean {
 }
 
 const CANDIDATE_COLUMNS =
-  "id, image_url, category, subcategory, style_tags, details, attrs_backfilled_at, user_edited_fields, formality, occasion, season, day_evening, sleeve_length, fit, heel_height, toe_shape, closure, gender, material";
+  "id, image_url, category, subcategory, style_tags, details, attrs_backfilled_at, user_edited_fields, formality, occasion, season, day_evening, sleeve_length, fit, leg_shape, heel_height, toe_shape, closure, gender, material";
 
 /** Still to process: never analysed for details (details NULL, which includes every piece added
  *  before the details existed and pieces added by batch/scan), or missing an attribute and never
@@ -96,6 +97,7 @@ export function completionPatch(item: CandidateRow, result: Awaited<ReturnType<t
   if (free("subcategory", item.subcategory) && result.subcategory && result.category === item.category) patch.subcategory = result.subcategory;
   if (free("sleeve_length", item.sleeve_length) && result.sleeveLength) patch.sleeve_length = result.sleeveLength;
   if (free("fit", item.fit) && result.fit) patch.fit = result.fit;
+  if (free("leg_shape", item.leg_shape) && result.legShape) patch.leg_shape = result.legShape;
   if (free("heel_height", item.heel_height) && result.heelHeight) patch.heel_height = result.heelHeight;
   if (free("toe_shape", item.toe_shape) && result.toeShape) patch.toe_shape = result.toeShape;
   if (free("closure", item.closure) && result.closure) patch.closure = result.closure;

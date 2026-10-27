@@ -251,6 +251,7 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
             length: it.length,
             sleeveLength: it.sleeve_length,
             fit: it.fit,
+            legShape: it.leg_shape,
             heelHeight: it.heel_height,
             toeShape: it.toe_shape,
             closure: it.closure,

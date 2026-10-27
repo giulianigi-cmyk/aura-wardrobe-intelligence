@@ -535,6 +535,8 @@
     "fitLabel": "Vestibilità",
     "heelLabel": "Tacco",
     "toeShapeLabel": "Punta",
+    "legShapeLabel": "Forma della gamba",
+    "legShapes": {"skinny": "Skinny", "slim": "Slim", "straight": "Dritta", "tapered": "Affusolata", "bootcut": "Bootcut", "flare": "A zampa", "wide": "Larga"},
     "closureLabel": "Chiusura",
     "genderLabel": "Genere",
     "styleTagsLabel": "Tag di stile",

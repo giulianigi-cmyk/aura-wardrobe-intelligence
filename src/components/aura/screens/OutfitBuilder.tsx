@@ -660,6 +660,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
             sleeveLength: it.sleeve_length ?? "",
             length: it.length ?? null,
             fit: it.fit ?? null,
+            legShape: it.leg_shape ?? null,
             heelHeight: it.heel_height ?? null,
             styleTags: it.style_tags ?? [],
             occasion: it.occasion ?? null,

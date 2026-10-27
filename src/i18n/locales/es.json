@@ -535,6 +535,8 @@
     "fitLabel": "Corte",
     "heelLabel": "Tacón",
     "toeShapeLabel": "Puntera",
+    "legShapeLabel": "Forma de la pierna",
+    "legShapes": {"skinny": "Pitillo", "slim": "Slim", "straight": "Recta", "tapered": "Tapered", "bootcut": "Bootcut", "flare": "Acampanada", "wide": "Ancha"},
     "closureLabel": "Cierre",
     "genderLabel": "Género",
     "styleTagsLabel": "Etiquetas de estilo",

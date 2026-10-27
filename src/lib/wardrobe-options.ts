@@ -64,6 +64,9 @@ const LENGTH_OPTIONS_BY_TYPE: Record<string, string[]> = {
 export const LENGTH_OPTIONS = ["Mini", "Midi", "Maxi", "Cropped", "Regular", "Short", "Mid", "Long", "Longline"];
 export const SLEEVE_LENGTH_OPTIONS = ["Sleeveless", "Short Sleeve", "Three-Quarter Sleeve", "Long Sleeve"];
 export const FIT_OPTIONS = ["Slim", "Regular", "Relaxed", "Oversized", "Tailored"];
+// How the trouser leg is cut (database values, lower case: wardrobe_items.leg_shape). Decides
+// whether trousers can go inside knee or over-the-knee boots (tall-boots-rule.ts).
+export const LEG_SHAPE_OPTIONS = ["skinny", "slim", "straight", "tapered", "bootcut", "flare", "wide"];
 export const HEEL_HEIGHT_OPTIONS = ["Flat", "Low", "Mid", "High"];
 export const TOE_SHAPE_OPTIONS = ["Round", "Square", "Pointed", "Open Toe"];
 export const CLOSURE_OPTIONS = ["Buttons", "Zip", "Lace", "Slip-On", "Buckle"];
@@ -89,6 +92,14 @@ export const ATTRIBUTE_APPLICABILITY: Record<string, string[]> = {
   toeShape: ["Shoes"],
   closure: ["Shoes", "Outerwear", "Bags"],
 };
+
+/** Leg shape: trousers, jeans, leggings and long jumpsuits — not skirts, shorts or playsuits. */
+export function legShapeAppliesTo(category: string | null | undefined, subcategory: string | null | undefined): boolean {
+  const sub = subcategory ?? "";
+  if (category === "Bottoms") return !/skirt|short/i.test(sub);
+  if (category === "Jumpsuits") return !/playsuit|romper/i.test(sub);
+  return false;
+}
 
 export function subcategoriesFor(category: string | null | undefined): string[] {
   return category ? (SUBCATEGORY_OPTIONS[category] ?? []) : [];

@@ -535,6 +535,8 @@
     "fitLabel": "Fit",
     "heelLabel": "Heel",
     "toeShapeLabel": "Toe shape",
+    "legShapeLabel": "Leg shape",
+    "legShapes": {"skinny": "Skinny", "slim": "Slim", "straight": "Straight", "tapered": "Tapered", "bootcut": "Bootcut", "flare": "Flare", "wide": "Wide"},
     "closureLabel": "Closure",
     "genderLabel": "Gender",
     "styleTagsLabel": "Style tags",

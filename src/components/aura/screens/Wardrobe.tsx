@@ -46,6 +46,8 @@ import {
   FIT_OPTIONS,
   HEEL_HEIGHT_OPTIONS,
   TOE_SHAPE_OPTIONS,
+  LEG_SHAPE_OPTIONS,
+  legShapeAppliesTo,
   CLOSURE_OPTIONS,
   subcategoriesFor,
   attributeAppliesTo,
@@ -198,6 +200,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
     length: "" as string,
     sleeveLength: "" as string,
     fit: "" as string,
+    legShape: "" as string,
     heelHeight: "" as string,
     toeShape: "" as string,
     closure: "" as string,
@@ -212,7 +215,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
     const raw = detail as unknown as {
       current_retail_price?: number | null; historical_retail_price?: number | null; iconicity?: Iconicity | null; model?: string | null; bag_size_class?: string | null;
       subcategory?: string | null; length?: string | null; sleeve_length?: string | null; fit?: string | null;
-      heel_height?: string | null; toe_shape?: string | null; closure?: string | null; formality?: number | null; day_evening?: string | null;
+      heel_height?: string | null; toe_shape?: string | null; closure?: string | null; formality?: number | null; day_evening?: string | null; leg_shape?: string | null;
     };
     setEdit({
       brand: detail.brand ?? "",
@@ -235,6 +238,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
       length: raw.length ?? "",
       sleeveLength: raw.sleeve_length ?? "",
       fit: raw.fit ?? "",
+      legShape: raw.leg_shape ?? "",
       heelHeight: raw.heel_height ?? "",
       toeShape: raw.toe_shape ?? "",
       closure: raw.closure ?? "",
@@ -281,12 +285,13 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
       if (!sameArray(edit.materials, Array.isArray(detail.material) ? detail.material : [])) changedFields.push("material");
       const rawNow = detail as unknown as {
         subcategory?: string | null; length?: string | null; sleeve_length?: string | null; fit?: string | null;
-        heel_height?: string | null; toe_shape?: string | null; closure?: string | null; formality?: number | null; day_evening?: string | null;
+        heel_height?: string | null; toe_shape?: string | null; closure?: string | null; formality?: number | null; day_evening?: string | null; leg_shape?: string | null;
       };
       if (edit.subcategory !== (rawNow.subcategory ?? "")) changedFields.push("subcategory");
       if (edit.length !== (rawNow.length ?? "")) changedFields.push("length");
       if (edit.sleeveLength !== (rawNow.sleeve_length ?? "")) changedFields.push("sleeve_length");
       if (edit.fit !== (rawNow.fit ?? "")) changedFields.push("fit");
+      if (edit.legShape !== (rawNow.leg_shape ?? "")) changedFields.push("leg_shape");
       if (edit.heelHeight !== (rawNow.heel_height ?? "")) changedFields.push("heel_height");
       if (edit.toeShape !== (rawNow.toe_shape ?? "")) changedFields.push("toe_shape");
       if (edit.closure !== (rawNow.closure ?? "")) changedFields.push("closure");
@@ -323,6 +328,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
         length: edit.length || null,
         sleeve_length: edit.sleeveLength || null,
         fit: edit.fit || null,
+        leg_shape: legShapeAppliesTo(edit.category, edit.subcategory) && edit.legShape ? edit.legShape : null,
         heel_height: edit.heelHeight || null,
         toe_shape: edit.toeShape || null,
         closure: edit.closure || null,
@@ -1659,7 +1665,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                         onClick={() => setEdit((s) => (
                           c === s.category
                             ? s
-                            : { ...s, category: c, subcategory: "", length: "", sleeveLength: "", fit: "", heelHeight: "", toeShape: "", closure: "" }
+                            : { ...s, category: c, subcategory: "", length: "", sleeveLength: "", fit: "", legShape: "", heelHeight: "", toeShape: "", closure: "" }
                         ))}
                         className={`rounded-full px-3 py-1.5 text-xs ${
                           edit.category === c ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"
@@ -1670,7 +1676,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                 </div>
 
                 {(() => {
-                  const singleChoice = (label: string, options: string[], value: string, onPick: (v: string) => void) => (
+                  const singleChoice = (label: string, options: string[], value: string, onPick: (v: string) => void, labelOf?: (o: string) => string) => (
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{label}</p>
                       <div className="mt-2 flex flex-wrap gap-2">
@@ -1681,7 +1687,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                             className={`rounded-full px-3 py-1.5 text-xs ${
                               value === o ? "bg-foreground text-background" : "bg-secondary/60 text-foreground/70"
                             }`}
-                          >{optionLabel(o, i18n.language)}</button>
+                          >{labelOf ? labelOf(o) : optionLabel(o, i18n.language)}</button>
                         ))}
                       </div>
                     </div>
@@ -1706,6 +1712,11 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                       {attributeAppliesTo("fit", edit.category) && singleChoice(
                         t("addItem.fitLabel"), FIT_OPTIONS, edit.fit,
                         (v) => setEdit((s) => ({ ...s, fit: v })),
+                      )}
+                      {legShapeAppliesTo(edit.category, edit.subcategory) && singleChoice(
+                        t("addItem.legShapeLabel"), LEG_SHAPE_OPTIONS, edit.legShape,
+                        (v) => setEdit((s) => ({ ...s, legShape: v })),
+                        (o) => t(`addItem.legShapes.${o}`),
                       )}
                       {attributeAppliesTo("heelHeight", edit.category) && singleChoice(
                         t("addItem.heelLabel"), HEEL_HEIGHT_OPTIONS, edit.heelHeight,

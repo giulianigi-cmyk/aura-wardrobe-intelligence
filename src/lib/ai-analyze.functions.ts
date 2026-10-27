@@ -8,7 +8,7 @@ import { COLOR_NAMES } from "./color-palette";
 import {
   MATERIAL_OPTIONS, SUBCATEGORY_OPTIONS, SLEEVE_LENGTH_OPTIONS,
   LENGTH_OPTIONS_BY_CATEGORY, lengthOptionsFor,
-  FIT_OPTIONS, HEEL_HEIGHT_OPTIONS, TOE_SHAPE_OPTIONS, CLOSURE_OPTIONS,
+  FIT_OPTIONS, LEG_SHAPE_OPTIONS, legShapeAppliesTo, HEEL_HEIGHT_OPTIONS, TOE_SHAPE_OPTIONS, CLOSURE_OPTIONS,
   GENDER_OPTIONS, STYLE_TAG_OPTIONS, ATTRIBUTE_APPLICABILITY,
 } from "./wardrobe-options";
 import { parseAiJson } from "./ai-json";
@@ -40,6 +40,7 @@ const OutputSchema = z.object({
   length: z.string(),
   sleeveLength: z.string(),
   fit: z.string(),
+  legShape: z.string().optional(),
   heelHeight: z.string(),
   toeShape: z.string(),
   closure: z.string(),
@@ -63,7 +64,7 @@ function buildFallback() {
   return {
     category: "", subcategory: "", colors: [] as string[], styles: [] as string[], occasions: [] as string[],
     seasons: [] as string[], brand: "", materials: [] as string[], length: "", sleeveLength: "",
-    fit: "", heelHeight: "", toeShape: "", closure: "", gender: "", styleTags: [] as string[],
+    fit: "", legShape: "", heelHeight: "", toeShape: "", closure: "", gender: "", styleTags: [] as string[],
     formality: null as number | null, dayEvening: "",
     detectedProductCode: "", detectedManufacturer: "",
     details: [] as string[],
@@ -110,6 +111,7 @@ export async function analyzeWardrobeImageCore(imageDataUrl: string, focus?: str
     `- length: this is CATEGORY-DEPENDENT, use the matching value set only — Dresses: ${LENGTH_OPTIONS_BY_CATEGORY.Dresses.join("/")}; Outerwear: ${LENGTH_OPTIONS_BY_CATEGORY.Outerwear.join("/")}; Tops: ${LENGTH_OPTIONS_BY_CATEGORY.Tops.join("/")}; Bottoms: ONLY when subcategory is "Skirt", use Mini/Midi/Maxi (leave empty for Jeans/Trousers/Shorts/etc.). For any other category, leave length empty.`,
     `- sleeveLength (applies to: ${ATTRIBUTE_APPLICABILITY.sleeveLength.join(", ")}): EXACTLY one of ${SLEEVE_LENGTH_OPTIONS.join(", ")}.`,
     `- fit (applies to: ${ATTRIBUTE_APPLICABILITY.fit.join(", ")}): EXACTLY one of ${FIT_OPTIONS.join(", ")}.`,
+    `- legShape (trousers, jeans, leggings and long jumpsuits only — empty for skirts, shorts and every other category): EXACTLY one of ${LEG_SHAPE_OPTIONS.join(", ")}, read from how the leg falls from knee to hem: skinny (tight all the way, leggings-like), slim (narrow, close to the leg), straight (same width from knee to hem), tapered (narrowing towards the ankle), bootcut (slightly wider at the hem), flare (clearly widening from the knee), wide (wide from hip to hem, palazzo).`,
     `- heelHeight (applies to: ${ATTRIBUTE_APPLICABILITY.heelHeight.join(", ")} only): EXACTLY one of ${HEEL_HEIGHT_OPTIONS.join(", ")}.`,
     `- toeShape (applies to: ${ATTRIBUTE_APPLICABILITY.toeShape.join(", ")} only): EXACTLY one of ${TOE_SHAPE_OPTIONS.join(", ")}.`,
     `- closure (applies to: ${ATTRIBUTE_APPLICABILITY.closure.join(", ")}): EXACTLY one of ${CLOSURE_OPTIONS.join(", ")}.`,
@@ -122,7 +124,7 @@ export async function analyzeWardrobeImageCore(imageDataUrl: string, focus?: str
     "- dayEvening: EXACTLY one of day, evening, both — whether this piece reads as appropriate for daytime, nighttime, or either. Most everyday pieces are \"both\"; reserve \"evening\" for pieces that read as distinctly after-dark (sequins, crystals/Swarovski/rhinestones/diamonds, evening satin, tuxedo-type pieces) and \"day\" only for pieces that would look out of place at night (e.g. very sporty daywear).",
     "",
     "Respond with ONLY a single valid JSON object, no markdown fences, no extra text, in exactly this shape:",
-    '{"category": "", "subcategory": "", "colors": [], "styles": [], "occasions": [], "seasons": [], "brand": "", "materials": [], "length": "", "sleeveLength": "", "fit": "", "heelHeight": "", "toeShape": "", "closure": "", "gender": "", "styleTags": [], "formality": 3, "dayEvening": "both", "detectedProductCode": "", "detectedManufacturer": "", "details": []}',
+    '{"category": "", "subcategory": "", "colors": [], "styles": [], "occasions": [], "seasons": [], "brand": "", "materials": [], "length": "", "sleeveLength": "", "fit": "", "legShape": "", "heelHeight": "", "toeShape": "", "closure": "", "gender": "", "styleTags": [], "formality": 3, "dayEvening": "both", "detectedProductCode": "", "detectedManufacturer": "", "details": []}',
   ].join(" ");
 
   try {
@@ -230,6 +232,7 @@ export async function analyzeWardrobeImageCore(imageDataUrl: string, focus?: str
       sleeveLength: ATTRIBUTE_APPLICABILITY.sleeveLength.includes(category) ? single(output.sleeveLength, SLEEVE_LENGTH_OPTIONS) : "",
 
       fit: ATTRIBUTE_APPLICABILITY.fit.includes(category) ? single(output.fit, FIT_OPTIONS) : "",
+      legShape: legShapeAppliesTo(category, subcategory) ? single((output.legShape ?? "").toLowerCase(), LEG_SHAPE_OPTIONS) : "",
       heelHeight: ATTRIBUTE_APPLICABILITY.heelHeight.includes(category) ? single(output.heelHeight, HEEL_HEIGHT_OPTIONS) : "",
       toeShape: ATTRIBUTE_APPLICABILITY.toeShape.includes(category) ? single(output.toeShape, TOE_SHAPE_OPTIONS) : "",
       closure: ATTRIBUTE_APPLICABILITY.closure.includes(category) ? single(output.closure, CLOSURE_OPTIONS) : "",

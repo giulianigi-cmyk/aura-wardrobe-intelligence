@@ -132,6 +132,7 @@ export const generateWeeklyOutfits = createServerFn({ method: "POST" })
       sleeveLength: it.sleeve_length ?? "",
       length: it.length ?? "",
       fit: it.fit ?? "",
+      legShape: it.leg_shape ?? null,
       heelHeight: it.heel_height ?? "",
       toeShape: it.toe_shape ?? "",
       closure: it.closure ?? "",

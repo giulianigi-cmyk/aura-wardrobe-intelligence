@@ -298,6 +298,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
                   sleeveLength: it.sleeve_length ?? "",
                   length: it.length ?? "",
                   fit: it.fit ?? "",
+                  legShape: it.leg_shape ?? null,
                   heelHeight: it.heel_height ?? "",
                   material: Array.isArray(it.material) ? it.material : [],
                   toeShape: it.toe_shape ?? "",
