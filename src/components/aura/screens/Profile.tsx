@@ -323,12 +323,31 @@ export function Profile({ go: _go, openConversation, openUserProfile }: { go: (s
                   ><X size={14} /></button>
                 </div>
                 <div className="mt-4 space-y-3">
-                  {STYLE_DEFINITIONS.map((d) => (
-                    <div key={d.term}>
-                      <p className="text-sm font-medium">{t(`profileScreen.styleTerm.${d.term}`)}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{t(`profileScreen.styleDesc.${d.term}`)}</p>
-                    </div>
-                  ))}
+                  {/* Same example photos as at sign-up (public/style-images): the person's gender, or both. */}
+                  {STYLE_DEFINITIONS.map((d) => {
+                    const slug = d.term.toLowerCase().replace(/\s+/g, "-");
+                    const who = profile?.gender === "Woman" ? ["woman"] : profile?.gender === "Man" ? ["man"] : ["woman", "man"];
+                    return (
+                      <div key={d.term} className="flex items-center gap-3">
+                        <span className="flex gap-1 shrink-0">
+                          {who.map((w) => (
+                            <img
+                              key={w}
+                              src={`/style-images/${slug}-${w}.jpg`}
+                              alt=""
+                              loading="lazy"
+                              className={`${who.length === 1 ? "w-14" : "w-11"} h-[4.5rem] rounded-xl object-cover bg-secondary/40`}
+                              onError={(e) => { e.currentTarget.style.visibility = "hidden"; }}
+                            />
+                          ))}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{t(`profileScreen.styleTerm.${d.term}`)}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{t(profile?.gender === "Man" ? `profileScreen.styleDescMan.${d.term}` : `profileScreen.styleDesc.${d.term}`, { defaultValue: t(`profileScreen.styleDesc.${d.term}`) })}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

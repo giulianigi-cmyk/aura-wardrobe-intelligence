@@ -1456,6 +1456,9 @@
       "Avant-garde": "Avant-garde",
       "Coastal": "Coastal"
     },
+    "styleDescMan": {
+      "Romantic": "Tonos suaves y tejidos delicados: colores pastel, lino, camisas de corte suave."
+    },
     "styleDesc": {
       "Minimal": "Líneas limpias, pocos colores, sin desorden: calidad sobre decoración.",
       "Editorial": "Vanguardista, con estilo de editorial de moda, con siluetas y combinaciones audaces.",
