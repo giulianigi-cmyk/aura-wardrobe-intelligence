@@ -1,6 +1,6 @@
 # Nimbèa Privacy Policy
 
-*Provisional version pending legal review. Last updated: 27 October 2026. This is a translation: the Italian version prevails.*
+*Last updated: 27 October 2026. This is a translation: the Italian version prevails.*
 
 This policy explains which personal data the Nimbèa app processes, why, who it is shared with and what your rights are, under Regulation (EU) 2016/679 ("GDPR") and Italian Legislative Decree 196/2003.
 

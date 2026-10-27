@@ -1,6 +1,6 @@
 # Informativa sulla privacy di Nimbèa
 
-*Versione provvisoria in attesa di revisione legale. Ultimo aggiornamento: 27 ottobre 2026.*
+*Ultimo aggiornamento: 27 ottobre 2026.*
 
 Questa informativa spiega quali dati personali tratta l'app Nimbèa, perché li tratta, con chi li condivide e quali diritti hai, ai sensi del Regolamento (UE) 2016/679 ("GDPR") e del D.Lgs. 196/2003.
 
