@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight } from "lucide-react";
 import { BRAND_WORDMARK } from "@/lib/brand";
+import { LanguagePicker } from "../LanguagePicker";
 
 type Slide = { intro?: boolean; eyebrowKey?: string; titleKey?: string; bodyKey?: string };
 
@@ -15,8 +16,14 @@ const slides: Slide[] = [
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const { t } = useTranslation();
   const [i, setI] = useState(0);
+  // Language first: the slides, sign-up and profile set-up then all appear in the chosen language.
+  const [pickLanguage, setPickLanguage] = useState(() => {
+    try { return localStorage.getItem("aura.language_chosen") !== "1"; } catch { return true; }
+  });
   const slide = slides[i];
   const last = i === slides.length - 1;
+
+  if (pickLanguage) return <LanguagePicker onDone={() => setPickLanguage(false)} />;
 
   return (
     <div className="relative h-full w-full flex flex-col">
