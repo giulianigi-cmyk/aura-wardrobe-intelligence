@@ -168,7 +168,7 @@ export async function runPlanWeatherRecheck(limit = 200): Promise<RecheckResult>
     if (!wardrobeCache.has(userId)) {
       const { data: itemRows } = await db
         .from("wardrobe_items")
-        .select("id, category, subcategory, colors, style, season, brand, material, location_id, active_loan_id, stored_at, length, toe_shape, style_tags, fit, occasion, formality, day_evening, sleeve_length, heel_height, closure, gender")
+        .select("id, category, subcategory, colors, style, season, brand, material, location_id, active_loan_id, stored_at, length, toe_shape, style_tags, fit, leg_shape, occasion, formality, day_evening, sleeve_length, heel_height, closure, gender")
         .eq("user_id", userId)
         .eq("archived", false);
       // Loaned out or put away in the cambio stagione = not physically available to re-plan into.
@@ -192,6 +192,7 @@ export async function runPlanWeatherRecheck(limit = 200): Promise<RecheckResult>
         sleeveLength: it.sleeve_length ?? null,
         length: it.length ?? null,
         fit: it.fit ?? null,
+        legShape: it.leg_shape ?? null,
         heelHeight: it.heel_height ?? null,
         toeShape: it.toe_shape ?? null,
         closure: it.closure ?? null,

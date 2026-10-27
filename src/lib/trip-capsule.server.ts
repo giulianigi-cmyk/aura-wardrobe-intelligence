@@ -401,6 +401,7 @@ export type PoolItem = {
   // Read by the local-customs filter (isItemAllowedByCulture); optional so older callers/tests still fit.
   length?: string | null;
   fit?: string | null;
+  legShape?: string | null;
   styleTags?: string[] | null;
   // Passed on to the outfit engine, whose rules read them (heels on a travel day, the piece's own
   // occasion tags, a logo T-shirt on a work day). Optional for the same reason as above.
@@ -1631,7 +1632,7 @@ export async function generateTripCapsuleCore({ data, context }: {
         style: it.style ? (Array.isArray(it.style) ? it.style : [it.style]) : [],
         season: it.season, brand: it.brand, material: Array.isArray(it.material) ? it.material : [],
         locationId: it.location_id ?? null, formality, dayEvening, sleeveLength: it.sleeve_length ?? null,
-        length: it.length ?? null, fit: it.fit ?? null, styleTags: Array.isArray(it.style_tags) ? it.style_tags : [],
+        length: it.length ?? null, fit: it.fit ?? null, legShape: it.leg_shape ?? null, styleTags: Array.isArray(it.style_tags) ? it.style_tags : [],
         heelHeight: it.heel_height ?? null, toeShape: it.toe_shape ?? null, closure: it.closure ?? null,
         gender: it.gender ?? null, occasion: it.occasion ?? null, details: Array.isArray(it.details) ? it.details : [],
       });
@@ -1937,7 +1938,7 @@ export async function generateTripCapsuleCore({ data, context }: {
         id: it.id, category: it.category, subcategory: it.subcategory, colors: it.colors,
         style: it.style, season: it.season, brand: it.brand, material: it.material, locationId: it.locationId,
         formality: it.formality, dayEvening: it.dayEvening, sleeveLength: it.sleeveLength,
-        length: it.length ?? null, fit: it.fit ?? null, styleTags: it.styleTags ?? [],
+        length: it.length ?? null, fit: it.fit ?? null, legShape: it.legShape ?? null, styleTags: it.styleTags ?? [],
         heelHeight: it.heelHeight ?? null, toeShape: it.toeShape ?? null, closure: it.closure ?? null,
         gender: it.gender ?? null, occasion: it.occasion ?? null, details: it.details ?? [],
       }));

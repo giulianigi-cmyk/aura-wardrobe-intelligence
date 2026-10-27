@@ -41,3 +41,18 @@ test("processed once: an analysed piece is not picked again", () => {
   assert.equal(needsCompletion(row({ details: [], attrs_backfilled_at: "2026-10-03", formality: null })), false); // AI couldn't tell: not retried forever
   assert.equal(needsCompletion(row({ details: [], attrs_backfilled_at: null, formality: null })), true);
 });
+
+test("trousers analysed before the leg shape existed are analysed once more, then left alone", () => {
+  const trousers = { category: "Bottoms", subcategory: "Trousers", fit: "Regular", details: [], attrs_backfilled_at: "2026-10-20T10:00:00.000+00:00" };
+  assert.equal(needsCompletion(row(trousers)), true);
+  assert.equal(needsCompletion(row({ ...trousers, attrs_backfilled_at: "2026-10-28T09:00:00.000+00:00" })), false);
+  assert.equal(needsCompletion(row({ ...trousers, leg_shape: "wide" })), false);
+  assert.equal(needsCompletion(row({ ...trousers, user_edited_fields: ["leg_shape"] })), false);
+  assert.equal(needsCompletion(row({ ...trousers, subcategory: "Skirt" })), false);
+});
+
+test("fills the leg shape only when empty", () => {
+  const trousers = row({ category: "Bottoms", subcategory: "Trousers", details: [] });
+  assert.equal(completionPatch(trousers, analysis({ category: "Bottoms", legShape: "flare" })).leg_shape, "flare");
+  assert.equal(completionPatch(row({ category: "Bottoms", subcategory: "Trousers", details: [], leg_shape: "wide" }), analysis({ legShape: "flare" })).leg_shape, undefined);
+});

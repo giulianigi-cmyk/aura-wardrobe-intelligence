@@ -8,6 +8,7 @@ import { parseAiJson } from "./ai-json";
 import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
 import { CATALOG_MAX_ITEMS, compactCatalogJson } from "./wardrobe-catalog";
+import { TALL_BOOTS_PROMPT_RULE, violatesTallBootsRule, isTallBoot } from "./tall-boots-rule";
 import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, isSummerSeason } from "./outfit-styling-rules";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 import { editorialPairingRule } from "./nature-color-pairings";
@@ -43,6 +44,8 @@ const ItemSchema = z.object({
   sleeveLength: z.string().nullable().optional(),
   // Needed by the dress-preference hard filter (avoid tight fits, maximum heel height).
   fit: z.string().nullable().optional(),
+  // Trousers' leg shape, for the tall-boots rule (tall-boots-rule.ts).
+  legShape: z.string().nullable().optional(),
   heelHeight: z.string().nullable().optional(),
   // material/toeShape were never sent to this engine — the reason the
   // Home weather hard-check (below) used to miss items like a wool
@@ -190,6 +193,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
             length: it.length ?? "",
       sleeveLength: it.sleeveLength ?? "",
       fit: it.fit ?? "",
+      ...(it.legShape ? { legShape: it.legShape } : {}),
       heelHeight: it.heelHeight ?? "",
       material: it.material ?? [],
       toeShape: it.toeShape ?? "",
@@ -207,6 +211,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       BELT_BODYCON_PROMPT_RULE,
       ACCESSORY_OCCASION_PROMPT_RULE,
     OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
+      TALL_BOOTS_PROMPT_RULE,
       EMBELLISHED_EVENING_PROMPT_RULE,
       EVENING_ONLY_PROMPT_RULE,
       ROTATION_PROMPT_RULE,
@@ -431,6 +436,9 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
 
     const violatesStylingFootwear = (ids: string[]): boolean =>
       ids.some((id) => catalog.find((c) => c.id === id)?.subcategory === "Running Shoes");
+    // Knee / over-the-knee boots with trousers that can't go inside them (tall-boots-rule.ts).
+    const violatesTallBoots = (ids: string[]): boolean =>
+      violatesTallBootsRule(ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => !!c));
 
     // A piece tagged ONLY "Travel" or ONLY "Sport" (the person's own
     // explicit tag) is situational — it shouldn't surface in an
@@ -496,6 +504,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       if (violatesEmbellishedByDay(l.occasion, l.item_ids)) return false;
       if (violatesBeachBagByDay(l.occasion, l.item_ids)) return false;
       if (violatesStylingFootwear(l.item_ids)) return false;
+      if (violatesTallBoots(l.item_ids)) return false;
       if (violatesOccasionTag(l.occasion, l.item_ids)) return false;
       if (violatesDressPrefs(l.occasion, l.item_ids)) return false;
       if (seen.some((s) => jaccard(l.item_ids, s) >= TOO_SIMILAR)) return false;
@@ -538,9 +547,10 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       const target = fs.length ? fs.reduce((a, b) => a + b, 0) / fs.length : 3;
       const strict = allShoes.filter((c) =>
         !violatesDressPrefs(occasion, [c.id]) && !violatesWeather([c.id]) && !violatesStylingFootwear([c.id]) && !violatesOccasionTag(occasion, [c.id])
+        && !violatesTallBoots([...ids, c.id])
         && !violatesEmbellishedByDay(occasion, [c.id])
         && !(occasion === "Work" && (violatesWorkFormality([c.id]) || violatesWorkModesty([c.id]))));
-      const relaxed = allShoes.filter((c) => !violatesDressPrefs(occasion, [c.id]) && !violatesWeather([c.id]) && !violatesStylingFootwear([c.id]));
+      const relaxed = allShoes.filter((c) => !violatesDressPrefs(occasion, [c.id]) && !violatesWeather([c.id]) && !violatesStylingFootwear([c.id]) && !violatesTallBoots([...ids, c.id]));
       const pool = strict.length ? strict : relaxed; // never a look with no shoes if a suitable pair exists
       if (!pool.length) return ids;
       const score = (c: (typeof pool)[number]) => {
@@ -581,7 +591,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     };
     const ensureLegs = (occasion: string, ids: string[]): string[] => {
       if (ids.some(isFullBodyId) || ids.some((id) => catalog.find((c) => c.id === id)?.category === "Bottoms")) return ids;
-      const bottom = pickPiece(occasion, ids, (c) => c.category === "Bottoms");
+      const bottom = pickPiece(occasion, ids, (c) => c.category === "Bottoms" && !violatesTallBoots([...ids, c.id]));
       return bottom ? [...ids, bottom.id] : ids;
     };
 
@@ -696,6 +706,10 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       // "today" has no retry: a warm coat over a T-shirt alone loses the coat rather than the look.
       if (violatesCoatOverBareArms(today.item_ids)) {
         today.item_ids = today.item_ids.filter((id) => catalog.find((c) => c.id === id)?.category !== "Outerwear");
+      }
+      // Tall boots with trousers that can't go inside them: the boots go, ensureShoes picks another pair.
+      if (violatesTallBoots(today.item_ids)) {
+        today.item_ids = today.item_ids.filter((id) => !isTallBoot(catalog.find((c) => c.id === id) ?? {}));
       }
       const seen = [today.item_ids];
       const curated: DailyLook[] = [];

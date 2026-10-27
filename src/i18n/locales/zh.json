@@ -535,6 +535,8 @@
     "fitLabel": "版型",
     "heelLabel": "鞋跟",
     "toeShapeLabel": "鞋头形状",
+    "legShapeLabel": "裤腿形状",
+    "legShapes": {"skinny": "紧身", "slim": "修身", "straight": "直筒", "tapered": "锥形", "bootcut": "微喇", "flare": "喇叭", "wide": "阔腿"},
     "closureLabel": "闭合方式",
     "genderLabel": "性别",
     "styleTagsLabel": "风格标签",

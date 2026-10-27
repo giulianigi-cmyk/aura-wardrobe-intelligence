@@ -535,6 +535,8 @@
     "fitLabel": "Coupe",
     "heelLabel": "Talon",
     "toeShapeLabel": "Forme du bout",
+    "legShapeLabel": "Forme de la jambe",
+    "legShapes": {"skinny": "Skinny", "slim": "Slim", "straight": "Droite", "tapered": "Fuselée", "bootcut": "Bootcut", "flare": "Évasée", "wide": "Large"},
     "closureLabel": "Fermeture",
     "genderLabel": "Genre",
     "styleTagsLabel": "Étiquettes de style",

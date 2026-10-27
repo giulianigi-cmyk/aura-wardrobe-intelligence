@@ -43,6 +43,8 @@ import {
   FIT_OPTIONS as fitOptions,
   HEEL_HEIGHT_OPTIONS as heelHeightOptions,
   TOE_SHAPE_OPTIONS as toeShapeOptions,
+  LEG_SHAPE_OPTIONS,
+  legShapeAppliesTo,
   CLOSURE_OPTIONS as closureOptions,
   GENDER_OPTIONS as genderOptions,
   STYLE_TAG_OPTIONS as styleTagOptions,
@@ -345,6 +347,7 @@ export function AddItem({ onClose, initialGarment }: {
   const [length, setLength] = useState("");
   const [sleeveLength, setSleeveLength] = useState("");
   const [fit, setFit] = useState("");
+  const [legShape, setLegShape] = useState("");
   const [heelHeight, setHeelHeight] = useState("");
   const [toeShape, setToeShape] = useState("");
   const [closure, setClosure] = useState("");
@@ -463,6 +466,7 @@ export function AddItem({ onClose, initialGarment }: {
         if (result.length) setLength(result.length);
         if (result.sleeveLength) setSleeveLength(result.sleeveLength);
         if (result.fit) setFit(result.fit);
+        if (result.legShape) setLegShape(result.legShape);
         if (result.heelHeight) setHeelHeight(result.heelHeight);
         if (result.toeShape) setToeShape(result.toeShape);
         if (result.closure) setClosure(result.closure);
@@ -925,6 +929,7 @@ export function AddItem({ onClose, initialGarment }: {
         length: length || null,
         sleeve_length: sleeveLength || null,
         fit: fit || null,
+        leg_shape: legShapeAppliesTo(category, subcategory) && legShape ? legShape : null,
         heel_height: heelHeight || null,
         toe_shape: toeShape || null,
         closure: closure || null,
@@ -1584,6 +1589,10 @@ export function AddItem({ onClose, initialGarment }: {
             {attributeAppliesTo("fit", category) && (
               <ChipGroup label={t("addItem.fitLabel")} options={fitOptions} value={fit} onChange={setFit} />
             )}
+            {legShapeAppliesTo(category, subcategory) && (
+              <ChipGroup label={t("addItem.legShapeLabel")} options={LEG_SHAPE_OPTIONS} value={legShape} onChange={setLegShape}
+                labelOf={(o) => t(`addItem.legShapes.${o}`)} />
+            )}
             {attributeAppliesTo("heelHeight", category) && (
               <ChipGroup label={t("addItem.heelLabel")} options={heelHeightOptions} value={heelHeight} onChange={setHeelHeight} />
             )}
@@ -1692,7 +1701,7 @@ function Field({ label, value, onChange, placeholder, hint }: { label: string; v
   );
 }
 
-function ChipGroup({ label, options, value, onChange }: { label: string; options: string[]; value: string; onChange: (v: string) => void }) {
+function ChipGroup({ label, options, value, onChange, labelOf }: { label: string; options: string[]; value: string; onChange: (v: string) => void; labelOf?: (o: string) => string }) {
   return (
     <div className="border-b border-border/60 pb-3">
       <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{label}</p>
@@ -1701,7 +1710,7 @@ function ChipGroup({ label, options, value, onChange }: { label: string; options
           <button key={o}
             onClick={() => onChange(o)}
             className={`rounded-full px-3 py-1.5 text-xs transition ${value === o ? "bg-foreground text-background" : "bg-secondary/60"}`}
-          >{optionLabel(o, i18n.language)}</button>
+          >{labelOf ? labelOf(o) : optionLabel(o, i18n.language)}</button>
         ))}
       </div>
     </div>

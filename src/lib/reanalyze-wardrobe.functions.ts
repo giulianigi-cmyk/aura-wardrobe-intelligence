@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { usageFeature } from "@/lib/ai-usage";
 import { analyzeWardrobeImageCore } from "./ai-analyze.functions";
+import { legShapeAppliesTo } from "./wardrobe-options";
 
 const BUCKET = "wardrobe";
 // Piccolo lotto per chiamata: il client la richiama in loop mostrando il
@@ -35,6 +36,7 @@ type CandidateRow = {
   day_evening: string | null;
   sleeve_length: string | null;
   fit: string | null;
+  leg_shape?: string | null;
   heel_height: string | null;
   toe_shape: string | null;
   closure: string | null;
@@ -75,7 +77,7 @@ function isIncomplete(item: CandidateRow): boolean {
 }
 
 const CANDIDATE_COLUMNS =
-  "id, image_url, category, subcategory, style_tags, details, attrs_backfilled_at, user_edited_fields, formality, occasion, season, day_evening, sleeve_length, fit, heel_height, toe_shape, closure, gender, material";
+  "id, image_url, category, subcategory, style_tags, details, attrs_backfilled_at, user_edited_fields, formality, occasion, season, day_evening, sleeve_length, fit, leg_shape, heel_height, toe_shape, closure, gender, material";
 
 /** Still to process: never analysed for details (details NULL, which includes every piece added
  *  before the details existed and pieces added by batch/scan), or missing an attribute and never
@@ -83,7 +85,21 @@ const CANDIDATE_COLUMNS =
  *  photo the AI can't read is not analysed again and again. */
 export function needsCompletion(item: Pick<CandidateRow, "details" | "attrs_backfilled_at"> & Parameters<typeof isIncomplete>[0]): boolean {
   if (item.details == null) return true;
+  if (needsLegShape(item)) return true;
   return item.attrs_backfilled_at == null && isIncomplete(item);
+}
+
+/** The leg shape arrived after most trousers had already been analysed: a pair without one, not
+ *  set by hand and not analysed since, goes through the analysis once more (the run marks it, so a
+ *  photo the AI can't read is not analysed again and again). */
+export const LEG_SHAPE_SINCE = "2026-10-27T18:00:00Z";
+export function needsLegShape(item: {
+  category: string | null; subcategory: string | null; leg_shape?: string | null;
+  attrs_backfilled_at: string | null; user_edited_fields: string[] | null;
+}): boolean {
+  if (!legShapeAppliesTo(item.category, item.subcategory) || item.leg_shape) return false;
+  if ((item.user_edited_fields ?? []).includes("leg_shape")) return false;
+  return item.attrs_backfilled_at == null || Date.parse(item.attrs_backfilled_at) < Date.parse(LEG_SHAPE_SINCE);
 }
 
 /** The fields to write: only empty ones, never one the person set or corrected by hand
@@ -96,6 +112,7 @@ export function completionPatch(item: CandidateRow, result: Awaited<ReturnType<t
   if (free("subcategory", item.subcategory) && result.subcategory && result.category === item.category) patch.subcategory = result.subcategory;
   if (free("sleeve_length", item.sleeve_length) && result.sleeveLength) patch.sleeve_length = result.sleeveLength;
   if (free("fit", item.fit) && result.fit) patch.fit = result.fit;
+  if (free("leg_shape", item.leg_shape) && result.legShape) patch.leg_shape = result.legShape;
   if (free("heel_height", item.heel_height) && result.heelHeight) patch.heel_height = result.heelHeight;
   if (free("toe_shape", item.toe_shape) && result.toeShape) patch.toe_shape = result.toeShape;
   if (free("closure", item.closure) && result.closure) patch.closure = result.closure;
