@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { usageFeature } from "@/lib/ai-usage";
 import { analyzeWardrobeImageCore } from "./ai-analyze.functions";
+import { legShapeAppliesTo } from "./wardrobe-options";
 
 const BUCKET = "wardrobe";
 // Piccolo lotto per chiamata: il client la richiama in loop mostrando il
@@ -84,7 +85,21 @@ const CANDIDATE_COLUMNS =
  *  photo the AI can't read is not analysed again and again. */
 export function needsCompletion(item: Pick<CandidateRow, "details" | "attrs_backfilled_at"> & Parameters<typeof isIncomplete>[0]): boolean {
   if (item.details == null) return true;
+  if (needsLegShape(item)) return true;
   return item.attrs_backfilled_at == null && isIncomplete(item);
+}
+
+/** The leg shape arrived after most trousers had already been analysed: a pair without one, not
+ *  set by hand and not analysed since, goes through the analysis once more (the run marks it, so a
+ *  photo the AI can't read is not analysed again and again). */
+export const LEG_SHAPE_SINCE = "2026-10-27T18:00:00Z";
+export function needsLegShape(item: {
+  category: string | null; subcategory: string | null; leg_shape?: string | null;
+  attrs_backfilled_at: string | null; user_edited_fields: string[] | null;
+}): boolean {
+  if (!legShapeAppliesTo(item.category, item.subcategory) || item.leg_shape) return false;
+  if ((item.user_edited_fields ?? []).includes("leg_shape")) return false;
+  return item.attrs_backfilled_at == null || Date.parse(item.attrs_backfilled_at) < Date.parse(LEG_SHAPE_SINCE);
 }
 
 /** The fields to write: only empty ones, never one the person set or corrected by hand

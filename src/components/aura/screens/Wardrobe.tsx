@@ -10,7 +10,7 @@ import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, Archi
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { migrateLegacyTaxonomy } from "@/lib/migrate-legacy-taxonomy.functions";
-import { reanalyzeWardrobeBatch } from "@/lib/reanalyze-wardrobe.functions";
+import { needsLegShape, reanalyzeWardrobeBatch } from "@/lib/reanalyze-wardrobe.functions";
 import { lendItem, listActiveLoans, returnLoan, type WardrobeLoan } from "@/lib/wardrobe-loans.functions";
 import { removeBackgroundClient } from "@/lib/bg-removal-client";
 import { removeBackground } from "@/lib/ai-bgremove.functions";
@@ -804,6 +804,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
   const unclassifiedCount = useMemo(
     () => items.filter((it) =>
       it.formality == null || !it.occasion || !it.season || !it.day_evening
+      || needsLegShape(it as unknown as Parameters<typeof needsLegShape>[0])
     ).length,
     [items],
   );
