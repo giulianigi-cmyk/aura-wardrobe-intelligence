@@ -45,12 +45,17 @@ export function consentsFrom(metadata: Record<string, unknown> | null | undefine
 type ConsentText = {
   title: string; intro: string; checkbox: string; privacy: string; terms: string; accept: string; error: string; close: string;
   optionalTitle: string; choicesTitle: string; choicesNote: string;
+  /** "{terms}" and "{privacy}" are replaced by links to the two documents. */
+  agreement: string; termsLink: string; privacyLink: string; marketingOptIn: string; settingsNote: string;
   options: Record<ConsentKey, { label: string; desc: string }>;
 };
 
 const CONSENT: Record<string, ConsentText> = {
   it: {
     title: "Prima di iniziare",
+    agreement: "Continuando confermi di avere almeno 14 anni e accetti i {terms} e l'{privacy}.", termsLink: "Termini d'uso", privacyLink: "Informativa privacy",
+    marketingOptIn: "Voglio ricevere novità e offerte di Nimbèa via email",
+    settingsNote: "Le altre scelte sui dati sono in Impostazioni › Privacy, e puoi cambiarle quando vuoi.",
     intro: "Per usare Nimbèa leggi l'informativa sulla privacy e i termini d'uso.",
     checkbox: "Ho almeno 14 anni, ho letto l'informativa sulla privacy e accetto i termini d'uso.",
     privacy: "Informativa privacy", terms: "Termini d'uso", accept: "Accetta e continua",
@@ -66,6 +71,9 @@ const CONSENT: Record<string, ConsentText> = {
   },
   en: {
     title: "Before you start",
+    agreement: "By continuing you confirm you are at least 14 and accept the {terms} and the {privacy}.", termsLink: "Terms of use", privacyLink: "Privacy policy",
+    marketingOptIn: "Send me Nimbèa news and offers by email",
+    settingsNote: "Your other data choices are in Settings › Privacy, and you can change them at any time.",
     intro: "To use Nimbèa, please read the privacy policy and the terms of use.",
     checkbox: "I am at least 14, I have read the privacy policy and I accept the terms of use.",
     privacy: "Privacy policy", terms: "Terms of use", accept: "Accept and continue",
@@ -81,6 +89,9 @@ const CONSENT: Record<string, ConsentText> = {
   },
   fr: {
     title: "Avant de commencer",
+    agreement: "En continuant, vous confirmez avoir au moins 14 ans et acceptez les {terms} et la {privacy}.", termsLink: "conditions d'utilisation", privacyLink: "politique de confidentialité",
+    marketingOptIn: "Je souhaite recevoir les nouveautés et offres de Nimbèa par e-mail",
+    settingsNote: "Vos autres choix sur les données sont dans Paramètres › Confidentialité, modifiables à tout moment.",
     intro: "Pour utiliser Nimbèa, lisez la politique de confidentialité et les conditions d'utilisation (en anglais ; la version italienne fait foi).",
     checkbox: "J'ai au moins 14 ans, j'ai lu la politique de confidentialité et j'accepte les conditions d'utilisation.",
     privacy: "Confidentialité", terms: "Conditions d'utilisation", accept: "Accepter et continuer",
@@ -96,6 +107,9 @@ const CONSENT: Record<string, ConsentText> = {
   },
   es: {
     title: "Antes de empezar",
+    agreement: "Al continuar confirmas que tienes al menos 14 años y aceptas los {terms} y la {privacy}.", termsLink: "Términos de uso", privacyLink: "Política de privacidad",
+    marketingOptIn: "Quiero recibir novedades y ofertas de Nimbèa por email",
+    settingsNote: "Tus otras opciones sobre los datos están en Ajustes › Privacidad y puedes cambiarlas cuando quieras.",
     intro: "Para usar Nimbèa, lee la política de privacidad y los términos de uso (en inglés; prevalece la versión italiana).",
     checkbox: "Tengo al menos 14 años, he leído la política de privacidad y acepto los términos de uso.",
     privacy: "Privacidad", terms: "Términos de uso", accept: "Aceptar y continuar",
@@ -111,6 +125,9 @@ const CONSENT: Record<string, ConsentText> = {
   },
   zh: {
     title: "开始之前",
+    agreement: "继续即表示你已年满 14 岁，并接受{terms}和{privacy}。", termsLink: "使用条款", privacyLink: "隐私政策",
+    marketingOptIn: "通过电子邮件接收 Nimbèa 的新闻和优惠",
+    settingsNote: "其他数据选项位于 设置 › 隐私，可随时更改。",
     intro: "使用 Nimbèa 前，请阅读隐私政策和使用条款（英文版本，以意大利文版本为准）。",
     checkbox: "我已年满 14 岁，已阅读隐私政策并接受使用条款。",
     privacy: "隐私政策", terms: "使用条款", accept: "接受并继续",
