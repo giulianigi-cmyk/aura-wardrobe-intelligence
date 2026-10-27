@@ -5,6 +5,9 @@ import { toast } from "sonner";
 import type { Screen } from "../AuraApp";
 import { useProfile } from "@/hooks/use-profile";
 import { syncMySharedLibrary } from "@/lib/shared-library.functions";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
+import { CONSENT_KEYS, consentsFrom, consentTextFor, type ConsentKey } from "@/lib/legal/legal";
 
 const SHARING_DEFINITIONS = [
   { termKey: "settings.sharingWhatIsSharedTerm", descKey: "settings.sharingWhatIsSharedDesc" },
@@ -13,8 +16,20 @@ const SHARING_DEFINITIONS = [
 ];
 
 export function PrivacySettings({ go }: { go: (s: Screen) => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { profile, update } = useProfile();
+  const { user } = useAuth();
+  const consentText = consentTextFor(i18n.language);
+  const [consents, setConsents] = useState(() => consentsFrom(user?.user_metadata));
+  useEffect(() => { setConsents(consentsFrom(user?.user_metadata)); }, [user]);
+
+  // Optional data choices (offers by email, partner offers, anonymous statistics), saved on the account.
+  const toggleConsent = async (key: ConsentKey) => {
+    const next = { ...consents, [key]: !consents[key] };
+    setConsents(next);
+    const { error } = await supabase.auth.updateUser({ data: { consents: { ...next, updated_at: new Date().toISOString() } } });
+    if (error) { toast.error(consentText.error); setConsents(consents); }
+  };
   const [shareLibrary, setShareLibrary] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
 
@@ -62,6 +77,27 @@ export function PrivacySettings({ go }: { go: (s: Screen) => void }) {
             <span className="block text-[11px] text-muted-foreground mt-0.5">{t("settings.sharedLibraryDesc")}</span>
           </span>
         </button>
+      </section>
+
+      <section className="mx-6 mt-8">
+        <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{consentText.choicesTitle}</p>
+        <p className="mt-1 text-[11px] text-muted-foreground">{consentText.choicesNote}</p>
+        <div className="mt-2 space-y-2">
+          {CONSENT_KEYS.map((key) => (
+            <button
+              key={key} role="switch" aria-checked={consents[key]} onClick={() => void toggleConsent(key)}
+              className="w-full flex items-start gap-3 rounded-2xl border border-border bg-card p-3 text-left active:scale-[0.99] transition"
+            >
+              <span className={`mt-0.5 h-5 w-9 shrink-0 rounded-full transition ${consents[key] ? "bg-foreground" : "bg-border"}`}>
+                <span className={`block h-4 w-4 mt-0.5 rounded-full bg-background transition-transform ${consents[key] ? "translate-x-[1.15rem]" : "translate-x-0.5"}`} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm">{consentText.options[key].label}</span>
+                <span className="block text-[11px] text-muted-foreground mt-0.5">{consentText.options[key].desc}</span>
+              </span>
+            </button>
+          ))}
+        </div>
       </section>
 
       {infoOpen && (

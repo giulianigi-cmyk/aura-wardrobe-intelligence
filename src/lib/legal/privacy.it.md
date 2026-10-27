@@ -46,31 +46,37 @@ Email per le richieste sulla privacy: giulia.nigi@gmail.com
 | Libreria condivisa (rendere visibili ad altri utenti le foto prodotto dei tuoi capi) | Consenso, attivabile e disattivabile in Impostazioni › Privacy |
 | Statistiche d'uso, errori tecnici, sicurezza e prevenzione degli abusi | Legittimo interesse (art. 6.1.f) a far funzionare e migliorare l'app |
 | Rispondere alle segnalazioni e alle richieste | Esecuzione del contratto e legittimo interesse |
+| Statistiche anonime e aggregate su capi, marche, stili e prezzi, che possiamo condividere con marchi, negozi e siti di rivendita | Legittimo interesse; puoi opporti in Impostazioni › Privacy |
+| Novità e offerte di Nimbèa via email | Consenso facoltativo, revocabile in Impostazioni › Privacy |
+| Condivisione dei tuoi dati di stile con partner selezionati (negozi e siti di rivendita) per offerte personalizzate | Consenso facoltativo e separato, revocabile in Impostazioni › Privacy |
 
 Le foto del corpo e del viso servono solo a generare le immagini della prova virtuale. Non le usiamo per riconoscerti né per identificarti.
 
-## 4. Con chi condividiamo i dati
+## 4. Le tue scelte facoltative
 
-Non vendiamo i tuoi dati e non li usiamo per pubblicità. Li condividiamo solo con i fornitori che servono a far funzionare l'app, che li trattano per nostro conto come responsabili del trattamento:
+Oltre a ciò che serve per far funzionare l'app, puoi decidere tu, separatamente e in qualsiasi momento in Impostazioni › Privacy:
+- **Novità e offerte via email:** ti scriviamo per nuove funzioni, consigli e offerte di Nimbèa. È spento finché non lo attivi.
+- **Offerte dei partner:** condividiamo con partner selezionati (negozi e siti di rivendita) le tue preferenze di stile, taglie, marche preferite e i capi che scegli, perché ti propongano offerte o servizi adatti a te. Non condividiamo mai foto del viso o del corpo, email o password. È spento finché non lo attivi; prima di ogni nuovo tipo di partner aggiorneremo questa informativa.
+- **Statistiche anonime:** usiamo dati aggregati e non riconducibili a te (per esempio quali marche o stili sono più diffusi e a quali prezzi si rivendono) per migliorare l'app e possiamo condividerli con marchi, negozi e siti di rivendita. Puoi chiedere di escludere i tuoi dati.
 
-| Fornitore | Per cosa | Dove |
-|---|---|---|
-| Lovable / Supabase | Hosting dell'app, database, archivio delle foto, autenticazione | UE o USA |
-| Google (Gemini, tramite il gateway AI di Lovable) | Analisi delle foto dei capi, proposte di outfit, Stylist, liste di viaggio | USA |
-| OpenAI | Generazione di immagini, trascrizione dei messaggi vocali e sintesi vocale | USA |
-| FASHN | Prova virtuale sull'avatar | USA |
-| Firecrawl | Lettura delle pagine prodotto quando importi un capo da un link | USA |
-| Open-Meteo | Previsioni meteo dalla posizione o dalla città (riceve solo le coordinate) | UE |
-| BigDataCloud, Photon (Komoot) | Nome della città dalle coordinate, ricerca delle destinazioni | Australia, Germania |
-| Google, Microsoft, Apple | Accesso con il loro account e collegamento del calendario, solo se lo scegli | USA |
-| Apple, Google, Mozilla, Microsoft (servizi push) | Consegna delle notifiche | USA |
-| Resend | Invio delle email di risposta alle segnalazioni | USA |
+Dire di no a queste scelte non limita in alcun modo l'uso dell'app.
 
-La rimozione dello sfondo dalle foto dei capi avviene direttamente sul tuo dispositivo.
+**Link affiliati:** alcuni link a negozi o siti di rivendita possono farci ricevere una commissione se compri qualcosa. Al negozio arriva solo l'informazione che sei arrivata o arrivato da Nimbèa, non i tuoi dati personali.
 
-Quando i dati vanno fuori dall'Unione Europea, il trasferimento si basa sulle decisioni di adeguatezza della Commissione europea (EU-US Data Privacy Framework) o sulle clausole contrattuali standard previste dal GDPR.
+## 5. Con chi condividiamo i dati
 
-## 5. Per quanto tempo li conserviamo
+Non vendiamo i tuoi dati e non li usiamo per pubblicità. Li condividiamo solo con fornitori che servono a far funzionare l'app e che li trattano per nostro conto, come responsabili del trattamento:
+- hosting, database e archivio delle foto;
+- intelligenza artificiale per analizzare le foto e proporre outfit e consigli;
+- meteo e mappe;
+- accesso con account esterni e calendario, solo se li colleghi;
+- invio di email e notifiche.
+
+Con i partner commerciali condividiamo dati solo se lo hai scelto (sezione 4). L'elenco dei fornitori è disponibile su richiesta all'indirizzo della sezione 1.
+
+Alcuni fornitori si trovano fuori dall'Unione Europea, per esempio negli Stati Uniti: il trasferimento si basa sulle decisioni di adeguatezza della Commissione europea o sulle clausole contrattuali standard previste dal GDPR.
+
+## 6. Per quanto tempo li conserviamo
 
 - **Account e contenuti** (armadio, outfit, viaggi, avatar): finché tieni l'account. Quando lo cancelli, eliminiamo dati e foto.
 - **Registrazioni vocali:** non le conserviamo, servono solo per la trascrizione.
@@ -78,7 +84,7 @@ Quando i dati vanno fuori dall'Unione Europea, il trasferimento si basa sulle de
 - **Segnalazioni:** fino a 24 mesi dalla chiusura.
 - Più a lungo solo se lo impone la legge.
 
-## 6. I tuoi diritti
+## 7. I tuoi diritti
 
 Puoi chiedere in qualsiasi momento di:
 - accedere ai tuoi dati e riceverne una copia;
@@ -93,18 +99,18 @@ Puoi cancellare l'account e tutti i dati da **Impostazioni** nell'app. Per le al
 
 Se ritieni che il trattamento violi la legge puoi presentare un reclamo al Garante per la protezione dei dati personali (www.garanteprivacy.it).
 
-## 7. Età minima
+## 8. Età minima
 
 Nimbèa è pensata per persone di almeno 14 anni. Sotto i 14 anni in Italia serve il consenso di chi esercita la responsabilità genitoriale.
 
-## 8. Cookie e memoria del dispositivo
+## 9. Cookie e memoria del dispositivo
 
 L'app usa solo la memoria locale del browser o del dispositivo necessaria a funzionare: tenerti connessa, ricordare la lingua e le preferenze, velocizzare il caricamento delle immagini. Non usiamo cookie pubblicitari né strumenti di tracciamento di terze parti.
 
-## 9. Sicurezza
+## 10. Sicurezza
 
 I dati viaggiano su connessioni cifrate (HTTPS). Ogni utente vede solo i propri dati, protetti da regole di accesso nel database. Le foto private sono accessibili solo con link temporanei.
 
-## 10. Modifiche
+## 11. Modifiche
 
 Se cambiamo questa informativa aggiorniamo la data in alto. Se i cambiamenti sono importanti te lo diciamo nell'app e possiamo chiederti di accettarla di nuovo.

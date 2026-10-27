@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Check, Loader2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { consentTextFor, LEGAL_VERSION, legalDocText, type LegalDoc } from "@/lib/legal/legal";
+import { CONSENT_KEYS, consentTextFor, DEFAULT_CONSENTS, LEGAL_VERSION, legalDocText, type Consents, type LegalDoc } from "@/lib/legal/legal";
 
 /** **bold** inside a line. */
 function inline(text: string): ReactNode[] {
@@ -29,12 +29,12 @@ export function LegalMarkdown({ text }: { text: string }) {
       }
       i--;
       out.push(
-        <div key={i} className="mt-2 space-y-1.5">
+        <div key={i} className="mt-2 divide-y divide-border/60">
           {rows.slice(1).map((r, ri) => (
-            <div key={ri} className="rounded-xl bg-secondary/40 px-3 py-2 text-[13px] leading-snug">
-              <p className="font-medium">{inline(r[0])}</p>
-              {r.slice(1).map((c, ci) => <p key={ci} className="text-muted-foreground">{inline(c)}</p>)}
-            </div>
+            <p key={ri} className="py-1.5 text-[13px] leading-snug">
+              {inline(r[0])}
+              {r.slice(1).map((c, ci) => <span key={ci} className="text-muted-foreground"> · {inline(c)}</span>)}
+            </p>
           ))}
         </div>,
       );
@@ -86,17 +86,22 @@ export function LegalConsentGate() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
   const [open, setOpen] = useState<LegalDoc | null>(null);
+  // Separate, optional choices: marketing and partners start unticked, anonymous statistics ticked.
+  const [consents, setConsents] = useState<Consents>(DEFAULT_CONSENTS);
 
   const accept = async () => {
     setSaving(true); setError(false);
-    const { error: err } = await supabase.auth.updateUser({ data: { legal_version: LEGAL_VERSION, legal_accepted_at: new Date().toISOString() } });
+    const now = new Date().toISOString();
+    const { error: err } = await supabase.auth.updateUser({
+      data: { legal_version: LEGAL_VERSION, legal_accepted_at: now, consents: { ...consents, updated_at: now } },
+    });
     setSaving(false);
     if (err) { console.error("[AURA legal] could not save acceptance", err); setError(true); }
   };
 
   return (
-    <div className="fixed inset-0 z-[110] bg-background flex flex-col px-8 pt-20 pb-[calc(2rem+env(safe-area-inset-bottom))]">
-      <div className="flex-1 flex flex-col justify-center max-w-md w-full mx-auto">
+    <div className="fixed inset-0 z-[110] bg-background overflow-y-auto px-8 pt-16 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+      <div className="min-h-full flex flex-col justify-center max-w-md w-full mx-auto">
         <h1 className="font-serif italic text-4xl leading-tight">{text.title}</h1>
         <p className="mt-3 text-sm text-muted-foreground">{text.intro}</p>
         <div className="mt-6 flex flex-col gap-2">
@@ -112,6 +117,24 @@ export function LegalConsentGate() {
           </span>
           <span className="text-[13px] leading-snug">{text.checkbox}</span>
         </button>
+        <p className="mt-6 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{text.optionalTitle}</p>
+        <div className="mt-2 space-y-3">
+          {CONSENT_KEYS.map((key) => (
+            <button
+              key={key} type="button" role="checkbox" aria-checked={consents[key]}
+              onClick={() => setConsents((c) => ({ ...c, [key]: !c[key] }))}
+              className="flex items-start gap-3 text-left"
+            >
+              <span className={`mt-0.5 h-5 w-5 shrink-0 rounded-md border flex items-center justify-center ${consents[key] ? "bg-foreground border-foreground text-background" : "border-border"}`}>
+                {consents[key] && <Check size={13} />}
+              </span>
+              <span>
+                <span className="block text-[13px] leading-snug">{text.options[key].label}</span>
+                <span className="block text-[11px] leading-snug text-muted-foreground">{text.options[key].desc}</span>
+              </span>
+            </button>
+          ))}
+        </div>
         {error && <p className="mt-3 text-xs text-red-700">{text.error}</p>}
         <button
           onClick={() => void accept()}

@@ -55,7 +55,11 @@ Many features use artificial intelligence: see section 6.
 - The app may show links to online shops or import a piece from a web page. We are not responsible for third-party websites, their products, prices or terms.
 - If you connect external services (Google, Outlook or iCloud Calendar, sign-in with Google or Apple), their terms also apply.
 
-## 8. Fair use
+## 8. Affiliate links
+
+Some links to shops or resale sites are affiliate links: if you buy through them we may earn a commission, at no extra cost to you. Suggestions do not depend on commissions.
+
+## 9. Fair use
 
 It is not allowed to:
 - use the app for unlawful purposes;
@@ -66,32 +70,32 @@ It is not allowed to:
 
 In case of violations we may suspend or close the account, after warning you where possible.
 
-## 9. Ownership of the app
+## 10. Ownership of the app
 
 The Nimbèa name and brand, logo, design and software belong to Giulia Nigi. You may use them only to use the app as provided by these terms.
 
-## 10. Availability of the service
+## 11. Availability of the service
 
 - We do our best for the app to always work well, but we cannot guarantee it will always be available or error-free.
 - We may update, change or discontinue features. If we decided to close the service we would give you reasonable notice, so you can save what you need.
 - We advise you not to use the app as the only archive of important photos.
 
-## 11. Liability
+## 12. Liability
 
 - The app is provided free of charge "as is".
 - To the extent permitted by law we are not liable for indirect damage arising from the use of the app or of the suggestions generated, for example a purchase or an outfit you are not happy with.
 - Cases of wilful misconduct or gross negligence and the rights the law grants to consumers are not limited by these terms.
 
-## 12. Changes to the terms
+## 13. Changes to the terms
 
 We may update these terms. If the changes are important we will tell you in the app and ask you to accept them again before you continue using it. If you do not agree you can delete your account.
 
-## 13. Governing law and disputes
+## 14. Governing law and disputes
 
 - These terms are governed by Italian law.
 - If you are a consumer, the court of the place where you live has jurisdiction over disputes.
 
-## 14. Contact
+## 15. Contact
 
 For questions or reports:
 - use "Report a problem" in the app's Settings;

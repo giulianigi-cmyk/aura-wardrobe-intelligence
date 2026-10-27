@@ -46,31 +46,37 @@ Email for privacy requests: giulia.nigi@gmail.com
 | Shared library (making the product photos of your pieces visible to other users) | Consent, switched on and off in Settings › Privacy |
 | Usage statistics, technical errors, security and abuse prevention | Legitimate interest (art. 6.1.f) in running and improving the app |
 | Answering reports and requests | Performance of a contract and legitimate interest |
+| Anonymous, aggregated statistics on pieces, brands, styles and prices, which we may share with brands, shops and resale sites | Legitimate interest; you can object in Settings › Privacy |
+| Nimbèa news and offers by email | Optional consent, withdrawn in Settings › Privacy |
+| Sharing your style data with selected partners (shops and resale sites) for personalised offers | Optional, separate consent, withdrawn in Settings › Privacy |
 
 Body and face photos are used only to generate the virtual try-on images. We do not use them to recognise or identify you.
 
-## 4. Who we share data with
+## 4. Your optional choices
 
-We do not sell your data or use it for advertising. We share it only with the providers needed to run the app, which process it on our behalf as data processors:
+Beyond what is needed to run the app, you decide, separately and at any time in Settings › Privacy:
+- **News and offers by email:** we write to you about new features, tips and Nimbèa offers. Off until you switch it on.
+- **Partner offers:** we share with selected partners (shops and resale sites) your style preferences, sizes, favourite brands and the pieces you choose, so they can offer you deals or services that suit you. We never share face or body photos, your email or your password. Off until you switch it on; before adding a new kind of partner we will update this policy.
+- **Anonymous statistics:** we use aggregated data that cannot be traced back to you (for example which brands or styles are most common and at what prices they resell) to improve the app, and we may share it with brands, shops and resale sites. You can ask for your data to be left out.
 
-| Provider | What for | Where |
-|---|---|---|
-| Lovable / Supabase | App hosting, database, photo storage, authentication | EU or USA |
-| Google (Gemini, through Lovable's AI gateway) | Analysis of piece photos, outfit suggestions, Stylist, packing lists | USA |
-| OpenAI | Image generation, voice message transcription and text-to-speech | USA |
-| FASHN | Virtual try-on on the avatar | USA |
-| Firecrawl | Reading product pages when you import a piece from a link | USA |
-| Open-Meteo | Weather forecasts from your location or city (receives only coordinates) | EU |
-| BigDataCloud, Photon (Komoot) | City name from coordinates, destination search | Australia, Germany |
-| Google, Microsoft, Apple | Sign-in with their account and calendar connection, only if you choose it | USA |
-| Apple, Google, Mozilla, Microsoft (push services) | Delivering notifications | USA |
-| Resend | Sending email replies to reports | USA |
+Saying no to these choices does not limit your use of the app in any way.
 
-Background removal from piece photos happens directly on your device.
+**Affiliate links:** some links to shops or resale sites may earn us a commission if you buy something. The shop only learns that you came from Nimbèa, not your personal data.
 
-When data leaves the European Union, the transfer relies on the European Commission's adequacy decisions (EU-US Data Privacy Framework) or on the standard contractual clauses provided by the GDPR.
+## 5. Who we share data with
 
-## 5. How long we keep it
+We do not sell your data or use it for advertising. We share it only with providers needed to run the app, which process it on our behalf as data processors:
+- hosting, database and photo storage;
+- artificial intelligence to analyse photos and suggest outfits and advice;
+- weather and maps;
+- sign-in with external accounts and calendar, only if you connect them;
+- sending emails and notifications.
+
+We share data with commercial partners only if you chose to (section 4). The list of providers is available on request at the address in section 1.
+
+Some providers are located outside the European Union, for example in the United States: the transfer relies on the European Commission's adequacy decisions or on the standard contractual clauses provided by the GDPR.
+
+## 6. How long we keep it
 
 - **Account and content** (wardrobe, outfits, trips, avatar): as long as you keep your account. When you delete it, we delete your data and photos.
 - **Voice recordings:** not kept; used only for transcription.
@@ -78,7 +84,7 @@ When data leaves the European Union, the transfer relies on the European Commiss
 - **Reports:** up to 24 months after closing.
 - Longer only where the law requires it.
 
-## 6. Your rights
+## 7. Your rights
 
 At any time you can ask to:
 - access your data and receive a copy;
@@ -93,18 +99,18 @@ You can delete your account and all your data from **Settings** in the app. For 
 
 If you believe the processing breaks the law you can lodge a complaint with the Italian data protection authority, the Garante per la protezione dei dati personali (www.garanteprivacy.it), or with the authority of your country.
 
-## 7. Minimum age
+## 8. Minimum age
 
 Nimbèa is meant for people aged at least 14. Under 14, in Italy, the consent of a parent or guardian is required.
 
-## 8. Cookies and device storage
+## 9. Cookies and device storage
 
 The app only uses the local browser or device storage it needs to work: keeping you signed in, remembering your language and preferences, loading images faster. We use no advertising cookies or third-party tracking tools.
 
-## 9. Security
+## 10. Security
 
 Data travels over encrypted connections (HTTPS). Each user sees only their own data, protected by access rules in the database. Private photos are reachable only through temporary links.
 
-## 10. Changes
+## 11. Changes
 
 If we change this policy we update the date at the top. If the changes are important we tell you in the app and may ask you to accept them again.
