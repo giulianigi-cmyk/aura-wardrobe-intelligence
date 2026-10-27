@@ -13,22 +13,10 @@ const STYLES = [
   "Minimal", "Editorial", "Quiet luxury", "Parisian", "Street",
   "Romantic", "Tailored", "Bohemian", "Sporty", "Vintage", "Avant-garde", "Coastal",
 ];
-/** A few typical colours per style: a small visual cue next to each description, so someone who
- *  doesn't know the fashion terms can still recognise the look. */
-const STYLE_SWATCHES: Record<string, string[]> = {
-  Minimal: ["#FFFFFF", "#D9D6D0", "#8C8C8C", "#1C1C1C"],
-  Editorial: ["#111111", "#C8102E", "#F2F2F2", "#6B3FA0"],
-  "Quiet luxury": ["#F3EDE3", "#C8B89A", "#8B7355", "#2F3A4A"],
-  Parisian: ["#1F2A44", "#FFFFFF", "#C0392B", "#D8C3A5"],
-  Street: ["#2B2B2B", "#7A7A7A", "#E2E2E2", "#F28C28"],
-  Romantic: ["#F6D6DE", "#E8B4C3", "#FFF5EE", "#C9A0DC"],
-  Tailored: ["#2C3E50", "#7F8C8D", "#FFFFFF", "#4A3728"],
-  Bohemian: ["#B5651D", "#D4A373", "#6B8E23", "#8B4513"],
-  Sporty: ["#FFFFFF", "#1E90FF", "#000000", "#C6FF00"],
-  Vintage: ["#8B5A2B", "#C19A6B", "#556B2F", "#B22222"],
-  "Avant-garde": ["#000000", "#FFFFFF", "#7F00FF", "#9E9E9E"],
-  Coastal: ["#F5F0E6", "#A7C7E7", "#1F4E79", "#E3D5B8"],
-};
+/** Example photo of each style (public/style-images): the woman's or the man's from the gender chosen
+ *  just before, both side by side for "prefer not to say", so the terms are easy to recognise. */
+const styleImage = (style: string, who: "woman" | "man") =>
+  `/style-images/${style.toLowerCase().replace(/\s+/g, "-")}-${who}.jpg`;
 const BRANDS = [
   "The Row", "Toteme", "Khaite", "Lemaire", "Jacquemus", "Loewe",
   "Bottega Veneta", "Celine", "Hermès", "Prada", "Chloé", "Acne Studios",
@@ -296,14 +284,21 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
                     <button key={s} onClick={() => toggle(styles, setStyles, s)}
                       aria-pressed={on}
                       className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-left border transition ${on ? "border-foreground bg-foreground/5" : "border-border bg-card"}`}>
-                      <span className="grid grid-cols-2 gap-1 shrink-0">
-                        {(STYLE_SWATCHES[s] ?? []).map((hex) => (
-                          <span key={hex} className="h-3.5 w-3.5 rounded-full border border-border" style={{ background: hex }} />
+                      <span className="flex gap-1 shrink-0">
+                        {(gender === "Woman" ? ["woman"] as const : gender === "Man" ? ["man"] as const : ["woman", "man"] as const).map((who) => (
+                          <img
+                            key={who}
+                            src={styleImage(s, who)}
+                            alt=""
+                            loading="lazy"
+                            className={`${gender === "Woman" || gender === "Man" ? "w-16" : "w-12"} h-20 rounded-xl object-cover bg-secondary/40`}
+                            onError={(e) => { e.currentTarget.style.visibility = "hidden"; }}
+                          />
                         ))}
                       </span>
                       <span className="flex-1 min-w-0">
                         <span className="block text-sm font-medium">{t(`profileScreen.styleTerm.${s}`)}</span>
-                        <span className="block text-[12px] leading-snug text-muted-foreground">{t(`profileScreen.styleDesc.${s}`)}</span>
+                        <span className="block text-[12px] leading-snug text-muted-foreground">{t(gender === "Man" ? `profileScreen.styleDescMan.${s}` : `profileScreen.styleDesc.${s}`, { defaultValue: t(`profileScreen.styleDesc.${s}`) })}</span>
                       </span>
                       <span className={`h-5 w-5 shrink-0 rounded-full border flex items-center justify-center ${on ? "bg-foreground border-foreground text-background" : "border-border"}`}>
                         {on && <Check size={12} />}

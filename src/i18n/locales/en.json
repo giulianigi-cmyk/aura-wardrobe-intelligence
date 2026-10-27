@@ -1456,6 +1456,9 @@
       "Avant-garde": "Avant-garde",
       "Coastal": "Coastal"
     },
+    "styleDescMan": {
+      "Romantic": "Soft tones and gentle fabrics: pastel colours, linen, softly cut shirts."
+    },
     "styleDesc": {
       "Minimal": "Clean lines, few colors, no clutter — quality over decoration.",
       "Editorial": "Fashion-forward, styled like a magazine spread — bold silhouettes and combinations.",
