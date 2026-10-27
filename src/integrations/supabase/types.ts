@@ -2744,6 +2744,7 @@ export type Database = {
           id: string
           image_url: string
           last_worn: string | null
+          leg_shape: string | null
           length: string | null
           location_id: string | null
           material: string[]
@@ -2793,6 +2794,7 @@ export type Database = {
           id?: string
           image_url: string
           last_worn?: string | null
+          leg_shape?: string | null
           length?: string | null
           location_id?: string | null
           material?: string[]
@@ -2842,6 +2844,7 @@ export type Database = {
           id?: string
           image_url?: string
           last_worn?: string | null
+          leg_shape?: string | null
           length?: string | null
           location_id?: string | null
           material?: string[]

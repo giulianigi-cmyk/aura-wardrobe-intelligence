@@ -36,6 +36,13 @@
       "when": 1793003423079,
       "tag": "0004_restrict_shared_library_column_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793120867578,
+      "tag": "0005_add_wardrobe_leg_shape",
+      "breakpoints": true
     }
   ]
 }
