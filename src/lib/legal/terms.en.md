@@ -1,6 +1,6 @@
 # Nimbèa Terms of Use
 
-*Provisional version pending legal review. Last updated: 27 October 2026. This is a translation: the Italian version prevails.*
+*Last updated: 27 October 2026. This is a translation: the Italian version prevails.*
 
 These terms govern the use of the Nimbèa app ("the app"). By creating an account or using the app you accept them. If you do not agree, do not use the app.
 

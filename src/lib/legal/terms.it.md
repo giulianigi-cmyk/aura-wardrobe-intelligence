@@ -1,6 +1,6 @@
 # Termini d'uso di Nimbèa
 
-*Versione provvisoria in attesa di revisione legale. Ultimo aggiornamento: 27 ottobre 2026.*
+*Ultimo aggiornamento: 27 ottobre 2026.*
 
 Questi termini regolano l'uso dell'app Nimbèa ("l'app"). Creando un account o usando l'app li accetti. Se non sei d'accordo, non usare l'app.
 
