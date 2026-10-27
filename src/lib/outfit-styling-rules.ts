@@ -150,3 +150,43 @@ export function isEveningOnlyPiece(item: { dayEvening?: string | null; occasion?
 export const EVENING_ONLY_PROMPT_RULE =
   "DAY vs EVENING: a piece whose dayEvening is \"evening\" (or whose occasion tags are only evening ones: Evening, Cocktail, Black Tie) is an evening piece \u2014 " +
   "never put it in a daytime look (everyday, Work, Weekend, Travel, a daytime appointment), not even an accessory such as evening earrings or an evening bag.";
+
+/** A dressed-up evening look (sequins, crystals, velvet, satin, or a piece at formality 5) needs a
+ *  bag at the same level: plain or jewelled, in black, a neutral, a metallic or one of the look's
+ *  own colours. A multi-colour or printed bag — even a clutch tagged for the evening — reads as an
+ *  aperitivo, not as a velvet skirt and a sequinned top (a real case: a rust/ochre leaf-print clutch
+ *  with black velvet, navy sequins and black patent boots). */
+export const DRESSY_EVENING_SIGNAL = /velvet|velluto|satin|raso|silk|seta|sequin|paillett|lurex|swarovski|crystal|cristall|rhinestone|strass|lam[eé]/i;
+const BAG_NEUTRAL = /black|nero|jet|white|bianco|cream|ivory|ecru|off.?white|beige|nude|taupe|camel|grey|gray|grigio|silver|argento|gold|oro|champagne|bronze|pewter|navy/i;
+const BAG_PRINT = /animalPrint|logoPrint|print|pattern|floral|stripe|check/i;
+
+type BagCheckable = {
+  category?: string | null; subcategory?: string | null; formality?: number | null;
+  colors?: string[] | null; material?: string[] | null; styleTags?: string[] | null; details?: string[] | null;
+};
+
+export function isDressyEveningLook(pieces: readonly BagCheckable[]): boolean {
+  return pieces.some((p) => p.category !== "Bags" && (
+    (p.formality ?? 0) >= 5
+    || DRESSY_EVENING_SIGNAL.test(`${(p.material ?? []).join(" ")} ${p.subcategory ?? ""} ${(p.styleTags ?? []).join(" ")}`)
+  ));
+}
+
+/** True when `bag` is too casual or too busy for a dressed-up evening look made of `pieces`. */
+export function bagClashesWithDressyLook(bag: BagCheckable, pieces: readonly BagCheckable[]): boolean {
+  if (bag.category !== "Bags" || !isDressyEveningLook(pieces)) return false;
+  const others = pieces.filter((p) => p.category !== "Bags");
+  const top = Math.max(0, ...others.map((p) => p.formality ?? 0));
+  if (bag.formality != null && top && bag.formality < top - 1) return true;
+  const details = (bag.details ?? []).join(" ");
+  if (/embellished/.test(details) || EMBELLISHED_SIGNAL.test((bag.material ?? []).join(" "))) return false; // a jewelled clutch
+  const cols = bag.colors ?? [];
+  const lookColors = new Set(others.flatMap((p) => (p.colors ?? []).map((c) => c.toLowerCase())));
+  const offLook = cols.filter((c) => !BAG_NEUTRAL.test(c) && !lookColors.has(c.toLowerCase()));
+  if (BAG_PRINT.test(details) && offLook.length > 0) return true;
+  return cols.length >= 3 && offLook.length >= 2;
+}
+
+export const DRESSY_EVENING_BAG_PROMPT_RULE =
+  "EVENING BAG RULE: when the look is dressed up for the evening (sequins, crystals, velvet, satin or silk, or any piece at formality 5), the bag must be just as dressed up: a plain or jewelled clutch, minaudière or small evening bag in black, a neutral, a metallic (silver, gold) or one of the look's own colours, at the same formality. " +
+  "Never a multi-colour or printed bag whose colours are not in the look, and never a bag one formality step or more below the look — even if it is a clutch tagged for the evening.";

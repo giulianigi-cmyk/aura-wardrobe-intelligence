@@ -9,6 +9,7 @@ import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
 import { editorialPairingRule, naturePairingRule } from "./nature-color-pairings";
 import { CATALOG_MAX_ITEMS } from "./wardrobe-catalog";
 import { TALL_BOOTS_PROMPT_RULE } from "./tall-boots-rule";
+import { DRESSY_EVENING_BAG_PROMPT_RULE } from "./outfit-styling-rules";
 import { isDayOnlyBag, isEveningOnlyPiece, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE } from "./outfit-styling-rules";
 import { isItemAllowedByDressPreferences, coversLegs, coversArms, coversShoulders, type DressPreferences } from "./dress-preferences";
 import { isItemAtLocation } from "./wardrobe-location";
@@ -407,6 +408,7 @@ export const stylistChat = createServerFn({ method: "POST" })
       EMBELLISHED_EVENING_PROMPT_RULE,
     OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
     TALL_BOOTS_PROMPT_RULE,
+    DRESSY_EVENING_BAG_PROMPT_RULE,
       ...(() => {
         const text = data.messages.map((m) => m.content ?? "").join(" ");
         const pc = detectPlaceContext(text);

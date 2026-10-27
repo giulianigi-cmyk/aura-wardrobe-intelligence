@@ -9,6 +9,7 @@ import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces,
 import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
 import { CATALOG_MAX_ITEMS, compactCatalogJson } from "./wardrobe-catalog";
 import { TALL_BOOTS_PROMPT_RULE, violatesTallBootsRule, isTallBoot } from "./tall-boots-rule";
+import { bagClashesWithDressyLook, DRESSY_EVENING_BAG_PROMPT_RULE } from "./outfit-styling-rules";
 import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, isSummerSeason } from "./outfit-styling-rules";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
 import { editorialPairingRule } from "./nature-color-pairings";
@@ -212,6 +213,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       ACCESSORY_OCCASION_PROMPT_RULE,
     OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
       TALL_BOOTS_PROMPT_RULE,
+      DRESSY_EVENING_BAG_PROMPT_RULE,
       EMBELLISHED_EVENING_PROMPT_RULE,
       EVENING_ONLY_PROMPT_RULE,
       ROTATION_PROMPT_RULE,
@@ -439,6 +441,12 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     // Knee / over-the-knee boots with trousers that can't go inside them (tall-boots-rule.ts).
     const violatesTallBoots = (ids: string[]): boolean =>
       violatesTallBootsRule(ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => !!c));
+    // A printed or casual bag in a sequins-and-velvet evening look (outfit-styling-rules.ts).
+    const clashingBagId = (ids: string[]): string | null => {
+      const pieces = ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => !!c);
+      const bag = pieces.find((c) => c.category === "Bags");
+      return bag && bagClashesWithDressyLook(bag, pieces) ? bag.id : null;
+    };
 
     // A piece tagged ONLY "Travel" or ONLY "Sport" (the person's own
     // explicit tag) is situational — it shouldn't surface in an
@@ -505,6 +513,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       if (violatesBeachBagByDay(l.occasion, l.item_ids)) return false;
       if (violatesStylingFootwear(l.item_ids)) return false;
       if (violatesTallBoots(l.item_ids)) return false;
+      if (clashingBagId(l.item_ids)) return false;
       if (violatesOccasionTag(l.occasion, l.item_ids)) return false;
       if (violatesDressPrefs(l.occasion, l.item_ids)) return false;
       if (seen.some((s) => jaccard(l.item_ids, s) >= TOO_SIMILAR)) return false;
@@ -611,8 +620,10 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
         && !violatesEmbellishedByDay(occasion, [c.id])
         && !violatesBeachBagByDay(occasion, [c.id])
         && !violatesWeather([c.id]));
-      const pool = fitting.length ? fitting : allBags; // a woman's look never ends up with no bag at all
-      if (!pool.length) return ids;
+      const anyPool = fitting.length ? fitting : allBags; // a woman's look never ends up with no bag at all
+      if (!anyPool.length) return ids;
+      const matching = anyPool.filter((c) => !bagClashesWithDressyLook(c, look));
+      const pool = matching.length ? matching : anyPool;
       const score = (c: (typeof pool)[number]) => {
         let sc = (bagUse.get(c.id) ?? 0) * 2;
         sc += Math.abs((c.formality ?? target) - target);
@@ -711,6 +722,9 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       if (violatesTallBoots(today.item_ids)) {
         today.item_ids = today.item_ids.filter((id) => !isTallBoot(catalog.find((c) => c.id === id) ?? {}));
       }
+      // A bag that doesn't match a dressed-up evening look goes; ensureBag picks one that does.
+      const offBag = clashingBagId(today.item_ids);
+      if (offBag) today.item_ids = today.item_ids.filter((id) => id !== offBag);
       const seen = [today.item_ids];
       const curated: DailyLook[] = [];
       for (const l of r.curated) {
