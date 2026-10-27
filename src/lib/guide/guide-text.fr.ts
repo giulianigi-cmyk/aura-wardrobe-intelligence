@@ -96,7 +96,7 @@ const text: GuideText = {
       title: "Trouver une pièce",
       steps: [
         "Ouvrez Garde-robe.",
-        "Vous voyez toutes les pièces à disposition : celles rangées pour la saison, prêtées ou archivées sont dans leurs sections, sous les filtres.",
+        "Vous voyez toutes les pièces à disposition : celles du rangement saisonnier, prêtées ou archivées sont dans leurs sections, sous les filtres.",
         "Utilisez la recherche et les catégories en haut pour affiner la liste.",
       ],
     },
@@ -120,16 +120,16 @@ const text: GuideText = {
     },
     storage: {
       title: "Rangement saisonnier",
-      intro: "Rangez les pièces hors saison (au garage, à la cave, sous vide) : elles restent à vous, mais ne sont plus proposées tant que vous ne les remettez pas dans la garde-robe.",
+      intro: "Mettez les pièces hors saison au rangement saisonnier (au garage, à la cave, sous vide) : elles restent à vous, mais ne sont plus proposées tant que vous ne les sortez pas.",
       steps: [
         "Ouvrez Garde-robe.",
-        "Touchez « Sélectionner » et choisissez les pièces que vous rangez.",
-        "Touchez « Ranger ». Pour une seule pièce, vous pouvez aussi ouvrir sa fiche et toucher « Ranger ».",
-        "Vous les retrouvez toutes dans « Rangement saisonnier », sous les filtres, avec la date du rangement.",
-        "Au changement de saison, ouvrez « Rangement saisonnier », sélectionnez les pièces et touchez « Remettre ».",
+        "Touchez « Sélectionner » et choisissez les pièces.",
+        "Touchez « Rangement saisonnier ». Pour une seule pièce, vous pouvez aussi ouvrir sa fiche et toucher « Rangement saisonnier ».",
+        "Vous les retrouvez toutes dans « Rangement saisonnier », sous les filtres, avec la date à laquelle vous les y avez mises.",
+        "Au changement de saison, ouvrez « Rangement saisonnier », sélectionnez les pièces et touchez « Sortir du rangement saisonnier ».",
         "« Rangement saisonnier » contient aussi des conseils : préparer les pièces, les plier (avec des dessins) et choisir les contenants.",
       ],
-      tip: "En voyage, si la destination a un autre climat, nous vous demandons s'il faut aussi utiliser les pièces rangées.",
+      tip: "En voyage, si la destination a un autre climat, nous vous demandons s'il faut aussi utiliser les pièces du rangement saisonnier.",
     },
     laundry: {
       title: "Lavage",
