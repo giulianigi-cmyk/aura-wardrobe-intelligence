@@ -104,7 +104,7 @@ export const GUIDE: GuideChapterDef[] = [
       },
       {
         id: "find", open: "wardrobe",
-        visuals: [tab("wardrobe"), { kind: "chips", labelKeys: ["wardrobe.thisSeason", "wardrobe.allSeasons"] }, null],
+        visuals: [tab("wardrobe"), null, null],
       },
       {
         id: "item-card", open: "wardrobe",

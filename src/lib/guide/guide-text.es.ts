@@ -96,7 +96,7 @@ const text: GuideText = {
       title: "Encontrar una prenda",
       steps: [
         "Abre Armario.",
-        "Elige si ver solo las prendas de esta temporada o de todas.",
+        "Ves todas las prendas que tienes a mano: las guardadas por cambio de armario, prestadas o archivadas están en sus secciones, debajo de los filtros.",
         "Usa la búsqueda y las categorías de arriba para acotar la lista.",
       ],
     },

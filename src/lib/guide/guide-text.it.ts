@@ -96,7 +96,7 @@ const text: GuideText = {
       title: "Trovare un capo",
       steps: [
         "Apri Guardaroba.",
-        "Scegli se vedere solo i capi di questa stagione o tutte le stagioni.",
+        "Vedi tutti i capi che hai a disposizione: quelli messi via per il cambio stagione, prestati o archiviati sono nelle loro sezioni, sotto i filtri.",
         "Usa la ricerca e le categorie in alto per restringere l'elenco.",
       ],
     },

@@ -32,7 +32,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "@/hooks/use-location";
 import { useWeather } from "@/hooks/use-weather";
 import { describeWeather } from "@/lib/weather";
-import { currentSeason, itemMatchesSeason, resolveWardrobeUrls, toStoragePath, thumbSrc } from "@/lib/wardrobe-image";
+import { currentSeason, resolveWardrobeUrls, toStoragePath, thumbSrc } from "@/lib/wardrobe-image";
 import { useWardrobeItems, useWardrobeCacheActions, wardrobeItemsQueryKey } from "@/lib/wardrobe-query";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -114,7 +114,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
   const [signed, setSigned] = useState<Record<string, string>>({});
   const [cat, setCat] = useState("All");
   const [q, setQ] = useState("");
-  const [seasonOnly, setSeasonOnly] = useState(true);
   // The funnel icon next to search used to be purely decorative — tapping it did nothing, which is
   // what "sorting doesn't work" turned out to mean: there was no sort control to fail, just an icon
   // that looked like one. It now opens this sheet.
@@ -781,11 +780,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const seasonMatches = useMemo(
-    () => new Set(items.filter((i) => itemMatchesSeason(i, season)).map((i) => i.id)),
-    [items, season],
-  );
-
   const archivedCount = useMemo(
     () => items.filter((i) => (i as unknown as { archived?: boolean }).archived).length,
     [items],
@@ -823,12 +817,13 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
       if (showLoaned) return isLoaned;
       if (showArchived) return isArchived;
       if (showStored) return isInStorage(i) && !isArchived;
+      // The closet is everything in the wardrobe now: seasonal storage, loans and archived pieces have
+      // their own views (the old "this season / all seasons" switch went with Cambio stagione).
       if (isInStorage(i)) return false;
       const locId = (i as unknown as { location_id?: string | null }).location_id ?? null;
       const matchesLocation = viewLocationId === "all" || locId === viewLocationId;
       return !isArchived && !isLoaned && matchesLocation &&
         (cat === "All" || i.category === cat) &&
-        (!seasonOnly || seasonMatches.has(i.id)) &&
         // In English and in the person's language: "sandali" finds Sandals, "nero" Jet Black.
         (q === "" || matchesSearch(searchableText([i.category, i.subcategory, i.brand, i.model, i.color, i.style, i.occasion, i.season, ...(i.colors ?? []), ...(Array.isArray(i.material) ? i.material : [])], i18n.language), q));
     });
@@ -855,7 +850,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
       price_asc: withMissingLast((i) => i.price, -1),
     };
     return [...base].sort(sorters[sortBy]);
-  }, [items, cat, q, seasonOnly, seasonMatches, showArchived, showLoaned, showStored, viewLocationId, gapFilter, sortBy, i18n.language]);
+  }, [items, cat, q, showArchived, showLoaned, showStored, viewLocationId, gapFilter, sortBy, i18n.language]);
 
   const w = weather?.current;
   const wLabel = w ? describeWeather(w.weatherCode, w.isDay) : null;
@@ -934,20 +929,9 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
           ) : (
             <p className="font-serif text-lg mt-0.5 italic text-muted-foreground">{t("wardrobe.weatherUnavailable")}</p>
           )}
-          <p className="text-[11px] text-muted-foreground mt-1">
-            {seasonOnly ? t("wardrobe.showingTaggedForSeason", { season: season.toLowerCase() }) : t("wardrobe.showingEveryPiece")}
-          </p>
         </div>
         <div className="flex flex-col items-end gap-2 shrink-0">
           {wLabel && <span className="text-3xl leading-none">{wLabel.icon}</span>}
-          <button
-            onClick={() => setSeasonOnly((v) => !v)}
-            className={`text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-full ${
-              seasonOnly ? "bg-foreground text-background" : "border border-border"
-            }`}
-          >
-            {seasonOnly ? t("wardrobe.thisSeason") : t("wardrobe.allSeasons")}
-          </button>
         </div>
       </div>
 
@@ -1080,10 +1064,10 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
       ) : filtered.length === 0 ? (
         <div className="px-6 mt-16 text-center animate-fade-up">
                     <p className="font-serif text-2xl italic">
-            {gapFilter && items.length === 0 ? t("wardrobe.emptyLoadErrorTitle") : gapFilter ? t("wardrobe.emptyGapDoneTitle") : showArchived ? t("wardrobe.emptyArchivedTitle") : showStored ? t("wardrobe.emptyStoredTitle") : items.length === 0 ? t("wardrobe.emptyClosetTitle") : t("wardrobe.emptySeasonTitle", { season: season.toLowerCase() })}
+            {gapFilter && items.length === 0 ? t("wardrobe.emptyLoadErrorTitle") : gapFilter ? t("wardrobe.emptyGapDoneTitle") : showArchived ? t("wardrobe.emptyArchivedTitle") : showStored ? t("wardrobe.emptyStoredTitle") : items.length === 0 ? t("wardrobe.emptyClosetTitle") : t("wardrobe.emptyFilterTitle")}
           </p>
           <p className="text-sm text-muted-foreground mt-2">
-            {gapFilter && items.length === 0 ? t("wardrobe.emptyLoadErrorSub") : gapFilter ? (gapFilter === "price" ? t("wardrobe.emptyGapDoneSubPrice") : t("wardrobe.emptyGapDoneSubDate")) : showArchived ? t("wardrobe.emptyArchivedSub") : showStored ? t("wardrobe.emptyStoredSub") : items.length === 0 ? t("wardrobe.emptyClosetSub") : t("wardrobe.emptySeasonSub")}
+            {gapFilter && items.length === 0 ? t("wardrobe.emptyLoadErrorSub") : gapFilter ? (gapFilter === "price" ? t("wardrobe.emptyGapDoneSubPrice") : t("wardrobe.emptyGapDoneSubDate")) : showArchived ? t("wardrobe.emptyArchivedSub") : showStored ? t("wardrobe.emptyStoredSub") : items.length === 0 ? t("wardrobe.emptyClosetSub") : t("wardrobe.emptyFilterSub")}
           </p>
           {gapFilter && items.length === 0 ? (
             <button
@@ -1108,9 +1092,9 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
             >{t("wardrobe.addAPiece")}</button>
           ) : (
             <button
-              onClick={() => setSeasonOnly(false)}
+              onClick={() => { setCat("All"); setQ(""); }}
               className="mt-6 h-12 px-6 rounded-full border border-border uppercase tracking-[0.3em] text-xs"
-            >{t("wardrobe.showAllSeasons")}</button>
+            >{t("wardrobe.clearFilters")}</button>
           )}
         </div>
       ) : (
