@@ -87,10 +87,16 @@ async function fetchOrCreateProfile(userId: string): Promise<Profile | null> {
   // `null`, cached as if it were a genuine "no profile" state, with nothing in the console or any
   // way for the person to know their signup never actually got a profile row. A new sign-up who
   // never reaches Home/profile-setup after registering is exactly the failure mode this produces.
+  // A read that failed (not "no row") is retried by React Query as it is: inserting then would only collide.
+  if (error) throw error;
   const { data: created, error: insertError } = await supabase.from("profiles").insert({ id: userId }).select("*").maybeSingle();
   if (created) return created as unknown as Profile;
-  console.error("[AURA use-profile] could not load or create profile row", { selectError: error, insertError });
-  throw insertError ?? error ?? new Error("Could not load or create profile");
+  // Right after sign-up the row can already exist by the time the insert runs (23505): read it again.
+  if (insertError?.code === "23505") {
+    const { data: again } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+    if (again) return again as unknown as Profile;
+  }
+  throw insertError ?? new Error("Could not load or create profile");
 }
 
 export function useProfile() {
@@ -102,6 +108,13 @@ export function useProfile() {
     queryFn: () => fetchOrCreateProfile(user!.id),
     enabled: !!user,
     staleTime: 60_000,
+    // The first try right after sign-up can fail only because the session has not reached the
+    // database yet; the retries then succeed. Logged as an error only when every retry has failed.
+    retry: (failures, error) => {
+      if (failures < 3) return true;
+      console.error("[AURA use-profile] could not load or create profile row", error);
+      return false;
+    },
   });
   const profile = profileQuery.data ?? null;
 
