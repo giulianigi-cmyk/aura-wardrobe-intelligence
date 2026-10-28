@@ -148,7 +148,7 @@ const text: GuideText = {
       intro: "I capi da lavare, in tintoria o prestati non escono nei look finché non tornano nell'armadio.",
       steps: [
         "Apri il capo, tocca «Opzioni» e poi «Nel cesto del bucato». I capi sportivi ci vanno da soli quando segni il look come indossato.",
-        "In Guardaroba tocca «Fuori dall'armadio» e poi «Cesto» (lì trovi anche «Tintoria» e «Prestati»): i capi sono divisi per lavatrice. Tocca «Lavati» quando hai finito; se te ne dimentichi, dopo 10 giorni tornano da soli nell'armadio.",
+        "In Guardaroba tocca «Non disponibili» e poi «Cesto» (lì trovi anche «Tintoria» e «Prestati»): i capi sono divisi per lavatrice. Tocca «Lavati» quando hai finito; se te ne dimentichi, dopo 10 giorni tornano da soli nell'armadio.",
         "Per la tintoria: «Opzioni» › «In tintoria». Non tornano da soli: dopo 7 giorni ti chiediamo se li hai ritirati.",
         "Per i capi prestati, 14 giorni dopo ti chiediamo se li hai ripresi. Con «Ce l'ha ancora» te lo richiediamo dopo altri 14 giorni.",
       ],

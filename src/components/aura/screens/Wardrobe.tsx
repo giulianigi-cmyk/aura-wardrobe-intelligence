@@ -684,7 +684,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
   const [basketOpen, setBasketOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [dryCleanerOpen, setDryCleanerOpen] = useState(false);
-  // "Fuori dall'armadio": one button for the pieces not in the wardrobe right now — basket, dry
+  // "Non disponibili": one button for the pieces not in the wardrobe right now — basket, dry
   // cleaner, lent — opening the choice of which to see.
   const [awayOpen, setAwayOpen] = useState(false);
   const laundryPieces = (kind: LaundryKind): LaundryPiece[] => items
