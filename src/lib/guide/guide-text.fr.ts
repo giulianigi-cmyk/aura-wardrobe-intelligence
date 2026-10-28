@@ -309,7 +309,7 @@ const text: GuideText = {
       intro: "Classez les pièces que vous aimeriez et suivez ce que vous mettez de côté pour les acheter.",
       steps: [
         "Ouvrez l'Accueil et touchez « Compléter votre garde-robe ».",
-        "Vérifiez une pièce avec « Devrais-je l'acheter ? » (lien, photo ou étiquette) et touchez « Ajouter à la liste d'envies ». Vous la retrouvez plus bas sur la même page, avec le nombre de vos pièces qui s'y associent, si vous avez déjà quelque chose de similaire et son coût par port.",
+        "Touchez « Ajouter » à côté de « Liste d'envies » pour saisir une pièce à la main, ou vérifiez-la avec « Devrais-je l'acheter ? » (lien, photo ou étiquette) et touchez « Ajouter à la liste d'envies ». Vous la retrouvez plus bas sur la même page, avec le nombre de vos pièces qui s'y associent, si vous avez déjà quelque chose de similaire et son coût par port.",
         "Classez les pièces avec les flèches, par priorité. Touchez une pièce pour ouvrir sa fiche : choisissez-y « Avant une date » (nous vous disons combien mettre de côté par mois) ou « Par mois » (vous indiquez combien vous mettez de côté et nous vous disons quand vous y arriverez).",
         "La fiche montre aussi ce que vous avez mis de côté : chaque mois, nous vous demandons si vous avez mis le montant de côté. Avec « Ajouter », vous pouvez aussi noter d'autres montants mis de côté.",
         "Quand vous l'achetez, touchez « Acheté » : le prix sort de vos économies et vous l'ajoutez à votre garde-robe.",
