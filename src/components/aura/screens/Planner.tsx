@@ -24,7 +24,8 @@ import { WeatherProposalCard, type WeatherProposal } from "../WeatherProposalCar
 import { ItemImageViewer } from "../ItemImageViewer";
 import { OutfitViewerSheet } from "../OutfitViewerSheet";
 import i18n from "@/i18n/config";
-import { optionLabel, optionList } from "@/lib/garment-names";
+import { garmentWithColor, optionLabel, optionList } from "@/lib/garment-names";
+import { earlierSameSeries, repeatedMainPieces, sameLookAs, type EventLook } from "@/lib/same-people";
 
 type OutfitPlan = Tables<"outfit_plans"> & { status?: string | null };
 type ImportedEvent = {
@@ -258,6 +259,15 @@ export function Planner({ go, openStylistChat, openBuilder, openAvatarTryOn, foc
   };
 
   const selectedPlans = selectedDate ? plansByDate[selectedDate] ?? [] : [];
+  // The outfits of every calendar event, for «Già indossato con queste persone» (same-people.ts).
+  const eventLooks = useMemo<EventLook[]>(() => {
+    const titleById = new Map([...calendarEvents, ...dismissedEvents].map((e) => [e.id, e.title] as const));
+    return plans.flatMap((p) => {
+      const eventId = (p as unknown as { calendar_event_id?: string | null }).calendar_event_id ?? null;
+      if (!eventId || p.status === "cancelled" || !titleById.has(eventId)) return [];
+      return [{ eventId, date: p.date, title: titleById.get(eventId) ?? null, itemIds: p.item_ids ?? [] }];
+    });
+  }, [plans, calendarEvents, dismissedEvents]);
 
   if (!user) return null;
 
@@ -420,6 +430,7 @@ export function Planner({ go, openStylistChat, openBuilder, openAvatarTryOn, foc
           date={selectedDate}
           plans={selectedPlans}
           calendarEvents={eventsByDate[selectedDate] ?? []}
+          eventLooks={eventLooks}
           openStylistChat={openStylistChat}
           openBuilder={openBuilder}
           openAvatarTryOn={openAvatarTryOn}
@@ -447,12 +458,13 @@ type Slot = { type: "general" } | { type: "event"; event: ImportedEvent } | { ty
 const slotKey = (s: Slot) => (s.type === "general" ? "general" : s.type === "extra" ? `extra:${s.planId}` : `event:${s.event.id}`);
 
 function DayDetail({
-  date, plans, calendarEvents, openStylistChat, openBuilder, openAvatarTryOn, items, signed, weather, currentTempC,
+  date, plans, calendarEvents, eventLooks, openStylistChat, openBuilder, openAvatarTryOn, items, signed, weather, currentTempC,
   proposals, onProposalResolved, onClose, onSaved, onDismissEvent,
 }: {
   date: string;
   plans: OutfitPlan[];
   calendarEvents: ImportedEvent[];
+  eventLooks: EventLook[];
   openStylistChat: (init: NonNullable<StylistChatInit>) => void;
   openBuilder: (init: BuilderInit) => void;
   openAvatarTryOn: (itemIds?: string[]) => void;
@@ -999,6 +1011,26 @@ function DayDetail({
               )}
             </div>
 
+            {activeSlot?.type === "event" && (() => {
+              // «Già indossato con queste persone»: the same repeating event in the last weeks.
+              const earlier = earlierSameSeries({ eventId: activeSlot.event.id, title: activeSlot.event.title, date }, eventLooks);
+              const current = editing ? selected : plan?.item_ids ?? [];
+              const same = sameLookAs(current, earlier);
+              const repeated = same ? [] : repeatedMainPieces(current, earlier, (id) => items.find((it) => it.id === id)?.category);
+              if (!same && !repeated.length) return null;
+              const when = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString(i18n.language, { day: "numeric", month: "long" });
+              const label = (id: string) => { const it = items.find((x) => x.id === id); return it ? garmentWithColor(it.subcategory || it.category || "", it.colors?.[0] ?? it.color ?? null, i18n.language) : ""; };
+              return (
+                <div className="mx-5 mb-3 rounded-2xl border border-[var(--champagne)] bg-[var(--champagne)]/15 px-4 py-3">
+                  <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("planner.samePeopleTitle")}</p>
+                  {same ? (
+                    <p className="mt-1 text-[12px] leading-snug">{t("planner.samePeopleSameLook", { date: when(same.date) })}</p>
+                  ) : repeated.map((r) => (
+                    <p key={r.itemId} className="mt-1 text-[12px] leading-snug">{t("planner.samePeoplePiece", { piece: label(r.itemId), date: when(r.look.date) })}</p>
+                  ))}
+                </div>
+              );
+            })()}
             <div className="border-t border-border/60 px-5 py-4 flex gap-2">
               {plan && !editing ? (
                 <>

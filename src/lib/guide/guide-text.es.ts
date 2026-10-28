@@ -235,6 +235,7 @@ const text: GuideText = {
         "Planifica un outfit, pregunta al estilista o elige tú las prendas.",
         "Al final del día puedes marcarlo como usado.",
       ],
+      tip: "En los eventos que se repiten en tu calendario (la reunión del lunes, la cena del jueves) te avisamos si un top, un vestido o una chaqueta ya lo llevaste a ese evento en las últimas 6 semanas: casi siempre son las mismas personas. La semana de trabajo generada los evita sola.",
     },
     "connect-calendar": {
       title: "Conectar tu calendario",
