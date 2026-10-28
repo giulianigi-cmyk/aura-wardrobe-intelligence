@@ -179,6 +179,7 @@ const text: GuideText = {
         "Touchez « Créer manuellement » : la toile s'ouvre.",
         "Touchez « Ajouter depuis la garde-robe » et choisissez les pièces.",
         "Déplacez, agrandissez et superposez les pièces avec les doigts.",
+        "Pour garder une pièce, touchez-la puis le cadenas : avec « Suggestion IA », seules les autres pièces changent. Vous pouvez en verrouiller plusieurs. « Verrouiller les calques » garde l'ordre de ce qui est au-dessus quand vous déplacez les pièces.",
         "Touchez « Enregistrer la tenue ». Vous pouvez aussi la partager ou l'ajouter au calendrier.",
       ],
     },

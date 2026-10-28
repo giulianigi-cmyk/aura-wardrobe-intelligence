@@ -1,7 +1,7 @@
 // Run with: bun test src/lib/outfit-anchor.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ensureAnchor } from "./outfit-anchor";
+import { ensureAnchor, ensureAnchors } from "./outfit-anchor";
 
 const cats: Record<string, string> = {
   skirt: "Bottoms", jeans: "Bottoms", dress: "Dresses", dress2: "Dresses", top: "Tops", shoes: "Shoes", bag: "Bags", coat: "Outerwear",
@@ -31,4 +31,14 @@ test("a top anchor replaces a dress (top + bottom can't sit on a dress)", () => 
 
 test("unknown category: anchor is added without removing anything", () => {
   assert.deepEqual(ensureAnchor(["top", "jeans"], "mystery", catOf), ["mystery", "top", "jeans"]);
+});
+
+test("several locked pieces: all kept, first, and never dropped for one another", () => {
+  // Skirt and shoes locked, both already there: moved first, the rest unchanged.
+  assert.deepEqual(ensureAnchors(["top", "skirt", "bag", "shoes"], ["skirt", "shoes"], catOf), ["skirt", "shoes", "top", "bag"]);
+  // The model dropped both: they come back, replacing only the jeans and nothing else.
+  assert.deepEqual(ensureAnchors(["top", "jeans", "bag"], ["skirt", "shoes"], catOf), ["skirt", "shoes", "top", "bag"]);
+  // A locked top and a locked coat stay together; a missing locked top does not push out the locked coat.
+  assert.deepEqual(ensureAnchors(["dress", "coat"], ["top", "coat"], catOf), ["top", "coat"]);
+  assert.deepEqual(ensureAnchors(["top", "jeans"], [null, undefined], catOf), ["top", "jeans"]);
 });

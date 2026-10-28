@@ -179,6 +179,7 @@ const text: GuideText = {
         "Tocca «Crea manualmente»: si apre la tela.",
         "Tocca «Aggiungi dal guardaroba» e scegli i capi.",
         "Sposta, ingrandisci e sovrapponi i capi con le dita.",
+        "Per tenere fermo un capo toccalo e poi tocca il lucchetto: con «Suggerimento AI» cambiano solo gli altri capi. Puoi bloccarne più di uno. «Blocca strati» tiene l'ordine di cosa sta sopra quando sposti i capi.",
         "Tocca «Salva outfit». Puoi anche condividerlo o metterlo nel calendario.",
       ],
     },

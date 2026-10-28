@@ -165,6 +165,7 @@ export const GUIDE: GuideChapterDef[] = [
           { kind: "button", labelKey: "aiStylist.buildManually", variant: "solid" },
           { kind: "button", labelKey: "outfitBuilder.addFromCloset", icon: "plus", variant: "outline" },
           null,
+          { kind: "chips", labelKeys: ["outfitBuilder.lockLayers", "outfitBuilder.aiSuggest"] },
           { kind: "button", labelKey: "outfitBuilder.saveOutfit", variant: "solid" },
         ],
       },
