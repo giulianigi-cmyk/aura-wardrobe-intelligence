@@ -11,6 +11,7 @@ import { alreadyOwnedPieces, loadWardrobeFeedback } from "./wardrobe-feedback";
 import { currentSeason } from "./wardrobe-image";
 import { suggestableForGender, suggestableTypes } from "./gender-scope";
 import { colourPlayGapRule } from "./nature-color-pairings";
+import { mentionedPieces, namedFirst } from "./gap-mentions";
 
 const ItemSchema = z.object({
   id: z.string(),
@@ -72,6 +73,8 @@ const OutputSchema = z.object({
   // reads as the card's title.
   title: z.string(),
   reason: z.string(),
+  // Ids of the catalog pieces named in "reason": shown first among those it would pair with.
+  mentionedIds: z.array(z.string()).optional().default([]),
 });
 
 export type GapSuggestion = {
@@ -211,7 +214,8 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
       "A piece with an empty subcategory may be ANY type of that category (read its brand and model): never suggest a type and colour such a piece could already be. Many bags are worn in more than one way — a shoulder bag usually also has a crossbody strap, a top-handle 'Bandoulière' has a shoulder strap — so a crossbody bag is not missing when a shoulder bag of that colour is owned.",
       "",
       "Respond with ONLY a single valid JSON object, no markdown fences, no extra text, in exactly this shape:",
-      '{"category": "", "subcategory": "", "colors": [], "title": "", "reason": ""}',
+      "\"mentionedIds\": the \"id\" of every catalog piece you name in \"reason\" (e.g. the trousers you say it goes with); [] when you name none.",
+      '{"category": "", "subcategory": "", "colors": [], "title": "", "reason": "", "mentionedIds": []}',
     ].join("\n");
 
     const userContent = `Wardrobe catalog (JSON):\n${JSON.stringify(catalog)}`;
@@ -353,13 +357,16 @@ export const analyzeWardrobeGap = createServerFn({ method: "POST" })
         if (!addedThisRound) break;
       }
 
+      // The pieces the reason talks about come first, even when the ranking left them out.
+      const named = mentionedPieces(accepted.reason, accepted.mentionedIds ?? [], data.items, new Set(others.map((it) => it.id)));
+
       const suggestion: GapSuggestion = {
         category,
         subcategory,
         colors,
         title: accepted.title,
         reason: accepted.reason,
-        pairsWithIds,
+        pairsWithIds: namedFirst(named, pairsWithIds, MAX_PAIRS),
       };
       return { ok: true as const, suggestion };
     } catch (err) {

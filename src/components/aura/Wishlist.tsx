@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Check, ChevronRight, PiggyBank, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Camera, Check, ChevronRight, PiggyBank, Plus, Trash2, X } from "lucide-react";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { supabase } from "@/integrations/supabase/client";
 import { signStoragePaths } from "@/lib/signed-url-cache";
@@ -10,6 +10,7 @@ import { setPendingImportUrl } from "@/lib/pending-import";
 import { countPairings } from "@/lib/purchase-pairings";
 import { similarOwnedPiece } from "@/lib/purchase-similarity";
 import { localizeLabel, garmentName } from "@/lib/garment-names";
+import { ITEM_CATEGORIES } from "@/lib/wardrobe-options";
 import { monthlyQuestionDue, openWishes, savingsBalance, savingsPlan, wishCostPerWear } from "@/lib/wishlist-savings";
 import type { WardrobeItem } from "@/lib/aura-types";
 import type { Database } from "@/integrations/supabase/types";
@@ -42,6 +43,10 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
   const [monthlyText, setMonthlyText] = useState<Record<string, string>>({});
   // The piece whose card is open.
   const [openId, setOpenId] = useState<string | null>(null);
+  // A piece added by hand, without "Devo comprarlo?": name, and when known brand, type, price, link, photo.
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState({ title: "", brand: "", category: "", price: "", url: "" });
+  const [draftPhoto, setDraftPhoto] = useState<File | null>(null);
   const [skippedMonth, setSkippedMonth] = useState<string | null>(() => {
     try { return localStorage.getItem(skipKey(userId)); } catch { return null; }
   });
@@ -168,6 +173,41 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
     }
   };
 
+  const openAdd = () => { setDraft({ title: "", brand: "", category: "", price: "", url: "" }); setDraftPhoto(null); setAdding(true); };
+
+  /** Adds a piece by hand at the bottom of the list. The link is kept only when it is a web address. */
+  const addByHand = async () => {
+    const title = draft.title.trim();
+    if (!title || busy) return;
+    setBusy(true);
+    try {
+      let imagePath: string | null = null;
+      if (draftPhoto) {
+        const ext = draftPhoto.type.includes("png") ? "png" : "jpg";
+        const path = `${userId}/wishlist/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("wardrobe").upload(path, draftPhoto, { cacheControl: "3600", upsert: false, contentType: draftPhoto.type || "image/jpeg" });
+        if (!upErr) imagePath = path;
+      }
+      const price = Number(draft.price.replace(",", "."));
+      const url = /^https?:\/\/\S+$/i.test(draft.url.trim()) ? draft.url.trim() : null;
+      const last = wishes.filter((w) => !w.bought_at).reduce((m, w) => Math.max(m, w.priority), -1);
+      const { error } = await supabase.from("wishlist_items").insert({
+        user_id: userId, title, brand: draft.brand.trim() || null, category: draft.category || null,
+        price: price > 0 ? Math.round(price * 100) / 100 : null, currency: price > 0 ? "EUR" : null,
+        product_url: url, image_url: imagePath, priority: last + 1,
+      });
+      if (error) throw error;
+      setAdding(false);
+      toast.success(t("wishlist.addedToast"));
+      await load();
+    } catch (e) {
+      console.error("[AURA wishlist] add failed", e);
+      toast.error(t("wishlist.saveFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const wishLabel = (w: Wish) =>
     w.title || [w.subcategory, w.category].filter((x): x is string => !!x).map((x) => garmentName(x, i18n.language)).join(" · ") || t("shop.unknownPiece");
 
@@ -189,11 +229,19 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
   const selected = open.find((w) => w.id === openId) ?? null;
 
   return (
-    <section className="px-6 mt-8">
-      <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">{t("wishlist.title")}</p>
+    <section className="mx-6 mt-10 pt-8 border-t border-border/60">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("wishlist.title")}</p>
+        <button onClick={openAdd}
+          className="h-8 px-3 rounded-full border border-border text-[10px] uppercase tracking-widest inline-flex items-center gap-1.5 shrink-0">
+          <Plus size={11} /> {t("wishlist.addAmount")}
+        </button>
+      </div>
 
       {open.length === 0 ? (
-        <p className="text-[12px] text-muted-foreground leading-relaxed">{t("wishlist.empty")}</p>
+        <div className="rounded-[2rem] bg-secondary/40 p-6">
+          <p className="text-[12px] text-muted-foreground leading-relaxed">{t("wishlist.empty")}</p>
+        </div>
       ) : (
         <ul className="space-y-2">
           {open.map((w, i) => (
@@ -223,6 +271,12 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
       {selected && (
         <WishSheet onClose={() => setOpenId(null)} closeLabel={t("wishlist.close")}>
           {renderDetail(selected)}
+        </WishSheet>
+      )}
+
+      {adding && (
+        <WishSheet onClose={() => setAdding(false)} closeLabel={t("wishlist.close")}>
+          {renderAdd()}
         </WishSheet>
       )}
     </section>
@@ -288,6 +342,48 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
             className="h-9 px-4 rounded-full bg-foreground text-background text-[11px] inline-flex items-center gap-1.5 disabled:opacity-60"><Check size={12} /> {t("wishlist.bought")}</button>
           <button disabled={busy} onClick={() => void remove(w)}
             className="h-9 px-4 rounded-full border border-border text-[11px] inline-flex items-center gap-1.5 disabled:opacity-60"><Trash2 size={12} /> {t("wishlist.remove")}</button>
+        </div>
+      </>
+    );
+  }
+
+  /** The form to add a piece by hand: only the name is needed. */
+  function renderAdd() {
+    const field = "w-full rounded-full border border-border bg-background px-4 py-2 text-sm outline-none";
+    return (
+      <>
+        <p className="font-serif italic text-lg pr-10">{t("wishlist.addTitle")}</p>
+        <div className="mt-4 space-y-2.5">
+          <input value={draft.title} onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
+            placeholder={t("wishlist.fieldName")} aria-label={t("wishlist.fieldName")} className={field} />
+          <input value={draft.brand} onChange={(e) => setDraft((d) => ({ ...d, brand: e.target.value }))}
+            placeholder={t("wishlist.fieldBrand")} aria-label={t("wishlist.fieldBrand")} className={field} />
+          <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2">
+            <input inputMode="decimal" value={draft.price} onChange={(e) => setDraft((d) => ({ ...d, price: e.target.value }))}
+              placeholder={t("wishlist.fieldPrice")} aria-label={t("wishlist.fieldPrice")} className="flex-1 min-w-0 bg-transparent text-sm outline-none" />
+            <span className="text-sm text-muted-foreground">€</span>
+          </div>
+          <input inputMode="url" value={draft.url} onChange={(e) => setDraft((d) => ({ ...d, url: e.target.value }))}
+            placeholder={t("wishlist.fieldLink")} aria-label={t("wishlist.fieldLink")} className={field} />
+        </div>
+        <p className="mt-4 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("wishlist.fieldCategory")}</p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {ITEM_CATEGORIES.filter((c) => c !== "Underwear").map((c) => (
+            <button key={c} onClick={() => setDraft((d) => ({ ...d, category: d.category === c ? "" : c }))}
+              className={`h-7 px-3 rounded-full text-[11px] ${draft.category === c ? "bg-foreground text-background" : "bg-background border border-border text-muted-foreground"}`}>
+              {garmentName(c, i18n.language)}
+            </button>
+          ))}
+        </div>
+        <label className="mt-4 h-10 px-4 rounded-full border border-border inline-flex items-center gap-2 text-[11px] cursor-pointer">
+          <Camera size={13} /> {draftPhoto ? draftPhoto.name : t("wishlist.fieldPhoto")}
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => setDraftPhoto(e.target.files?.[0] ?? null)} />
+        </label>
+        <div className="mt-5">
+          <button disabled={busy || !draft.title.trim()} onClick={() => void addByHand()}
+            className="h-11 w-full rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] disabled:opacity-50">
+            {t("wishlist.addSave")}
+          </button>
         </div>
       </>
     );
