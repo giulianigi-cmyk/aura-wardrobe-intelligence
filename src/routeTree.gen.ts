@@ -15,6 +15,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as Char91DotwellKnownChar93MicrosoftIdentityAssociationChar91DotChar93jsonRouteImport } from './routes/[.well-known]/microsoft-identity-association[.]json'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AddUsernameRouteImport } from './routes/add.$username'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
@@ -57,6 +58,14 @@ const Char91DotmcpChar93ListToolsRoute =
     path: '/.mcp/list-tools',
     getParentRoute: () => rootRouteImport,
   } as any)
+const Char91DotwellKnownChar93MicrosoftIdentityAssociationChar91DotChar93jsonRoute =
+  Char91DotwellKnownChar93MicrosoftIdentityAssociationChar91DotChar93jsonRouteImport.update(
+    {
+      id: '/.well-known/microsoft-identity-association.json',
+      path: '/.well-known/microsoft-identity-association.json',
+      getParentRoute: () => rootRouteImport,
+    } as any,
+  )
 const Char91DotwellKnownChar93OauthProtectedResourceRoute =
   Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
     id: '/.well-known/oauth-protected-resource',
@@ -123,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/microsoft-identity-association.json': typeof Char91DotwellKnownChar93MicrosoftIdentityAssociationChar91DotChar93jsonRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/add/$username': typeof AddUsernameRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -141,6 +151,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/microsoft-identity-association.json': typeof Char91DotwellKnownChar93MicrosoftIdentityAssociationChar91DotChar93jsonRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/add/$username': typeof AddUsernameRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -160,6 +171,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/microsoft-identity-association.json': typeof Char91DotwellKnownChar93MicrosoftIdentityAssociationChar91DotChar93jsonRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/add/$username': typeof AddUsernameRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -180,6 +192,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/.mcp/list-tools'
+    | '/.well-known/microsoft-identity-association.json'
     | '/.well-known/oauth-protected-resource'
     | '/add/$username'
     | '/.lovable/oauth/consent'
@@ -198,6 +211,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/.mcp/list-tools'
+    | '/.well-known/microsoft-identity-association.json'
     | '/.well-known/oauth-protected-resource'
     | '/add/$username'
     | '/.lovable/oauth/consent'
@@ -216,6 +230,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/.mcp/list-tools'
+    | '/.well-known/microsoft-identity-association.json'
     | '/.well-known/oauth-protected-resource'
     | '/add/$username'
     | '/.lovable/oauth/consent'
@@ -235,6 +250,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
+  Char91DotwellKnownChar93MicrosoftIdentityAssociationChar91DotChar93jsonRoute: typeof Char91DotwellKnownChar93MicrosoftIdentityAssociationChar91DotChar93jsonRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   AddUsernameRoute: typeof AddUsernameRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
@@ -289,6 +305,13 @@ declare module '@tanstack/react-router' {
       path: '/.mcp/list-tools'
       fullPath: '/.mcp/list-tools'
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/microsoft-identity-association.json': {
+      id: '/.well-known/microsoft-identity-association.json'
+      path: '/.well-known/microsoft-identity-association.json'
+      fullPath: '/.well-known/microsoft-identity-association.json'
+      preLoaderRoute: typeof Char91DotwellKnownChar93MicrosoftIdentityAssociationChar91DotChar93jsonRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.well-known/oauth-protected-resource': {
@@ -371,6 +394,8 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
+  Char91DotwellKnownChar93MicrosoftIdentityAssociationChar91DotChar93jsonRoute:
+    Char91DotwellKnownChar93MicrosoftIdentityAssociationChar91DotChar93jsonRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   AddUsernameRoute: AddUsernameRoute,
