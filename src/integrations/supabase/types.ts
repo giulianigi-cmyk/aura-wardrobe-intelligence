@@ -3034,6 +3034,7 @@ export type Database = {
           id: string
           image_url: string | null
           material: string[]
+          monthly_amount: number | null
           occasion: string | null
           price: number | null
           priority: number
@@ -3055,6 +3056,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           material?: string[]
+          monthly_amount?: number | null
           occasion?: string | null
           price?: number | null
           priority?: number
@@ -3076,6 +3078,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           material?: string[]
+          monthly_amount?: number | null
           occasion?: string | null
           price?: number | null
           priority?: number

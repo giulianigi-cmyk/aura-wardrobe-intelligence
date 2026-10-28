@@ -8,7 +8,7 @@ import { setPendingImportUrl } from "@/lib/pending-import";
 import { countPairings } from "@/lib/purchase-pairings";
 import { similarOwnedPiece } from "@/lib/purchase-similarity";
 import { localizeLabel, garmentName } from "@/lib/garment-names";
-import { budgetPlan, monthlyQuestionDue, openWishes, savingsBalance, savingsPlan, wishCostPerWear } from "@/lib/wishlist-savings";
+import { monthlyQuestionDue, openWishes, savingsBalance, savingsPlan, wishCostPerWear } from "@/lib/wishlist-savings";
 import type { WardrobeItem } from "@/lib/aura-types";
 import type { Database } from "@/integrations/supabase/types";
 import type { Screen } from "./AuraApp";
@@ -21,19 +21,6 @@ const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
 const thisMonth = (now = new Date()) => `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 // "Non questo mese" on the monthly question: remembered on this device for the current month only.
 const skipKey = (userId: string) => `aura.savingsAskSkip.${userId}`;
-// How the plan is worked out — from the purchase dates, or from what the person can put aside a month
-// — and that amount: a preference kept on this device.
-type PlanMode = "date" | "budget";
-const modeKey = (userId: string) => `aura.savingsPlan.${userId}`;
-function readMode(userId: string): { mode: PlanMode; budget: number } {
-  try {
-    const v = JSON.parse(localStorage.getItem(modeKey(userId)) ?? "{}") as { mode?: string; budget?: number };
-    return { mode: v.mode === "budget" ? "budget" : "date", budget: Number(v.budget) > 0 ? Number(v.budget) : 0 };
-  } catch {
-    return { mode: "date", budget: 0 };
-  }
-}
-
 /** "Lista dei desideri" and the money set aside for it, in the Shop screen. Pieces come from the
  *  result of "Devo comprarlo?" (link, photo or label, analysed once there). Nothing here moves real
  *  money: the savings are a note of what the person says they put aside. */
@@ -47,12 +34,10 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
   const [busy, setBusy] = useState(false);
   const [addingAmount, setAddingAmount] = useState<"monthly" | "manual" | null>(null);
   const [amountText, setAmountText] = useState("");
-  const [planMode, setPlanMode] = useState(() => readMode(userId));
-  const [budgetText, setBudgetText] = useState(() => (planMode.budget ? String(planMode.budget) : ""));
-  const savePlanMode = (next: { mode: PlanMode; budget: number }) => {
-    setPlanMode(next);
-    try { localStorage.setItem(modeKey(userId), JSON.stringify(next)); } catch { /* kept for this visit only */ }
-  };
+  // For each piece, how the person wants to get there: by a date, or with an amount a month. Shown
+  // from what is saved on the piece; changed here until a date or an amount is entered.
+  const [choiceById, setChoiceById] = useState<Record<string, "date" | "month">>({});
+  const [monthlyText, setMonthlyText] = useState<Record<string, string>>({});
   const [skippedMonth, setSkippedMonth] = useState<string | null>(() => {
     try { return localStorage.getItem(skipKey(userId)); } catch { return null; }
   });
@@ -76,16 +61,11 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
   const plan = useMemo(() => savingsPlan(wishes, entries), [wishes, entries]);
   const balance = useMemo(() => savingsBalance(entries), [entries]);
   const rowById = useMemo(() => Object.fromEntries(plan.rows.map((r) => [r.id, r])), [plan]);
-  const byBudget = planMode.mode === "budget";
-  const budgetById = useMemo(
-    () => Object.fromEntries(budgetPlan(wishes, entries, planMode.budget).map((r) => [r.id, r])),
-    [wishes, entries, planMode.budget],
-  );
   const monthName = (iso: string) => {
     const [y, m] = iso.split("-").map(Number);
     return new Intl.DateTimeFormat(i18n.language, { month: "long", year: "numeric" }).format(new Date(y, m - 1, 1));
   };
-  const monthlyAmount = byBudget ? planMode.budget : plan.monthlyTotal;
+  const monthlyAmount = plan.monthlyTotal;
   const owned = useMemo(() => wardrobe.filter((it) => !(it as { archived?: boolean }).archived), [wardrobe]);
   const askMonthly = monthlyQuestionDue(monthlyAmount, entries) && skippedMonth !== thisMonth();
 
@@ -139,10 +119,11 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
     }
   };
 
-  const setTargetDate = async (wish: Wish, value: string) => {
-    setWishes((prev) => prev.map((w) => (w.id === wish.id ? { ...w, target_date: value || null } : w)));
-    const { error } = await supabase.from("wishlist_items").update({ target_date: value || null, updated_at: new Date().toISOString() }).eq("id", wish.id);
-    if (error) { console.error("[AURA wishlist] date failed", error); toast.error(t("wishlist.saveFailed")); await load(); }
+  /** A date or an amount a month for a piece: one replaces the other. */
+  const setGoal = async (wish: Wish, patch: { target_date: string | null; monthly_amount: number | null }) => {
+    setWishes((prev) => prev.map((w) => (w.id === wish.id ? { ...w, ...patch } : w)));
+    const { error } = await supabase.from("wishlist_items").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", wish.id);
+    if (error) { console.error("[AURA wishlist] goal failed", error); toast.error(t("wishlist.saveFailed")); await load(); }
   };
 
   const remove = async (wish: Wish) => {
@@ -202,30 +183,10 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
             <Plus size={11} /> {t("wishlist.addAmount")}
           </button>
         </div>
-        <div className="mt-3 flex gap-2">
-          {(["date", "budget"] as const).map((m) => (
-            <button key={m} onClick={() => savePlanMode({ ...planMode, mode: m })}
-              className={`flex-1 h-8 rounded-full text-[10px] uppercase tracking-widest ${planMode.mode === m ? "bg-foreground text-background" : "bg-background border border-border text-muted-foreground"}`}>
-              {t(m === "date" ? "wishlist.modeDate" : "wishlist.modeBudget")}
-            </button>
-          ))}
-        </div>
-        {byBudget ? (
-          <div className="mt-2 flex items-center gap-2 text-[12px]">
-            <span className="text-foreground/80">{t("wishlist.budgetLabel")}</span>
-            <div className="flex items-center gap-1 rounded-full bg-background border border-border px-3 py-1">
-              <input inputMode="decimal" value={budgetText} placeholder="0"
-                onChange={(e) => setBudgetText(e.target.value)}
-                onBlur={() => { const v = Number(budgetText.replace(",", ".")); savePlanMode({ ...planMode, budget: v > 0 ? Math.round(v * 100) / 100 : 0 }); }}
-                className="w-16 bg-transparent text-sm outline-none text-right" />
-              <span className="text-muted-foreground">€</span>
-            </div>
-            <span className="text-foreground/80">{t("wishlist.budgetPerMonth")}</span>
-          </div>
-        ) : plan.monthlyTotal > 0 ? (
+        {plan.monthlyTotal > 0 && (
           <p className="mt-2 text-[12px] text-foreground/80 leading-snug">{t("wishlist.monthlyNeeded", { amount: plan.monthlyTotal })}</p>
-        ) : null}
-        {!byBudget && plan.unrealistic && (
+        )}
+        {plan.unrealistic && (
           <p className="mt-1.5 text-[11px] text-destructive leading-snug">
             {plan.rows.some((r) => r.late)
               ? t("wishlist.lateWarning")
@@ -267,6 +228,7 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
         <ul className="mt-3 space-y-2">
           {open.map((w, i) => {
             const row = rowById[w.id];
+            const choice = choiceById[w.id] ?? (w.monthly_amount != null && !w.target_date ? "month" : "date");
             const product = { category: w.category, subcategory: w.subcategory, colors: w.colors ?? [], brand: w.brand, text: w.title };
             const pairs = w.category ? countPairings(w.category, w.colors ?? [], owned) : 0;
             const similar = similarOwnedPiece(product, owned);
@@ -294,34 +256,45 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
                   </div>
                 </div>
 
-                {!byBudget && <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <label className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    {t("wishlist.byDate")}
-                    <input type="date" value={w.target_date ?? ""} onChange={(e) => void setTargetDate(w, e.target.value)}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {(["date", "month"] as const).map((c) => (
+                    <button key={c} onClick={() => setChoiceById((m) => ({ ...m, [w.id]: c }))}
+                      className={`h-7 px-3 rounded-full text-[10px] uppercase tracking-widest ${choice === c ? "bg-foreground text-background" : "bg-background border border-border text-muted-foreground"}`}>
+                      {t(c === "date" ? "wishlist.modeDate" : "wishlist.modeBudget")}
+                    </button>
+                  ))}
+                  {choice === "date" ? (
+                    <input type="date" value={w.target_date ?? ""} aria-label={t("wishlist.modeDate")}
+                      onChange={(e) => void setGoal(w, { target_date: e.target.value || null, monthly_amount: null })}
                       className="rounded-full border border-border bg-background px-2 py-1 text-[11px] text-foreground" />
-                  </label>
-                </div>}
-                {byBudget ? (
-                  <p className="mt-1.5 text-[11px] leading-snug text-foreground/80">
-                    {(() => {
-                      const b = budgetById[w.id];
-                      if (!b || b.priceEur == null) return t("wishlist.noPrice");
-                      if (b.monthsAway === 0) return t("wishlist.covered");
-                      if (b.monthsAway == null || !b.reachedOn) return t("wishlist.setBudget");
-                      return t("wishlist.reachedOn", { month: monthName(b.reachedOn) });
-                    })()}
-                  </p>
-                ) : row && row.priceEur != null && (
-                  <p className="mt-1.5 text-[11px] leading-snug text-foreground/80">
-                    {row.remaining <= 0
-                      ? t("wishlist.covered")
-                      : row.late
-                      ? t("wishlist.rowLate", { remaining: fmt(row.remaining) })
-                      : row.monthly != null
-                      ? t("wishlist.rowMonthly", { monthly: row.monthly, count: row.months ?? 1, covered: fmt(row.covered) })
-                      : t("wishlist.rowCovered", { covered: fmt(row.covered), price: fmt(row.priceEur) })}
-                  </p>
-                )}
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-3 py-1 text-[11px]">
+                      <input inputMode="decimal" placeholder="0" aria-label={t("wishlist.modeBudget")}
+                        value={monthlyText[w.id] ?? (w.monthly_amount != null ? String(w.monthly_amount) : "")}
+                        onChange={(e) => setMonthlyText((m) => ({ ...m, [w.id]: e.target.value }))}
+                        onBlur={() => {
+                          const v = Number((monthlyText[w.id] ?? "").replace(",", "."));
+                          if (monthlyText[w.id] == null) return;
+                          void setGoal(w, { target_date: null, monthly_amount: v > 0 ? Math.round(v * 100) / 100 : null });
+                        }}
+                        className="w-14 bg-transparent outline-none text-right" />
+                      <span className="text-muted-foreground">{t("wishlist.perMonthSuffix")}</span>
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1.5 text-[11px] leading-snug text-foreground/80">
+                  {!row || row.priceEur == null
+                    ? t("wishlist.noPrice")
+                    : row.remaining <= 0
+                    ? t("wishlist.covered")
+                    : row.late
+                    ? t("wishlist.rowLate", { remaining: fmt(row.remaining) })
+                    : row.reachedOn
+                    ? t("wishlist.rowReached", { monthly: row.monthly, month: monthName(row.reachedOn), covered: fmt(row.covered) })
+                    : row.monthly != null
+                    ? t("wishlist.rowMonthly", { monthly: row.monthly, count: row.months ?? 1, covered: fmt(row.covered) })
+                    : t("wishlist.rowCovered", { covered: fmt(row.covered), price: fmt(row.priceEur) })}
+                </p>
 
                 <div className="mt-2 flex gap-2">
                   <button disabled={busy} onClick={() => void bought(w)}

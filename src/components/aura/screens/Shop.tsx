@@ -2,7 +2,7 @@ import { retryOnNetworkError } from "@/lib/network-retry";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
-import { Sparkles, Loader2, Plus, Link as LinkIcon, Check, HelpCircle, X as XIcon, Camera, Tag, ExternalLink, Minus, Heart, PiggyBank } from "lucide-react";
+import { Sparkles, Loader2, Plus, Link as LinkIcon, Check, HelpCircle, X as XIcon, Camera, Tag, ExternalLink, Minus, Heart } from "lucide-react";
 import type { Screen } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -68,10 +68,10 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
   const photoRef = useRef<HTMLInputElement>(null);
   const labelForPhotoRef = useRef<HTMLInputElement>(null);
   const labelOnlyRef = useRef<HTMLInputElement>(null);
-  // Wish list: what was done with the current result ("Aggiungi alla lista dei desideri", "Rinuncio
-  // e metto da parte"), so each is offered once per result.
+  // Wish list: whether the current result was already added to it ("Aggiungi alla lista dei
+  // desideri" is offered once per result).
   const [wishRefresh, setWishRefresh] = useState(0);
-  const [resultDone, setResultDone] = useState<{ wished?: boolean; skipped?: boolean }>({});
+  const [resultDone, setResultDone] = useState<{ wished?: boolean }>({});
   const [savingWish, setSavingWish] = useState(false);
 
   // ---- Compare (2-4 pieces) state — kept separate from the single-item state above
@@ -271,26 +271,6 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
       toast.success(t("wishlist.addedToast"));
     } catch (e) {
       console.error("[AURA shop] wishlist add failed", e);
-      toast.error(t("wishlist.saveFailed"));
-    } finally {
-      setSavingWish(false);
-    }
-  };
-
-  /** "Rinuncio e metto da parte X €": a purchase not made goes into the savings. */
-  const skipAndSave = async () => {
-    if (!user || !result || !result.ok || savingWish) return;
-    const price = resultPrice(result);
-    if (!price) return;
-    setSavingWish(true);
-    try {
-      const { error } = await supabase.from("savings_entries").insert({ user_id: user.id, amount: price.amount, currency: price.currency, source: "skipped" });
-      if (error) throw error;
-      setResultDone((d) => ({ ...d, skipped: true }));
-      setWishRefresh((n) => n + 1);
-      toast.success(t("wishlist.savedToast", { amount: Math.round(price.amount) }));
-    } catch (e) {
-      console.error("[AURA shop] skip save failed", e);
       toast.error(t("wishlist.saveFailed"));
     } finally {
       setSavingWish(false);
@@ -654,12 +634,6 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                   className="h-9 px-3 rounded-full bg-foreground text-background text-[10px] uppercase tracking-widest inline-flex items-center gap-1.5 disabled:opacity-60">
                   {resultDone.wished ? <Check size={11} /> : <Heart size={11} />} {t(resultDone.wished ? "wishlist.added" : "wishlist.addButton")}
                 </button>
-                {resultPrice(result) && (
-                  <button disabled={savingWish || resultDone.skipped} onClick={() => void skipAndSave()}
-                    className="h-9 px-3 rounded-full border border-border text-[10px] uppercase tracking-widest inline-flex items-center gap-1.5 disabled:opacity-60">
-                    {resultDone.skipped ? <Check size={11} /> : <PiggyBank size={11} />} {t(resultDone.skipped ? "wishlist.skippedDone" : "wishlist.skipButton", { amount: Math.round(resultPrice(result)!.amount) })}
-                  </button>
-                )}
               </div>
 
               {/* A dress-preference violation is a hard, explicit personal

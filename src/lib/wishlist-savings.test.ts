@@ -1,7 +1,7 @@
 // Run with: bun test src/lib/wishlist-savings.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { budgetPlan, monthlyQuestionDue, monthsLeft, openWishes, savingsBalance, savingsPlan, usualMonthlySaving, wishCostPerWear } from "./wishlist-savings";
+import { monthlyQuestionDue, monthsLeft, openWishes, savingsBalance, savingsPlan, usualMonthlySaving, wishCostPerWear } from "./wishlist-savings";
 import type { WardrobeItem } from "./aura-types";
 
 const now = new Date(2026, 9, 28); // 28 October 2026
@@ -82,19 +82,22 @@ test("cost per wear: a watch is worn nearly every day, an evening dress a few ti
   assert.equal(wishCostPerWear({ category: "Bags", subcategory: null, price: 100 }, [], now), null);
 });
 
-test("with a fixed amount a month, each piece is reached in turn, in order of priority", () => {
-  const rows = budgetPlan(
-    [wish("bag", 0, 300, null), wish("scarf", 1, 50, null), wish("watch", 2, 1000, "2027-01-01"), wish("idea", 3, null, null)],
+test("a piece with a monthly amount says when it is reached; it counts in the monthly total", () => {
+  const w = (id: string, priority: number, price: number | null, monthly: number | null, target: string | null = null) =>
+    ({ ...wish(id, priority, price, target), monthly_amount: monthly });
+  const plan = savingsPlan(
+    [w("bag", 0, 300, 100), w("watch", 1, 1000, 50, "2027-01-15"), w("ring", 2, 250, 100), w("idea", 3, null, 30)],
     [{ amount: 250, source: "sold", entry_date: "2026-10-02" }],
-    100,
     now,
   );
-  assert.deepEqual(rows.map((r) => [r.id, r.monthsAway, r.reachedOn]), [
-    ["bag", 1, "2026-11-01"],
-    ["scarf", 1, "2026-11-01"],
-    ["watch", 11, "2027-09-01"],
-    ["idea", null, null],
-  ]);
-  assert.equal(budgetPlan([wish("bag", 0, 300, null)], [{ amount: 300, source: "manual", entry_date: "2026-10-02" }], 0, now)[0].monthsAway, 0);
-  assert.equal(budgetPlan([wish("bag", 0, 300, null)], [], 0, now)[0].monthsAway, null);
+  const [bag, watch, ring, idea] = plan.rows;
+  // 250 already set aside cover most of the bag: 50 left, reached this month.
+  assert.deepEqual([bag.remaining, bag.months, bag.monthly, bag.reachedOn], [50, 1, 50, "2026-10-01"]);
+  // A date wins over a monthly amount.
+  assert.deepEqual([watch.months, watch.monthly, watch.reachedOn], [4, 250, null]);
+  assert.deepEqual([ring.months, ring.monthly, ring.reachedOn], [3, 100, "2026-12-01"]);
+  assert.equal(idea.monthly, null);
+  assert.equal(plan.monthlyTotal, 400);
+  const covered = savingsPlan([w("bag", 0, 300, 100)], [{ amount: 300, source: "manual", entry_date: "2026-10-02" }], now).rows[0];
+  assert.deepEqual([covered.remaining, covered.monthly, covered.reachedOn], [0, 0, "2026-10-01"]);
 });
