@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { isWearableNow } from "@/lib/wardrobe-storage";
 import { useServerFn } from "@tanstack/react-start";
 import { useTranslation } from "react-i18next";
 import { Bell, Search, Sparkles, TrendingUp, MapPin, Loader2 } from "lucide-react";
@@ -112,8 +113,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
   // input and its cache fingerprint use the active-only set below.
   const activeItems = useMemo(
     () => allItems.filter((it) => {
-      const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null; stored_at?: string | null };
-      return !raw.archived && !raw.active_loan_id && !raw.stored_at;
+      return isWearableNow(it as never);
     }),
     [allItems],
   );

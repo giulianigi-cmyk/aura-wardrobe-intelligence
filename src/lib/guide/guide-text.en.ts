@@ -107,7 +107,7 @@ const text: GuideText = {
         "In Closet tap a piece to open its card.",
         "From here you can edit the details, remove the background or adjust the photo crop.",
         "“Create outfit from this” suggests looks built around that piece.",
-        "You can archive it if you no longer wear it, move it to seasonal storage, lend it, sell it or delete it.",
+        "Tap “Options” to put it in the laundry basket or at the dry cleaner, move it to seasonal storage, lend it, sell it or archive it.",
       ],
     },
     locations: {
@@ -125,7 +125,7 @@ const text: GuideText = {
       steps: [
         "Open Closet.",
         "Tap “Select” and choose the pieces to move.",
-        "Tap “Seasonal storage”. For a single piece you can also open its card and tap “Seasonal storage”.",
+        "Tap “Seasonal storage”. For a single piece you can also open its card and tap “Options” › “Move to seasonal storage”.",
         "You'll find them all under “Seasonal storage”, below the filters, with the date you moved them.",
         "When the season changes, open “Seasonal storage”, select the pieces and tap “Take out of seasonal storage”.",
         "“Seasonal storage” also has tips: how to get pieces ready, how to fold them (with drawings) and which containers to use.",
@@ -136,12 +136,22 @@ const text: GuideText = {
       title: "Selling a piece",
       intro: "Prepare a listing for the resale site you prefer in a moment.",
       steps: [
-        "Open the piece and tap “Sell”.",
+        "Open the piece, tap “Options” and then “Sell this piece”.",
         "Choose the condition: the suggested price adapts, based on the estimated resale value.",
         "Check title and description, save the photo (already without background) and tap “Copy listing”: paste it on the resale site you prefer.",
         "Once sold, tap “Mark as sold”: the piece moves to Archived.",
       ],
       tip: "In Closet we suggest the pieces you haven't worn for a whole season (6 months for all-season pieces, 2 years for occasion pieces), if you log what you wear. With “Keep it” we won't suggest them again for a year.",
+    },
+    basket: {
+      title: "Laundry basket, dry cleaner and loans",
+      intro: "Pieces to wash, at the dry cleaner or lent out don't appear in looks until they're back in the wardrobe.",
+      steps: [
+        "Open the piece, tap “Options” and then “Into the laundry basket”. Sport pieces go there on their own when you log the look as worn.",
+        "In Closet tap “Basket”: pieces are split by machine load. Tap “Washed” when done; if you forget, after 10 days they go back to the wardrobe on their own.",
+        "For the dry cleaner: “Options” › “To the dry cleaner”. They don't come back on their own: after 7 days we ask whether you collected them.",
+        "For lent pieces, 14 days later we ask whether you got them back. With “They still have it” we ask again 14 days later.",
+      ],
     },
     laundry: {
       title: "Laundry",

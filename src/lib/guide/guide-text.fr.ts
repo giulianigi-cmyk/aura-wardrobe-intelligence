@@ -107,7 +107,7 @@ const text: GuideText = {
         "Dans Garde-robe, touchez une pièce pour ouvrir sa fiche.",
         "De là, vous pouvez modifier les détails, retirer le fond ou ajuster le recadrage de la photo.",
         "« Créer une tenue à partir de ceci » vous propose des looks construits autour de cette pièce.",
-        "Vous pouvez l'archiver si vous ne la portez plus, la mettre au rangement saisonnier, la prêter, la vendre ou la supprimer.",
+        "Touchez « Options » pour la mettre dans le panier à linge ou au pressing, au rangement saisonnier, la prêter, la vendre ou l'archiver.",
       ],
     },
     locations: {
@@ -125,7 +125,7 @@ const text: GuideText = {
       steps: [
         "Ouvrez Garde-robe.",
         "Touchez « Sélectionner » et choisissez les pièces.",
-        "Touchez « Rangement saisonnier ». Pour une seule pièce, vous pouvez aussi ouvrir sa fiche et toucher « Rangement saisonnier ».",
+        "Touchez « Rangement saisonnier ». Pour une seule pièce, vous pouvez aussi ouvrir sa fiche et toucher « Options » › « Mettre au rangement saisonnier ».",
         "Vous les retrouvez toutes dans « Rangement saisonnier », sous les filtres, avec la date à laquelle vous les y avez mises.",
         "Au changement de saison, ouvrez « Rangement saisonnier », sélectionnez les pièces et touchez « Sortir du rangement saisonnier ».",
         "« Rangement saisonnier » contient aussi des conseils : préparer les pièces, les plier (avec des dessins) et choisir les contenants.",
@@ -136,12 +136,22 @@ const text: GuideText = {
       title: "Vendre une pièce",
       intro: "Préparez en un instant l'annonce pour le site de revente de votre choix.",
       steps: [
-        "Ouvrez la pièce et touchez « Vendre ».",
+        "Ouvrez la pièce, touchez « Options » puis « Vendre cette pièce ».",
         "Choisissez l'état : le prix conseillé s'adapte, d'après la valeur de revente estimée.",
         "Vérifiez le titre et la description, enregistrez la photo (déjà détourée) et touchez « Copier l'annonce » : collez-la sur le site de revente de votre choix.",
         "Une fois vendue, touchez « Marquer comme vendue » : la pièce passe dans Archivées.",
       ],
       tip: "Dans Garde-robe, nous vous proposons les pièces que vous n'avez pas portées de toute une saison (6 mois pour celles de toutes saisons, 2 ans pour celles de cérémonie), si vous notez ce que vous portez. Avec « Je la garde », nous ne les reproposons pas avant un an.",
+    },
+    basket: {
+      title: "Panier à linge, pressing et prêts",
+      intro: "Les pièces à laver, au pressing ou prêtées n'apparaissent pas dans les looks tant qu'elles ne sont pas revenues dans la garde-robe.",
+      steps: [
+        "Ouvrez la pièce, touchez « Options » puis « Dans le panier à linge ». Les pièces de sport y vont seules quand vous notez le look comme porté.",
+        "Dans Garde-robe, touchez « Panier » : les pièces sont triées par machine. Touchez « Lavées » une fois fini ; si vous oubliez, elles reviennent seules dans la garde-robe après 10 jours.",
+        "Pour le pressing : « Options » › « Au pressing ». Elles ne reviennent pas seules : après 7 jours, nous vous demandons si vous les avez récupérées.",
+        "Pour les pièces prêtées, 14 jours après nous vous demandons si on vous les a rendues. Avec « Encore prêtée », nous redemandons 14 jours plus tard.",
+      ],
     },
     laundry: {
       title: "Lavage",

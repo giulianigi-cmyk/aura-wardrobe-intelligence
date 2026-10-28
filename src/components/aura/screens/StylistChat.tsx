@@ -1,4 +1,5 @@
 import { ArrowLeft, ArrowUp, Loader2, Sparkles, Mic, Square } from "lucide-react";
+import { isWearableNow } from "@/lib/wardrobe-storage";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -138,8 +139,7 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
           // treats null/undefined the same as false — only an explicit `true` is excluded. A loaned-
           // out piece is excluded the same way: not physically available to wear right now.
           const list = ((data ?? []) as WardrobeItem[]).filter((it) => {
-            const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null; stored_at?: string | null };
-            return !raw.archived && !raw.active_loan_id && !raw.stored_at;
+            return isWearableNow(it as never);
           });
           setItems(list);
           setSigned(await resolveWardrobeUrls(list));

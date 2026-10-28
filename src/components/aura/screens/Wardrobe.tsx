@@ -6,7 +6,7 @@ import { isShoeCategory, sizeEquivalences } from "@/lib/size-conversion";
 import { MaterialCombobox } from "@/components/aura/MaterialCombobox";
 import { AddSourceSheet } from "@/components/aura/AddSourceSheet";
 
-import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown, Package, PackageOpen, Lightbulb, Tag } from "lucide-react";
+import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown, Package, PackageOpen, Lightbulb, Tag, WashingMachine, Shirt, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { migrateLegacyTaxonomy } from "@/lib/migrate-legacy-taxonomy.functions";
@@ -21,7 +21,8 @@ import { ItemCropAdjuster } from "@/components/aura/ItemCropAdjuster";
 import type { FractionalBox } from "@/components/aura/ItemCropAdjuster";
 import { compressImageForUpload } from "@/lib/image-compress";
 import { trimWhiteMargins } from "@/lib/auto-crop";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useTranslation } from "react-i18next";
 import type { Screen, BuilderInit, StylistChatInit } from "../AuraApp";
@@ -60,6 +61,8 @@ import { isInStorage } from "@/lib/wardrobe-storage";
 import { StorageTipsSheet } from "@/components/aura/StorageTipsSheet";
 import { CareBox, LaundryGuideSheet } from "@/components/aura/LaundryGuide";
 import { keepPiece, readKeptPieces, SellSheet, SellSuggestionsSheet } from "@/components/aura/SellSheet";
+import { DryCleanerSheet, LaundryBasketSheet, type LaundryPiece } from "@/components/aura/LaundryBasket";
+import { basketExpired, dryCleanerOverdue, isInLaundry, loanReminderDue, type LaundryKind } from "@/lib/laundry-basket";
 import { logsWear, sellReason, type SellCheckable, type SellReason } from "@/lib/sell-listing";
 import { DetailSection } from "@/components/aura/DetailSection";
 import { careProfileFor, laundryTextFor } from "@/lib/laundry-care";
@@ -676,6 +679,76 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
     );
   };
 
+  // Cesto del bucato e tintoria (laundry-basket.ts): pieces out of the wardrobe until washed or
+  // collected. Basket pieces come back on their own after 10 days (cleared here, with a message).
+  const [basketOpen, setBasketOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [dryCleanerOpen, setDryCleanerOpen] = useState(false);
+  const laundryPieces = (kind: LaundryKind): LaundryPiece[] => items
+    .filter((it) => it.laundry_kind === kind && isInLaundry(it))
+    .map((it) => {
+      const path = toStoragePath(it.image_url);
+      return {
+        id: it.id, since: it.laundry_since ?? new Date().toISOString(),
+        label: [it.brand, garmentWithColor((it as unknown as { subcategory?: string | null }).subcategory || it.category || "", it.colors?.[0] ?? null, i18n.language)].filter(Boolean).join(" · "),
+        imageUrl: path ? signed[path] ?? "" : "",
+        material: Array.isArray(it.material) ? it.material : [], category: it.category, colors: it.colors,
+      };
+    });
+  const basketCount = items.filter((it) => it.laundry_kind === "basket" && isInLaundry(it)).length;
+  const dryCleanerCount = items.filter((it) => it.laundry_kind === "dry_cleaner" && isInLaundry(it)).length;
+  const dryCleanerDueCount = items.filter((it) => dryCleanerOverdue(it)).length;
+  const setLaundry = async (ids: string[], kind: LaundryKind | null) => {
+    if (!ids.length) return;
+    const since = kind ? new Date().toISOString() : null;
+    const { error } = await (supabase.from("wardrobe_items" as never) as any)
+      .update({ laundry_since: since, laundry_kind: kind }).in("id", ids);
+    if (error) { toast.error(error.message); return; }
+    const idSet = new Set(ids);
+    setItems((prev) => prev.map((it) => (idSet.has(it.id) ? { ...it, laundry_since: since, laundry_kind: kind } as WardrobeItem : it)));
+    setDetail((d) => (d && idSet.has(d.id) ? ({ ...d, laundry_since: since, laundry_kind: kind } as WardrobeItem) : d));
+    toast.success(kind === "basket" ? t("laundry.toastToBasket", { count: ids.length })
+      : kind === "dry_cleaner" ? t("laundry.toastToDryCleaner", { count: ids.length })
+      : t("laundry.toastBack", { count: ids.length }));
+  };
+  // Basket pieces past their 10 days: back in the wardrobe now, said once.
+  const expiredIds = items.filter((it) => basketExpired(it)).map((it) => it.id).join(",");
+  useEffect(() => {
+    if (!expiredIds) return;
+    const ids = expiredIds.split(",");
+    void (async () => {
+      const { error } = await (supabase.from("wardrobe_items" as never) as any)
+        .update({ laundry_since: null, laundry_kind: null }).in("id", ids).eq("laundry_kind", "basket");
+      if (error) { console.error("[AURA laundry] basket return failed", error); return; }
+      const idSet = new Set(ids);
+      setItems((prev) => prev.map((it) => (idSet.has(it.id) ? { ...it, laundry_since: null, laundry_kind: null } as WardrobeItem : it)));
+      toast.message(t("laundry.toastAutoBack", { count: ids.length }));
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expiredIds]);
+
+  // Loans with no return date: asked 14 days after the loan, then 14 days after each "ce l'ha ancora".
+  const loanReminders = Object.values(loansByItemId).filter((l) => loanReminderDue(l));
+  const loanStillOut = async (loanId: string) => {
+    const now = new Date().toISOString();
+    const { error } = await (supabase.from("wardrobe_loans" as never) as any).update({ updated_at: now }).eq("id", loanId);
+    if (error) { toast.error(error.message); return; }
+    setLoansByItemId((prev) => Object.fromEntries(Object.entries(prev).map(([k, l]) => [k, l.id === loanId ? { ...l, updated_at: now } : l])));
+    toast.message(t("laundry.loanAskAgain"));
+  };
+  const loanBack = async (loan: WardrobeLoan) => {
+    const item = items.find((it) => it.id === loan.item_id);
+    const locationId = (item as unknown as { location_id?: string | null } | undefined)?.location_id ?? null;
+    try {
+      await returnLoanFn({ data: { loanId: loan.id, returnToLocationId: locationId } });
+      setItems((prev) => prev.map((it) => (it.id === loan.item_id ? { ...it, active_loan_id: null } as WardrobeItem : it)));
+      setLoansByItemId((prev) => { const next = { ...prev }; delete next[loan.item_id]; return next; });
+      toast.success(t("wardrobe.toastReturned"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("wardrobe.toastReturnFailed"));
+    }
+  };
+
   // "Vendi questo capo": the listing sheet, and the pieces worth selling (sell-listing.ts) unless the
   // person said "Lo tengo" in the last year (remembered on this device).
   const [sellItem, setSellItem] = useState<WardrobeItem | null>(null);
@@ -871,6 +944,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
       // The closet is everything in the wardrobe now: seasonal storage, loans and archived pieces have
       // their own views (the old "this season / all seasons" switch went with Cambio stagione).
       if (isInStorage(i)) return false;
+      if (isInLaundry(i)) return false; // in the basket or at the dry cleaner: their own sheets
       const locId = (i as unknown as { location_id?: string | null }).location_id ?? null;
       const matchesLocation = viewLocationId === "all" || locId === viewLocationId;
       return !isArchived && !isLoaned && matchesLocation &&
@@ -1000,6 +1074,29 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
         </div>
       </div>
 
+      {!gapFilter && dryCleanerDueCount > 0 && (
+        <button onClick={() => setDryCleanerOpen(true)}
+          className="mx-6 mt-3 w-[calc(100%-3rem)] flex items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-left text-[12px] active:scale-[0.99]">
+          <Shirt size={14} className="shrink-0" />
+          <span className="flex-1">{t("laundry.dryCleanerAsk", { count: dryCleanerDueCount })}</span>
+          <span className="text-muted-foreground">›</span>
+        </button>
+      )}
+      {!gapFilter && loanReminders.map((loan) => {
+        const it = items.find((x) => x.id === loan.item_id);
+        const piece = it ? garmentWithColor((it as unknown as { subcategory?: string | null }).subcategory || it.category || "", it.colors?.[0] ?? null, i18n.language) : "";
+        return (
+          <div key={loan.id} className="mx-6 mt-3 rounded-2xl border border-border px-4 py-3 text-[12px]">
+            <p className="flex items-start gap-2"><Users size={14} className="shrink-0 mt-0.5" />
+              <span>{t("laundry.loanAsk", { piece, name: loan.borrower_name, date: new Date(`${loan.loaned_at.slice(0, 10)}T00:00:00`).toLocaleDateString(i18n.language, { day: "numeric", month: "long" }) })}</span>
+            </p>
+            <div className="mt-2 flex gap-2 pl-6">
+              <button onClick={() => void loanBack(loan)} className="rounded-full bg-foreground text-background px-3 py-1 text-[11px]">{t("laundry.loanBack")}</button>
+              <button onClick={() => void loanStillOut(loan.id)} className="rounded-full border border-border px-3 py-1 text-[11px]">{t("laundry.loanStillOut")}</button>
+            </div>
+          </div>
+        );
+      })}
       {sellCandidates.length > 0 && !gapFilter && (
         <button onClick={() => setSellListOpen(true)}
           className="mx-6 mt-3 w-[calc(100%-3rem)] flex items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-left text-[12px] active:scale-[0.99]">
@@ -1053,6 +1150,20 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
           {showLoaned ? <><X size={11} /> {t("wardrobe.backToCloset")}</> : <><Users size={11} /> {t("wardrobe.loanedCount", { count: loanedCount })}</>}
         </button>
       )}
+      {!showArchived && !showLoaned && !showStored && !gapFilter && (basketCount > 0 || dryCleanerCount > 0) && (
+        <div className="mx-6 mt-2 flex items-center gap-4">
+          {basketCount > 0 && (
+            <button onClick={() => setBasketOpen(true)} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              <WashingMachine size={11} /> {t("laundry.basketCount", { count: basketCount })}
+            </button>
+          )}
+          {dryCleanerCount > 0 && (
+            <button onClick={() => setDryCleanerOpen(true)} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              <Shirt size={11} /> {t("laundry.dryCleanerCount", { count: dryCleanerCount })}
+            </button>
+          )}
+        </div>
+      )}
       {/* Cambio stagione + Select: always here, so pieces can be put away (several at once) even by
           someone with a single location; in the storage view, Select brings several back at once. */}
       {!showArchived && !showLoaned && (
@@ -1094,6 +1205,12 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
       )}
       {storageTipsOpen && <StorageTipsSheet onClose={() => setStorageTipsOpen(false)} />}
       {laundryOpen && <LaundryGuideSheet onClose={() => setLaundryOpen(false)} />}
+      {basketOpen && (
+        <LaundryBasketSheet pieces={laundryPieces("basket")} onWashed={(ids) => void setLaundry(ids, null)} onClose={() => setBasketOpen(false)} />
+      )}
+      {dryCleanerOpen && (
+        <DryCleanerSheet pieces={laundryPieces("dry_cleaner")} onCollected={(ids) => void setLaundry(ids, null)} onClose={() => setDryCleanerOpen(false)} />
+      )}
       {sellListOpen && (
         <SellSuggestionsSheet
           pieces={sellCandidates.map(({ item, reason }) => {
@@ -1529,36 +1646,60 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                 >
                   <Pencil size={12} /> {t("wardrobe.editDetailsButton")}
                 </button>
-                {/* Archive, seasonal storage and lend side by side (they used to be three full-width rows). */}
-                {(() => {
+                {/* One "Opzioni" button instead of a row of small ones (easy to hit the wrong one with a
+                    finger): archive, seasonal storage, lend, sell, laundry basket and dry cleaner. */}
+                <button onClick={() => setActionsOpen(true)}
+                  className="mt-3 w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 active:scale-95">
+                  <MoreHorizontal size={14} /> {t("wardrobe.optionsButton")}
+                </button>
+                {actionsOpen && (() => {
                   const archived = !!(detail as unknown as { archived?: boolean }).archived;
-                  const loaned = !!(detail as unknown as { active_loan_id?: string | null }).active_loan_id;
-                  const small = "flex-1 min-w-0 rounded-2xl border border-border px-2 py-2.5 text-[10px] leading-tight uppercase tracking-[0.12em] inline-flex flex-col items-center justify-center gap-1.5 text-center active:scale-95 disabled:opacity-50";
-                  return (
-                    <div className="mt-3 flex gap-2">
-                      <button onClick={() => void toggleArchiveItem(detail, !archived)} className={small}>
-                        {archived ? <><ArchiveRestore size={14} /> {t("wardrobe.restoreShort")}</> : <><Archive size={14} /> {t("wardrobe.archiveShort")}</>}
-                      </button>
-                      {!archived && (
-                        <button onClick={() => void setStored([detail.id], !isInStorage(detail))} disabled={storing} className={small}>
-                          {isInStorage(detail)
-                            ? <><PackageOpen size={14} /> {t("wardrobe.unstoreShort")}</>
-                            : <><Package size={14} /> {t("wardrobe.storeShort")}</>}
-                        </button>
-                      )}
-                      {!loaned && (
-                        <button onClick={() => setLoanSheetOpen(true)} className={small}>
-                          <Users size={14} /> {t("wardrobe.lendShort")}
-                        </button>
-                      )}
-                      {!archived && !loaned && (
-                        <button onClick={() => setSellItem(detail)} className={small}>
-                          <Tag size={14} /> {t("sell.short")}
-                        </button>
-                      )}
-                    </div>
+                  const loaned = !!detail.active_loan_id;
+                  const stored = isInStorage(detail);
+                  const inLaundry = isInLaundry(detail);
+                  const close = () => setActionsOpen(false);
+                  const rows: { key: string; icon: ReactNode; label: string; hint?: string; run: () => void; show: boolean }[] = [
+                    { key: "basket", icon: <WashingMachine size={18} />, label: t("laundry.optBasket"), hint: t("laundry.optBasketHint"), show: !archived && !loaned && !stored && !inLaundry, run: () => void setLaundry([detail.id], "basket") },
+                    { key: "dry", icon: <Shirt size={18} />, label: t("laundry.optDryCleaner"), hint: t("laundry.optDryCleanerHint"), show: !archived && !loaned && !stored && !inLaundry, run: () => void setLaundry([detail.id], "dry_cleaner") },
+                    { key: "store", icon: stored ? <PackageOpen size={18} /> : <Package size={18} />, label: stored ? t("wardrobe.unstoreItemButton") : t("wardrobe.storeItemButton"), show: !archived && !loaned, run: () => void setStored([detail.id], !stored) },
+                    { key: "lend", icon: <Users size={18} />, label: t("wardrobe.lendOption"), show: !archived && !loaned, run: () => setLoanSheetOpen(true) },
+                    { key: "sell", icon: <Tag size={18} />, label: t("sell.title"), show: !archived && !loaned, run: () => setSellItem(detail) },
+                    { key: "archive", icon: archived ? <ArchiveRestore size={18} /> : <Archive size={18} />, label: archived ? t("wardrobe.restoreShort") : t("wardrobe.archiveShort"), hint: archived ? undefined : t("wardrobe.archiveHint"), show: true, run: () => void toggleArchiveItem(detail, !archived) },
+                  ];
+                  return createPortal(
+                    <div className="fixed inset-0 z-[85] bg-background/80 backdrop-blur flex items-end justify-center" onClick={close}>
+                      <div onClick={(e) => e.stopPropagation()}
+                        className="w-full max-w-md bg-card rounded-t-3xl border-t sm:border-x border-border p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] space-y-2">
+                        <p className="font-serif italic text-lg mb-1">{t("wardrobe.optionsButton")}</p>
+                        {rows.filter((r) => r.show).map((r) => (
+                          <button key={r.key} onClick={() => { close(); r.run(); }}
+                            className="w-full flex items-center gap-3 rounded-2xl border border-border p-4 text-left active:scale-[0.98] transition">
+                            {r.icon}
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium">{r.label}</p>
+                              {r.hint && <p className="text-xs text-muted-foreground">{r.hint}</p>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>,
+                    document.body,
                   );
                 })()}
+                {/* In the laundry basket or at the dry cleaner: where the piece is and the way back. */}
+                {isInLaundry(detail) && (
+                  <div className="mt-3 rounded-2xl border border-border bg-secondary/30 p-3 flex items-center gap-3">
+                    {detail.laundry_kind === "dry_cleaner" ? <Shirt size={16} className="shrink-0" /> : <WashingMachine size={16} className="shrink-0" />}
+                    <p className="flex-1 text-[12px] leading-snug">
+                      {t(detail.laundry_kind === "dry_cleaner" ? "laundry.inDryCleanerSince" : "laundry.inBasketSince", {
+                        date: new Date(detail.laundry_since ?? Date.now()).toLocaleDateString(i18n.language, { day: "numeric", month: "short" }),
+                      })}
+                    </p>
+                    <button onClick={() => void setLaundry([detail.id], null)} className="shrink-0 rounded-full bg-foreground text-background px-3 py-1.5 text-[11px]">
+                      {t(detail.laundry_kind === "dry_cleaner" ? "laundry.collected" : "laundry.washed")}
+                    </button>
+                  </div>
+                )}
                 {isInStorage(detail) && detail.stored_at && (
                   <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
                     {t("wardrobe.storedSinceLabel", { date: new Date(detail.stored_at).toLocaleDateString(i18n.language, { month: "short", day: "numeric", year: "numeric" }) })}

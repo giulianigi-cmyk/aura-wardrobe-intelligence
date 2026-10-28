@@ -1597,7 +1597,7 @@ export async function generateTripCapsuleCore({ data, context }: {
     const storedChosen = new Set(((capsuleRows ?? []) as { wardrobe_item_id: string; removed_by_user: boolean; source?: string }[])
       .filter((r) => r.source === "user" && !r.removed_by_user).map((r) => r.wardrobe_item_id));
     const allItems = ((itemsRaw ?? []) as any[]).filter((it) =>
-      isWearableNow(it) || (isInStorage(it) && !it.archived && !it.active_loan_id && storedChosen.has(it.id)));
+      isWearableNow(it, { later: true }) || (isInStorage(it) && !it.archived && !it.active_loan_id && storedChosen.has(it.id)));
     const locationFiltered = sourceLocationIds.length
       ? allItems.filter((it) => it.location_id == null || sourceLocationIds.includes(it.location_id))
       : allItems;

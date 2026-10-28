@@ -112,7 +112,7 @@ export const GUIDE: GuideChapterDef[] = [
           null,
           { kind: "chips", labelKeys: ["wardrobe.editDetailsButton", "wardrobe.removeBackgroundButton", "wardrobe.adjustCropButton"] },
           { kind: "button", labelKey: "wardrobe.createOutfitFromThisButton", variant: "outline" },
-          { kind: "chips", labelKeys: ["wardrobe.archiveShort", "wardrobe.storeShort", "wardrobe.lendShort", "sell.short"] },
+          { kind: "button", labelKey: "wardrobe.optionsButton", variant: "outline" },
         ],
       },
       {
@@ -133,10 +133,19 @@ export const GUIDE: GuideChapterDef[] = [
       {
         id: "sell", open: "wardrobe",
         visuals: [
-          { kind: "button", labelKey: "sell.short", variant: "outline" },
+          { kind: "option", icon: "sparkles", labelKey: "sell.title" },
           { kind: "chips", labelKeys: ["sell.conditions.veryGood", "sell.conditions.good"] },
           { kind: "button", labelKey: "sell.copy", variant: "solid" },
           { kind: "button", labelKey: "sell.markSold", variant: "outline" },
+        ],
+      },
+      {
+        id: "basket", open: "wardrobe",
+        visuals: [
+          { kind: "option", icon: "shirt", labelKey: "laundry.optBasket", hintKey: "laundry.optBasketHint" },
+          { kind: "chips", labelKeys: ["laundry.groups.whites", "laundry.groups.darks", "laundry.groups.colors", "laundry.groups.delicates"] },
+          { kind: "option", icon: "shirt", labelKey: "laundry.optDryCleaner", hintKey: "laundry.optDryCleanerHint" },
+          { kind: "chips", labelKeys: ["laundry.loanBack", "laundry.loanStillOut"] },
         ],
       },
       {

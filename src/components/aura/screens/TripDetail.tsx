@@ -223,7 +223,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
             // Loaned out = not physically available to pack or wear on this trip, same reasoning
             // as archived just above. Put away in the cambio stagione: only if chosen for this trip.
             const list = ((wItems ?? []) as WardrobeItem[]).filter((it) =>
-              isWearableNow(it as never) || (isInStorage(it) && !it.active_loan_id && chosenForTrip.has(it.id)));
+              isWearableNow(it as never, { later: true }) || (isInStorage(it) && !it.active_loan_id && chosenForTrip.has(it.id)));
             setWardrobeItems(list);
             setWardrobeSigned(await resolveWardrobeUrls(list));
           }
@@ -536,7 +536,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
         .order("created_at", { ascending: false });
       if (error) throw error;
       // Loaned out = not physically available to pack or wear on this trip.
-      const list = ((data ?? []) as WardrobeItem[]).filter((it) => isWearableNow(it as never));
+      const list = ((data ?? []) as WardrobeItem[]).filter((it) => isWearableNow(it as never, { later: true }));
       setWardrobeItems(list);
       setWardrobeSigned(await resolveWardrobeUrls(list));
     } catch (e) {
