@@ -1885,6 +1885,8 @@
     "addPiecesAria": "Add pieces",
     "backAria": "Back",
     "addToYourCloset": "Add to your closet",
+    "pasteLink": "Paste a link",
+    "pasteLinkHint": "Copied a product link from a shop? We import it right away",
     "scanSeveralPieces": "Scan several pieces",
     "addOnePiece": "Add one piece",
     "addOnePieceHint": "One item at a time, with full details",

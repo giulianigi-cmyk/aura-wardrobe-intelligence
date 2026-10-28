@@ -1885,6 +1885,8 @@
     "addPiecesAria": "添加单品",
     "backAria": "返回",
     "addToYourCloset": "添加到你的衣橱",
+    "pasteLink": "粘贴链接",
+    "pasteLinkHint": "复制了商店里的单品链接？立即导入",
     "scanSeveralPieces": "扫描多件单品",
     "addOnePiece": "添加一件单品",
     "addOnePieceHint": "一次一件，填写完整信息",

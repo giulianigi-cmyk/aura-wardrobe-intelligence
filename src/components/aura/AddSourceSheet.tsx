@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Camera, Images, Plus } from "lucide-react";
+import { Camera, Images, Link2, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { firstHttpUrl, setPendingImportUrl } from "@/lib/pending-import";
 
 export type AddSourceChoice = "add" | "batch-scan" | "outfit-scan";
 
@@ -70,6 +72,30 @@ export function AddSourceSheet({
         className="w-full bg-card rounded-t-3xl border-t border-border p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] space-y-2"
       >
         <p className="font-serif italic text-lg mb-1">{t("addSourceSheet.addToYourCloset")}</p>
+
+        {/* The fastest way in: a link copied from a shop is read here, in the tap itself (iOS only
+            lets a page read the clipboard inside a gesture), and the add screen opens already importing it. */}
+        <button
+          onClick={() => {
+            void (async () => {
+              try {
+                const url = firstHttpUrl(await navigator.clipboard.readText());
+                if (!url) { toast.error(t("addItem.toastClipboardNoLink")); return; }
+                setPendingImportUrl(url);
+                onChoose("add");
+              } catch {
+                toast.error(t("addItem.toastClipboardReadFailed"));
+              }
+            })();
+          }}
+          className="w-full flex items-center gap-3 rounded-2xl border border-border p-4 text-left active:scale-[0.98] transition"
+        >
+          <Link2 size={18} />
+          <div>
+            <p className="text-sm font-medium">{t("addSourceSheet.pasteLink")}</p>
+            <p className="text-xs text-muted-foreground">{t("addSourceSheet.pasteLinkHint")}</p>
+          </div>
+        </button>
 
         <button
           onClick={() => onChoose("add")}

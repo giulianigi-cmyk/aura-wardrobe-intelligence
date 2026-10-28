@@ -75,12 +75,12 @@ export const GUIDE: GuideChapterDef[] = [
         ],
       },
       {
-        id: "add-link", open: "add",
+        id: "add-link", open: "wardrobe",
         visuals: [
+          null,
           plus,
-          { kind: "button", labelKey: "addItem.pasteProductLink", icon: "link", variant: "outline" },
-          { kind: "button", labelKey: "addItem.pasteFromClipboard", variant: "outline" },
-          { kind: "button", labelKey: "addItem.importProduct", icon: "link", variant: "solid" },
+          { kind: "option", icon: "link", labelKey: "addSourceSheet.pasteLink", hintKey: "addSourceSheet.pasteLinkHint" },
+          { kind: "button", labelKey: "addItem.saveToCloset", variant: "solid" },
         ],
       },
       {

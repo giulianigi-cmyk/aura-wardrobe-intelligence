@@ -1339,6 +1339,8 @@
     "addPiecesAria": "Ajouter des pièces",
     "backAria": "Retour",
     "addToYourCloset": "Ajouter à votre garde-robe",
+    "pasteLink": "Coller un lien",
+    "pasteLinkHint": "Vous avez copié le lien d'un article ? On l'importe tout de suite",
     "scanSeveralPieces": "Scanner plusieurs pièces",
     "addOnePiece": "Ajouter une pièce",
     "addOnePieceHint": "Un article à la fois, avec tous les détails",
