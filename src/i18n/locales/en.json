@@ -2714,6 +2714,7 @@
   },
   "wishlist": {
     "title": "Wishlist",
+    "close": "Close",
     "perMonthSuffix": "€ a month",
     "rowReached": "{{monthly}} € a month: you'll get there in {{month}} (already set aside: {{covered}} €)",
     "modeDate": "By a date",

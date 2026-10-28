@@ -310,8 +310,8 @@ const text: GuideText = {
       steps: [
         "Abre Inicio y toca «Completa tu armario».",
         "Revisa una prenda con «¿Debería comprarlo?» (enlace, foto o etiqueta) y toca «Añadir a la lista de deseos». La encuentras más abajo en la misma página, con cuántas de tus prendas combina, si ya tienes algo parecido y cuánto te costaría por uso.",
-        "Ordena las prendas con las flechas, por prioridad. Para cada una elige «Antes de una fecha» (te decimos cuánto ahorrar al mes) o «Al mes» (indicas cuánto ahorras y te decimos cuándo llegarás).",
-        "Cada mes te preguntamos si has ahorrado la cantidad. Con «Añadir» también puedes anotar otras cantidades ahorradas.",
+        "Ordena las prendas con las flechas, por prioridad. Toca una prenda para abrir su ficha: allí elige «Antes de una fecha» (te decimos cuánto ahorrar al mes) o «Al mes» (indicas cuánto ahorras y te decimos cuándo llegarás).",
+        "En la ficha ves también lo que has ahorrado: cada mes te preguntamos si has ahorrado la cantidad. Con «Añadir» también puedes anotar otras cantidades ahorradas.",
         "Cuando la compres toca «Comprado»: el precio sale de tus ahorros y la añades al armario.",
       ],
       tip: "Nimbèa no mueve dinero real: es solo un recordatorio de lo que has ahorrado.",

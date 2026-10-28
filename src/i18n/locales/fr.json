@@ -2714,6 +2714,7 @@
   },
   "wishlist": {
     "title": "Liste d'envies",
+    "close": "Fermer",
     "perMonthSuffix": "€ par mois",
     "rowReached": "{{monthly}} € par mois : vous y arriverez en {{month}} (déjà de côté : {{covered}} €)",
     "modeDate": "Avant une date",
