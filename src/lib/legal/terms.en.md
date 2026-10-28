@@ -1,13 +1,13 @@
 # Nimbèa Terms of Use
 
-*Last updated: 27 October 2026. This is a translation: the Italian version prevails.*
+*Last updated: 28 October 2026. This is a translation: the Italian version prevails.*
 
 These terms govern the use of the Nimbèa app ("the app"). By creating an account or using the app you accept them. If you do not agree, do not use the app.
 
 ## 1. Who provides the service
 
 Nimbèa is provided by Giulia Nigi ("we").
-Contact: giulia.nigi@gmail.com
+Contact: info@nimbea.app
 
 ## 2. What the app does
 
@@ -99,4 +99,4 @@ We may update these terms. If the changes are important we will tell you in the 
 
 For questions or reports:
 - use "Report a problem" in the app's Settings;
-- or write to giulia.nigi@gmail.com.
+- or write to support@nimbea.app.

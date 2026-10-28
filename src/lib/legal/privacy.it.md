@@ -1,13 +1,13 @@
 # Informativa sulla privacy di Nimbèa
 
-*Ultimo aggiornamento: 27 ottobre 2026.*
+*Ultimo aggiornamento: 28 ottobre 2026.*
 
 Questa informativa spiega quali dati personali tratta l'app Nimbèa, perché li tratta, con chi li condivide e quali diritti hai, ai sensi del Regolamento (UE) 2016/679 ("GDPR") e del D.Lgs. 196/2003.
 
 ## 1. Titolare del trattamento
 
 Giulia Nigi
-Email per le richieste sulla privacy: giulia.nigi@gmail.com
+Email per le richieste sulla privacy: privacy@nimbea.app
 
 ## 2. Quali dati trattiamo
 
@@ -95,7 +95,7 @@ Puoi chiedere in qualsiasi momento di:
 - opporti ai trattamenti basati sul legittimo interesse;
 - revocare il consenso, senza effetti sui trattamenti già fatti.
 
-Puoi cancellare l'account e tutti i dati da **Impostazioni** nell'app. Per le altre richieste scrivi a giulia.nigi@gmail.com: ti rispondiamo entro 30 giorni.
+Puoi cancellare l'account e tutti i dati da **Impostazioni** nell'app. Per le altre richieste scrivi a privacy@nimbea.app: ti rispondiamo entro 30 giorni.
 
 Se ritieni che il trattamento violi la legge puoi presentare un reclamo al Garante per la protezione dei dati personali (www.garanteprivacy.it).
 

@@ -1,13 +1,13 @@
 # Termini d'uso di Nimbèa
 
-*Ultimo aggiornamento: 27 ottobre 2026.*
+*Ultimo aggiornamento: 28 ottobre 2026.*
 
 Questi termini regolano l'uso dell'app Nimbèa ("l'app"). Creando un account o usando l'app li accetti. Se non sei d'accordo, non usare l'app.
 
 ## 1. Chi offre il servizio
 
 Nimbèa è offerta da Giulia Nigi ("noi").
-Contatti: giulia.nigi@gmail.com
+Contatti: info@nimbea.app
 
 ## 2. Cosa fa l'app
 
@@ -99,4 +99,4 @@ Possiamo aggiornare questi termini. Se le modifiche sono importanti te lo diremo
 
 Per domande o segnalazioni:
 - usa "Segnala un problema" nelle Impostazioni dell'app;
-- oppure scrivi a giulia.nigi@gmail.com.
+- oppure scrivi a support@nimbea.app.
