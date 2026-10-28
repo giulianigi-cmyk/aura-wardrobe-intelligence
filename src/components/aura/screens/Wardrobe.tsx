@@ -684,6 +684,9 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
   const [basketOpen, setBasketOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [dryCleanerOpen, setDryCleanerOpen] = useState(false);
+  // "Fuori dall'armadio": one button for the pieces not in the wardrobe right now — basket, dry
+  // cleaner, lent — opening the choice of which to see.
+  const [awayOpen, setAwayOpen] = useState(false);
   const laundryPieces = (kind: LaundryKind): LaundryPiece[] => items
     .filter((it) => it.laundry_kind === kind && isInLaundry(it))
     .map((it) => {
@@ -1142,27 +1145,43 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
           {showArchived ? <><X size={11} /> {t("wardrobe.backToCloset")}</> : <><Archive size={11} /> {t("wardrobe.archivedCount", { count: archivedCount })}</>}
         </button>
       )}
-      {(loanedCount > 0 || showLoaned) && (
+      {showLoaned ? (
         <button
-          onClick={() => { setShowLoaned((v) => !v); setShowArchived(false); setShowStored(false); exitSelectMode(); }}
+          onClick={() => { setShowLoaned(false); exitSelectMode(); }}
           className="mx-6 mt-2 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
         >
-          {showLoaned ? <><X size={11} /> {t("wardrobe.backToCloset")}</> : <><Users size={11} /> {t("wardrobe.loanedCount", { count: loanedCount })}</>}
+          <X size={11} /> {t("wardrobe.backToCloset")}
+        </button>
+      ) : !showArchived && !showStored && !gapFilter && (
+        <button
+          onClick={() => setAwayOpen(true)}
+          className="mx-6 mt-2 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
+        >
+          <Shirt size={11} /> {t("wardrobe.awayCount", { count: basketCount + dryCleanerCount + loanedCount })}
         </button>
       )}
-      {!showArchived && !showLoaned && !showStored && !gapFilter && (basketCount > 0 || dryCleanerCount > 0) && (
-        <div className="mx-6 mt-2 flex items-center gap-4">
-          {basketCount > 0 && (
-            <button onClick={() => setBasketOpen(true)} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              <WashingMachine size={11} /> {t("laundry.basketCount", { count: basketCount })}
-            </button>
-          )}
-          {dryCleanerCount > 0 && (
-            <button onClick={() => setDryCleanerOpen(true)} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              <Shirt size={11} /> {t("laundry.dryCleanerCount", { count: dryCleanerCount })}
-            </button>
-          )}
-        </div>
+      {awayOpen && createPortal(
+        <div className="fixed inset-0 z-[85] bg-background/80 backdrop-blur flex items-end justify-center" onClick={() => setAwayOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-card rounded-t-3xl border-t sm:border-x border-border p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] space-y-2">
+            <p className="font-serif italic text-lg mb-1">{t("wardrobe.awayTitle")}</p>
+            {([
+              { key: "basket", icon: <WashingMachine size={18} />, label: t("laundry.basketCount", { count: basketCount }), hint: t("wardrobe.awayBasketHint"), count: basketCount, run: () => setBasketOpen(true) },
+              { key: "dry", icon: <Shirt size={18} />, label: t("laundry.dryCleanerCount", { count: dryCleanerCount }), hint: t("wardrobe.awayDryCleanerHint"), count: dryCleanerCount, run: () => setDryCleanerOpen(true) },
+              { key: "lent", icon: <Users size={18} />, label: t("wardrobe.loanedCount", { count: loanedCount }), hint: t("wardrobe.awayLentHint"), count: loanedCount, run: () => { setShowLoaned(true); setShowArchived(false); setShowStored(false); exitSelectMode(); } },
+            ]).map((r) => (
+              <button key={r.key} disabled={r.count === 0} onClick={() => { setAwayOpen(false); r.run(); }}
+                className="w-full flex items-center gap-3 rounded-2xl border border-border p-4 text-left active:scale-[0.98] transition disabled:opacity-40">
+                {r.icon}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{r.label}</p>
+                  <p className="text-xs text-muted-foreground">{r.hint}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>,
+        document.body,
       )}
       {/* Cambio stagione + Select: always here, so pieces can be put away (several at once) even by
           someone with a single location; in the storage view, Select brings several back at once. */}
