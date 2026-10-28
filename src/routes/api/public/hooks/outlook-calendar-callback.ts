@@ -5,7 +5,7 @@
 // is what links this callback back to the AURA user who started the flow.
 import { createFileRoute } from "@tanstack/react-router";
 
-const APP_URL = "https://aura-wardrobe-intelligence.lovable.app";
+const APP_URL = "https://nimbea.app";
 
 export const Route = createFileRoute("/api/public/hooks/outlook-calendar-callback")({
   server: {

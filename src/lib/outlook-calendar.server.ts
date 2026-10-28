@@ -13,7 +13,7 @@ const GRAPH_CALENDARVIEW_URL = "https://graph.microsoft.com/v1.0/me/calendarView
 
 const SCOPES = "offline_access Calendars.Read User.Read";
 
-const REDIRECT_URI = "https://aura-wardrobe-intelligence.lovable.app/api/public/hooks/outlook-calendar-callback";
+const REDIRECT_URI = "https://nimbea.app/api/public/hooks/outlook-calendar-callback";
 
 export function buildOutlookAuthUrl(state: string): string {
   const clientId = process.env.OUTLOOK_CLIENT_ID;
