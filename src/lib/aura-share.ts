@@ -1,5 +1,5 @@
 import { BRAND_NAME } from "./brand";
-export const AURA_APP_URL = "https://aura-wardrobe-intelligence.lovable.app";
+export const AURA_APP_URL = "https://nimbea.app";
 export const AURA_SHARE_CAPTION = `Created with ${BRAND_NAME} — download the app: ${AURA_APP_URL}`;
 
 /** Try native share sheet (mobile). Returns true if it launched. */

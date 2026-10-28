@@ -8,10 +8,8 @@ import i18n from "@/i18n/config";
 import { BRAND_NAME } from "@/lib/brand";
 
 export function addFriendUrl(username: string) {
-  const origin = typeof window !== "undefined" && window.location.origin.includes("lovable.app")
-    ? window.location.origin
-    : AURA_APP_URL;
-  return `${origin}/add/${username}`;
+  // Always the public address, whatever address the app was opened from.
+  return `${AURA_APP_URL}/add/${username}`;
 }
 
 export function useMyUsername(userId: string | undefined) {

@@ -89,7 +89,7 @@ export async function fetchMetnoDaily(lat: number, lon: number, utcOffset: numbe
     const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}`;
     // MET requires an identifying User-Agent (their terms of service).
     const res = await fetch(url, {
-      headers: { "User-Agent": "AURA-wardrobe/1.0 https://aura-wardrobe-intelligence.lovable.app" },
+      headers: { "User-Agent": "Nimbea/1.0 https://nimbea.app info@nimbea.app" },
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return null;

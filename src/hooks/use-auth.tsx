@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-const APP_URL = "https://aura-wardrobe-intelligence.lovable.app";
+const APP_URL = "https://nimbea.app";
 
 type AuthCtx = {
   user: User | null;
