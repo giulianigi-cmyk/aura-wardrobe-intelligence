@@ -139,7 +139,7 @@ const text: GuideText = {
         "Open the piece, tap “Options” and then “Sell this piece”.",
         "Choose the condition: the suggested price adapts, based on the estimated resale value.",
         "Check title and description, save the photo (already without background) and tap “Copy listing”: paste it on the resale site you prefer.",
-        "Once sold, tap “Mark as sold”: the piece moves to Archived.",
+        "Once sold, tap “Mark as sold”: we ask what it went for, to add it to the money set aside for your wish list, and the piece moves to Archived.",
       ],
       tip: "In Closet we suggest the pieces you haven't worn for a whole season (6 months for all-season pieces, 2 years for occasion pieces), if you log what you wear. With “Keep it” we won't suggest them again for a year.",
     },
@@ -301,6 +301,18 @@ const text: GuideText = {
         `Tap “Shop your gaps”: ${BRAND_NAME} tells you which pieces you're really missing and how many of yours they'd go with.`,
         `About to buy something? Tap “Should I buy it?” and paste the link or upload a photo: ${BRAND_NAME} compares it with what you already own.`,
       ],
+    },
+    wishlist: {
+      title: "Wish list and savings",
+      intro: "Line up the pieces you'd like and keep track of what you set aside to buy them.",
+      steps: [
+        "Open Home and tap “Shop your gaps”.",
+        "Check a piece with “Should I buy it?” (link, photo or label) and tap “Add to wish list”. You'll find it further down the same page, with how many of your pieces it goes with, whether you already have something similar and what it would cost per wear.",
+        "Order the pieces with the arrows, by priority. Choose how to plan: “By purchase date” (say when you want it and we tell you how much to set aside each month) or “By monthly amount” (say how much you can set aside and we tell you when you'll get there).",
+        "Each month we ask whether you set the amount aside. You can also add the price of a piece you sold or of a purchase you skipped.",
+        "When you buy it tap “Bought”: the price comes out of your savings and you add it to your wardrobe.",
+      ],
+      tip: "Nimbèa moves no real money: it's just a note of what you've set aside.",
     },
     insights: {
       title: "Closet insights",

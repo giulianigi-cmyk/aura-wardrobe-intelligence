@@ -21,7 +21,7 @@ import { ownedEquivalent } from "./gap-ownership";
 export const SAID_OWNED_ID = "said-owned";
 import { applyFashionSignals, fashionFacts, fashionPrompt, FashionSignalsSchema, type FashionSignals } from "./purchase-fashion";
 import { dressPreferenceConflicts, hasAnyPreference, type DressConflict, type DressPreferences } from "./dress-preferences";
-import { COLOR_PALETTE } from "./color-palette";
+import { countPairings } from "./purchase-pairings";
 import type { WardrobeItem } from "./aura-types";
 import { BRAND_NAME } from "@/lib/brand";
 
@@ -178,42 +178,6 @@ async function analyzeLabelImage(imageDataUrl: string, model: Parameters<typeof 
       return EMPTY_LABEL;
     }
   }
-}
-
-// ---- Pairing heuristic — same neutral-aware idea already used (and
-// recently fixed) in wardrobe-gap.functions.ts, kept as a small local
-// copy per the isolation rule rather than touching that file. ----
-
-const NEUTRAL_FAMILIES = new Set(["Whites", "Blacks & Greys", "Beiges"]);
-const colorFamily = (name: string): string | undefined => COLOR_PALETTE.find((c) => c.name === name)?.family;
-const isNeutralColor = (name: string): boolean => {
-  const f = colorFamily(name);
-  return f ? NEUTRAL_FAMILIES.has(f) : false;
-};
-const PAIRING_WHITELIST: Record<string, string[]> = {
-  Tops: ["Bottoms", "Outerwear", "Shoes", "Bags", "Accessories"],
-  Bottoms: ["Tops", "Outerwear", "Shoes", "Bags", "Accessories"],
-  Dresses: ["Outerwear", "Shoes", "Bags", "Accessories"],
-  Jumpsuits: ["Outerwear", "Shoes", "Bags", "Accessories"],
-  Outerwear: ["Tops", "Bottoms", "Dresses", "Jumpsuits", "Shoes", "Bags"],
-  Shoes: ["Tops", "Bottoms", "Dresses", "Jumpsuits", "Outerwear", "Bags"],
-  Bags: ["Tops", "Bottoms", "Dresses", "Jumpsuits", "Outerwear", "Shoes"],
-  Accessories: ["Tops", "Bottoms", "Dresses", "Jumpsuits", "Outerwear"],
-};
-
-function countPairings(category: string, colors: string[], wardrobe: WardrobeItem[]): number {
-  const whitelist = new Set(PAIRING_WHITELIST[category] ?? []);
-  if (whitelist.size === 0) return 0;
-  const productIsNeutral = colors.length === 0 || colors.every(isNeutralColor);
-  let count = 0;
-  for (const it of wardrobe) {
-    if (!it.category || !whitelist.has(it.category)) continue;
-    const itColors = it.colors ?? [];
-    const exactMatch = itColors.some((c) => colors.includes(c));
-    const eitherNeutral = productIsNeutral || itColors.some(isNeutralColor);
-    if (exactMatch || eitherNeutral) count++;
-  }
-  return count;
 }
 
 const LANGUAGE_NAMES: Record<string, string> = { it: "Italian", en: "English", es: "Spanish", fr: "French", zh: "Simplified Chinese" };

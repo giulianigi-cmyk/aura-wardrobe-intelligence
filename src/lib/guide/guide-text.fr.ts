@@ -139,7 +139,7 @@ const text: GuideText = {
         "Ouvrez la pièce, touchez « Options » puis « Vendre cette pièce ».",
         "Choisissez l'état : le prix conseillé s'adapte, d'après la valeur de revente estimée.",
         "Vérifiez le titre et la description, enregistrez la photo (déjà détourée) et touchez « Copier l'annonce » : collez-la sur le site de revente de votre choix.",
-        "Une fois vendue, touchez « Marquer comme vendue » : la pièce passe dans Archivées.",
+        "Une fois vendue, touchez « Marquer comme vendue » : nous vous demandons à quel prix, pour l'ajouter à l'argent mis de côté pour votre liste d'envies, et la pièce passe dans Archivées.",
       ],
       tip: "Dans Garde-robe, nous vous proposons les pièces que vous n'avez pas portées de toute une saison (6 mois pour celles de toutes saisons, 2 ans pour celles de cérémonie), si vous notez ce que vous portez. Avec « Je la garde », nous ne les reproposons pas avant un an.",
     },
@@ -301,6 +301,18 @@ const text: GuideText = {
         `Touchez « Compléter votre garde-robe » : ${BRAND_NAME} vous dit quelles pièces vous manquent vraiment et avec combien des vôtres elles s'associeraient.`,
         `Sur le point d'acheter ? Touchez « Devrais-je l'acheter ? » et collez le lien ou envoyez une photo : ${BRAND_NAME} le compare avec ce que vous avez déjà.`,
       ],
+    },
+    wishlist: {
+      title: "Liste d'envies et économies",
+      intro: "Classez les pièces que vous aimeriez et suivez ce que vous mettez de côté pour les acheter.",
+      steps: [
+        "Ouvrez l'Accueil et touchez « Compléter votre garde-robe ».",
+        "Vérifiez une pièce avec « Devrais-je l'acheter ? » (lien, photo ou étiquette) et touchez « Ajouter à la liste d'envies ». Vous la retrouvez plus bas sur la même page, avec le nombre de vos pièces qui s'y associent, si vous avez déjà quelque chose de similaire et son coût par port.",
+        "Classez les pièces avec les flèches, par priorité. Choisissez le calcul : « Par date d'achat » (vous indiquez quand vous la voulez et nous vous disons combien mettre de côté par mois) ou « Par montant mensuel » (vous dites combien vous pouvez mettre de côté et nous vous disons quand vous y arriverez).",
+        "Chaque mois, nous vous demandons si vous avez mis le montant de côté. Vous pouvez aussi ajouter le prix d'une pièce vendue ou d'un achat auquel vous renoncez.",
+        "Quand vous l'achetez, touchez « Acheté » : le prix sort de vos économies et vous l'ajoutez à votre garde-robe.",
+      ],
+      tip: "Nimbèa ne déplace pas d'argent réel : c'est juste un rappel de ce que vous avez mis de côté.",
     },
     insights: {
       title: "Statistiques de la garde-robe",

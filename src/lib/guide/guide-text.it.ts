@@ -139,7 +139,7 @@ const text: GuideText = {
         "Apri il capo, tocca «Opzioni» e poi «Vendi questo capo».",
         "Scegli le condizioni: il prezzo suggerito si adatta, in base al valore di rivendita stimato.",
         "Controlla titolo e descrizione, salva la foto (è già senza sfondo) e tocca «Copia annuncio»: incollalo sul sito di vendita che preferisci.",
-        "Quando l'hai venduto tocca «Segna come venduto»: il capo va in Archiviati.",
+        "Quando l'hai venduto tocca «Segna come venduto»: ti chiediamo a quanto, per aggiungerlo ai soldi messi da parte per la lista dei desideri, e il capo va in Archiviati.",
       ],
       tip: "In Guardaroba ti proponiamo i capi che non metti da un'intera stagione (6 mesi per quelli di tutte le stagioni, 2 anni per quelli da cerimonia), se segni ciò che indossi. Con «Lo tengo» non te li riproponiamo per un anno.",
     },
@@ -301,6 +301,18 @@ const text: GuideText = {
         `Tocca «Completa il guardaroba»: ${BRAND_NAME} ti dice quali capi ti mancano davvero e con quanti dei tuoi si abbinerebbero.`,
         `Stai per comprare qualcosa? Tocca «Devo comprarlo?» e incolla il link o carica una foto: ${BRAND_NAME} lo confronta con quello che hai già.`,
       ],
+    },
+    wishlist: {
+      title: "Lista dei desideri e risparmi",
+      intro: "Metti in fila i capi che vorresti e tieni il conto di quanto metti da parte per comprarli.",
+      steps: [
+        "Apri Home e tocca «Completa il guardaroba».",
+        "Controlla un capo con «Devo comprarlo?» (link, foto o etichetta) e tocca «Aggiungi alla lista dei desideri». La trovi più in basso nella stessa pagina, con quanti tuoi capi ci si abbinano, se hai già qualcosa di simile e quanto ti costerebbe a utilizzo.",
+        "Ordina i capi con le frecce, per priorità. Scegli come fare il conto: «Per data d'acquisto» (indichi entro quando lo vuoi e ti diciamo quanto mettere da parte al mese) oppure «Per cifra mensile» (dici quanto puoi mettere da parte e ti diciamo quando ci arrivi).",
+        "Ogni mese ti chiediamo se hai messo da parte la cifra. Puoi aggiungere anche il prezzo di un capo venduto o di un acquisto a cui rinunci.",
+        "Quando lo compri tocca «Comprato»: il prezzo esce dai risparmi e lo aggiungi all'armadio.",
+      ],
+      tip: "Nimbèa non muove soldi veri: è solo un promemoria di quanto hai messo da parte.",
     },
     insights: {
       title: "Statistiche del guardaroba",

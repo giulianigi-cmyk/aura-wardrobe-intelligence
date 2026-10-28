@@ -139,7 +139,7 @@ const text: GuideText = {
         "Abre la prenda, toca «Opciones» y luego «Vender esta prenda».",
         "Elige el estado: el precio sugerido se adapta, según el valor de reventa estimado.",
         "Revisa título y descripción, guarda la foto (ya sin fondo) y toca «Copiar anuncio»: pégalo en la web de venta que prefieras.",
-        "Cuando la vendas toca «Marcar como vendida»: la prenda pasa a Archivadas.",
+        "Cuando la vendas toca «Marcar como vendida»: te preguntamos por cuánto, para sumarlo a lo ahorrado para tu lista de deseos, y la prenda pasa a Archivadas.",
       ],
       tip: "En Armario te proponemos las prendas que no usas desde toda una temporada (6 meses las de todas las temporadas, 2 años las de ceremonia), si registras lo que te pones. Con «Me la quedo» no te las volvemos a proponer en un año.",
     },
@@ -301,6 +301,18 @@ const text: GuideText = {
         `Toca «Completa tu armario»: ${BRAND_NAME} te dice qué prendas te faltan de verdad y con cuántas de las tuyas combinarían.`,
         `¿Vas a comprar algo? Toca «¿Debería comprarlo?» y pega el enlace o sube una foto: ${BRAND_NAME} lo compara con lo que ya tienes.`,
       ],
+    },
+    wishlist: {
+      title: "Lista de deseos y ahorros",
+      intro: "Ordena las prendas que te gustaría tener y lleva la cuenta de lo que ahorras para comprarlas.",
+      steps: [
+        "Abre Inicio y toca «Completa tu armario».",
+        "Revisa una prenda con «¿Debería comprarlo?» (enlace, foto o etiqueta) y toca «Añadir a la lista de deseos». La encuentras más abajo en la misma página, con cuántas de tus prendas combina, si ya tienes algo parecido y cuánto te costaría por uso.",
+        "Ordena las prendas con las flechas, por prioridad. Elige cómo calcular: «Por fecha de compra» (indicas cuándo la quieres y te decimos cuánto ahorrar al mes) o «Por cantidad mensual» (dices cuánto puedes ahorrar y te decimos cuándo llegarás).",
+        "Cada mes te preguntamos si has ahorrado la cantidad. También puedes añadir el precio de una prenda vendida o de una compra a la que renuncias.",
+        "Cuando la compres toca «Comprado»: el precio sale de tus ahorros y la añades al armario.",
+      ],
+      tip: "Nimbèa no mueve dinero real: es solo un recordatorio de lo que has ahorrado.",
     },
     insights: {
       title: "Estadísticas del armario",

@@ -276,6 +276,16 @@ export const GUIDE: GuideChapterDef[] = [
         id: "shop", open: "shop",
         visuals: [tab("home"), row("home.theEdit", "home.shopYourGaps"), { kind: "button", labelKey: "shop.shouldIBuyIt", variant: "outline" }],
       },
+      {
+        id: "wishlist", open: "shop",
+        visuals: [
+          row("home.theEdit", "home.shopYourGaps"),
+          { kind: "button", labelKey: "wishlist.addButton", variant: "solid" },
+          { kind: "chips", labelKeys: ["wishlist.modeDate", "wishlist.modeBudget"] },
+          { kind: "button", labelKey: "wishlist.yes", variant: "solid" },
+          { kind: "button", labelKey: "wishlist.bought", variant: "solid" },
+        ],
+      },
       { id: "insights", open: "insights", visuals: [tab("profile"), row("profileScreen.wardrobeInsights"), null] },
     ],
   },
