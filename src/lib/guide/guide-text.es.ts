@@ -148,7 +148,7 @@ const text: GuideText = {
       intro: "Las prendas para lavar, en la tintorería o prestadas no aparecen en los looks hasta que vuelven al armario.",
       steps: [
         "Abre la prenda, toca «Opciones» y luego «Al cesto de la ropa». Las prendas deportivas van solas cuando marcas el look como usado.",
-        "En Armario toca «Cesto»: las prendas están separadas por lavadora. Toca «Lavadas» cuando termines; si se te olvida, a los 10 días vuelven solas al armario.",
+        "En Armario toca «Fuera del armario» y luego «Cesto» (ahí están también la tintorería y las prendas prestadas): las prendas están separadas por lavadora. Toca «Lavadas» cuando termines; si se te olvida, a los 10 días vuelven solas al armario.",
         "Para la tintorería: «Opciones» › «A la tintorería». No vuelven solas: a los 7 días te preguntamos si las has recogido.",
         "Para las prendas prestadas, a los 14 días te preguntamos si te las han devuelto. Con «Aún la tiene» te lo volvemos a preguntar 14 días después.",
       ],

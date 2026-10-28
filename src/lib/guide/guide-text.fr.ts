@@ -148,7 +148,7 @@ const text: GuideText = {
       intro: "Les pièces à laver, au pressing ou prêtées n'apparaissent pas dans les looks tant qu'elles ne sont pas revenues dans la garde-robe.",
       steps: [
         "Ouvrez la pièce, touchez « Options » puis « Dans le panier à linge ». Les pièces de sport y vont seules quand vous notez le look comme porté.",
-        "Dans Garde-robe, touchez « Panier » : les pièces sont triées par machine. Touchez « Lavées » une fois fini ; si vous oubliez, elles reviennent seules dans la garde-robe après 10 jours.",
+        "Dans Garde-robe, touchez « Hors de la garde-robe » puis « Panier » (le pressing et les pièces prêtées sont là aussi) : les pièces sont triées par machine. Touchez « Lavées » une fois fini ; si vous oubliez, elles reviennent seules dans la garde-robe après 10 jours.",
         "Pour le pressing : « Options » › « Au pressing ». Elles ne reviennent pas seules : après 7 jours, nous vous demandons si vous les avez récupérées.",
         "Pour les pièces prêtées, 14 jours après nous vous demandons si on vous les a rendues. Avec « Encore prêtée », nous redemandons 14 jours plus tard.",
       ],

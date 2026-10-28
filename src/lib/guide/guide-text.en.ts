@@ -148,7 +148,7 @@ const text: GuideText = {
       intro: "Pieces to wash, at the dry cleaner or lent out don't appear in looks until they're back in the wardrobe.",
       steps: [
         "Open the piece, tap “Options” and then “Into the laundry basket”. Sport pieces go there on their own when you log the look as worn.",
-        "In Closet tap “Basket”: pieces are split by machine load. Tap “Washed” when done; if you forget, after 10 days they go back to the wardrobe on their own.",
+        "In Closet tap “Out of the wardrobe” and then “Basket” (dry cleaner and lent pieces are there too): pieces are split by machine load. Tap “Washed” when done; if you forget, after 10 days they go back to the wardrobe on their own.",
         "For the dry cleaner: “Options” › “To the dry cleaner”. They don't come back on their own: after 7 days we ask whether you collected them.",
         "For lent pieces, 14 days later we ask whether you got them back. With “They still have it” we ask again 14 days later.",
       ],
