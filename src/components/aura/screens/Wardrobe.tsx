@@ -6,7 +6,7 @@ import { isShoeCategory, sizeEquivalences } from "@/lib/size-conversion";
 import { MaterialCombobox } from "@/components/aura/MaterialCombobox";
 import { AddSourceSheet } from "@/components/aura/AddSourceSheet";
 
-import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown, Package, PackageOpen, Lightbulb } from "lucide-react";
+import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown, Package, PackageOpen, Lightbulb, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { migrateLegacyTaxonomy } from "@/lib/migrate-legacy-taxonomy.functions";
@@ -59,6 +59,8 @@ import { setItemsStored } from "@/lib/wardrobe-storage.functions";
 import { isInStorage } from "@/lib/wardrobe-storage";
 import { StorageTipsSheet } from "@/components/aura/StorageTipsSheet";
 import { CareBox, LaundryGuideSheet } from "@/components/aura/LaundryGuide";
+import { keepPiece, readKeptPieces, SellSheet, SellSuggestionsSheet } from "@/components/aura/SellSheet";
+import { logsWear, sellReason, type SellCheckable, type SellReason } from "@/lib/sell-listing";
 import { DetailSection } from "@/components/aura/DetailSection";
 import { careProfileFor, laundryTextFor } from "@/lib/laundry-care";
 import { SeasonChangeSheet } from "@/components/aura/SeasonChangeSheet";
@@ -527,13 +529,13 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
     }
   };
 
-  const toggleArchiveItem = async (item: WardrobeItem, archived: boolean) => {
+  const toggleArchiveItem = async (item: WardrobeItem, archived: boolean, message?: string) => {
     const { error } = await (supabase.from("wardrobe_items" as never) as any).update({ archived }).eq("id", item.id);
     if (error) { toast.error(error.message); return; }
     setItems((prev) => prev.map((it) => (it.id === item.id ? { ...it, archived } as WardrobeItem : it)));
     setDetail((d) => (d && d.id === item.id ? ({ ...d, archived } as WardrobeItem) : d));
     void syncMySharedLibrary().catch(() => {});
-    toast.success(archived ? t("wardrobe.toastArchived") : t("wardrobe.toastRestored"));
+    toast.success(message ?? (archived ? t("wardrobe.toastArchived") : t("wardrobe.toastRestored")));
   };
 
   const moveDetailItem = async (locationId: string) => {
@@ -646,6 +648,48 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
       setStoring(false);
     }
   };
+
+  // The resale valuation shown in "Valore", also used for the suggested price of "Vendi questo capo".
+  const valuationOf = (item: WardrobeItem) => {
+    const raw = item as unknown as {
+      current_retail_price?: number | null; current_retail_source?: string | null;
+      historical_retail_price?: number | null; iconicity?: Iconicity | null;
+      purchase_date?: string | null; model?: string | null; bag_size_class?: string | null; subcategory?: string | null;
+    };
+    return computeItemValuation(
+      {
+        price: item.price ?? null,
+        currentRetailPrice: raw.current_retail_price ?? null,
+        currentRetailSource: (raw.current_retail_source as "user" | "import" | "ai_lookup_verified" | "ai_lookup_unverified" | "product_link" | null) ?? null,
+        historicalRetailPrice: raw.historical_retail_price ?? null,
+        purchaseDate: raw.purchase_date ?? null,
+        wornCount: item.worn_count ?? 0,
+        brand: item.brand ?? null,
+        category: item.category ?? null,
+        subcategory: raw.subcategory ?? null,
+        materials: Array.isArray(item.material) ? item.material : [],
+        model: raw.model ?? null,
+        bagSizeClass: raw.bag_size_class ?? null,
+        iconicity: raw.iconicity ?? null,
+      },
+      valuationConfig
+    );
+  };
+
+  // "Vendi questo capo": the listing sheet, and the pieces worth selling (sell-listing.ts) unless the
+  // person said "Lo tengo" in the last year (remembered on this device).
+  const [sellItem, setSellItem] = useState<WardrobeItem | null>(null);
+  const [sellListOpen, setSellListOpen] = useState(false);
+  const [keptVersion, setKeptVersion] = useState(0);
+  const sellCandidates = useMemo(() => {
+    if (!user || !logsWear(items)) return [];
+    const kept = readKeptPieces(user.id);
+    const now = Date.now();
+    return items
+      .map((it) => ({ item: it, reason: sellReason(it as unknown as SellCheckable, now) }))
+      .filter((c): c is { item: WardrobeItem; reason: SellReason } => c.reason != null && !(kept[c.item.id] > now));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, user, keptVersion]);
 
   const season = useMemo(() => currentSeason(), []);
 
@@ -956,6 +1000,15 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
         </div>
       </div>
 
+      {sellCandidates.length > 0 && !gapFilter && (
+        <button onClick={() => setSellListOpen(true)}
+          className="mx-6 mt-3 w-[calc(100%-3rem)] flex items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-left text-[12px] active:scale-[0.99]">
+          <Tag size={14} className="shrink-0" />
+          <span className="flex-1">{t("sell.banner", { count: sellCandidates.length })}</span>
+          <span className="text-muted-foreground">›</span>
+        </button>
+      )}
+
       <div className="mx-6 mt-4 flex items-center gap-2 rounded-full bg-secondary/60 px-4 py-2.5">
         <Search size={15} className="text-muted-foreground" />
         <input
@@ -1041,6 +1094,46 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
       )}
       {storageTipsOpen && <StorageTipsSheet onClose={() => setStorageTipsOpen(false)} />}
       {laundryOpen && <LaundryGuideSheet onClose={() => setLaundryOpen(false)} />}
+      {sellListOpen && (
+        <SellSuggestionsSheet
+          pieces={sellCandidates.map(({ item, reason }) => {
+            const path = toStoragePath(item.image_url);
+            return {
+              id: item.id,
+              label: [item.brand, garmentWithColor((item as unknown as { subcategory?: string | null }).subcategory || item.category || "", item.colors?.[0] ?? null, i18n.language)].filter(Boolean).join(" · "),
+              imageUrl: path ? signed[path] ?? "" : "",
+              reason: t(`sell.reason.${reason}`),
+            };
+          })}
+          onPrepare={(id) => { const it = items.find((x) => x.id === id); if (it) { setSellListOpen(false); setSellItem(it); } }}
+          onKeep={(id) => {
+            if (user) keepPiece(user.id, id);
+            setKeptVersion((v) => v + 1);
+            toast.success(t("sell.keptToast"));
+            if (sellCandidates.length <= 1) setSellListOpen(false);
+          }}
+          onClose={() => setSellListOpen(false)}
+        />
+      )}
+      {sellItem && (() => {
+        const path = toStoragePath(sellItem.image_url);
+        const val = sellItem.price != null ? valuationOf(sellItem) : null;
+        return (
+          <SellSheet
+            piece={sellItem as unknown as Parameters<typeof SellSheet>[0]["piece"]}
+            imageUrl={path ? signed[path] ?? "" : ""}
+            resaleLow={val?.resaleLow ?? null}
+            resaleHigh={val?.resaleHigh ?? null}
+            onSold={() => {
+              const it = sellItem;
+              setSellItem(null);
+              setDetail(null);
+              void toggleArchiveItem(it, true, t("sell.soldToast"));
+            }}
+            onClose={() => setSellItem(null)}
+          />
+        );
+      })()}
       {seasonChangeOpen && (
         <SeasonChangeSheet
           items={items}
@@ -1353,29 +1446,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                 })()}
 
                 {detail.price != null && (() => {
-                  const raw = detail as unknown as {
-                    current_retail_price?: number | null; current_retail_source?: string | null;
-                    historical_retail_price?: number | null; iconicity?: Iconicity | null;
-                    purchase_date?: string | null; model?: string | null; bag_size_class?: string | null;
-                  };
-                  const val = computeItemValuation(
-                    {
-                      price: detail.price,
-                      currentRetailPrice: raw.current_retail_price ?? null,
-                      currentRetailSource: (raw.current_retail_source as "user" | "import" | "ai_lookup_verified" | "ai_lookup_unverified" | "product_link" | null) ?? null,
-                      historicalRetailPrice: raw.historical_retail_price ?? null,
-                      purchaseDate: raw.purchase_date ?? null,
-                      wornCount: detail.worn_count ?? 0,
-                      brand: detail.brand ?? null,
-                      category: detail.category ?? null,
-                      subcategory: (detail as unknown as { subcategory?: string | null }).subcategory ?? null,
-                      materials: Array.isArray(detail.material) ? detail.material : [],
-                      model: raw.model ?? null,
-                      bagSizeClass: raw.bag_size_class ?? null,
-                      iconicity: raw.iconicity ?? null,
-                    },
-                    valuationConfig
-                  );
+                  const val = valuationOf(detail);
                   const cur = detail.currency ?? "€";
                   const symbol = currencySymbol[cur] ?? cur;
                   const fmtV = (n: number) => `${symbol}${Math.round(n).toLocaleString(i18n.language)}`;
@@ -1478,6 +1549,11 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                       {!loaned && (
                         <button onClick={() => setLoanSheetOpen(true)} className={small}>
                           <Users size={14} /> {t("wardrobe.lendShort")}
+                        </button>
+                      )}
+                      {!archived && !loaned && (
+                        <button onClick={() => setSellItem(detail)} className={small}>
+                          <Tag size={14} /> {t("sell.short")}
                         </button>
                       )}
                     </div>

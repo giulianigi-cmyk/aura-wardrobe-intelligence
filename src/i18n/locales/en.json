@@ -2647,5 +2647,47 @@
     "askAway": "I was going to move to seasonal storage: {{names}}.",
     "askBack": "And take out: {{names}}.",
     "askQuestion": "What would you keep out and what would you move to seasonal storage?"
+  },
+  "sell": {
+    "short": "Sell",
+    "title": "Sell this piece",
+    "condition": "Condition",
+    "conditions": {
+      "newWithTags": "New with tags",
+      "newNoTags": "New without tags",
+      "veryGood": "Very good",
+      "good": "Good",
+      "fair": "Satisfactory"
+    },
+    "suggestedPrice": "Suggested price",
+    "priceHint": "Based on the estimated resale value and the condition. You can change it on the site.",
+    "noPrice": "Add the purchase price on the piece's card to get a suggested price.",
+    "priceLine": "Price: {{price}}",
+    "titleLabel": "Title",
+    "descriptionLabel": "Description",
+    "size": "Size",
+    "materials": "Materials",
+    "color": "Colour",
+    "brand": "Brand",
+    "copy": "Copy listing",
+    "copied": "Listing copied: paste it on the resale site you prefer",
+    "copyFailed": "Couldn't copy. Press and hold the text to copy it.",
+    "savePhoto": "Save photo",
+    "photoHint": "The photo is already without background, ready for the listing.",
+    "photoFailed": "Couldn't save the photo.",
+    "markSold": "Mark as sold",
+    "soldToast": "Sold: the piece is in Archived",
+    "banner_one": "{{count}} piece you don't wear: sell it?",
+    "banner_other": "{{count}} pieces you don't wear: sell them?",
+    "suggestionsTitle": "Pieces to sell?",
+    "suggestionsIntro": "You haven't worn them for a whole season or for a long time. Prepare a listing, or keep them: we won't suggest them again for a year.",
+    "prepare": "Prepare listing",
+    "keep": "Keep it",
+    "keptToast": "OK, we won't suggest it again for a year",
+    "reason": {
+      "seasonMissed": "Not worn during its whole last season",
+      "sixMonths": "Not worn for 6 months",
+      "twoYears": "Not worn for 2 years"
+    }
   }
 }

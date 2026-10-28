@@ -2647,5 +2647,47 @@
     "askAway": "我打算移入换季收纳：{{names}}。",
     "askBack": "并从换季收纳取出：{{names}}。",
     "askQuestion": "你建议我留下哪些、把哪些移入换季收纳？"
+  },
+  "sell": {
+    "short": "出售",
+    "title": "出售这件单品",
+    "condition": "成色",
+    "conditions": {
+      "newWithTags": "全新带吊牌",
+      "newNoTags": "全新无吊牌",
+      "veryGood": "非常好",
+      "good": "良好",
+      "fair": "一般"
+    },
+    "suggestedPrice": "建议价格",
+    "priceHint": "根据估算的转售价值和成色。你可以在网站上修改。",
+    "noPrice": "在单品卡片中添加购买价格即可获得建议价格。",
+    "priceLine": "价格：{{price}}",
+    "titleLabel": "标题",
+    "descriptionLabel": "描述",
+    "size": "尺码",
+    "materials": "材质",
+    "color": "颜色",
+    "brand": "品牌",
+    "copy": "复制商品信息",
+    "copied": "已复制：粘贴到你喜欢的二手平台即可",
+    "copyFailed": "无法复制。请长按文字进行复制。",
+    "savePhoto": "保存照片",
+    "photoHint": "照片已去除背景，可直接用于发布。",
+    "photoFailed": "无法保存照片。",
+    "markSold": "标记为已售出",
+    "soldToast": "已售出：单品已移至已归档",
+    "banner_one": "{{count}} 件你不穿的单品：要出售吗？",
+    "banner_other": "{{count}} 件你不穿的单品：要出售吗？",
+    "suggestionsTitle": "要出售的单品？",
+    "suggestionsIntro": "你已经整整一季或很久没有穿过它们。可以准备发布信息，或者留着：一年内不会再推荐。",
+    "prepare": "准备发布",
+    "keep": "留着",
+    "keptToast": "好的，一年内不会再推荐",
+    "reason": {
+      "seasonMissed": "上一整季都没有穿过",
+      "sixMonths": "6 个月没有穿过",
+      "twoYears": "2 年没有穿过"
+    }
   }
 }

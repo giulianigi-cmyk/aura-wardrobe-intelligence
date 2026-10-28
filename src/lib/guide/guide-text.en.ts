@@ -107,7 +107,7 @@ const text: GuideText = {
         "In Closet tap a piece to open its card.",
         "From here you can edit the details, remove the background or adjust the photo crop.",
         "“Create outfit from this” suggests looks built around that piece.",
-        "You can archive it if you no longer wear it, move it to seasonal storage, lend it or delete it.",
+        "You can archive it if you no longer wear it, move it to seasonal storage, lend it, sell it or delete it.",
       ],
     },
     locations: {
@@ -131,6 +131,17 @@ const text: GuideText = {
         "“Seasonal storage” also has tips: how to get pieces ready, how to fold them (with drawings) and which containers to use.",
       ],
       tip: "On trips, if the destination has a different climate, we ask whether to use the pieces in storage too.",
+    },
+    sell: {
+      title: "Selling a piece",
+      intro: "Prepare a listing for the resale site you prefer in a moment.",
+      steps: [
+        "Open the piece and tap “Sell”.",
+        "Choose the condition: the suggested price adapts, based on the estimated resale value.",
+        "Check title and description, save the photo (already without background) and tap “Copy listing”: paste it on the resale site you prefer.",
+        "Once sold, tap “Mark as sold”: the piece moves to Archived.",
+      ],
+      tip: "In Closet we suggest the pieces you haven't worn for a whole season (6 months for all-season pieces, 2 years for occasion pieces), if you log what you wear. With “Keep it” we won't suggest them again for a year.",
     },
     laundry: {
       title: "Laundry",

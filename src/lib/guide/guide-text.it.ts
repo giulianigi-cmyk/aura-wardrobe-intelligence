@@ -107,7 +107,7 @@ const text: GuideText = {
         "In Guardaroba tocca un capo per aprirne la scheda.",
         "Da qui puoi modificare i dettagli, rimuovere lo sfondo o regolare il ritaglio della foto.",
         "«Crea outfit partendo da questo» ti propone look costruiti intorno a quel capo.",
-        "Puoi archiviarlo se non lo usi più, spostarlo nel cambio stagione, prestarlo o eliminarlo.",
+        "Puoi archiviarlo se non lo usi più, spostarlo nel cambio stagione, prestarlo, venderlo o eliminarlo.",
       ],
     },
     locations: {
@@ -131,6 +131,17 @@ const text: GuideText = {
         "In «Cambio stagione» trovi anche i consigli: come preparare i capi, come piegarli (con i disegni) e quali contenitori usare.",
       ],
       tip: "Nei viaggi, se la destinazione ha un clima diverso, ti chiediamo se usare anche i capi del cambio stagione.",
+    },
+    sell: {
+      title: "Vendere un capo",
+      intro: "Prepara in un attimo l'annuncio da pubblicare sul sito di vendita che preferisci.",
+      steps: [
+        "Apri il capo e tocca «Vendi».",
+        "Scegli le condizioni: il prezzo suggerito si adatta, in base al valore di rivendita stimato.",
+        "Controlla titolo e descrizione, salva la foto (è già senza sfondo) e tocca «Copia annuncio»: incollalo sul sito di vendita che preferisci.",
+        "Quando l'hai venduto tocca «Segna come venduto»: il capo va in Archiviati.",
+      ],
+      tip: "In Guardaroba ti proponiamo i capi che non metti da un'intera stagione (6 mesi per quelli di tutte le stagioni, 2 anni per quelli da cerimonia), se segni ciò che indossi. Con «Lo tengo» non te li riproponiamo per un anno.",
     },
     laundry: {
       title: "Lavaggio",
