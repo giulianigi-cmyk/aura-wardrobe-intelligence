@@ -3,7 +3,7 @@
 // server secret as the calendar credentials) — nobody has to generate or paste a key.
 import { b64u, encryptPayload, vapidAuthorization, type PushTarget } from "./web-push";
 
-const SUBJECT = "https://aura-wardrobe-intelligence.lovable.app";
+const SUBJECT = "mailto:info@nimbea.app";
 
 type VapidKeys = { publicKey: string; privateKey: CryptoKey };
 let cached: Promise<VapidKeys> | null = null;

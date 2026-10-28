@@ -4,12 +4,14 @@ import { ArrowLeft, Copy, Check, Share2, Mail } from "lucide-react";
 import type { Screen } from "../AuraApp";
 import { useAuth } from "@/hooks/use-auth";
 import { BRAND_NAME } from "@/lib/brand";
+import { AURA_APP_URL } from "@/lib/aura-share";
 
 export function Invite({ go }: { go: (s: Screen) => void }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const code = (user?.id ?? "aura").slice(0, 8).toUpperCase();
-  const link = `https://aura.style/i/${code}`;
+  // The app's own address: the old aura.style invite link pointed at a domain that is not ours.
+  const link = AURA_APP_URL;
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
