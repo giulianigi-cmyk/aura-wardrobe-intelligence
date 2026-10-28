@@ -79,7 +79,7 @@ export const GUIDE: GuideChapterDef[] = [
         visuals: [
           null,
           plus,
-          { kind: "option", icon: "link", labelKey: "addSourceSheet.pasteLink", hintKey: "addSourceSheet.pasteLinkHint" },
+          { kind: "option", icon: "plus", labelKey: "addSourceSheet.addOnePiece", hintKey: "addSourceSheet.addOnePieceHint" },
           { kind: "button", labelKey: "addItem.saveToCloset", variant: "solid" },
         ],
       },

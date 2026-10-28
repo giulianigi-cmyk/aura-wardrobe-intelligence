@@ -67,7 +67,7 @@ const text: GuideText = {
       steps: [
         "Sul sito del negozio copia il link del capo (Condividi › Copia, o tieni premuta la barra degli indirizzi).",
         "In Guardaroba tocca +.",
-        `Scegli «Incolla un link»: se il telefono lo chiede tocca Incolla. ${BRAND_NAME} prende subito foto, brand, prezzo e materiali dalla pagina.`,
+        `Scegli «Aggiungi un capo», poi «Incolla link prodotto»: incolla il link (o tocca «Incolla dagli appunti») e tocca «Importa prodotto». ${BRAND_NAME} prende foto, brand, prezzo e materiali dalla pagina.`,
         "Controlla i dati e tocca «Salva nel guardaroba».",
       ],
       tip: `Su Android, con l'app installata, puoi anche toccare Condividi sulla pagina del negozio e scegliere ${BRAND_NAME}. Per più link insieme usa «Scansione foto in lotto».`,
