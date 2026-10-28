@@ -4,8 +4,6 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Copy, Download, X } from "lucide-react";
 import { track } from "@/lib/telemetry-client";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
 import { buildListing, SELL_CONDITIONS, suggestedPrice, type SellCondition } from "@/lib/sell-listing";
 import { colorName, garmentWithColor } from "@/lib/garment-names";
 
@@ -41,24 +39,6 @@ export function SellSheet({ piece, imageUrl, resaleLow, resaleHigh, onSold, onCl
   const [description, setDescription] = useState<string | null>(null);
   const price = suggestedPrice(resaleLow, resaleHigh, condition);
   const symbol = piece.currency === "USD" ? "$" : piece.currency === "GBP" ? "£" : "€";
-  const { user } = useAuth();
-  // "Segna come venduto" first asks the price it went for, to add it to the savings of the wish list.
-  const [soldStep, setSoldStep] = useState(false);
-  const [soldPrice, setSoldPrice] = useState("");
-  const [savingSold, setSavingSold] = useState(false);
-  const markSold = async (addToSavings: boolean) => {
-    if (savingSold) return;
-    const amount = Number(soldPrice.replace(",", "."));
-    if (addToSavings && user && amount > 0) {
-      setSavingSold(true);
-      const { error } = await supabase.from("savings_entries").insert({ user_id: user.id, amount, currency: piece.currency ?? "EUR", source: "sold" });
-      setSavingSold(false);
-      if (error) { console.error("[AURA sell] savings failed", error); toast.error(t("wishlist.saveFailed")); return; }
-      toast.success(t("wishlist.savedToast", { amount: Math.round(amount) }));
-    }
-    track("flow_step", { feature: "sell", step: "sold" });
-    onSold();
-  };
 
   const copy = async () => {
     const text = [title ?? listing.title, "", description ?? listing.description, price != null ? `\n${t("sell.priceLine", { price: `${price} ${symbol}` })}` : ""].join("\n").trim();
@@ -144,26 +124,9 @@ export function SellSheet({ piece, imageUrl, resaleLow, resaleHigh, onSold, onCl
           className="mt-5 w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 active:scale-95">
           <Copy size={13} /> {t("sell.copy")}
         </button>
-        {!soldStep ? (
-          <button onClick={() => { setSoldStep(true); setSoldPrice(price != null ? String(price) : ""); }} className="mt-4 w-full text-center text-[12px] underline underline-offset-2 text-foreground/80">
-            {t("sell.markSold")}
-          </button>
-        ) : (
-          <div className="mt-4 rounded-2xl border border-border p-3">
-            <p className="text-[12px] leading-snug">{t("sell.soldFor")}</p>
-            <div className="mt-2 flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2">
-              <input autoFocus inputMode="decimal" value={soldPrice} onChange={(e) => setSoldPrice(e.target.value)} className="flex-1 min-w-0 bg-transparent text-sm outline-none" />
-              <span className="text-sm text-muted-foreground">{symbol}</span>
-            </div>
-            <button disabled={savingSold || !(Number(soldPrice.replace(",", ".")) > 0)} onClick={() => void markSold(true)}
-              className="mt-2 w-full h-10 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.25em] disabled:opacity-50">
-              {t("sell.soldAddSavings")}
-            </button>
-            <button disabled={savingSold} onClick={() => void markSold(false)} className="mt-2 w-full text-center text-[12px] underline underline-offset-2 text-foreground/80">
-              {t("sell.soldOnly")}
-            </button>
-          </div>
-        )}
+        <button onClick={() => { track("flow_step", { feature: "sell", step: "sold" }); onSold(); }} className="mt-4 w-full text-center text-[12px] underline underline-offset-2 text-foreground/80">
+          {t("sell.markSold")}
+        </button>
       </div>
     </div>,
     document.body,

@@ -237,7 +237,9 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
   const resultPrice = (r: PurchaseAdvisorResult & { ok: true }): { amount: number; currency: string } | null => {
     if (r.wardrobe.price) return { amount: r.wardrobe.price.priceEur, currency: "EUR" };
     const amount = parsePositivePrice(r.product.price);
-    return amount == null ? null : { amount, currency: (r.product.currency ?? "EUR").toUpperCase().replace("€", "EUR").replace("$", "USD").replace("£", "GBP") };
+    const raw = (r.product.currency ?? "EUR").trim().toUpperCase();
+    const currency = ({ "€": "EUR", "$": "USD", "£": "GBP" } as Record<string, string>)[raw] ?? raw;
+    return amount == null ? null : { amount, currency };
   };
 
   /** "Aggiungi alla lista dei desideri": the analysed product goes to the end of the list. A photo is
