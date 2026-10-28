@@ -179,6 +179,7 @@ const text: GuideText = {
         "Toca «Crear manualmente»: se abre el lienzo.",
         "Toca «Añadir del armario» y elige las prendas.",
         "Mueve, amplía y superpone las prendas con los dedos.",
+        "Para mantener una prenda, tócala y luego el candado: con «Sugerencia de IA» solo cambian las demás. Puedes bloquear más de una. «Bloquear capas» mantiene el orden de lo que va encima al mover las prendas.",
         "Toca «Guardar outfit». También puedes compartirlo o ponerlo en el calendario.",
       ],
     },

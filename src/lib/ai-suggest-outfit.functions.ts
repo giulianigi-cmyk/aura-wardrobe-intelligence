@@ -17,7 +17,7 @@ import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCO
 import { detectActivityKind } from "./activity-kind";
 import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
 import { loadWearHistory, recentlyWornIds, rotationOrder, seededRandom, wearFields, withoutRecentPerCategory, ROTATION_PROMPT_RULE } from "./outfit-rotation";
-import { ensureAnchor, ANCHOR_UNAVAILABLE } from "./outfit-anchor";
+import { ensureAnchors, ANCHOR_UNAVAILABLE } from "./outfit-anchor";
 import { explanationLanguageInstruction } from "./language_prompt";
 import { BRAND_NAME } from "@/lib/brand";
 import { isLogoOrGraphicTop, isProfessionalEventText, isTailoredBottom, isUnderJacketTop } from "./work-dress";
@@ -72,6 +72,7 @@ const InputSchema = z.object({
   items: z.array(ItemSchema).min(1),
   avoidItemIds: z.array(z.string()).optional(),
   mustIncludeItemId: z.string().nullable().optional(),
+  lockedItemIds: z.array(z.string()).max(20).optional(),
 });
 
 // A coat, trench, long puffer or parka: the layer that goes over a suit jacket or a cardigan.
@@ -146,6 +147,11 @@ export async function suggestOutfitCore(params: {
    * scratch, but this one piece is non-negotiable."
    */
   mustIncludeItemId?: string | null;
+  /**
+   * Pieces the person locked on the canvas before asking for another outfit: like the mandatory
+   * item, every one of them is in the result and only the other pieces change.
+   */
+  lockedItemIds?: string[];
   /**
    * A ready-made, deterministically-computed sentence about how this
    * segment's temperature compares to its trip-day counterpart (e.g.
@@ -302,15 +308,19 @@ export async function suggestOutfitCore(params: {
   // never filtered out by location, dress-preference or dress-code narrowing above. If it can't be
   // used at all (deleted, archived, out on loan) the caller gets a clear error instead of a
   // different outfit generated silently.
-  if (params.mustIncludeItemId) {
-    const anchor = params.items.find((it) => it.id === params.mustIncludeItemId);
+  // The pieces locked on the canvas are handled the same way: all of them stay, only the rest changes.
+  const lockedIds = [...new Set(params.lockedItemIds ?? [])].filter((id) => id !== params.mustIncludeItemId);
+  const mustIds = new Set([params.mustIncludeItemId, ...lockedIds].filter((x): x is string => Boolean(x)));
+  const isMust = (id: string | null | undefined) => !!id && mustIds.has(id);
+  for (const id of mustIds) {
+    const anchor = params.items.find((it) => it.id === id);
     if (!anchor || anchor.activeLoanId || anchor.inStorage) return { ok: false, error: ANCHOR_UNAVAILABLE };
     if (!eligibleItems.some((it) => it.id === anchor.id)) eligibleItems = [anchor, ...eligibleItems];
   }
 
   const todayIso = new Date().toISOString().slice(0, 10);
   const wearHistory = await loadWearHistory(params.supabase, params.userId, eligibleItems.map((it) => it.id));
-  const protectedIds = new Set([params.mustIncludeItemId, ...(params.baseItemIds ?? [])].filter((x): x is string => Boolean(x)));
+  const protectedIds = new Set([...mustIds, ...(params.baseItemIds ?? [])]);
   // Rain (rain-rules.ts): suede, delicate fabrics, light colours, light canvas shoes, hems that touch
   // the ground and precious bags are left out wherever the category still has something suitable.
   eligibleItems = filterForRain(eligibleItems, params.condition);
@@ -478,6 +488,11 @@ export async function suggestOutfitCore(params: {
     ...(params.mustIncludeItemId
       ? [
           `MANDATORY ITEM: item id "${params.mustIncludeItemId}" MUST be included in item_ids — this is not optional and not subject to the usual fit/formality/color reasoning above being used to exclude it. Instead, use that reasoning to build the strongest possible outfit AROUND it: choose every other piece specifically to complement this one's category, color, formality and style. If this piece is, on its own, a poor match for the requested occasion or weather, still include it and do your best to make the overall look work as well as it can — never drop it and never substitute a different piece in its place.`,
+        ]
+      : []),
+    ...(lockedIds.length
+      ? [
+          `LOCKED ITEMS: the person locked these pieces on their canvas and asked for a new outfit around them: ${JSON.stringify(lockedIds)}. Every one of them MUST be in item_ids, unchanged. Change only the other pieces, choosing them to complement the locked ones; never replace a locked piece with another of the same kind.`,
         ]
       : []),
   ];
@@ -911,10 +926,11 @@ export async function suggestOutfitCore(params: {
           // duplicate items rather than ship a visibly broken outfit.
           const seen = new Set<string>();
           // The mandatory piece is processed first so it is the one kept in its slot.
-          item_ids = ensureAnchor(item_ids, params.mustIncludeItemId, (id) => catalog.find((c) => c.id === id)?.category).filter((id) => {
+          item_ids = ensureAnchors(item_ids, [params.mustIncludeItemId, ...lockedIds], (id) => catalog.find((c) => c.id === id)?.category).filter((id) => {
             const item = catalog.find((c) => c.id === id);
             const cat = item ? slotOf(item) : "";
             const key = SLOT_LIMITS[cat] ? cat : id;
+            if (isMust(id)) { seen.add(key); return true; }
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
@@ -928,7 +944,7 @@ export async function suggestOutfitCore(params: {
           // suggest-daily-looks.functions.ts. Missing a shoe/top after
           // this is preferable to a materially wrong suggestion.
           item_ids = item_ids.filter((id) => {
-            if (id === params.mustIncludeItemId) return true; // the person's own starting piece
+            if (isMust(id)) return true; // the person's own starting or locked piece
             if (violatesWeather([id])) return false;
             if (violatesEmbellished([id])) return false;
             if (violatesBeachBag([id])) return false;
@@ -948,7 +964,7 @@ export async function suggestOutfitCore(params: {
     // Final sweep: whatever happened above (the retry call can fail to parse and leave the first answer
     // untouched), no piece that breaks a hard rule survives. The piece the caller made mandatory is kept.
     item_ids = item_ids.filter((id) =>
-      id === params.mustIncludeItemId
+      isMust(id)
       || (!violatesWeather([id]) && !violatesEmbellished([id]) && !violatesBeachBag([id])
         && !(isWorkOccasion && violatesWorkRules([id])) && !violatesPlaceRequirements([id]) && !violatesFootwearRule([id])
         && !violatesOccasionTag([id]) && !violatesEveningSunglasses([id])));
@@ -956,15 +972,15 @@ export async function suggestOutfitCore(params: {
     // A bag that doesn't match a dressed-up evening look goes (unless it is the person's starting
     // piece); the bag step below picks one that does.
     const offBag = clashingBagId(item_ids);
-    if (offBag && offBag !== params.mustIncludeItemId) item_ids = item_ids.filter((id) => id !== offBag);
+    if (offBag && !isMust(offBag)) item_ids = item_ids.filter((id) => id !== offBag);
 
     // Tall boots with trousers that can't go inside them: the boots go (the shoe step below picks
     // another pair) — unless the boots are the person's starting piece, then the trousers go and
     // the bottom step picks one that fits inside them.
     if (violatesTallBoots(item_ids)) {
-      const bootsAreMandatory = item_ids.some((id) => id === params.mustIncludeItemId && isTallBoot(catalog.find((c) => c.id === id) ?? {}));
+      const bootsAreMandatory = item_ids.some((id) => isMust(id) && isTallBoot(catalog.find((c) => c.id === id) ?? {}));
       item_ids = item_ids.filter((id) => {
-        if (id === params.mustIncludeItemId) return true;
+        if (isMust(id)) return true;
         const c = catalog.find((x) => x.id === id);
         if (!c) return true;
         return bootsAreMandatory ? !clashesWithTallBoots(c) : !isTallBoot(c);
@@ -1109,7 +1125,7 @@ export async function suggestOutfitCore(params: {
       } else if ((veryCold && !chosenOuters.some(warmOver)) || (isWorkOccasion && !chosenOuters.some((c) => isOverLayer(c) && isDressyOuter(c)))) {
         // a trench on a 5°C morning, or a sporty parka at a trade fair: swapped for a warm (and, at
         // work, dressy) coat when there is one — never the piece the person started from
-        const swap = chosenOuters.find((c) => isOverLayer(c) && c.id !== params.mustIncludeItemId);
+        const swap = chosenOuters.find((c) => isOverLayer(c) && !isMust(c.id));
         const better = swap
           ? (veryCold ? pickWarm() : pickBest("Outerwear", (c) => isOverLayer(c) && isDressyOuter(c)))
           : null;
@@ -1130,13 +1146,13 @@ export async function suggestOutfitCore(params: {
     // A suit's own trousers or skirt are used even if worn in an earlier look of the batch (a complete
     // suit matters more than variety), but a jacket worn earlier is never brought back: that is how
     // the same suit came out three days running.
-    item_ids = keepSuitsTogether(item_ids, catalog, (c) => c.id !== params.mustIncludeItemId && usableAddition(c) && (c.category === "Bottoms" || !avoidSet.has(c.id)),
-      new Set(params.mustIncludeItemId ? [params.mustIncludeItemId] : []))
+    item_ids = keepSuitsTogether(item_ids, catalog, (c) => !isMust(c.id) && usableAddition(c) && (c.category === "Bottoms" || !avoidSet.has(c.id)),
+      mustIds)
       .filter((id, i, all) => all.indexOf(id) === i);
-    if (params.mustIncludeItemId && !item_ids.includes(params.mustIncludeItemId)) item_ids = [...item_ids, params.mustIncludeItemId];
+    for (const id of mustIds) if (!item_ids.includes(id)) item_ids = [...item_ids, id];
 
-    // Guarantee, not just a prompt instruction: the starting piece is in the outfit.
-    item_ids = ensureAnchor(item_ids, params.mustIncludeItemId, (id) => catalog.find((c) => c.id === id)?.category);
+    // Guarantee, not just a prompt instruction: the starting piece and the locked ones are in the outfit.
+    item_ids = ensureAnchors(item_ids, [params.mustIncludeItemId, ...lockedIds], (id) => catalog.find((c) => c.id === id)?.category);
     const explanationStillTrue = [...explainedIds].every((id) => item_ids.includes(id));
     return {
       ok: true as const,
@@ -1169,6 +1185,7 @@ export const suggestOutfitAI = createServerFn({ method: "POST" })
       styleBoldness: profile?.style_boldness ?? null,
       language: profile?.language ?? null,
       mustIncludeItemId: data.mustIncludeItemId ?? null,
+      lockedItemIds: data.lockedItemIds ?? [],
       items: data.items,
       avoidItemIds: data.avoidItemIds,
       // On-demand outfit for right now: keep out what was worn in the last couple of days.

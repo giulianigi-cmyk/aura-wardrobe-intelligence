@@ -23,6 +23,16 @@ export function ensureAnchor(ids: string[], anchorId: string | null | undefined,
   return [anchorId, ...ids.filter((id) => !replaces.includes(categoryOf(id) ?? ""))];
 }
 
+/** Several pieces the person fixed (the starting piece and the ones locked on the canvas): all of them
+ *  in the outfit, first and in the given order. The pieces they replace are dropped only for a locked
+ *  piece that was missing — never another locked piece. */
+export function ensureAnchors(ids: string[], anchorIds: readonly (string | null | undefined)[], categoryOf: (id: string) => string | null | undefined): string[] {
+  const must = [...new Set(anchorIds.filter((x): x is string => Boolean(x)))];
+  if (!must.length) return ids;
+  const replaced = new Set(must.filter((id) => !ids.includes(id)).flatMap((id) => REPLACES[categoryOf(id) ?? ""] ?? []));
+  return [...must, ...ids.filter((id) => !must.includes(id) && !replaced.has(categoryOf(id) ?? ""))];
+}
+
 /** Error code returned when the anchor piece can't be used (deleted, archived, on loan). The client
  *  shows a clear message instead of silently generating a different outfit. */
 export const ANCHOR_UNAVAILABLE = "ANCHOR_UNAVAILABLE";

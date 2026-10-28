@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Sparkles, Save, Trash2, ChevronUp, ChevronDown, Plus, X,
   Loader2, Share2, Download, Copy, Mail, Instagram, Facebook, Music2, MessageCircle,
-  Calendar as CalendarIcon,
+  Calendar as CalendarIcon, Lock, LockOpen, Layers,
 } from "lucide-react";
 import type { BuilderInit, Screen } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
@@ -378,6 +378,26 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
   const [otherOccasion, setOtherOccasion] = useState("");
   const occasionSheetCanClose = useSheetCanClose(occasionAsk !== null);
 
+  // Pieces locked on the canvas (by wardrobe item): they stay where they are, in their layer, and
+  // «Suggerimento AI» keeps them, changing only the other pieces.
+  const [lockedIds, setLockedIds] = useState<Set<string>>(() => new Set());
+  const toggleLock = useCallback((itemId: string) => {
+    setLockedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
+      return next;
+    });
+  }, []);
+  // "Blocca strati": touching or moving a piece no longer brings it in front of the others; the order
+  // changes only with «Avanti» / «Indietro». Remembered on this device.
+  const [layersLocked, setLayersLocked] = useState<boolean>(() => {
+    try { return localStorage.getItem("aura.canvasLayersLocked") === "1"; } catch { return false; }
+  });
+  const toggleLayersLocked = () => setLayersLocked((v) => {
+    try { localStorage.setItem("aura.canvasLayersLocked", v ? "0" : "1"); } catch { /* this visit only */ }
+    return !v;
+  });
+
   const canvasRef = useRef<HTMLDivElement>(null);
   const zSeqRef = useRef(1);
   const initAppliedRef = useRef(false);
@@ -517,6 +537,9 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
       const gone = p.find((x) => x.key === key);
       const rest = p.filter((x) => x.key !== key);
       if (gone && gone.itemId === anchorItemId && !rest.some((x) => x.itemId === gone.itemId)) setAnchorItemId(null);
+      if (gone && !rest.some((x) => x.itemId === gone.itemId)) {
+        setLockedIds((prev) => { if (!prev.has(gone.itemId)) return prev; const next = new Set(prev); next.delete(gone.itemId); return next; });
+      }
       return rest;
     });
     setSelectedKey(null);
@@ -543,19 +566,20 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedKey, removeSelected]);
 
+  const selectedLocked = !!selectedKey && placed.some((x) => x.key === selectedKey && lockedIds.has(x.itemId));
   const bringForward = useCallback(() => {
-    if (!selectedKey) return;
+    if (!selectedKey || selectedLocked) return;
     zSeqRef.current += 1;
     setPlaced((p) => p.map((x) => x.key === selectedKey ? { ...x, z: zSeqRef.current } : x));
-  }, [selectedKey]);
+  }, [selectedKey, selectedLocked]);
 
   const sendBackward = useCallback(() => {
-    if (!selectedKey) return;
+    if (!selectedKey || selectedLocked) return;
     setPlaced((p) => {
       const minZ = Math.min(...p.map((x) => x.z), 1) - 1;
       return p.map((x) => x.key === selectedKey ? { ...x, z: minZ } : x);
     });
-  }, [selectedKey]);
+  }, [selectedKey, selectedLocked]);
 
   // Drag / resize / rotate ------------------------------------------------
   type DragMode = "move" | "resize" | "rotate";
@@ -571,10 +595,12 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
     e.stopPropagation();
     const item = placed.find((p) => p.key === key);
     if (!item || !canvasRef.current) return;
+    setSelectedKey(key);
+    // A locked piece is only selected: it can't be moved, resized or rotated by mistake.
+    if (lockedIds.has(item.itemId)) return;
     const rect = canvasRef.current.getBoundingClientRect();
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    setSelectedKey(key);
-    if (mode === "move") { bringSelectedForward(key); }
+    if (mode === "move" && !layersLocked) { bringSelectedForward(key); }
     dragRef.current = {
       mode, key,
       startX: e.clientX, startY: e.clientY,
@@ -635,6 +661,12 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         return;
       }
     }
+    // The locked pieces must still be wearable now (not in the basket, at the dry cleaner, lent…).
+    const locked = [...lockedIds].filter((id) => id !== anchorId && placed.some((p) => p.itemId === id));
+    if (locked.some((id) => { const it = items.find((x) => x.id === id); return !it || !isWearableNow(it as never); })) {
+      toast.error(t("outfitBuilder.lockedUnavailable"));
+      return;
+    }
     setAiBusy(true);
     setAiExplanation("");
     try {
@@ -648,6 +680,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
           condition: desc,
           occasion: occ || null,
           mustIncludeItemId: anchorId,
+          lockedItemIds: locked,
           items: items.map((it) => ({
             id: it.id,
             category: it.category,
@@ -672,7 +705,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         },
       });
       if (!res.ok && res.error === ANCHOR_UNAVAILABLE) {
-        toast.error(t("outfitBuilder.anchorUnavailable"));
+        toast.error(t(anchorId ? "outfitBuilder.anchorUnavailable" : "outfitBuilder.lockedUnavailable"));
         return;
       }
       if (!res.ok || !res.item_ids.length) {
@@ -693,8 +726,11 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
       // the layout logic inline here, which meant a fix to autoPlace's
       // positioning never actually reached AI Suggest, the most-used
       // path of all. One function, one behavior, everywhere now.
-      const placedNext = await autoPlaceLayout(picks, signed, canvasAspectOf(ratio));
-      placedNext.forEach((p) => { zSeqRef.current += 1; p.z += zSeqRef.current; });
+      const laidOut = await autoPlaceLayout(picks, signed, canvasAspectOf(ratio));
+      laidOut.forEach((p) => { zSeqRef.current += 1; p.z += zSeqRef.current; });
+      // Locked pieces keep their place, size, rotation and layer; only the new pieces are laid out.
+      const lockedSet = new Set(locked);
+      const placedNext = [...placed.filter((p) => lockedSet.has(p.itemId)), ...laidOut.filter((p) => !lockedSet.has(p.itemId))];
 
       if (!placedNext.length) {
         toast.error(t("outfitBuilder.selectedItemsMissingImages"));
@@ -712,7 +748,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
       setAiBusy(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, weather, occasion, signed, anchorItemId]);
+  }, [items, weather, occasion, signed, anchorItemId, lockedIds, placed, ratio]);
 
   const anchorAppliedRef = useRef(false);
   useEffect(() => {
@@ -1061,6 +1097,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
             .sort((a, b) => a.z - b.z)
             .map((p) => {
               const isSel = p.key === selectedKey;
+              const isLocked = lockedIds.has(p.itemId);
               const short = 100; // in cqmin — use padding trick with % of container
               return (
                 <div
@@ -1084,6 +1121,12 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
                     data-item-key={p.key}
                     style={{ display: "block", maxHeight: "88cqmin", objectFit: "contain" }}
                   />
+                  {/* Shown on screen only: the saved image is drawn from the pieces, not from this. */}
+                  {isLocked && !isSel && (
+                    <span className="absolute -right-1 -top-1 h-5 w-5 rounded-full bg-foreground text-background flex items-center justify-center shadow pointer-events-none">
+                      <Lock size={10} />
+                    </span>
+                  )}
                   {isSel && (
                     <>
                       <div className="absolute inset-0 border-2 border-dashed border-foreground/60 pointer-events-none" />
@@ -1101,18 +1144,27 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
                           className="h-7 w-7 rounded-full flex items-center justify-center active:scale-90"
                         ><X size={13} /></button>
                         <button
+                          onClick={() => toggleLock(p.itemId)}
+                          aria-label={t(isLocked ? "outfitBuilder.unlockAria" : "outfitBuilder.lockAria")}
+                          title={t(isLocked ? "outfitBuilder.unlockAria" : "outfitBuilder.lockAria")}
+                          className="h-7 w-7 rounded-full flex items-center justify-center active:scale-90"
+                        >{isLocked ? <Lock size={13} /> : <LockOpen size={13} />}</button>
+                        <button
                           onClick={bringForward}
+                          disabled={isLocked}
                           aria-label={t("outfitBuilder.bringForwardAria")}
                           title={t("outfitBuilder.bringForwardAria")}
                           className="h-7 w-7 rounded-full flex items-center justify-center active:scale-90"
                         ><ChevronUp size={14} /></button>
                         <button
                           onClick={sendBackward}
+                          disabled={isLocked}
                           aria-label={t("outfitBuilder.sendBackwardAria")}
                           title={t("outfitBuilder.sendBackwardAria")}
                           className="h-7 w-7 rounded-full flex items-center justify-center active:scale-90"
                         ><ChevronDown size={14} /></button>
                       </div>
+                      {!isLocked && <>
                       {/* resize handle */}
                       <button
                         onPointerDown={onPointerDown("resize", p.key)}
@@ -1125,6 +1177,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
                         aria-label={t("outfitBuilder.rotateAria")}
                         className="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-foreground text-background flex items-center justify-center text-[10px] shadow-md"
                       >⟳</button>
+                      </>}
                     </>
                   )}
                 </div>
@@ -1169,15 +1222,27 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         <button onClick={() => setPickerOpen(true)} className="h-11 rounded-2xl bg-foreground text-background inline-flex items-center justify-center gap-1 text-[10px] uppercase tracking-[0.25em]">
           <Plus size={12} /> {t("outfitBuilder.add")}
         </button>
-        <button onClick={bringForward} disabled={!selectedKey} className="h-11 rounded-2xl border border-border inline-flex items-center justify-center gap-1 text-[10px] uppercase tracking-[0.25em] disabled:opacity-40">
+        <button onClick={bringForward} disabled={!selectedKey || selectedLocked} className="h-11 rounded-2xl border border-border inline-flex items-center justify-center gap-1 text-[10px] uppercase tracking-[0.25em] disabled:opacity-40">
           <ChevronUp size={12} /> {t("outfitBuilder.front")}
         </button>
-        <button onClick={sendBackward} disabled={!selectedKey} className="h-11 rounded-2xl border border-border inline-flex items-center justify-center gap-1 text-[10px] uppercase tracking-[0.25em] disabled:opacity-40">
+        <button onClick={sendBackward} disabled={!selectedKey || selectedLocked} className="h-11 rounded-2xl border border-border inline-flex items-center justify-center gap-1 text-[10px] uppercase tracking-[0.25em] disabled:opacity-40">
           <ChevronDown size={12} /> {t("outfitBuilder.back")}
         </button>
         <button onClick={removeSelected} disabled={!selectedKey} className="h-11 rounded-2xl border border-border inline-flex items-center justify-center gap-1 text-[10px] uppercase tracking-[0.25em] disabled:opacity-40">
           <Trash2 size={12} /> {t("outfitBuilder.del")}
         </button>
+      </div>
+      <div className="mx-6 mt-2 flex items-start gap-3">
+        <button onClick={toggleLayersLocked} aria-pressed={layersLocked}
+          className={`shrink-0 h-8 px-3 rounded-full text-[10px] uppercase tracking-[0.2em] inline-flex items-center gap-1.5 border ${layersLocked ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"}`}>
+          <Layers size={11} /> {t("outfitBuilder.lockLayers")}
+        </button>
+        <p className="text-[11px] leading-snug text-muted-foreground pt-1.5">
+          {(() => {
+            const n = placed.filter((p) => lockedIds.has(p.itemId)).length;
+            return n > 0 ? t("outfitBuilder.lockedHint", { count: n }) : t("outfitBuilder.lockTip");
+          })()}
+        </p>
       </div>
 
       {/* Name / notes / save */}

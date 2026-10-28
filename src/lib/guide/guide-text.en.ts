@@ -179,6 +179,7 @@ const text: GuideText = {
         "Tap “Build manually”: the canvas opens.",
         "Tap “Add from closet” and choose the pieces.",
         "Move, resize and layer the pieces with your fingers.",
+        "To keep a piece, tap it and then the lock: with “AI suggest” only the other pieces change. You can lock more than one. “Lock layers” keeps the order of what sits on top when you move pieces.",
         "Tap “Save outfit”. You can also share it or put it in your calendar.",
       ],
     },
