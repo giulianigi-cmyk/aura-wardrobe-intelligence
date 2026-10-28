@@ -7,6 +7,7 @@ import { dressPreferencesToPrompt, hasAnyPreference, type DressPreferences } fro
 import { resolvePlanSlot, validateEventSlot } from "./outfit-plan-slot";
 import { describeWeather } from "./weather";
 import { commuteLayerHint, commuteWeather } from "./commute-weather";
+import { earlierSameSeries, seenMainPieces, SAME_PEOPLE_WEEKS, type EventLook } from "./same-people";
 
 const DailyWeatherSchema = z.object({
   date: z.string(),
@@ -204,6 +205,27 @@ export const generateWeeklyOutfits = createServerFn({ method: "POST" })
       )[0];
     };
 
+    // «Già indossato con queste persone»: the outfits of earlier occurrences of the same repeating
+    // event (the Monday meeting) in the last weeks — their main pieces are avoided (same-people.ts).
+    const eventLooks: EventLook[] = [];
+    {
+      const { data: pastPlans } = await (supabase.from("outfit_plans" as never) as any)
+        .select("date, item_ids, calendar_event_id").eq("user_id", userId)
+        .neq("status", "cancelled").not("calendar_event_id", "is", null)
+        .gte("date", addDaysIso(data.startDate, -SAME_PEOPLE_WEEKS * 7)).lt("date", data.startDate);
+      const rows = (pastPlans ?? []) as { date: string; item_ids: string[] | null; calendar_event_id: string }[];
+      const ids = [...new Set(rows.map((r) => r.calendar_event_id))];
+      if (ids.length) {
+        const { data: pastEvents } = await (supabase.from("calendar_events_cache" as never) as any)
+          .select("id, title").eq("user_id", userId).in("id", ids);
+        const titleById = new Map(((pastEvents ?? []) as { id: string; title: string | null }[]).map((e) => [e.id, e.title] as const));
+        rows.forEach((r) => {
+          if (titleById.has(r.calendar_event_id)) eventLooks.push({ eventId: r.calendar_event_id, date: r.date, title: titleById.get(r.calendar_event_id) ?? null, itemIds: r.item_ids ?? [] });
+        });
+      }
+    }
+    const categoryById = new Map(items.map((it) => [it.id, it.category ?? null] as const));
+
     const usedThisBatch: string[] = [];
     // One catalog order for the whole week: the same rules and catalog open every day's request and
     // are billed as cached input (ai-suggest-outfit.functions.ts, rotationSeed).
@@ -245,7 +267,9 @@ export const generateWeeklyOutfits = createServerFn({ method: "POST" })
         styleBoldness,
         language,
         items,
-        avoidItemIds: usedThisBatch,
+        avoidItemIds: workEvent
+          ? [...usedThisBatch, ...seenMainPieces(earlierSameSeries({ eventId: workEvent.id, title: workEvent.title, date }, eventLooks), (id) => categoryById.get(id))]
+          : usedThisBatch,
         rotationSeed: batchSeed,
         locationIdsOverride: locationIdsForDate(date),
         // The day actually being planned, not today — a week generated in June for a July date
@@ -261,6 +285,7 @@ export const generateWeeklyOutfits = createServerFn({ method: "POST" })
       }
 
       usedThisBatch.push(...result.item_ids);
+      if (workEvent) eventLooks.push({ eventId: workEvent.id, date, title: workEvent.title, itemIds: result.item_ids });
 
       const { onConflict } = resolvePlanSlot({ calendarEventId });
       const { data: planRow, error: insErr } = await supabase.from("outfit_plans").upsert({
