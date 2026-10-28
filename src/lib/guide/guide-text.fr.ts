@@ -235,7 +235,7 @@ const text: GuideText = {
         "Planifiez une tenue, demandez au styliste ou choisissez vous-même les pièces.",
         "En fin de journée, vous pouvez la marquer comme portée.",
       ],
-      tip: "Pour les événements qui se répètent dans votre calendrier (la réunion du lundi, le dîner du jeudi), nous vous prévenons si un haut, une robe ou une veste a déjà été porté à cet événement ces 6 dernières semaines : ce sont presque toujours les mêmes personnes. La semaine de travail générée les évite d'elle-même.",
+      tip: "Pour les événements qui se répètent dans votre calendrier (la réunion du lundi, le dîner du jeudi), nous vous prévenons si un haut, une robe ou une veste a déjà été porté à cet événement ces 6 dernières semaines : ce sont presque toujours les mêmes personnes. Pour les dîners, déjeuners, brunchs, apéritifs et soirées, le lieu compte aussi : nous vous prévenons si vous y avez déjà porté cette pièce. La semaine de travail générée les évite d'elle-même.",
     },
     "connect-calendar": {
       title: "Connecter votre calendrier",
