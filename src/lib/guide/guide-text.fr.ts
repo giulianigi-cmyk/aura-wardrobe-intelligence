@@ -107,7 +107,7 @@ const text: GuideText = {
         "Dans Garde-robe, touchez une pièce pour ouvrir sa fiche.",
         "De là, vous pouvez modifier les détails, retirer le fond ou ajuster le recadrage de la photo.",
         "« Créer une tenue à partir de ceci » vous propose des looks construits autour de cette pièce.",
-        "Vous pouvez l'archiver si vous ne la portez plus, la mettre au rangement saisonnier, la prêter ou la supprimer.",
+        "Vous pouvez l'archiver si vous ne la portez plus, la mettre au rangement saisonnier, la prêter, la vendre ou la supprimer.",
       ],
     },
     locations: {
@@ -131,6 +131,17 @@ const text: GuideText = {
         "« Rangement saisonnier » contient aussi des conseils : préparer les pièces, les plier (avec des dessins) et choisir les contenants.",
       ],
       tip: "En voyage, si la destination a un autre climat, nous vous demandons s'il faut aussi utiliser les pièces du rangement saisonnier.",
+    },
+    sell: {
+      title: "Vendre une pièce",
+      intro: "Préparez en un instant l'annonce pour Vinted ou Vestiaire.",
+      steps: [
+        "Ouvrez la pièce et touchez « Vendre ».",
+        "Choisissez l'état : le prix conseillé s'adapte, d'après la valeur de revente estimée.",
+        "Vérifiez le titre et la description, enregistrez la photo (déjà détourée) et touchez « Copier l'annonce » : collez-la sur Vinted ou Vestiaire.",
+        "Une fois vendue, touchez « Marquer comme vendue » : la pièce passe dans Archivées.",
+      ],
+      tip: "Dans Garde-robe, nous vous proposons les pièces que vous n'avez pas portées de toute une saison (6 mois pour celles de toutes saisons, 2 ans pour celles de cérémonie), si vous notez ce que vous portez. Avec « Je la garde », nous ne les reproposons pas avant un an.",
     },
     laundry: {
       title: "Lavage",

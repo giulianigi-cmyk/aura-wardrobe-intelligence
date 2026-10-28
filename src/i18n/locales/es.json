@@ -2647,5 +2647,47 @@
     "askAway": "Pensaba pasar al cambio de armario: {{names}}.",
     "askBack": "Y sacar del cambio de armario: {{names}}.",
     "askQuestion": "¿Qué me aconsejas dejar fuera y qué pasar al cambio de armario?"
+  },
+  "sell": {
+    "short": "Vender",
+    "title": "Vender esta prenda",
+    "condition": "Estado",
+    "conditions": {
+      "newWithTags": "Nuevo con etiquetas",
+      "newNoTags": "Nuevo sin etiquetas",
+      "veryGood": "Muy bueno",
+      "good": "Bueno",
+      "fair": "Satisfactorio"
+    },
+    "suggestedPrice": "Precio sugerido",
+    "priceHint": "Según el valor de reventa estimado y el estado. Puedes cambiarlo en la web.",
+    "noPrice": "Añade el precio de compra en la ficha de la prenda para tener un precio sugerido.",
+    "priceLine": "Precio: {{price}}",
+    "titleLabel": "Título",
+    "descriptionLabel": "Descripción",
+    "size": "Talla",
+    "materials": "Materiales",
+    "color": "Color",
+    "brand": "Marca",
+    "copy": "Copiar anuncio",
+    "copied": "Anuncio copiado: pégalo en Vinted o Vestiaire",
+    "copyFailed": "No se ha podido copiar. Mantén pulsado el texto para copiarlo.",
+    "savePhoto": "Guardar foto",
+    "photoHint": "La foto ya está sin fondo, lista para el anuncio.",
+    "photoFailed": "No se ha podido guardar la foto.",
+    "markSold": "Marcar como vendida",
+    "soldToast": "Vendida: la prenda está en Archivadas",
+    "banner_one": "{{count}} prenda que no usas: ¿la vendes?",
+    "banner_other": "{{count}} prendas que no usas: ¿las vendes?",
+    "suggestionsTitle": "¿Prendas para vender?",
+    "suggestionsIntro": "No las has usado en toda una temporada o desde hace mucho. Prepara el anuncio o quédatelas: no te las volveremos a proponer en un año.",
+    "prepare": "Preparar anuncio",
+    "keep": "Me la quedo",
+    "keptToast": "De acuerdo, no te la volveremos a proponer en un año",
+    "reason": {
+      "seasonMissed": "Sin usar en toda su última temporada",
+      "sixMonths": "Sin usar desde hace 6 meses",
+      "twoYears": "Sin usar desde hace 2 años"
+    }
   }
 }

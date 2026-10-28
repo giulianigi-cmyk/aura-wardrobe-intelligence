@@ -2647,5 +2647,47 @@
     "askAway": "Pensavo di spostare nel cambio stagione: {{names}}.",
     "askBack": "E di riprendere dal cambio stagione: {{names}}.",
     "askQuestion": "Cosa mi consigli di tenere fuori e cosa spostare nel cambio stagione?"
+  },
+  "sell": {
+    "short": "Vendi",
+    "title": "Vendi questo capo",
+    "condition": "Condizioni",
+    "conditions": {
+      "newWithTags": "Nuovo con cartellino",
+      "newNoTags": "Nuovo senza cartellino",
+      "veryGood": "Ottime condizioni",
+      "good": "Buone condizioni",
+      "fair": "Discrete condizioni"
+    },
+    "suggestedPrice": "Prezzo suggerito",
+    "priceHint": "In base al valore di rivendita stimato e alle condizioni. Puoi cambiarlo sul sito.",
+    "noPrice": "Aggiungi il prezzo d'acquisto nella scheda del capo per avere un prezzo suggerito.",
+    "priceLine": "Prezzo: {{price}}",
+    "titleLabel": "Titolo",
+    "descriptionLabel": "Descrizione",
+    "size": "Taglia",
+    "materials": "Materiali",
+    "color": "Colore",
+    "brand": "Brand",
+    "copy": "Copia annuncio",
+    "copied": "Annuncio copiato: incollalo su Vinted o Vestiaire",
+    "copyFailed": "Non è stato possibile copiare. Tieni premuto sul testo per copiarlo.",
+    "savePhoto": "Salva foto",
+    "photoHint": "La foto è già senza sfondo, pronta per l'annuncio.",
+    "photoFailed": "Non è stato possibile salvare la foto.",
+    "markSold": "Segna come venduto",
+    "soldToast": "Venduto: il capo è in Archiviati",
+    "banner_one": "{{count}} capo che non metti: vuoi venderlo?",
+    "banner_other": "{{count}} capi che non metti: vuoi venderli?",
+    "suggestionsTitle": "Capi da vendere?",
+    "suggestionsIntro": "Non li hai indossati per un'intera stagione o da molto tempo. Puoi prepararne l'annuncio, oppure tenerli: non te li riproporremo per un anno.",
+    "prepare": "Prepara annuncio",
+    "keep": "Lo tengo",
+    "keptToast": "Va bene, non te lo riproporremo per un anno",
+    "reason": {
+      "seasonMissed": "Non indossato per tutta la sua ultima stagione",
+      "sixMonths": "Non indossato da 6 mesi",
+      "twoYears": "Non indossato da 2 anni"
+    }
   }
 }

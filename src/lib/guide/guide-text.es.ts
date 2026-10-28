@@ -107,7 +107,7 @@ const text: GuideText = {
         "En Armario toca una prenda para abrir su ficha.",
         "Desde aquí puedes editar los detalles, quitar el fondo o ajustar el recorte de la foto.",
         "«Crear outfit a partir de esto» te propone looks pensados alrededor de esa prenda.",
-        "Puedes archivarla si ya no la usas, pasarla al cambio de armario, prestarla o eliminarla.",
+        "Puedes archivarla si ya no la usas, pasarla al cambio de armario, prestarla, venderla o eliminarla.",
       ],
     },
     locations: {
@@ -131,6 +131,17 @@ const text: GuideText = {
         "En «Cambio de armario» también hay consejos: cómo preparar las prendas, cómo doblarlas (con dibujos) y qué contenedores usar.",
       ],
       tip: "En los viajes, si el destino tiene otro clima, te preguntamos si usar también las prendas del cambio de armario.",
+    },
+    sell: {
+      title: "Vender una prenda",
+      intro: "Prepara en un momento el anuncio para Vinted o Vestiaire.",
+      steps: [
+        "Abre la prenda y toca «Vender».",
+        "Elige el estado: el precio sugerido se adapta, según el valor de reventa estimado.",
+        "Revisa título y descripción, guarda la foto (ya sin fondo) y toca «Copiar anuncio»: pégalo en Vinted o Vestiaire.",
+        "Cuando la vendas toca «Marcar como vendida»: la prenda pasa a Archivadas.",
+      ],
+      tip: "En Armario te proponemos las prendas que no usas desde toda una temporada (6 meses las de todas las temporadas, 2 años las de ceremonia), si registras lo que te pones. Con «Me la quedo» no te las volvemos a proponer en un año.",
     },
     laundry: {
       title: "Lavado",

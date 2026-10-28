@@ -112,7 +112,7 @@ export const GUIDE: GuideChapterDef[] = [
           null,
           { kind: "chips", labelKeys: ["wardrobe.editDetailsButton", "wardrobe.removeBackgroundButton", "wardrobe.adjustCropButton"] },
           { kind: "button", labelKey: "wardrobe.createOutfitFromThisButton", variant: "outline" },
-          { kind: "chips", labelKeys: ["wardrobe.archiveShort", "wardrobe.storeShort", "wardrobe.lendShort"] },
+          { kind: "chips", labelKeys: ["wardrobe.archiveShort", "wardrobe.storeShort", "wardrobe.lendShort", "sell.short"] },
         ],
       },
       {
@@ -128,6 +128,15 @@ export const GUIDE: GuideChapterDef[] = [
           null,
           { kind: "button", labelKey: "wardrobe.unstoreSelectionButton", variant: "solid" },
           { kind: "row", labelKey: "wardrobe.storageTipsButton" },
+        ],
+      },
+      {
+        id: "sell", open: "wardrobe",
+        visuals: [
+          { kind: "button", labelKey: "sell.short", variant: "outline" },
+          { kind: "chips", labelKeys: ["sell.conditions.veryGood", "sell.conditions.good"] },
+          { kind: "button", labelKey: "sell.copy", variant: "solid" },
+          { kind: "button", labelKey: "sell.markSold", variant: "outline" },
         ],
       },
       {

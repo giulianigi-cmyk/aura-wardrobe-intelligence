@@ -2647,5 +2647,47 @@
     "askAway": "Je pensais mettre au rangement saisonnier : {{names}}.",
     "askBack": "Et sortir du rangement saisonnier : {{names}}.",
     "askQuestion": "Que me conseillez-vous de garder sous la main et de mettre au rangement saisonnier ?"
+  },
+  "sell": {
+    "short": "Vendre",
+    "title": "Vendre cette pièce",
+    "condition": "État",
+    "conditions": {
+      "newWithTags": "Neuf avec étiquette",
+      "newNoTags": "Neuf sans étiquette",
+      "veryGood": "Très bon état",
+      "good": "Bon état",
+      "fair": "Satisfaisant"
+    },
+    "suggestedPrice": "Prix conseillé",
+    "priceHint": "D'après la valeur de revente estimée et l'état. Vous pouvez le modifier sur le site.",
+    "noPrice": "Ajoutez le prix d'achat dans la fiche de la pièce pour obtenir un prix conseillé.",
+    "priceLine": "Prix : {{price}}",
+    "titleLabel": "Titre",
+    "descriptionLabel": "Description",
+    "size": "Taille",
+    "materials": "Matières",
+    "color": "Couleur",
+    "brand": "Marque",
+    "copy": "Copier l'annonce",
+    "copied": "Annonce copiée : collez-la sur Vinted ou Vestiaire",
+    "copyFailed": "Impossible de copier. Appuyez longuement sur le texte pour le copier.",
+    "savePhoto": "Enregistrer la photo",
+    "photoHint": "La photo est déjà détourée, prête pour l'annonce.",
+    "photoFailed": "Impossible d'enregistrer la photo.",
+    "markSold": "Marquer comme vendue",
+    "soldToast": "Vendue : la pièce est dans Archivées",
+    "banner_one": "{{count}} pièce que vous ne portez pas : la vendre ?",
+    "banner_other": "{{count}} pièces que vous ne portez pas : les vendre ?",
+    "suggestionsTitle": "Des pièces à vendre ?",
+    "suggestionsIntro": "Vous ne les avez pas portées de toute une saison ou depuis longtemps. Préparez l'annonce, ou gardez-les : nous ne les reproposerons pas avant un an.",
+    "prepare": "Préparer l'annonce",
+    "keep": "Je la garde",
+    "keptToast": "D'accord, nous ne la reproposerons pas avant un an",
+    "reason": {
+      "seasonMissed": "Pas portée de toute sa dernière saison",
+      "sixMonths": "Pas portée depuis 6 mois",
+      "twoYears": "Pas portée depuis 2 ans"
+    }
   }
 }

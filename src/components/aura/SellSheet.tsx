@@ -1,0 +1,195 @@
+import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { Copy, Download, ExternalLink, X } from "lucide-react";
+import { buildListing, SELL_CONDITIONS, suggestedPrice, type SellCondition } from "@/lib/sell-listing";
+import { colorName, garmentWithColor } from "@/lib/garment-names";
+
+/** Vinted is a different site per country; Vestiaire is one. */
+const VINTED: Record<string, string> = { it: "https://www.vinted.it/items/new", fr: "https://www.vinted.fr/items/new", es: "https://www.vinted.es/items/new", en: "https://www.vinted.co.uk/items/new" };
+const VESTIAIRE = "https://www.vestiairecollective.com/";
+
+export type SellPiece = {
+  id: string; brand?: string | null; category?: string | null; subcategory?: string | null;
+  colors?: string[] | null; size?: string | null; material?: string[] | null; currency?: string | null;
+};
+
+/** "Vendi questo capo": the listing ready to copy into Vinted or Vestiaire — title, description,
+ *  condition, suggested price (from the resale range of the piece's "Valore") and its photo, already
+ *  without background. "Segna come venduto" archives the piece. */
+export function SellSheet({ piece, imageUrl, resaleLow, resaleHigh, onSold, onClose }: {
+  piece: SellPiece; imageUrl: string; resaleLow: number | null; resaleHigh: number | null;
+  onSold: () => void; onClose: () => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.language || "it").slice(0, 2);
+  const [condition, setCondition] = useState<SellCondition>("veryGood");
+  const garment = garmentWithColor(piece.subcategory || piece.category || "", piece.colors?.[0] ?? null, i18n.language);
+  const listing = useMemo(() => buildListing({
+    brand: piece.brand, garment, size: piece.size,
+    colorLabel: piece.colors?.length ? piece.colors.map((c) => colorName(c, i18n.language)).join(", ") : null,
+    materials: (piece.material ?? []).map((m) => t(`materials.${m}`, { defaultValue: m })),
+    condition,
+  }, {
+    conditionLabels: Object.fromEntries(SELL_CONDITIONS.map((c) => [c, t(`sell.conditions.${c}`)])) as Record<SellCondition, string>,
+    size: t("sell.size"), materials: t("sell.materials"), color: t("sell.color"), condition: t("sell.condition"), brand: t("sell.brand"),
+  }), [piece, garment, condition, i18n.language, t]);
+  const [title, setTitle] = useState<string | null>(null);
+  const [description, setDescription] = useState<string | null>(null);
+  const price = suggestedPrice(resaleLow, resaleHigh, condition);
+  const symbol = piece.currency === "USD" ? "$" : piece.currency === "GBP" ? "£" : "€";
+
+  const copy = async () => {
+    const text = [title ?? listing.title, "", description ?? listing.description, price != null ? `\n${t("sell.priceLine", { price: `${price} ${symbol}` })}` : ""].join("\n").trim();
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(t("sell.copied"));
+    } catch {
+      toast.error(t("sell.copyFailed"));
+    }
+  };
+
+  const savePhoto = async () => {
+    try {
+      const blob = await (await fetch(imageUrl)).blob();
+      const file = new File([blob], `${(piece.brand ?? "nimbea").replace(/\W+/g, "-")}.${blob.type.includes("png") ? "png" : "jpg"}`, { type: blob.type || "image/jpeg" });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file] });
+        return;
+      }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(file);
+      a.download = file.name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch (e) {
+      if ((e as { name?: string })?.name === "AbortError") return; // the person closed the share sheet
+      toast.error(t("sell.photoFailed"));
+    }
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-[90] bg-background/80 backdrop-blur flex items-end justify-center" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md bg-card rounded-t-3xl border-t sm:border-x border-border p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] max-h-[88vh] overflow-y-auto overscroll-contain"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <p className="font-serif italic text-xl leading-tight">{t("sell.title")}</p>
+          <button onClick={onClose} aria-label={t("wardrobe.closeAria")} className="h-9 w-9 rounded-full border border-border flex items-center justify-center shrink-0"><X size={15} /></button>
+        </div>
+
+        <div className="mt-4 flex gap-3 items-center">
+          <div className="h-24 w-24 shrink-0 rounded-xl overflow-hidden" style={{ background: "#FFFFFF" }}>
+            {imageUrl && <img src={imageUrl} alt="" className="h-full w-full object-contain p-1.5" />}
+          </div>
+          <div className="min-w-0">
+            <button onClick={() => void savePhoto()} disabled={!imageUrl} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] disabled:opacity-40">
+              <Download size={12} /> {t("sell.savePhoto")}
+            </button>
+            <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">{t("sell.photoHint")}</p>
+          </div>
+        </div>
+
+        <p className="mt-5 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("sell.condition")}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {SELL_CONDITIONS.map((c) => (
+            <button key={c} onClick={() => setCondition(c)}
+              className={`rounded-full px-3 py-1.5 text-xs ${condition === c ? "bg-foreground text-background" : "bg-secondary/60"}`}>
+              {t(`sell.conditions.${c}`)}
+            </button>
+          ))}
+        </div>
+
+        <p className="mt-5 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("sell.suggestedPrice")}</p>
+        {price != null ? (
+          <>
+            <p className="mt-1 font-serif text-2xl">{price} {symbol}</p>
+            <p className="text-[11px] text-muted-foreground">{t("sell.priceHint")}</p>
+          </>
+        ) : (
+          <p className="mt-1 text-[12px] text-muted-foreground">{t("sell.noPrice")}</p>
+        )}
+
+        <label className="block mt-5 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("sell.titleLabel")}</label>
+        <input value={title ?? listing.title} onChange={(e) => setTitle(e.target.value.slice(0, 60))}
+          className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" />
+        <label className="block mt-4 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("sell.descriptionLabel")}</label>
+        <textarea value={description ?? listing.description} onChange={(e) => setDescription(e.target.value)} rows={7}
+          className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-[13px] leading-relaxed" />
+
+        <button onClick={() => void copy()}
+          className="mt-5 w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 active:scale-95">
+          <Copy size={13} /> {t("sell.copy")}
+        </button>
+        <div className="mt-2 flex gap-2">
+          <a href={VINTED[lang] ?? "https://www.vinted.com/"} target="_blank" rel="noopener noreferrer"
+            className="flex-1 h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] inline-flex items-center justify-center gap-1.5">
+            <ExternalLink size={12} /> Vinted
+          </a>
+          <a href={VESTIAIRE} target="_blank" rel="noopener noreferrer"
+            className="flex-1 h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] inline-flex items-center justify-center gap-1.5">
+            <ExternalLink size={12} /> Vestiaire
+          </a>
+        </div>
+        <button onClick={onSold} className="mt-4 w-full text-center text-[12px] underline underline-offset-2 text-foreground/80">
+          {t("sell.markSold")}
+        </button>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+// "Lo tengo": not suggested again for a year. Remembered on this device only — a suggestion coming
+// back on another phone is harmless, and it needs no new database field.
+const keepKey = (userId: string) => `aura.sellKeep.${userId}`;
+export function readKeptPieces(userId: string): Record<string, number> {
+  try { return JSON.parse(localStorage.getItem(keepKey(userId)) ?? "{}") as Record<string, number>; } catch { return {}; }
+}
+export function keepPiece(userId: string, itemId: string): void {
+  try {
+    const kept = readKeptPieces(userId);
+    kept[itemId] = Date.now() + 365 * 86_400_000;
+    localStorage.setItem(keepKey(userId), JSON.stringify(kept));
+  } catch { /* storage unavailable: it may be suggested again */ }
+}
+
+/** The pieces worth selling, each with why and two choices: prepare the listing, or keep it. */
+export function SellSuggestionsSheet({ pieces, onPrepare, onKeep, onClose }: {
+  pieces: { id: string; label: string; imageUrl: string; reason: string }[];
+  onPrepare: (id: string) => void; onKeep: (id: string) => void; onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  return createPortal(
+    <div className="fixed inset-0 z-[85] bg-background/80 backdrop-blur flex items-end justify-center" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md bg-card rounded-t-3xl border-t sm:border-x border-border p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] max-h-[85vh] overflow-y-auto overscroll-contain">
+        <div className="flex items-start justify-between gap-3">
+          <p className="font-serif italic text-xl leading-tight">{t("sell.suggestionsTitle")}</p>
+          <button onClick={onClose} aria-label={t("wardrobe.closeAria")} className="h-9 w-9 rounded-full border border-border flex items-center justify-center shrink-0"><X size={15} /></button>
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">{t("sell.suggestionsIntro")}</p>
+        <ul className="mt-4 space-y-3">
+          {pieces.map((p) => (
+            <li key={p.id} className="flex gap-3 items-center rounded-2xl border border-border p-2.5">
+              <div className="h-16 w-16 shrink-0 rounded-xl overflow-hidden" style={{ background: "#FFFFFF" }}>
+                {p.imageUrl && <img src={p.imageUrl} alt="" className="h-full w-full object-contain p-1" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] leading-snug truncate">{p.label}</p>
+                <p className="text-[11px] text-muted-foreground leading-snug">{p.reason}</p>
+                <div className="mt-1.5 flex gap-2">
+                  <button onClick={() => onPrepare(p.id)} className="rounded-full bg-foreground text-background px-3 py-1 text-[11px]">{t("sell.prepare")}</button>
+                  <button onClick={() => onKeep(p.id)} className="rounded-full border border-border px-3 py-1 text-[11px]">{t("sell.keep")}</button>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>,
+    document.body,
+  );
+}
