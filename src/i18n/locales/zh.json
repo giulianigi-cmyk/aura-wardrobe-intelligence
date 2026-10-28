@@ -2675,6 +2675,7 @@
     "savePhoto": "保存照片",
     "photoHint": "照片已去除背景，可直接用于发布。",
     "photoFailed": "无法保存照片。",
+    "luxuryHint": "奢侈品单品：Buddy & Selly 会为你估价并代售。",
     "markSold": "标记为已售出",
     "soldToast": "已售出：单品已移至已归档",
     "banner_one": "{{count}} 件你不穿的单品：要出售吗？",

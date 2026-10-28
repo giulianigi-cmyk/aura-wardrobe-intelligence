@@ -2675,6 +2675,7 @@
     "savePhoto": "Enregistrer la photo",
     "photoHint": "La photo est déjà détourée, prête pour l'annonce.",
     "photoFailed": "Impossible d'enregistrer la photo.",
+    "luxuryHint": "Pour les pièces de luxe : Buddy & Selly les évalue et les revend pour vous.",
     "markSold": "Marquer comme vendue",
     "soldToast": "Vendue : la pièce est dans Archivées",
     "banner_one": "{{count}} pièce que vous ne portez pas : la vendre ?",

@@ -138,7 +138,7 @@ const text: GuideText = {
       steps: [
         "Open the piece and tap “Sell”.",
         "Choose the condition: the suggested price adapts, based on the estimated resale value.",
-        "Check title and description, save the photo (already without background) and tap “Copy listing”: paste it on Vinted or Vestiaire.",
+        "Check title and description, save the photo (already without background) and tap “Copy listing”: paste it on Vinted or Vestiaire. For luxury pieces there is also Buddy & Selly, which values and resells them for you.",
         "Once sold, tap “Mark as sold”: the piece moves to Archived.",
       ],
       tip: "In Closet we suggest the pieces you haven't worn for a whole season (6 months for all-season pieces, 2 years for occasion pieces), if you log what you wear. With “Keep it” we won't suggest them again for a year.",

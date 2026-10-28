@@ -9,13 +9,16 @@ import { colorName, garmentWithColor } from "@/lib/garment-names";
 /** Vinted is a different site per country; Vestiaire is one. */
 const VINTED: Record<string, string> = { it: "https://www.vinted.it/items/new", fr: "https://www.vinted.fr/items/new", es: "https://www.vinted.es/items/new", en: "https://www.vinted.co.uk/items/new" };
 const VESTIAIRE = "https://www.vestiairecollective.com/";
+/** Luxury pieces: Buddy & Selly values them and resells them for you. */
+const BUDDY_AND_SELLY = "https://www.buddyandselly.com/";
 
 export type SellPiece = {
   id: string; brand?: string | null; category?: string | null; subcategory?: string | null;
   colors?: string[] | null; size?: string | null; material?: string[] | null; currency?: string | null;
 };
 
-/** "Vendi questo capo": the listing ready to copy into Vinted or Vestiaire — title, description,
+/** "Vendi questo capo": the listing ready to copy into Vinted or Vestiaire (or a luxury piece to send
+ *  to Buddy & Selly) — title, description,
  *  condition, suggested price (from the resale range of the piece's "Valore") and its photo, already
  *  without background. "Segna come venduto" archives the piece. */
 export function SellSheet({ piece, imageUrl, resaleLow, resaleHigh, onSold, onClose }: {
@@ -133,6 +136,11 @@ export function SellSheet({ piece, imageUrl, resaleLow, resaleHigh, onSold, onCl
             <ExternalLink size={12} /> Vestiaire
           </a>
         </div>
+        <a href={BUDDY_AND_SELLY} target="_blank" rel="noopener noreferrer"
+          className="mt-2 w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] inline-flex items-center justify-center gap-1.5">
+          <ExternalLink size={12} /> Buddy &amp; Selly
+        </a>
+        <p className="mt-1 text-center text-[11px] text-muted-foreground">{t("sell.luxuryHint")}</p>
         <button onClick={onSold} className="mt-4 w-full text-center text-[12px] underline underline-offset-2 text-foreground/80">
           {t("sell.markSold")}
         </button>
