@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { LegalConsentGate } from "@/components/aura/LegalDocs";
+import { firstHttpUrl, setPendingImportUrl } from "@/lib/pending-import";
 import { hasAcceptedLegal } from "@/lib/legal/legal";
 import { Splash } from "./screens/Splash";
 import { Onboarding } from "./screens/Onboarding";
@@ -327,6 +328,10 @@ function Inner() {
 
       } else if (params.get("open") === "report-problem") {
         setScreen("settings-report-problem"); // an update on the person's own report
+      } else if (params.get("shared_url") || params.get("shared_text")) {
+        // A product page shared to the installed app (manifest share_target): import it right away.
+        const link = firstHttpUrl(params.get("shared_url")) ?? firstHttpUrl(params.get("shared_text"));
+        if (link) { setPendingImportUrl(link); setScreen("add"); }
       } else if (params.get("admin") === "reports") {
         setScreen("settings-admin-reports"); // a new report, for whoever manages them
       }
@@ -334,7 +339,7 @@ function Inner() {
   }, [openPlanner]);
   useEffect(() => {
     if (!user || !["home", "wardrobe", "ai", "planner", "profile"].includes(screen)) return;
-    if (!/[?&](day|open|admin)=/.test(window.location.search)) return;
+    if (!/[?&](day|open|admin|shared_url|shared_text)=/.test(window.location.search)) return;
     openFromNotification(window.location.href);
     window.history.replaceState(null, "", window.location.pathname);
   }, [user, screen, openFromNotification]);

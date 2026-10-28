@@ -1885,6 +1885,8 @@
     "addPiecesAria": "Aggiungi capi",
     "backAria": "Indietro",
     "addToYourCloset": "Aggiungi al guardaroba",
+    "pasteLink": "Incolla un link",
+    "pasteLinkHint": "Hai copiato il link di un capo da un negozio? Lo importiamo subito",
     "scanSeveralPieces": "Scansiona più capi",
     "addOnePiece": "Aggiungi un capo",
     "addOnePieceHint": "Un capo alla volta, con tutti i dettagli",

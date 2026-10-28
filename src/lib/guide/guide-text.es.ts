@@ -65,11 +65,12 @@ const text: GuideText = {
       title: "Añadir una prenda desde un enlace",
       intro: "¿La compraste online? Puedes usar la página del producto en lugar de una foto.",
       steps: [
-        "En Armario toca + y luego «Añadir una prenda».",
-        "Toca «Pegar enlace del producto».",
-        "Pega el enlace en el campo (mantén pulsado y elige Pegar) o toca «Pegar desde el portapapeles».",
-        `Toca «Importar producto»: ${BRAND_NAME} toma la foto, la marca y el precio de la página. Revisa y guarda.`,
+        "En la web de la tienda copia el enlace de la prenda (Compartir › Copiar, o mantén pulsada la barra de direcciones).",
+        "En Armario toca +.",
+        `Elige «Pegar un enlace»: si el teléfono lo pide, toca Pegar. ${BRAND_NAME} toma al momento la foto, la marca, el precio y los materiales de la página.`,
+        "Revisa los datos y toca «Guardar en el armario».",
       ],
+      tip: `En Android, con la app instalada, también puedes tocar Compartir en la página de la tienda y elegir ${BRAND_NAME}. Para varios enlaces a la vez usa «Escaneo por lotes».`,
     },
     batch: {
       title: "Añadir muchas prendas a la vez",

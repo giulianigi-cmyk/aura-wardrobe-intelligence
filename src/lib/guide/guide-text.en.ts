@@ -65,11 +65,12 @@ const text: GuideText = {
       title: "Adding a piece from a link",
       intro: "Bought it online? You can use the product page instead of a photo.",
       steps: [
-        "In Closet tap + and then “Add one piece”.",
-        "Tap “Paste product link”.",
-        "Paste the link in the field (press and hold, then Paste) or tap “Paste from clipboard”.",
-        `Tap “Import product”: ${BRAND_NAME} takes the photo, brand and price from the page. Check and save.`,
+        "On the shop's website copy the product link (Share › Copy, or press and hold the address bar).",
+        "In Closet tap +.",
+        `Choose “Paste a link”: if the phone asks, tap Paste. ${BRAND_NAME} takes the photo, brand, price and materials from the page right away.`,
+        "Check the details and tap “Save to closet”.",
       ],
+      tip: `On Android, with the app installed, you can also tap Share on the shop page and choose ${BRAND_NAME}. For several links at once use “Batch scan photos”.`,
     },
     batch: {
       title: "Adding many pieces at once",

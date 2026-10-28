@@ -65,11 +65,12 @@ const text: GuideText = {
       title: "Aggiungere un capo da un link",
       intro: "Hai comprato online? Puoi usare la pagina del prodotto invece di una foto.",
       steps: [
-        "In Guardaroba tocca + e poi «Aggiungi un capo».",
-        "Tocca «Incolla link prodotto».",
-        "Incolla il link nel campo (tieni premuto e scegli Incolla) oppure tocca «Incolla dagli appunti».",
-        `Tocca «Importa prodotto»: ${BRAND_NAME} prende foto, brand e prezzo dalla pagina. Controlla e salva.`,
+        "Sul sito del negozio copia il link del capo (Condividi › Copia, o tieni premuta la barra degli indirizzi).",
+        "In Guardaroba tocca +.",
+        `Scegli «Incolla un link»: se il telefono lo chiede tocca Incolla. ${BRAND_NAME} prende subito foto, brand, prezzo e materiali dalla pagina.`,
+        "Controlla i dati e tocca «Salva nel guardaroba».",
       ],
+      tip: `Su Android, con l'app installata, puoi anche toccare Condividi sulla pagina del negozio e scegliere ${BRAND_NAME}. Per più link insieme usa «Scansione foto in lotto».`,
     },
     batch: {
       title: "Caricare più capi insieme",

@@ -19,6 +19,7 @@ import { removeBackgroundClient } from "@/lib/bg-removal-client";
 import { analyzeCutoutQuality } from "@/lib/cutout-quality";
 import { removeBackground } from "@/lib/ai-bgremove.functions";
 import { importProductFromUrl, type CompositionEntry } from "@/lib/import-url.functions";
+import { takePendingImportUrl } from "@/lib/pending-import";
 import { listLocations } from "@/lib/wardrobe-locations.functions";
 import { downloadImportImage } from "@/lib/import-image.functions";
 import { searchProductLibrary, browseProductLibrary, type ProductLibraryItem } from "@/lib/product-library";
@@ -512,8 +513,8 @@ export function AddItem({ onClose, initialGarment }: {
     setAltImages([]);
     await runPipeline(f);
   };
-  const handleImportUrl = async () => {
-    const raw = urlInput.trim();
+  const handleImportUrl = async (link?: string) => {
+    const raw = (link ?? urlInput).trim();
     if (!raw) return;
     let parsed: URL;
     try { parsed = new URL(raw.startsWith("http") ? raw : `https://${raw}`); }
@@ -558,6 +559,15 @@ export function AddItem({ onClose, initialGarment }: {
       setImporting(false);
     }
   };
+
+  // A link handed over by the + sheet ("Incolla un link") or shared to the app: import it right away.
+  useEffect(() => {
+    const pending = takePendingImportUrl();
+    if (!pending) return;
+    setUrlInput(pending);
+    void handleImportUrl(pending);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // The clipboard is read only when the person taps "Incolla dagli appunti": reading it on its own
   // when this page opens made iOS show its "Incolla" prompt over the page.
@@ -1335,7 +1345,7 @@ export function AddItem({ onClose, initialGarment }: {
               {t("addItem.pasteFromClipboard")}
             </button>
             <button
-              onClick={handleImportUrl}
+              onClick={() => void handleImportUrl()}
               disabled={importing || !urlInput.trim()}
               className="mt-4 w-full h-12 rounded-full bg-foreground text-background flex items-center justify-center gap-2 text-xs uppercase tracking-[0.3em] disabled:opacity-60"
             >

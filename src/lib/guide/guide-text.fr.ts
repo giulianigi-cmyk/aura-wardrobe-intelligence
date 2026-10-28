@@ -65,11 +65,12 @@ const text: GuideText = {
       title: "Ajouter une pièce depuis un lien",
       intro: "Achetée en ligne ? Vous pouvez utiliser la page du produit au lieu d'une photo.",
       steps: [
-        "Dans Garde-robe, touchez + puis « Ajouter une pièce ».",
-        "Touchez « Coller le lien du produit ».",
-        "Collez le lien dans le champ (appui long puis Coller) ou touchez « Coller depuis le presse-papiers ».",
-        `Touchez « Importer le produit » : ${BRAND_NAME} récupère la photo, la marque et le prix sur la page. Vérifiez et enregistrez.`,
+        "Sur le site de la boutique, copiez le lien de l'article (Partager › Copier, ou appui long sur la barre d'adresse).",
+        "Dans Garde-robe, touchez +.",
+        `Choisissez « Coller un lien » : si le téléphone le demande, touchez Coller. ${BRAND_NAME} récupère tout de suite la photo, la marque, le prix et les matières sur la page.`,
+        "Vérifiez les informations et touchez « Enregistrer dans la garde-robe ».",
       ],
+      tip: `Sur Android, avec l'app installée, vous pouvez aussi toucher Partager sur la page de la boutique et choisir ${BRAND_NAME}. Pour plusieurs liens à la fois, utilisez « Scanner des photos en lot ».`,
     },
     batch: {
       title: "Ajouter beaucoup de pièces à la fois",
