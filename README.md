@@ -1,6 +1,6 @@
-# AURA — AI Wardrobe Intelligence
+# Nimbèa — AI Wardrobe Intelligence
 
-AURA is an independent AI-powered product currently under development, designed to help people understand, organize and make better use of the clothes they already own.
+Nimbèa is an independent AI-powered product currently under development, designed to help people understand, organize and make better use of the clothes they already own.
 
 The product combines wardrobe intelligence, computer vision, personalized recommendations and contextual styling to turn a digital wardrobe into an intelligent decision-support system.
 
@@ -10,15 +10,15 @@ The product combines wardrobe intelligence, computer vision, personalized recomm
 
 Most digital wardrobe experiences focus primarily on cataloguing clothes.
 
-AURA is being developed around a broader question:
+Nimbèa is being developed around a broader question:
 
 **How can technology help people make better everyday clothing decisions using the wardrobe they already own?**
 
-AURA connects wardrobe data, garment attributes, personal preferences and contextual information to support more relevant and personalized outfit decisions.
+Nimbèa connects wardrobe data, garment attributes, personal preferences and contextual information to support more relevant and personalized outfit decisions.
 
 ## Product Capabilities
 
-AURA is being developed around several interconnected capabilities:
+Nimbèa is being developed around several interconnected capabilities:
 
 - Digital wardrobe management
 - AI-assisted garment classification
@@ -33,7 +33,7 @@ AURA is being developed around several interconnected capabilities:
 
 ## Product Development Approach
 
-AURA is developed iteratively, starting from real user problems and translating them into product requirements, user flows and technical solutions.
+Nimbèa is developed iteratively, starting from real user problems and translating them into product requirements, user flows and technical solutions.
 
 The development process combines:
 
@@ -48,7 +48,7 @@ The development process combines:
 
 ## AI & Technology
 
-AURA integrates AI and computer vision into the product experience to transform unstructured garment images and user preferences into structured wardrobe data and personalized recommendations.
+Nimbèa integrates AI and computer vision into the product experience to transform unstructured garment images and user preferences into structured wardrobe data and personalized recommendations.
 
 The product development work includes:
 
@@ -63,7 +63,7 @@ The product development work includes:
 
 ## Product & Engineering Decisions
 
-AURA involves evaluating different technical approaches based on user experience, product requirements, feasibility and scalability.
+Nimbèa involves evaluating different technical approaches based on user experience, product requirements, feasibility and scalability.
 
 Examples include:
 
@@ -75,7 +75,7 @@ Examples include:
 
 ## Architecture
 
-AURA is built as a modular web application combining a user-facing product layer, application logic, persistent data storage and AI-enabled processing workflows.
+Nimbèa is built as a modular web application combining a user-facing product layer, application logic, persistent data storage and AI-enabled processing workflows.
 
 At a high level, the architecture connects:
 
@@ -131,6 +131,8 @@ At a high level, the architecture connects:
 │ Styling Assistance          │
 │ Context-aware Suggestions   │
 └─────────────────────────────┘
+```
+
 This approach allows AI-generated information to be reviewed and incorporated into the user's wardrobe while maintaining user control over the final data.
 
 ---
@@ -138,7 +140,7 @@ This approach allows AI-generated information to be reviewed and incorporated in
 
 ### Product Development Principles
 
-AURA is being developed with a focus on:
+Nimbèa is being developed with a focus on:
 
 - User value over technology for its own sake
 - Practical application of AI to real product problems
@@ -153,7 +155,7 @@ AURA is being developed with a focus on:
 
 ## Current Status
 
-AURA is an independent product currently under active development.
+Nimbèa is an independent product currently under active development.
 
 The product is being iterated across product experience, AI capabilities, computer vision, data architecture and application workflows.
 
@@ -163,7 +165,7 @@ This repository documents the ongoing development process, selected product deci
 
 ## Demo
 
-[Open AURA](https://aura-wardrobe-intelligence.lovable.app/)
+[Open Nimbèa](https://nimbea.app)
 
 ---
 
@@ -181,6 +183,6 @@ Key areas include:
 
 ## About the Project
 
-AURA is an independent product project exploring how AI, computer vision, structured data and product design can work together to create more intelligent and personalized user experiences.
+Nimbèa is an independent product project exploring how AI, computer vision, structured data and product design can work together to create more intelligent and personalized user experiences.
 
 The project combines product thinking, user experience, business problem solving and hands-on technology development.
