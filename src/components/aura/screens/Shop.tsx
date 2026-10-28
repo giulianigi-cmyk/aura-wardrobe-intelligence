@@ -2,7 +2,7 @@ import { retryOnNetworkError } from "@/lib/network-retry";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
-import { Sparkles, Loader2, Plus, Link as LinkIcon, Check, HelpCircle, X as XIcon, Camera, Tag, ExternalLink, Minus } from "lucide-react";
+import { Sparkles, Loader2, Plus, Link as LinkIcon, Check, HelpCircle, X as XIcon, Camera, Tag, ExternalLink, Minus, Heart } from "lucide-react";
 import type { Screen } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -15,6 +15,8 @@ import { productKey } from "@/lib/wardrobe-feedback";
 import { colorNameSimilarity } from "@/lib/outfit-match";
 import { colorName, garmentName, localizeLabel } from "@/lib/garment-names";
 import { toast } from "sonner";
+import { parsePositivePrice } from "@/lib/price-parse";
+import { WishlistSection } from "../Wishlist";
 
 type LinkMode = "url" | "photo" | "label";
 // The comparison slots deliberately support only the two most common ways someone has a specific
@@ -66,6 +68,11 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
   const photoRef = useRef<HTMLInputElement>(null);
   const labelForPhotoRef = useRef<HTMLInputElement>(null);
   const labelOnlyRef = useRef<HTMLInputElement>(null);
+  // Wish list: whether the current result was already added to it ("Aggiungi alla lista dei
+  // desideri" is offered once per result).
+  const [wishRefresh, setWishRefresh] = useState(0);
+  const [resultDone, setResultDone] = useState<{ wished?: boolean }>({});
+  const [savingWish, setSavingWish] = useState(false);
 
   // ---- Compare (2-4 pieces) state — kept separate from the single-item state above
   // rather than trying to reuse it, since the two flows genuinely diverge (an array of
@@ -144,7 +151,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
   };
 
   const runCheck = async () => {
-    setChecking(true); setResult(null); setCheckError(null);
+    setChecking(true); setResult(null); setCheckError(null); setResultDone({});
     try {
       let res: PurchaseAdvisorResult;
       if (mode === "url") {
@@ -224,6 +231,50 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
   const openOwnPicker = async () => {
     setOwnPickerOpen(true);
     if (ownCandidates.length) setOwnCandidatesSigned(await resolveWardrobeUrls(ownCandidates));
+  };
+
+  /** The price of the analysed product: in euros when the advisor converted it, otherwise as read. */
+  const resultPrice = (r: PurchaseAdvisorResult & { ok: true }): { amount: number; currency: string } | null => {
+    if (r.wardrobe.price) return { amount: r.wardrobe.price.priceEur, currency: "EUR" };
+    const amount = parsePositivePrice(r.product.price);
+    const raw = (r.product.currency ?? "EUR").trim().toUpperCase();
+    const currency = ({ "€": "EUR", "$": "USD", "£": "GBP" } as Record<string, string>)[raw] ?? raw;
+    return amount == null ? null : { amount, currency };
+  };
+
+  /** "Aggiungi alla lista dei desideri": the analysed product goes to the end of the list. A photo is
+   *  stored in the person's own folder of the wardrobe bucket; a product image stays a link. */
+  const addToWishlist = async () => {
+    if (!user || !result || !result.ok || savingWish) return;
+    setSavingWish(true);
+    try {
+      let imageUrl = result.product.imageUrl;
+      if (imageUrl?.startsWith("data:")) {
+        const blob = await (await fetch(imageUrl)).blob();
+        const ext = blob.type.includes("png") ? "png" : "jpg";
+        const path = `${user.id}/wishlist/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("wardrobe").upload(path, blob, { cacheControl: "3600", upsert: false, contentType: blob.type || "image/jpeg" });
+        imageUrl = upErr ? null : path;
+      }
+      const { data: last } = await supabase.from("wishlist_items").select("priority").eq("user_id", user.id).is("bought_at", null).order("priority", { ascending: false }).limit(1);
+      const price = resultPrice(result);
+      const { error } = await supabase.from("wishlist_items").insert({
+        user_id: user.id, image_url: imageUrl, brand: result.product.brand, title: result.product.title,
+        category: result.analysis.category, subcategory: result.analysis.subcategory, colors: result.analysis.colors,
+        material: result.analysis.material ? [result.analysis.material] : [],
+        price: price?.amount ?? null, currency: price?.currency ?? null, product_url: result.product.sourceUrl,
+        priority: (last?.[0]?.priority ?? -1) + 1,
+      });
+      if (error) throw error;
+      setResultDone((d) => ({ ...d, wished: true }));
+      setWishRefresh((n) => n + 1);
+      toast.success(t("wishlist.addedToast"));
+    } catch (e) {
+      console.error("[AURA shop] wishlist add failed", e);
+      toast.error(t("wishlist.saveFailed"));
+    } finally {
+      setSavingWish(false);
+    }
   };
 
   /** "Ce l'ho già": remembered for this person, and when they point at the piece and its type was
@@ -578,6 +629,13 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
                 </div>
               )}
 
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button disabled={savingWish || resultDone.wished} onClick={() => void addToWishlist()}
+                  className="h-9 px-3 rounded-full bg-foreground text-background text-[10px] uppercase tracking-widest inline-flex items-center gap-1.5 disabled:opacity-60">
+                  {resultDone.wished ? <Check size={11} /> : <Heart size={11} />} {t(resultDone.wished ? "wishlist.added" : "wishlist.addButton")}
+                </button>
+              </div>
+
               {/* A dress-preference violation is a hard, explicit personal
                   rule, not an AI opinion — never blend it in with the other
                   muted informational notes below, where it could read as
@@ -624,6 +682,8 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
         </div>
         )}
       </section>
+
+      {user && <WishlistSection userId={user.id} wardrobe={Object.values(itemsById)} refreshKey={wishRefresh} go={go} />}
 
       <section className="px-6 mt-8">
         <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">{t("shop.orWardrobeIsMissing")}</p>

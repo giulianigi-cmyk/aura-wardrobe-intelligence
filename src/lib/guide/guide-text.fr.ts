@@ -302,6 +302,18 @@ const text: GuideText = {
         `Sur le point d'acheter ? Touchez « Devrais-je l'acheter ? » et collez le lien ou envoyez une photo : ${BRAND_NAME} le compare avec ce que vous avez déjà.`,
       ],
     },
+    wishlist: {
+      title: "Liste d'envies et économies",
+      intro: "Classez les pièces que vous aimeriez et suivez ce que vous mettez de côté pour les acheter.",
+      steps: [
+        "Ouvrez l'Accueil et touchez « Compléter votre garde-robe ».",
+        "Vérifiez une pièce avec « Devrais-je l'acheter ? » (lien, photo ou étiquette) et touchez « Ajouter à la liste d'envies ». Vous la retrouvez plus bas sur la même page, avec le nombre de vos pièces qui s'y associent, si vous avez déjà quelque chose de similaire et son coût par port.",
+        "Classez les pièces avec les flèches, par priorité. Pour chacune, choisissez « Avant une date » (nous vous disons combien mettre de côté par mois) ou « Par mois » (vous indiquez combien vous mettez de côté et nous vous disons quand vous y arriverez).",
+        "Chaque mois, nous vous demandons si vous avez mis le montant de côté. Avec « Ajouter », vous pouvez aussi noter d'autres montants mis de côté.",
+        "Quand vous l'achetez, touchez « Acheté » : le prix sort de vos économies et vous l'ajoutez à votre garde-robe.",
+      ],
+      tip: "Nimbèa ne déplace pas d'argent réel : c'est juste un rappel de ce que vous avez mis de côté.",
+    },
     insights: {
       title: "Statistiques de la garde-robe",
       steps: [

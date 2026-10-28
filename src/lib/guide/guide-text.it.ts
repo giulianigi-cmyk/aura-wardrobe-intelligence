@@ -302,6 +302,18 @@ const text: GuideText = {
         `Stai per comprare qualcosa? Tocca «Devo comprarlo?» e incolla il link o carica una foto: ${BRAND_NAME} lo confronta con quello che hai già.`,
       ],
     },
+    wishlist: {
+      title: "Lista dei desideri e risparmi",
+      intro: "Metti in fila i capi che vorresti e tieni il conto di quanto metti da parte per comprarli.",
+      steps: [
+        "Apri Home e tocca «Completa il guardaroba».",
+        "Controlla un capo con «Devo comprarlo?» (link, foto o etichetta) e tocca «Aggiungi alla lista dei desideri». La trovi più in basso nella stessa pagina, con quanti tuoi capi ci si abbinano, se hai già qualcosa di simile e quanto ti costerebbe a utilizzo.",
+        "Ordina i capi con le frecce, per priorità. Per ciascuno scegli «Entro una data» (ti diciamo quanto mettere da parte al mese) oppure «Al mese» (indichi quanto metti da parte e ti diciamo quando ci arrivi).",
+        "Ogni mese ti chiediamo se hai messo da parte la cifra. Con «Aggiungi» puoi annotare anche altre cifre messe da parte.",
+        "Quando lo compri tocca «Comprato»: il prezzo esce dai risparmi e lo aggiungi all'armadio.",
+      ],
+      tip: "Nimbèa non muove soldi veri: è solo un promemoria di quanto hai messo da parte.",
+    },
     insights: {
       title: "Statistiche del guardaroba",
       steps: [

@@ -1489,6 +1489,50 @@ export type Database = {
         }
         Relationships: []
       }
+      savings_entries: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          entry_date: string
+          id: string
+          note: string | null
+          source: string
+          user_id: string
+          wishlist_item_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          entry_date?: string
+          id?: string
+          note?: string | null
+          source: string
+          user_id: string
+          wishlist_item_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          entry_date?: string
+          id?: string
+          note?: string | null
+          source?: string
+          user_id?: string
+          wishlist_item_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "savings_entries_wishlist_item_id_fkey"
+            columns: ["wishlist_item_id"]
+            isOneToOne: false
+            referencedRelation: "wishlist_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scan_detected_items: {
         Row: {
           bbox: Json | null
@@ -2973,6 +3017,75 @@ export type Database = {
           id?: string
           is_primary?: boolean
           name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wishlist_items: {
+        Row: {
+          bought_at: string | null
+          brand: string | null
+          category: string | null
+          colors: string[]
+          created_at: string
+          currency: string | null
+          formality: number | null
+          id: string
+          image_url: string | null
+          material: string[]
+          monthly_amount: number | null
+          occasion: string | null
+          price: number | null
+          priority: number
+          product_url: string | null
+          subcategory: string | null
+          target_date: string | null
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bought_at?: string | null
+          brand?: string | null
+          category?: string | null
+          colors?: string[]
+          created_at?: string
+          currency?: string | null
+          formality?: number | null
+          id?: string
+          image_url?: string | null
+          material?: string[]
+          monthly_amount?: number | null
+          occasion?: string | null
+          price?: number | null
+          priority?: number
+          product_url?: string | null
+          subcategory?: string | null
+          target_date?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bought_at?: string | null
+          brand?: string | null
+          category?: string | null
+          colors?: string[]
+          created_at?: string
+          currency?: string | null
+          formality?: number | null
+          id?: string
+          image_url?: string | null
+          material?: string[]
+          monthly_amount?: number | null
+          occasion?: string | null
+          price?: number | null
+          priority?: number
+          product_url?: string | null
+          subcategory?: string | null
+          target_date?: string | null
+          title?: string | null
           updated_at?: string
           user_id?: string
         }
