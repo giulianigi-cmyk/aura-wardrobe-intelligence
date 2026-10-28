@@ -303,11 +303,11 @@ const text: GuideText = {
       ],
     },
     wishlist: {
-      title: "Wish list and savings",
+      title: "Wishlist and savings",
       intro: "Line up the pieces you'd like and keep track of what you set aside to buy them.",
       steps: [
         "Open Home and tap “Shop your gaps”.",
-        "Check a piece with “Should I buy it?” (link, photo or label) and tap “Add to wish list”. You'll find it further down the same page, with how many of your pieces it goes with, whether you already have something similar and what it would cost per wear.",
+        "Check a piece with “Should I buy it?” (link, photo or label) and tap “Add to wishlist”. You'll find it further down the same page, with how many of your pieces it goes with, whether you already have something similar and what it would cost per wear.",
         "Order the pieces with the arrows, by priority. For each one choose “By a date” (we tell you how much to set aside each month) or “Monthly” (say how much you set aside and we tell you when you'll get there).",
         "Each month we ask whether you set the amount aside. With “Add” you can also note other amounts you set aside.",
         "When you buy it tap “Bought”: the price comes out of your savings and you add it to your wardrobe.",
