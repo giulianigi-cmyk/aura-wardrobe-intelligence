@@ -2,23 +2,21 @@ import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Copy, Download, ExternalLink, X } from "lucide-react";
+import { Copy, Download, X } from "lucide-react";
+import { track } from "@/lib/telemetry-client";
 import { buildListing, SELL_CONDITIONS, suggestedPrice, type SellCondition } from "@/lib/sell-listing";
 import { colorName, garmentWithColor } from "@/lib/garment-names";
 
-/** Vinted is a different site per country; Vestiaire is one. */
-const VINTED: Record<string, string> = { it: "https://www.vinted.it/items/new", fr: "https://www.vinted.fr/items/new", es: "https://www.vinted.es/items/new", en: "https://www.vinted.co.uk/items/new" };
-const VESTIAIRE = "https://www.vestiairecollective.com/";
-/** Luxury pieces: Buddy & Selly values them and resells them for you. */
-const BUDDY_AND_SELLY = "https://www.buddyandselly.com/";
+// No buttons to named resale sites on purpose: the person pastes the listing wherever they like.
+// Sending sellers to a platform is worth a commission, so a named, tracked link only comes with an
+// agreement; meanwhile copied listings and sold pieces are counted (anonymously) as the figures for it.
 
 export type SellPiece = {
   id: string; brand?: string | null; category?: string | null; subcategory?: string | null;
   colors?: string[] | null; size?: string | null; material?: string[] | null; currency?: string | null;
 };
 
-/** "Vendi questo capo": the listing ready to copy into Vinted or Vestiaire (or a luxury piece to send
- *  to Buddy & Selly) — title, description,
+/** "Vendi questo capo": the listing ready to paste on any resale site — title, description,
  *  condition, suggested price (from the resale range of the piece's "Valore") and its photo, already
  *  without background. "Segna come venduto" archives the piece. */
 export function SellSheet({ piece, imageUrl, resaleLow, resaleHigh, onSold, onClose }: {
@@ -26,7 +24,6 @@ export function SellSheet({ piece, imageUrl, resaleLow, resaleHigh, onSold, onCl
   onSold: () => void; onClose: () => void;
 }) {
   const { t, i18n } = useTranslation();
-  const lang = (i18n.language || "it").slice(0, 2);
   const [condition, setCondition] = useState<SellCondition>("veryGood");
   const garment = garmentWithColor(piece.subcategory || piece.category || "", piece.colors?.[0] ?? null, i18n.language);
   const listing = useMemo(() => buildListing({
@@ -47,6 +44,7 @@ export function SellSheet({ piece, imageUrl, resaleLow, resaleHigh, onSold, onCl
     const text = [title ?? listing.title, "", description ?? listing.description, price != null ? `\n${t("sell.priceLine", { price: `${price} ${symbol}` })}` : ""].join("\n").trim();
     try {
       await navigator.clipboard.writeText(text);
+      track("flow_step", { feature: "sell", step: "copied", condition });
       toast.success(t("sell.copied"));
     } catch {
       toast.error(t("sell.copyFailed"));
@@ -126,22 +124,7 @@ export function SellSheet({ piece, imageUrl, resaleLow, resaleHigh, onSold, onCl
           className="mt-5 w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 active:scale-95">
           <Copy size={13} /> {t("sell.copy")}
         </button>
-        <div className="mt-2 flex gap-2">
-          <a href={VINTED[lang] ?? "https://www.vinted.com/"} target="_blank" rel="noopener noreferrer"
-            className="flex-1 h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] inline-flex items-center justify-center gap-1.5">
-            <ExternalLink size={12} /> Vinted
-          </a>
-          <a href={VESTIAIRE} target="_blank" rel="noopener noreferrer"
-            className="flex-1 h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] inline-flex items-center justify-center gap-1.5">
-            <ExternalLink size={12} /> Vestiaire
-          </a>
-        </div>
-        <a href={BUDDY_AND_SELLY} target="_blank" rel="noopener noreferrer"
-          className="mt-2 w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] inline-flex items-center justify-center gap-1.5">
-          <ExternalLink size={12} /> Buddy &amp; Selly
-        </a>
-        <p className="mt-1 text-center text-[11px] text-muted-foreground">{t("sell.luxuryHint")}</p>
-        <button onClick={onSold} className="mt-4 w-full text-center text-[12px] underline underline-offset-2 text-foreground/80">
+        <button onClick={() => { track("flow_step", { feature: "sell", step: "sold" }); onSold(); }} className="mt-4 w-full text-center text-[12px] underline underline-offset-2 text-foreground/80">
           {t("sell.markSold")}
         </button>
       </div>

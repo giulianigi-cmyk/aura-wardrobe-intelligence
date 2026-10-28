@@ -134,11 +134,11 @@ const text: GuideText = {
     },
     sell: {
       title: "Vendere un capo",
-      intro: "Prepara in un attimo l'annuncio per Vinted o Vestiaire.",
+      intro: "Prepara in un attimo l'annuncio da pubblicare sul sito di vendita che preferisci.",
       steps: [
         "Apri il capo e tocca «Vendi».",
         "Scegli le condizioni: il prezzo suggerito si adatta, in base al valore di rivendita stimato.",
-        "Controlla titolo e descrizione, salva la foto (è già senza sfondo) e tocca «Copia annuncio»: incollalo su Vinted o Vestiaire. Per i capi di lusso c'è anche Buddy & Selly, che li valuta e li rivende per te.",
+        "Controlla titolo e descrizione, salva la foto (è già senza sfondo) e tocca «Copia annuncio»: incollalo sul sito di vendita che preferisci.",
         "Quando l'hai venduto tocca «Segna come venduto»: il capo va in Archiviati.",
       ],
       tip: "In Guardaroba ti proponiamo i capi che non metti da un'intera stagione (6 mesi per quelli di tutte le stagioni, 2 anni per quelli da cerimonia), se segni ciò che indossi. Con «Lo tengo» non te li riproponiamo per un anno.",

@@ -134,11 +134,11 @@ const text: GuideText = {
     },
     sell: {
       title: "Vender una prenda",
-      intro: "Prepara en un momento el anuncio para Vinted o Vestiaire.",
+      intro: "Prepara en un momento el anuncio para la web de venta que prefieras.",
       steps: [
         "Abre la prenda y toca «Vender».",
         "Elige el estado: el precio sugerido se adapta, según el valor de reventa estimado.",
-        "Revisa título y descripción, guarda la foto (ya sin fondo) y toca «Copiar anuncio»: pégalo en Vinted o Vestiaire. Para prendas de lujo también está Buddy & Selly, que las valora y las revende por ti.",
+        "Revisa título y descripción, guarda la foto (ya sin fondo) y toca «Copiar anuncio»: pégalo en la web de venta que prefieras.",
         "Cuando la vendas toca «Marcar como vendida»: la prenda pasa a Archivadas.",
       ],
       tip: "En Armario te proponemos las prendas que no usas desde toda una temporada (6 meses las de todas las temporadas, 2 años las de ceremonia), si registras lo que te pones. Con «Me la quedo» no te las volvemos a proponer en un año.",

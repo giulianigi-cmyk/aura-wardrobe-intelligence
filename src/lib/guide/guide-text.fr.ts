@@ -134,11 +134,11 @@ const text: GuideText = {
     },
     sell: {
       title: "Vendre une pièce",
-      intro: "Préparez en un instant l'annonce pour Vinted ou Vestiaire.",
+      intro: "Préparez en un instant l'annonce pour le site de revente de votre choix.",
       steps: [
         "Ouvrez la pièce et touchez « Vendre ».",
         "Choisissez l'état : le prix conseillé s'adapte, d'après la valeur de revente estimée.",
-        "Vérifiez le titre et la description, enregistrez la photo (déjà détourée) et touchez « Copier l'annonce » : collez-la sur Vinted ou Vestiaire. Pour les pièces de luxe, il y a aussi Buddy & Selly, qui les évalue et les revend pour vous.",
+        "Vérifiez le titre et la description, enregistrez la photo (déjà détourée) et touchez « Copier l'annonce » : collez-la sur le site de revente de votre choix.",
         "Une fois vendue, touchez « Marquer comme vendue » : la pièce passe dans Archivées.",
       ],
       tip: "Dans Garde-robe, nous vous proposons les pièces que vous n'avez pas portées de toute une saison (6 mois pour celles de toutes saisons, 2 ans pour celles de cérémonie), si vous notez ce que vous portez. Avec « Je la garde », nous ne les reproposons pas avant un an.",
