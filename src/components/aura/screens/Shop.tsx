@@ -683,8 +683,6 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
         )}
       </section>
 
-      {user && <WishlistSection userId={user.id} wardrobe={Object.values(itemsById)} refreshKey={wishRefresh} go={go} />}
-
       <section className="px-6 mt-8">
         <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">{t("shop.orWardrobeIsMissing")}</p>
         {loading ? (
@@ -788,6 +786,8 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
           </>
         )}
       </section>
+
+      {user && <WishlistSection userId={user.id} wardrobe={Object.values(itemsById)} refreshKey={wishRefresh} go={go} />}
 
       <p className="px-6 mt-6 text-[11px] text-muted-foreground leading-relaxed">
         {t("shop.disclaimer")}
