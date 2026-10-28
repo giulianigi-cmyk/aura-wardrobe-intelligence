@@ -235,7 +235,7 @@ const text: GuideText = {
         "Plan an outfit, ask the stylist or pick the pieces yourself.",
         "At the end of the day you can mark it as worn.",
       ],
-      tip: "For events that repeat in your calendar (the Monday meeting, Thursday dinner) we tell you if a top, a dress or a jacket was already worn to that event in the last 6 weeks: it is almost always the same people. The generated work week avoids them on its own.",
+      tip: "For events that repeat in your calendar (the Monday meeting, Thursday dinner) we tell you if a top, a dress or a jacket was already worn to that event in the last 6 weeks: it is almost always the same people. For dinners, lunches, brunches, drinks and evenings out the place counts too: we tell you if you already wore that piece there. The generated work week avoids them on its own.",
     },
     "connect-calendar": {
       title: "Connecting your calendar",

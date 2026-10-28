@@ -96,7 +96,7 @@ export const generateWeeklyOutfits = createServerFn({ method: "POST" })
         .neq("status", "cancelled")
         .gte("date", data.startDate).lt("date", endDateExclusive),
       (supabase.from("calendar_events_cache" as never) as any)
-        .select("id, title, start_time, end_time, all_day").eq("user_id", userId)
+        .select("id, title, location, start_time, end_time, all_day").eq("user_id", userId)
         .gte("start_time", `${data.startDate}T00:00:00`).lt("start_time", `${endDateExclusive}T00:00:00`),
       data.locationIds.length
         ? (supabase.from("wardrobe_locations" as never) as any)
@@ -217,10 +217,11 @@ export const generateWeeklyOutfits = createServerFn({ method: "POST" })
       const ids = [...new Set(rows.map((r) => r.calendar_event_id))];
       if (ids.length) {
         const { data: pastEvents } = await (supabase.from("calendar_events_cache" as never) as any)
-          .select("id, title").eq("user_id", userId).in("id", ids);
-        const titleById = new Map(((pastEvents ?? []) as { id: string; title: string | null }[]).map((e) => [e.id, e.title] as const));
+          .select("id, title, location").eq("user_id", userId).in("id", ids);
+        const eventById = new Map(((pastEvents ?? []) as { id: string; title: string | null; location: string | null }[]).map((e) => [e.id, e] as const));
         rows.forEach((r) => {
-          if (titleById.has(r.calendar_event_id)) eventLooks.push({ eventId: r.calendar_event_id, date: r.date, title: titleById.get(r.calendar_event_id) ?? null, itemIds: r.item_ids ?? [] });
+          const ev = eventById.get(r.calendar_event_id);
+          if (ev) eventLooks.push({ eventId: r.calendar_event_id, date: r.date, title: ev.title, location: ev.location, itemIds: r.item_ids ?? [] });
         });
       }
     }

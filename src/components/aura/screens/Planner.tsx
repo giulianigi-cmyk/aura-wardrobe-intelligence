@@ -261,11 +261,12 @@ export function Planner({ go, openStylistChat, openBuilder, openAvatarTryOn, foc
   const selectedPlans = selectedDate ? plansByDate[selectedDate] ?? [] : [];
   // The outfits of every calendar event, for «Già indossato con queste persone» (same-people.ts).
   const eventLooks = useMemo<EventLook[]>(() => {
-    const titleById = new Map([...calendarEvents, ...dismissedEvents].map((e) => [e.id, e.title] as const));
+    const eventById = new Map([...calendarEvents, ...dismissedEvents].map((e) => [e.id, e] as const));
     return plans.flatMap((p) => {
       const eventId = (p as unknown as { calendar_event_id?: string | null }).calendar_event_id ?? null;
-      if (!eventId || p.status === "cancelled" || !titleById.has(eventId)) return [];
-      return [{ eventId, date: p.date, title: titleById.get(eventId) ?? null, itemIds: p.item_ids ?? [] }];
+      const ev = eventId ? eventById.get(eventId) : undefined;
+      if (!eventId || !ev || p.status === "cancelled") return [];
+      return [{ eventId, date: p.date, title: ev.title, location: ev.location, itemIds: p.item_ids ?? [] }];
     });
   }, [plans, calendarEvents, dismissedEvents]);
 
@@ -1013,7 +1014,7 @@ function DayDetail({
 
             {activeSlot?.type === "event" && (() => {
               // «Già indossato con queste persone»: the same repeating event in the last weeks.
-              const earlier = earlierSameSeries({ eventId: activeSlot.event.id, title: activeSlot.event.title, date }, eventLooks);
+              const earlier = earlierSameSeries({ eventId: activeSlot.event.id, title: activeSlot.event.title, location: activeSlot.event.location, date }, eventLooks);
               const current = editing ? selected : plan?.item_ids ?? [];
               const same = sameLookAs(current, earlier);
               const repeated = same ? [] : repeatedMainPieces(current, earlier, (id) => items.find((it) => it.id === id)?.category);
@@ -1024,9 +1025,13 @@ function DayDetail({
                 <div className="mx-5 mb-3 rounded-2xl border border-[var(--champagne)] bg-[var(--champagne)]/15 px-4 py-3">
                   <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("planner.samePeopleTitle")}</p>
                   {same ? (
-                    <p className="mt-1 text-[12px] leading-snug">{t("planner.samePeopleSameLook", { date: when(same.date) })}</p>
+                    <p className="mt-1 text-[12px] leading-snug">{same.match === "place"
+                      ? t("planner.samePlaceSameLook", { date: when(same.date), place: same.location ?? "" })
+                      : t("planner.samePeopleSameLook", { date: when(same.date) })}</p>
                   ) : repeated.map((r) => (
-                    <p key={r.itemId} className="mt-1 text-[12px] leading-snug">{t("planner.samePeoplePiece", { piece: label(r.itemId), date: when(r.look.date) })}</p>
+                    <p key={r.itemId} className="mt-1 text-[12px] leading-snug">{r.look.match === "place"
+                      ? t("planner.samePlacePiece", { piece: label(r.itemId), date: when(r.look.date), place: r.look.location ?? "" })
+                      : t("planner.samePeoplePiece", { piece: label(r.itemId), date: when(r.look.date) })}</p>
                   ))}
                 </div>
               );
