@@ -107,7 +107,7 @@ const text: GuideText = {
         "En Armario toca una prenda para abrir su ficha.",
         "Desde aquí puedes editar los detalles, quitar el fondo o ajustar el recorte de la foto.",
         "«Crear outfit a partir de esto» te propone looks pensados alrededor de esa prenda.",
-        "Puedes archivarla si ya no la usas, pasarla al cambio de armario, prestarla, venderla o eliminarla.",
+        "Toca «Opciones» para ponerla en el cesto de la ropa o en la tintorería, pasarla al cambio de armario, prestarla, venderla o archivarla.",
       ],
     },
     locations: {
@@ -125,7 +125,7 @@ const text: GuideText = {
       steps: [
         "Abre Armario.",
         "Toca «Seleccionar» y elige las prendas.",
-        "Toca «Cambio de armario». Para una sola prenda también puedes abrir su ficha y tocar «Cambio de armario».",
+        "Toca «Cambio de armario». Para una sola prenda también puedes abrir su ficha y tocar «Opciones» › «Pasar al cambio de armario».",
         "Las encuentras todas en «Cambio de armario», debajo de los filtros, con la fecha en que las pasaste.",
         "Cuando cambie la temporada, abre «Cambio de armario», selecciona las prendas y toca «Sacar del cambio de armario».",
         "En «Cambio de armario» también hay consejos: cómo preparar las prendas, cómo doblarlas (con dibujos) y qué contenedores usar.",
@@ -136,12 +136,22 @@ const text: GuideText = {
       title: "Vender una prenda",
       intro: "Prepara en un momento el anuncio para la web de venta que prefieras.",
       steps: [
-        "Abre la prenda y toca «Vender».",
+        "Abre la prenda, toca «Opciones» y luego «Vender esta prenda».",
         "Elige el estado: el precio sugerido se adapta, según el valor de reventa estimado.",
         "Revisa título y descripción, guarda la foto (ya sin fondo) y toca «Copiar anuncio»: pégalo en la web de venta que prefieras.",
         "Cuando la vendas toca «Marcar como vendida»: la prenda pasa a Archivadas.",
       ],
       tip: "En Armario te proponemos las prendas que no usas desde toda una temporada (6 meses las de todas las temporadas, 2 años las de ceremonia), si registras lo que te pones. Con «Me la quedo» no te las volvemos a proponer en un año.",
+    },
+    basket: {
+      title: "Cesto de la ropa, tintorería y préstamos",
+      intro: "Las prendas para lavar, en la tintorería o prestadas no aparecen en los looks hasta que vuelven al armario.",
+      steps: [
+        "Abre la prenda, toca «Opciones» y luego «Al cesto de la ropa». Las prendas deportivas van solas cuando marcas el look como usado.",
+        "En Armario toca «Cesto»: las prendas están separadas por lavadora. Toca «Lavadas» cuando termines; si se te olvida, a los 10 días vuelven solas al armario.",
+        "Para la tintorería: «Opciones» › «A la tintorería». No vuelven solas: a los 7 días te preguntamos si las has recogido.",
+        "Para las prendas prestadas, a los 14 días te preguntamos si te las han devuelto. Con «Aún la tiene» te lo volvemos a preguntar 14 días después.",
+      ],
     },
     laundry: {
       title: "Lavado",

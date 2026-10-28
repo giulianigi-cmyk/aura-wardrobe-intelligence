@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { isSportPiece } from "./laundry-basket";
 import { submitOutfitFeedback } from "./outfit-feedback.functions";
 import { normalizeOccasionForFeedback } from "./activity-kind";
 
@@ -110,7 +111,33 @@ export async function logWardrobeEvent(input: LogWardrobeEventInput): Promise<{ 
   const { error: itemsErr } = await (supabase.from("wardrobe_event_items" as never) as any).insert(rows);
   if (itemsErr) return { error: itemsErr.message, eventId };
 
+  // Worn today: sport pieces go straight to the laundry basket (laundry-basket.ts). The screens
+  // hear about it through a window event and offer "Annulla". Never fails the wear itself.
+  const d = new Date();
+  const todayLocal = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  if (input.eventType === "worn" && input.date === todayLocal) {
+    void sendSportPiecesToBasket(input.userId, input.itemIds);
+  }
+
   return { error: null, eventId };
+}
+
+export const SPORT_TO_BASKET_EVENT = "aura:sport-to-basket";
+
+async function sendSportPiecesToBasket(userId: string, itemIds: string[]): Promise<void> {
+  try {
+    const { data } = await (supabase.from("wardrobe_items" as never) as any)
+      .select("id, category, occasion, laundry_since").eq("user_id", userId).in("id", itemIds);
+    const ids = ((data ?? []) as { id: string; category: string | null; occasion: string | null; laundry_since: string | null }[])
+      .filter((it) => !it.laundry_since && isSportPiece(it)).map((it) => it.id);
+    if (!ids.length) return;
+    const { error } = await (supabase.from("wardrobe_items" as never) as any)
+      .update({ laundry_since: new Date().toISOString(), laundry_kind: "basket" }).eq("user_id", userId).in("id", ids);
+    if (error) { console.error("[AURA laundry] sport pieces to basket failed", error); return; }
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(SPORT_TO_BASKET_EVENT, { detail: { ids } }));
+  } catch (e) {
+    console.error("[AURA laundry] sport pieces to basket failed", e);
+  }
 }
 
 /** Confirms a planned outfit was actually worn — flips outfit_plans.status

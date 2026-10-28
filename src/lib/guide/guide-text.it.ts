@@ -107,7 +107,7 @@ const text: GuideText = {
         "In Guardaroba tocca un capo per aprirne la scheda.",
         "Da qui puoi modificare i dettagli, rimuovere lo sfondo o regolare il ritaglio della foto.",
         "«Crea outfit partendo da questo» ti propone look costruiti intorno a quel capo.",
-        "Puoi archiviarlo se non lo usi più, spostarlo nel cambio stagione, prestarlo, venderlo o eliminarlo.",
+        "Tocca «Opzioni» per metterlo nel cesto del bucato o in tintoria, spostarlo nel cambio stagione, prestarlo, venderlo o archiviarlo.",
       ],
     },
     locations: {
@@ -125,7 +125,7 @@ const text: GuideText = {
       steps: [
         "Apri Guardaroba.",
         "Tocca «Seleziona» e scegli i capi da spostare.",
-        "Tocca «Cambio stagione». Per un capo solo puoi anche aprire la sua scheda e toccare «Cambio stagione».",
+        "Tocca «Cambio stagione». Per un capo solo puoi anche aprire la sua scheda e toccare «Opzioni» › «Sposta nel cambio stagione».",
         "Li ritrovi tutti in «Cambio stagione», sotto i filtri, con la data in cui li hai spostati.",
         "Quando cambia la stagione apri «Cambio stagione», seleziona i capi e tocca «Riprendi dal cambio stagione».",
         "In «Cambio stagione» trovi anche i consigli: come preparare i capi, come piegarli (con i disegni) e quali contenitori usare.",
@@ -136,12 +136,22 @@ const text: GuideText = {
       title: "Vendere un capo",
       intro: "Prepara in un attimo l'annuncio da pubblicare sul sito di vendita che preferisci.",
       steps: [
-        "Apri il capo e tocca «Vendi».",
+        "Apri il capo, tocca «Opzioni» e poi «Vendi questo capo».",
         "Scegli le condizioni: il prezzo suggerito si adatta, in base al valore di rivendita stimato.",
         "Controlla titolo e descrizione, salva la foto (è già senza sfondo) e tocca «Copia annuncio»: incollalo sul sito di vendita che preferisci.",
         "Quando l'hai venduto tocca «Segna come venduto»: il capo va in Archiviati.",
       ],
       tip: "In Guardaroba ti proponiamo i capi che non metti da un'intera stagione (6 mesi per quelli di tutte le stagioni, 2 anni per quelli da cerimonia), se segni ciò che indossi. Con «Lo tengo» non te li riproponiamo per un anno.",
+    },
+    basket: {
+      title: "Cesto del bucato, tintoria e prestiti",
+      intro: "I capi da lavare, in tintoria o prestati non escono nei look finché non tornano nell'armadio.",
+      steps: [
+        "Apri il capo, tocca «Opzioni» e poi «Nel cesto del bucato». I capi sportivi ci vanno da soli quando segni il look come indossato.",
+        "In Guardaroba tocca «Cesto»: i capi sono divisi per lavatrice. Tocca «Lavati» quando hai finito; se te ne dimentichi, dopo 10 giorni tornano da soli nell'armadio.",
+        "Per la tintoria: «Opzioni» › «In tintoria». Non tornano da soli: dopo 7 giorni ti chiediamo se li hai ritirati.",
+        "Per i capi prestati, 14 giorni dopo ti chiediamo se li hai ripresi. Con «Ce l'ha ancora» te lo richiediamo dopo altri 14 giorni.",
+      ],
     },
     laundry: {
       title: "Lavaggio",

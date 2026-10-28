@@ -4,16 +4,24 @@
 // stored_at = when the piece was put away; null = it is in the wardrobe. Rows read before the
 // column existed simply have no stored_at, so they read as "in the wardrobe".
 
-export type AvailabilityFields = { archived?: boolean | null; active_loan_id?: string | null; stored_at?: string | null };
+import { isInLaundry } from "./laundry-basket";
+
+export type AvailabilityFields = {
+  archived?: boolean | null; active_loan_id?: string | null; stored_at?: string | null;
+  laundry_since?: string | null; laundry_kind?: string | null;
+};
 
 export function isInStorage(item: { stored_at?: string | null }): boolean {
   return Boolean(item.stored_at);
 }
 
 /** Physically in the wardrobe and wearable now: not archived (sold/donated), not lent out,
- *  not put away in the cambio stagione. */
-export function isWearableNow(item: AvailabilityFields): boolean {
-  return !item.archived && !item.active_loan_id && !item.stored_at;
+ *  not put away in the cambio stagione, not in the laundry basket or at the dry cleaner
+ *  (laundry-basket.ts). For days ahead (trips, weekly plans) pass `{ later: true }`: a piece in
+ *  the basket today will be clean by then. */
+export function isWearableNow(item: AvailabilityFields, opts?: { later?: boolean }): boolean {
+  if (item.archived || item.active_loan_id || item.stored_at) return false;
+  return opts?.later ? true : !isInLaundry(item);
 }
 
 /** The seasons a trip's daytime highs call for: a beach week in October needs summer pieces, a

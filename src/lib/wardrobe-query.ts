@@ -19,6 +19,7 @@
  *  different query per screen, which is exactly the duplication this
  *  file exists to remove.
  */
+import { isWearableNow } from "@/lib/wardrobe-storage";
 import { useMemo } from "react";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -67,8 +68,7 @@ export function useActiveWardrobeItems() {
   const query = useWardrobeItems();
   const items = useMemo(
     () => (query.data ?? []).filter((it) => {
-      const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null; stored_at?: string | null };
-      return !raw.archived && !raw.active_loan_id && !raw.stored_at;
+      return isWearableNow(it as never);
     }),
     [query.data],
   );

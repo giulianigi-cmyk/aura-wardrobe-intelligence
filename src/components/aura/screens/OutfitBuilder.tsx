@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { isWearableNow } from "@/lib/wardrobe-storage";
+import { isInLaundry } from "@/lib/laundry-basket";
 import { useServerFn } from "@tanstack/react-start";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useTranslation } from "react-i18next";
@@ -628,7 +630,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
     // (deleted, archived, on loan, put away), say so instead of generating a different outfit.
     if (anchorId) {
       const anchor = items.find((it) => it.id === anchorId);
-      if (!anchor || anchor.active_loan_id || anchor.stored_at) {
+      if (!anchor || !isWearableNow(anchor as never)) {
         toast.error(t("outfitBuilder.anchorUnavailable"));
         return;
       }
@@ -665,7 +667,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
             styleTags: it.style_tags ?? [],
             occasion: it.occasion ?? null,
             activeLoanId: it.active_loan_id ?? null,
-            inStorage: Boolean(it.stored_at),
+            inStorage: Boolean(it.stored_at) || isInLaundry(it as never),
           })),
         },
       });

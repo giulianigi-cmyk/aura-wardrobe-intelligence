@@ -2744,6 +2744,8 @@ export type Database = {
           id: string
           image_url: string
           last_worn: string | null
+          laundry_kind: string | null
+          laundry_since: string | null
           leg_shape: string | null
           length: string | null
           location_id: string | null
@@ -2794,6 +2796,8 @@ export type Database = {
           id?: string
           image_url: string
           last_worn?: string | null
+          laundry_kind?: string | null
+          laundry_since?: string | null
           leg_shape?: string | null
           length?: string | null
           location_id?: string | null
@@ -2844,6 +2848,8 @@ export type Database = {
           id?: string
           image_url?: string
           last_worn?: string | null
+          laundry_kind?: string | null
+          laundry_since?: string | null
           leg_shape?: string | null
           length?: string | null
           location_id?: string | null

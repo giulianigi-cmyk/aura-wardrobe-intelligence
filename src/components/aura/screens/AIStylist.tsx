@@ -1,4 +1,5 @@
 import { outfitThumbSrc } from "@/lib/outfit-thumb";
+import { isWearableNow } from "@/lib/wardrobe-storage";
 import { Copy, Loader2, Share2, Sparkles, Search, Calendar as CalendarIcon, Trash2, Check, X, Archive, ArchiveRestore, Plus, Pencil, LayoutGrid, User, Crop } from "lucide-react";
 import { saveGeneralPlanAskingSameDay } from "@/lib/same-day-choice";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -366,8 +367,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
 
   const aiPick = async () => {
     const activeItems = items.filter((it) => {
-      const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null; stored_at?: string | null };
-      return !raw.archived && !raw.active_loan_id && !raw.stored_at;
+      return isWearableNow(it as never);
     });
     if (activeItems.length < 3) {
       toast.error(t("aiStylist.notEnoughActivePieces", { count: activeItems.length }));
@@ -1339,9 +1339,9 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
             ? editWornItemIds
             : (plans.find((p) => p.id === upcomingPickerFor)?.item_ids ?? [])
         );
+        // Editing a plan or a logged outfit: a piece in the laundry basket now is still pickable.
         const activeOnly = items.filter((it) => {
-          const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null; stored_at?: string | null };
-          return !raw.archived && !raw.active_loan_id && !raw.stored_at;
+          return isWearableNow(it as never, { later: true });
         });
         const q = pickerQuery.trim().toLowerCase();
         const matches = activeOnly.filter((it) => {

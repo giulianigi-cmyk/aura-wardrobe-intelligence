@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, X, Plus, Loader2, Sparkles, Cloud, Trash2, Luggage, LayoutGrid, User } from "lucide-react";
+import { isWearableNow } from "@/lib/wardrobe-storage";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { useTranslation } from "react-i18next";
@@ -537,9 +538,9 @@ function DayDetail({
   // not a blank one), which is a different need from "what can this
   // NEW suggestion draw from".
   const activeItems = useMemo(
+    // Plans are for days ahead: a piece in the laundry basket today is clean by then.
     () => items.filter((it) => {
-      const raw = it as unknown as { archived?: boolean; active_loan_id?: string | null; stored_at?: string | null };
-      return !raw.archived && !raw.active_loan_id && !raw.stored_at;
+      return isWearableNow(it as never, { later: true });
     }),
     [items],
   );

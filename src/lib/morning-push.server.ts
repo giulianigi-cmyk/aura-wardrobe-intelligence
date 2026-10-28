@@ -12,8 +12,11 @@ import { sendPushToUser } from "./push.server";
 import { fetchMetnoDaily, utcOffsetSeconds } from "./weather-metno";
 import { seasonChangeSuggestions } from "./wardrobe-storage";
 import { SEASON_CHANGE_GAP_DAYS, seasonChangeMessage, seasonChangeWorthTelling } from "./season-change-message";
+import { dryCleanerPushDay, loanPushDay } from "./laundry-basket";
+import { laundryReminderMessage } from "./laundry-reminder-message";
+import { garmentWithColor } from "./garment-names";
 
-type Candidate = { id: string; language: string | null; latitude: number | null; longitude: number | null; notification_preferences: (MorningPrefs & EventReminderPrefs & { season_change?: boolean }) | null };
+type Candidate = { id: string; language: string | null; latitude: number | null; longitude: number | null; notification_preferences: (MorningPrefs & EventReminderPrefs & { season_change?: boolean; laundry_reminders?: boolean }) | null };
 
 /** Today from MET Norway, when Open-Meteo refuses the request (see weather-metno.ts). */
 async function metnoDayWeather(lat: number, lon: number, timeZone: string): Promise<DayWeather | null> {
@@ -82,6 +85,34 @@ async function maybeSeasonChange(admin: any, p: Candidate, timeZone: string, tod
   return sendPushToUser(p.id, { ...message, url: "/?open=season-change", tag: "season-change" });
 }
 
+/** Dry cleaner and loan reminders (laundry-reminder-message.ts), with the morning look, once a day. */
+async function maybeLaundryReminders(admin: any, p: Candidate, today: string, now: Date): Promise<{ sent: number; failed: number } | null> {
+  if (p.notification_preferences?.laundry_reminders === false) return null;
+  const [{ data: dry }, { data: loans }] = await Promise.all([
+    admin.from("wardrobe_items").select("id, laundry_since, laundry_kind").eq("user_id", p.id).eq("laundry_kind", "dry_cleaner"),
+    admin.from("wardrobe_loans").select("item_id, borrower_name, loaned_at, updated_at, returned_at").eq("user_id", p.id).is("returned_at", null),
+  ]);
+  const at = now.getTime();
+  const dryCount = ((dry ?? []) as { laundry_since: string | null; laundry_kind: string | null }[]).filter((it) => dryCleanerPushDay(it, at)).length;
+  const dueLoans = ((loans ?? []) as { item_id: string; borrower_name: string; loaned_at: string; updated_at: string | null; returned_at: string | null }[])
+    .filter((l) => loanPushDay(l, at));
+  if (!dryCount && !dueLoans.length) return null;
+  let loanParts: { piece: string; name: string }[] = dueLoans.map((l) => ({ piece: "", name: l.borrower_name }));
+  if (dueLoans.length === 1) {
+    const { data: item } = await admin.from("wardrobe_items").select("category, subcategory, colors").eq("id", dueLoans[0].item_id).maybeSingle();
+    const it = (item ?? {}) as { category?: string | null; subcategory?: string | null; colors?: string[] | null };
+    const piece = garmentWithColor(it.subcategory || it.category || "", it.colors?.[0] ?? null, p.language);
+    loanParts = [{ piece: piece ? piece.charAt(0).toUpperCase() + piece.slice(1) : "", name: dueLoans[0].borrower_name }];
+  }
+  const message = laundryReminderMessage(p.language, { dryCleaner: dryCount, loans: loanParts });
+  if (!message) return null;
+  const { data: claimed, error } = await admin.from("push_send_log")
+    .upsert({ user_id: p.id, kind: "laundry_reminder", local_date: today }, { onConflict: "user_id,kind,local_date", ignoreDuplicates: true })
+    .select("user_id");
+  if (error || !claimed?.length) return null;
+  return sendPushToUser(p.id, { ...message, url: "/?open=wardrobe", tag: "laundry-reminder" });
+}
+
 type Counts = { checked: number; due: number; sent: number; failed: number };
 
 export async function runScheduledPush(now = new Date()): Promise<{ morning: Counts; events: Counts }> {
@@ -130,6 +161,8 @@ export async function runScheduledPush(now = new Date()): Promise<{ morning: Cou
         // A failure here never holds back the rest of the run.
         const sc = await maybeSeasonChange(admin, p, tz, clock.date).catch(() => null);
         if (sc) { morning.sent += sc.sent; morning.failed += sc.failed; }
+        const lr = await maybeLaundryReminders(admin, p, clock.date, now).catch(() => null);
+        if (lr) { morning.sent += lr.sent; morning.failed += lr.failed; }
       }
     }
 
