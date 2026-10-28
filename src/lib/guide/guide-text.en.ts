@@ -67,7 +67,7 @@ const text: GuideText = {
       steps: [
         "On the shop's website copy the product link (Share › Copy, or press and hold the address bar).",
         "In Closet tap +.",
-        `Choose “Paste a link”: if the phone asks, tap Paste. ${BRAND_NAME} takes the photo, brand, price and materials from the page right away.`,
+        `Choose “Add one piece”, then “Paste product link”: paste the link (or tap “Paste from clipboard”) and tap “Import product”. ${BRAND_NAME} takes the photo, brand, price and materials from the page.`,
         "Check the details and tap “Save to closet”.",
       ],
       tip: `On Android, with the app installed, you can also tap Share on the shop page and choose ${BRAND_NAME}. For several links at once use “Batch scan photos”.`,
