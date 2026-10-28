@@ -310,8 +310,8 @@ const text: GuideText = {
       steps: [
         "Apri Home e tocca «Completa il guardaroba».",
         "Controlla un capo con «Devo comprarlo?» (link, foto o etichetta) e tocca «Aggiungi alla wishlist». La trovi più in basso nella stessa pagina, con quanti tuoi capi ci si abbinano, se hai già qualcosa di simile e quanto ti costerebbe a utilizzo.",
-        "Ordina i capi con le frecce, per priorità. Per ciascuno scegli «Entro una data» (ti diciamo quanto mettere da parte al mese) oppure «Al mese» (indichi quanto metti da parte e ti diciamo quando ci arrivi).",
-        "Ogni mese ti chiediamo se hai messo da parte la cifra. Con «Aggiungi» puoi annotare anche altre cifre messe da parte.",
+        "Ordina i capi con le frecce, per priorità. Tocca un capo per aprire la sua scheda: lì scegli «Entro una data» (ti diciamo quanto mettere da parte al mese) oppure «Al mese» (indichi quanto metti da parte e ti diciamo quando ci arrivi).",
+        "Nella scheda trovi anche quanto hai messo da parte: ogni mese ti chiediamo se hai messo da parte la cifra. Con «Aggiungi» puoi annotare anche altre cifre messe da parte.",
         "Quando lo compri tocca «Comprato»: il prezzo esce dai risparmi e lo aggiungi all'armadio.",
       ],
       tip: "Nimbèa non muove soldi veri: è solo un promemoria di quanto hai messo da parte.",

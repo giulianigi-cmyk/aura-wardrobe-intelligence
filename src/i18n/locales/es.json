@@ -2714,6 +2714,7 @@
   },
   "wishlist": {
     "title": "Lista de deseos",
+    "close": "Cerrar",
     "perMonthSuffix": "€ al mes",
     "rowReached": "{{monthly}} € al mes: llegarás en {{month}} (ya ahorrado: {{covered}} €)",
     "modeDate": "Antes de una fecha",

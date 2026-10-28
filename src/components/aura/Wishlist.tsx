@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Check, PiggyBank, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ChevronRight, PiggyBank, Plus, Trash2, X } from "lucide-react";
+import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { supabase } from "@/integrations/supabase/client";
 import { signStoragePaths } from "@/lib/signed-url-cache";
 import { setPendingImportUrl } from "@/lib/pending-import";
@@ -38,6 +40,8 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
   // from what is saved on the piece; changed here until a date or an amount is entered.
   const [choiceById, setChoiceById] = useState<Record<string, "date" | "month">>({});
   const [monthlyText, setMonthlyText] = useState<Record<string, string>>({});
+  // The piece whose card is open.
+  const [openId, setOpenId] = useState<string | null>(null);
   const [skippedMonth, setSkippedMonth] = useState<string | null>(() => {
     try { return localStorage.getItem(skipKey(userId)); } catch { return null; }
   });
@@ -167,11 +171,132 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
   const wishLabel = (w: Wish) =>
     w.title || [w.subcategory, w.category].filter((x): x is string => !!x).map((x) => garmentName(x, i18n.language)).join(" · ") || t("shop.unknownPiece");
 
+  const statusOf = (w: Wish) => {
+    const row = rowById[w.id];
+    return !row || row.priceEur == null
+      ? t("wishlist.noPrice")
+      : row.remaining <= 0
+      ? t("wishlist.covered")
+      : row.late
+      ? t("wishlist.rowLate", { remaining: fmt(row.remaining) })
+      : row.reachedOn
+      ? t("wishlist.rowReached", { monthly: row.monthly, month: monthName(row.reachedOn), covered: fmt(row.covered) })
+      : row.monthly != null
+      ? t("wishlist.rowMonthly", { monthly: row.monthly, count: row.months ?? 1, covered: fmt(row.covered) })
+      : t("wishlist.rowCovered", { covered: fmt(row.covered), price: fmt(row.priceEur) });
+  };
+
+  const selected = open.find((w) => w.id === openId) ?? null;
+
   return (
     <section className="px-6 mt-8">
       <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">{t("wishlist.title")}</p>
 
-      <div className="rounded-2xl bg-secondary/40 p-4">
+      {open.length === 0 ? (
+        <p className="text-[12px] text-muted-foreground leading-relaxed">{t("wishlist.empty")}</p>
+      ) : (
+        <ul className="space-y-2">
+          {open.map((w, i) => (
+            <li key={w.id} className="rounded-2xl border border-border/60 bg-card p-2.5 flex items-center gap-2.5">
+              <div className="flex flex-col items-center gap-1 shrink-0">
+                <button disabled={busy || i === 0} onClick={() => void move(i, -1)} aria-label={t("wishlist.moveUp")} className="h-6 w-6 rounded-full border border-border flex items-center justify-center disabled:opacity-30"><ArrowUp size={11} /></button>
+                <span className="text-[9px] bg-foreground text-background rounded-full h-5 w-5 flex items-center justify-center">{i + 1}</span>
+                <button disabled={busy || i === open.length - 1} onClick={() => void move(i, 1)} aria-label={t("wishlist.moveDown")} className="h-6 w-6 rounded-full border border-border flex items-center justify-center disabled:opacity-30"><ArrowDown size={11} /></button>
+              </div>
+              <button onClick={() => setOpenId(w.id)} className="min-w-0 flex-1 flex items-center gap-3 text-left">
+                <div className="h-16 w-16 shrink-0 rounded-xl overflow-hidden bg-white border border-border/60">
+                  {images[w.id] && <img src={images[w.id]} alt="" className="h-full w-full object-contain p-1" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  {w.brand && <p className="text-[10px] uppercase tracking-widest text-muted-foreground truncate">{w.brand}</p>}
+                  <p className="font-serif text-sm leading-tight line-clamp-2">{wishLabel(w)}</p>
+                  {w.price != null && <p className="text-xs text-muted-foreground mt-0.5">{fmt(Number(w.price))} {symbolOf(w.currency)}</p>}
+                  <p className="mt-0.5 text-[11px] leading-snug text-foreground/70 line-clamp-2">{statusOf(w)}</p>
+                </div>
+                <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {selected && (
+        <WishSheet onClose={() => setOpenId(null)} closeLabel={t("wishlist.close")}>
+          {renderDetail(selected)}
+        </WishSheet>
+      )}
+    </section>
+  );
+
+  /** The card of one piece: what it is, how to get there, the money set aside, bought or removed. */
+  function renderDetail(w: Wish) {
+    const choice = choiceById[w.id] ?? (w.monthly_amount != null && !w.target_date ? "month" : "date");
+    const product = { category: w.category, subcategory: w.subcategory, colors: w.colors ?? [], brand: w.brand, text: w.title };
+    const pairs = w.category ? countPairings(w.category, w.colors ?? [], owned) : 0;
+    const similar = similarOwnedPiece(product, owned);
+    const cpw = wishCostPerWear({ category: w.category, subcategory: w.subcategory, occasion: w.occasion, formality: w.formality, price: w.price, currency: w.currency, material: w.material }, owned);
+    return (
+      <>
+        <div className="flex gap-4">
+          <div className="h-28 w-28 shrink-0 rounded-2xl overflow-hidden bg-white border border-border/60">
+            {images[w.id] && <img src={images[w.id]} alt="" className="h-full w-full object-contain p-1.5" />}
+          </div>
+          <div className="min-w-0 flex-1 pr-8">
+            {w.brand && <p className="text-[10px] uppercase tracking-widest text-muted-foreground truncate">{w.brand}</p>}
+            <p className="font-serif text-lg leading-tight">{wishLabel(w)}</p>
+            {w.price != null && <p className="text-sm text-muted-foreground mt-0.5">{fmt(Number(w.price))} {symbolOf(w.currency)}</p>}
+            <div className="mt-1.5 space-y-0.5 text-[11px] leading-snug text-muted-foreground">
+              {pairs > 0 && <p>{t("shop.wouldPairWithLink", { count: pairs })}</p>}
+              {similar && <p className="text-foreground/80">{t("wishlist.similarOwned", { label: localizeLabel(similar.label, i18n.language) })}</p>}
+              {cpw && <p>{t("wishlist.costPerWear", { cpw: fmt(cpw.costPerWearEur), count: cpw.wearsPerYear })}</p>}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {(["date", "month"] as const).map((c) => (
+            <button key={c} onClick={() => setChoiceById((m) => ({ ...m, [w.id]: c }))}
+              className={`h-7 px-3 rounded-full text-[10px] uppercase tracking-widest ${choice === c ? "bg-foreground text-background" : "bg-background border border-border text-muted-foreground"}`}>
+              {t(c === "date" ? "wishlist.modeDate" : "wishlist.modeBudget")}
+            </button>
+          ))}
+          {choice === "date" ? (
+            <input type="date" value={w.target_date ?? ""} aria-label={t("wishlist.modeDate")}
+              onChange={(e) => void setGoal(w, { target_date: e.target.value || null, monthly_amount: null })}
+              className="rounded-full border border-border bg-background px-2 py-1 text-[11px] text-foreground" />
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-3 py-1 text-[11px]">
+              <input inputMode="decimal" placeholder="0" aria-label={t("wishlist.modeBudget")}
+                value={monthlyText[w.id] ?? (w.monthly_amount != null ? String(w.monthly_amount) : "")}
+                onChange={(e) => setMonthlyText((m) => ({ ...m, [w.id]: e.target.value }))}
+                onBlur={() => {
+                  const v = Number((monthlyText[w.id] ?? "").replace(",", "."));
+                  if (monthlyText[w.id] == null) return;
+                  void setGoal(w, { target_date: null, monthly_amount: v > 0 ? Math.round(v * 100) / 100 : null });
+                }}
+                className="w-14 bg-transparent outline-none text-right" />
+              <span className="text-muted-foreground">{t("wishlist.perMonthSuffix")}</span>
+            </span>
+          )}
+        </div>
+        <p className="mt-2 text-[12px] leading-snug text-foreground/80">{statusOf(w)}</p>
+
+        {renderSavings()}
+
+        <div className="mt-4 flex gap-2">
+          <button disabled={busy} onClick={() => void bought(w)}
+            className="h-9 px-4 rounded-full bg-foreground text-background text-[11px] inline-flex items-center gap-1.5 disabled:opacity-60"><Check size={12} /> {t("wishlist.bought")}</button>
+          <button disabled={busy} onClick={() => void remove(w)}
+            className="h-9 px-4 rounded-full border border-border text-[11px] inline-flex items-center gap-1.5 disabled:opacity-60"><Trash2 size={12} /> {t("wishlist.remove")}</button>
+        </div>
+      </>
+    );
+  }
+
+  /** What is set aside for all the wished pieces together, with this month's question. */
+  function renderSavings() {
+    return (
+      <div className="mt-4 rounded-2xl bg-secondary/40 p-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-background border border-border flex items-center justify-center shrink-0"><PiggyBank size={17} /></div>
           <div className="min-w-0 flex-1">
@@ -221,92 +346,28 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
         )}
         <p className="mt-3 text-[10px] text-muted-foreground leading-relaxed">{t("wishlist.noRealMoney")}</p>
       </div>
+    );
+  }
+}
 
-      {open.length === 0 ? (
-        <p className="mt-3 text-[12px] text-muted-foreground leading-relaxed">{t("wishlist.empty")}</p>
-      ) : (
-        <ul className="mt-3 space-y-2">
-          {open.map((w, i) => {
-            const row = rowById[w.id];
-            const choice = choiceById[w.id] ?? (w.monthly_amount != null && !w.target_date ? "month" : "date");
-            const product = { category: w.category, subcategory: w.subcategory, colors: w.colors ?? [], brand: w.brand, text: w.title };
-            const pairs = w.category ? countPairings(w.category, w.colors ?? [], owned) : 0;
-            const similar = similarOwnedPiece(product, owned);
-            const cpw = wishCostPerWear({ category: w.category, subcategory: w.subcategory, occasion: w.occasion, formality: w.formality, price: w.price, currency: w.currency, material: w.material }, owned);
-            return (
-              <li key={w.id} className="rounded-2xl border border-border/60 bg-card p-3">
-                <div className="flex gap-3">
-                  <div className="flex flex-col items-center gap-1 shrink-0">
-                    <span className="text-[9px] uppercase tracking-widest bg-foreground text-background rounded-full h-5 w-5 flex items-center justify-center">{i + 1}</span>
-                    <button disabled={busy || i === 0} onClick={() => void move(i, -1)} aria-label={t("wishlist.moveUp")} className="h-7 w-7 rounded-full border border-border flex items-center justify-center disabled:opacity-30"><ArrowUp size={12} /></button>
-                    <button disabled={busy || i === open.length - 1} onClick={() => void move(i, 1)} aria-label={t("wishlist.moveDown")} className="h-7 w-7 rounded-full border border-border flex items-center justify-center disabled:opacity-30"><ArrowDown size={12} /></button>
-                  </div>
-                  <div className="h-20 w-20 shrink-0 rounded-xl overflow-hidden bg-white border border-border/60">
-                    {images[w.id] && <img src={images[w.id]} alt="" className="h-full w-full object-contain p-1" />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    {w.brand && <p className="text-[10px] uppercase tracking-widest text-muted-foreground truncate">{w.brand}</p>}
-                    <p className="font-serif text-sm leading-tight line-clamp-2">{wishLabel(w)}</p>
-                    {w.price != null && <p className="text-xs text-muted-foreground mt-0.5">{fmt(Number(w.price))} {symbolOf(w.currency)}</p>}
-                    <div className="mt-1 space-y-0.5 text-[11px] leading-snug text-muted-foreground">
-                      {pairs > 0 && <p>{t("shop.wouldPairWithLink", { count: pairs })}</p>}
-                      {similar && <p className="text-foreground/80">{t("wishlist.similarOwned", { label: localizeLabel(similar.label, i18n.language) })}</p>}
-                      {cpw && <p>{t("wishlist.costPerWear", { cpw: fmt(cpw.costPerWearEur), count: cpw.wearsPerYear })}</p>}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {(["date", "month"] as const).map((c) => (
-                    <button key={c} onClick={() => setChoiceById((m) => ({ ...m, [w.id]: c }))}
-                      className={`h-7 px-3 rounded-full text-[10px] uppercase tracking-widest ${choice === c ? "bg-foreground text-background" : "bg-background border border-border text-muted-foreground"}`}>
-                      {t(c === "date" ? "wishlist.modeDate" : "wishlist.modeBudget")}
-                    </button>
-                  ))}
-                  {choice === "date" ? (
-                    <input type="date" value={w.target_date ?? ""} aria-label={t("wishlist.modeDate")}
-                      onChange={(e) => void setGoal(w, { target_date: e.target.value || null, monthly_amount: null })}
-                      className="rounded-full border border-border bg-background px-2 py-1 text-[11px] text-foreground" />
-                  ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-3 py-1 text-[11px]">
-                      <input inputMode="decimal" placeholder="0" aria-label={t("wishlist.modeBudget")}
-                        value={monthlyText[w.id] ?? (w.monthly_amount != null ? String(w.monthly_amount) : "")}
-                        onChange={(e) => setMonthlyText((m) => ({ ...m, [w.id]: e.target.value }))}
-                        onBlur={() => {
-                          const v = Number((monthlyText[w.id] ?? "").replace(",", "."));
-                          if (monthlyText[w.id] == null) return;
-                          void setGoal(w, { target_date: null, monthly_amount: v > 0 ? Math.round(v * 100) / 100 : null });
-                        }}
-                        className="w-14 bg-transparent outline-none text-right" />
-                      <span className="text-muted-foreground">{t("wishlist.perMonthSuffix")}</span>
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1.5 text-[11px] leading-snug text-foreground/80">
-                  {!row || row.priceEur == null
-                    ? t("wishlist.noPrice")
-                    : row.remaining <= 0
-                    ? t("wishlist.covered")
-                    : row.late
-                    ? t("wishlist.rowLate", { remaining: fmt(row.remaining) })
-                    : row.reachedOn
-                    ? t("wishlist.rowReached", { monthly: row.monthly, month: monthName(row.reachedOn), covered: fmt(row.covered) })
-                    : row.monthly != null
-                    ? t("wishlist.rowMonthly", { monthly: row.monthly, count: row.months ?? 1, covered: fmt(row.covered) })
-                    : t("wishlist.rowCovered", { covered: fmt(row.covered), price: fmt(row.priceEur) })}
-                </p>
-
-                <div className="mt-2 flex gap-2">
-                  <button disabled={busy} onClick={() => void bought(w)}
-                    className="h-8 px-3 rounded-full bg-foreground text-background text-[11px] inline-flex items-center gap-1.5 disabled:opacity-60"><Check size={11} /> {t("wishlist.bought")}</button>
-                  <button disabled={busy} onClick={() => void remove(w)} aria-label={t("wishlist.remove")}
-                    className="h-8 w-8 rounded-full border border-border flex items-center justify-center disabled:opacity-60"><Trash2 size={12} /></button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
+/** A bottom sheet over the page, like the other sheets of the app. */
+function WishSheet({ onClose, closeLabel, children }: { onClose: () => void; closeLabel: string; children: ReactNode }) {
+  const canClose = useSheetCanClose(true);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const content = (
+    <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur flex items-end" role="dialog" aria-modal="true"
+      onClick={() => { if (canClose) onClose(); }}>
+      <div onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-h-[90vh] overflow-y-auto bg-card rounded-t-3xl border-t border-border p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+        <button onClick={onClose} aria-label={closeLabel}
+          className="absolute top-4 right-4 h-8 w-8 rounded-full border border-border bg-background flex items-center justify-center"><X size={14} /></button>
+        {children}
+      </div>
+    </div>
   );
+  return typeof document !== "undefined" ? createPortal(content, document.body) : null;
 }

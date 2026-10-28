@@ -2714,6 +2714,7 @@
   },
   "wishlist": {
     "title": "心愿单",
+    "close": "关闭",
     "perMonthSuffix": "€/月",
     "rowReached": "每月 {{monthly}} €：预计 {{month}} 可以买到（已存：{{covered}} €）",
     "modeDate": "按日期",
