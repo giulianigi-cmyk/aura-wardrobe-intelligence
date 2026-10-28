@@ -9,7 +9,7 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_CALENDAR_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
 
-const REDIRECT_URI = "https://aura-wardrobe-intelligence.lovable.app/api/public/hooks/google-calendar-callback";
+const REDIRECT_URI = "https://nimbea.app/api/public/hooks/google-calendar-callback";
 
 export function buildGoogleAuthUrl(state: string): string {
   const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
