@@ -226,3 +226,27 @@ test("one scale for the whole board: blazer, trousers and shirt at the same px p
   // shoes: a fixed share of the trousers (25 cm pumps × 1.25 against 100 cm trousers)
   assert.ok(Math.abs(Math.max(side.w, side.h) / get(rs, "trousers").h - 0.3125) < 0.02);
 });
+
+test("a jacket worn over a sweater is never drawn smaller than it", () => {
+  const rects = layoutOutfit([
+    { id: "jacket", bucket: "outer", aspect: 1.15, subcategory: "Jacket", length: null },
+    { id: "sweater", bucket: "top", aspect: 0.95, subcategory: "Sweater", length: null },
+    { id: "jeans", bucket: "bottom", aspect: 2.0, subcategory: "Jeans", length: null },
+    { id: "shoes", bucket: "shoes", aspect: 0.45, subcategory: "Sneakers" },
+  ] as LayoutInput[]);
+  const jacket = rects.find((r) => r.id === "jacket")!;
+  const sweater = rects.find((r) => r.id === "sweater")!;
+  assert.ok(jacket.h >= sweater.h, `height ${jacket.h} vs ${sweater.h}`);
+  assert.ok(jacket.w >= sweater.w - 1, `width ${jacket.w} vs ${sweater.w}`);
+});
+
+test("earrings stay small next to the jeans (about twice their real size, not three times)", () => {
+  const rects = layoutOutfit([
+    { id: "sweater", bucket: "top", aspect: 0.95, subcategory: "Sweater", length: null },
+    { id: "jeans", bucket: "bottom", aspect: 2.0, subcategory: "Jeans", length: null },
+    { id: "hoops", bucket: "earrings", aspect: 0.6, subcategory: "Earrings" },
+  ] as LayoutInput[]);
+  const jeans = rects.find((r) => r.id === "jeans")!;
+  const hoops = rects.find((r) => r.id === "hoops")!;
+  assert.ok(hoops.h < jeans.h * 0.12, `${hoops.h} vs ${jeans.h}`);
+});

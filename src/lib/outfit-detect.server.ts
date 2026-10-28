@@ -35,9 +35,14 @@ function detailedSection(): string[] {
   ];
 }
 
-function buildPrompt(detailed = false): string {
+function buildPrompt(detailed = false, loosePieces = false): string {
   return [
-    "You analyze a photo of a person wearing an outfit and identify every distinct visible garment, shoe, bag and accessory.",
+    loosePieces
+      // "Carica più capi": people photograph their pieces ON THEIR OWN — a product photo, a piece on a
+      // hanger, laid flat or on a bed — far more often than worn. The person-only reading returned
+      // nothing for those and the photo was lost (reported).
+      ? "You analyze a photo that shows clothing: either a person wearing an outfit, or one or more pieces on their own (a product photo, a piece on a hanger, laid flat on a bed or the floor). Identify every distinct visible garment, shoe, bag and accessory, worn or not."
+      : "You analyze a photo of a person wearing an outfit and identify every distinct visible garment, shoe, bag and accessory.",
     "COMPLETENESS — a common failure is stopping after the obvious top+bottom and missing everything smaller: sunglasses, a watch, a bracelet, a necklace, earrings, a belt, a hat, a scarf are all real, separate \"Accessories\" items and must be detected too whenever visible, even partially, even small in frame, even in one hand (like sunglasses being worn) or on one wrist. Before finishing, deliberately re-scan the photo head to wrist to ankle for anything not yet listed — bags and shoes are easy to catch, small accessories are what gets missed.",
     "ONE-PIECE VS. TWO-PIECE — read this before anything else: a dress or jumpsuit is a SINGLE item even when it has a fitted bodice/corset top portion and a separate-looking skirt or leg portion below it (a common silhouette). Detect that as ONE entry, category \"Dresses\" (or \"Jumpsuits\"), never as a separate Top + Bottom pair. Only detect two separate items when there is real, visible evidence of two actual garments — a genuine gap of visible skin between them, two different waistbands sitting at different heights, or a clearly different fabric/texture right at the waist seam. When in doubt, prefer the one-piece reading: a wrongly-split dress becomes two items that will never correctly match anything in the wardrobe, which is the worse failure.",
     "For EACH separate item worn, return one entry with:",
@@ -60,7 +65,9 @@ function buildPrompt(detailed = false): string {
     "- confidence: 0 to 1, how sure you are this is a distinct, correctly identified item.",
     "- bbox: the item's bounding box as FRACTIONS of the full image (0 to 1): x and y are the top-left corner, width and height the box size. Be generous enough to include the whole item.",
     "Do not detect skin, hair, or background as items. Do not detect the same physical item twice. Return between 1 and 12 items, ordered roughly top-to-bottom on the body.",
-    "If the photo does not clearly show a person wearing clothes, return an empty items array.",
+    loosePieces
+      ? "Return an empty items array only if no garment, shoe, bag or accessory is visible at all."
+      : "If the photo does not clearly show a person wearing clothes, return an empty items array.",
     "",
     ...(detailed ? [...detailedSection(), ""] : []),
     "Respond with ONLY a single valid JSON object, no markdown fences, no extra text, in exactly this shape:",
@@ -118,14 +125,14 @@ export type DetectOutfitResult =
   | { ok: false; error: string; items: DetectedOutfitItem[] };
 
 /** Run the multi-item outfit detector against a base64 data URL. */
-export async function detectOutfitItems(imageDataUrl: string, opts: { detailed?: boolean } = {}): Promise<DetectOutfitResult> {
+export async function detectOutfitItems(imageDataUrl: string, opts: { detailed?: boolean; loosePieces?: boolean } = {}): Promise<DetectOutfitResult> {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) throw new Error("Missing LOVABLE_API_KEY");
   const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
   const gateway = createLovableAiGatewayProvider(key);
   const model = gateway("google/gemini-2.5-flash");
 
-  const promptText = buildPrompt(opts.detailed);
+  const promptText = buildPrompt(opts.detailed, opts.loosePieces);
   const buildMessages = () => [
     {
       role: "user" as const,

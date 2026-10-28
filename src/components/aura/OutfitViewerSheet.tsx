@@ -262,7 +262,7 @@ export function OutfitViewerSheet({
     <div className="relative rounded-2xl overflow-hidden aspect-[4/5] shadow-soft flex items-center justify-center" style={{ background: "#FFFFFF" }}>
       {canvasState === "ready" && canvasUrl ? (
         <>
-          {/* Tapping the canvas, or its "Modifica" button, opens it in the editor to move pieces —
+          {/* Tapping the canvas, or its pencil button, opens it in the editor to move pieces —
               the same as "Apri sulla tela" at the bottom, which was easy to miss. */}
           <button type="button" onClick={() => void editOnCanvas()} className="h-full w-full" aria-label={t("outfitViewer.editCanvas")}>
             <img src={canvasUrl} alt="" className="h-full w-full object-contain" />
@@ -271,8 +271,10 @@ export function OutfitViewerSheet({
             type="button"
             onClick={() => void editOnCanvas()}
             disabled={opening}
-            className="absolute top-3 right-3 h-8 px-3 rounded-full bg-background/90 backdrop-blur border border-border shadow-soft flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] active:scale-95 disabled:opacity-60"
-          >{opening ? <Loader2 size={12} className="animate-spin" /> : <Pencil size={12} />} {t("outfitViewer.editCanvas")}</button>
+            aria-label={t("outfitViewer.editCanvas")}
+            title={t("outfitViewer.editCanvas")}
+            className="absolute top-3 right-3 h-9 w-9 rounded-full bg-background/90 backdrop-blur border border-border shadow-soft flex items-center justify-center active:scale-95 disabled:opacity-60"
+          >{opening ? <Loader2 size={14} className="animate-spin" /> : <Pencil size={14} />}</button>
         </>
       ) : canvasState === "loading" ? (
         <div className="flex flex-col items-center gap-2 text-muted-foreground">

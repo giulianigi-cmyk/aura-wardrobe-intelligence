@@ -25,6 +25,44 @@ function toDataUrl(bytes: ArrayBuffer, contentType: string): string {
 
 type JobPrefill = { brand?: string | null; priceValue?: number | null; priceCurrency?: string | null; materials?: string[]; sourceUrl?: string } | null;
 
+type DetectedRow = {
+  category: string | null; subcategory: string | null; colors: string[]; material: string[];
+  season: string | null; style: string | null; occasion: string | null; description: string | null;
+  confidence: number; bbox: unknown; brand: string | null; price: number | null; currency: string | null;
+  formality: number | null; day_evening: string | null; sleeve_length: string | null;
+  length: string | null; fit: string | null; heel_height: string | null; toe_shape: string | null;
+  closure: string | null; gender: string | null; style_tags: string[];
+};
+
+/** One piece read on its own (a product photo), with what the product page said when there is one. */
+function rowFromSingleAnalysis(analysis: Awaited<ReturnType<typeof analyzeWardrobeImageCore>>, prefill: JobPrefill): DetectedRow {
+  return {
+    category: analysis.category || null,
+    subcategory: analysis.subcategory || null,
+    colors: analysis.colors,
+    material: prefill?.materials?.length ? prefill.materials : analysis.materials,
+    season: analysis.seasons[0] ?? null,
+    style: analysis.styles.join(", ") || null,
+    occasion: analysis.occasions.join(", ") || null,
+    description: null,
+    confidence: 0.9,
+    bbox: null,
+    brand: analysis.brand || prefill?.brand || null,
+    price: prefill?.priceValue ?? null,
+    currency: prefill?.priceCurrency ?? null,
+    formality: analysis.formality ?? null,
+    day_evening: analysis.dayEvening || null,
+    sleeve_length: analysis.sleeveLength || null,
+    length: analysis.length || null,
+    fit: analysis.fit || null,
+    heel_height: analysis.heelHeight || null,
+    toe_shape: analysis.toeShape || null,
+    closure: analysis.closure || null,
+    gender: analysis.gender || null,
+    style_tags: analysis.styleTags ?? [],
+  };
+}
+
 export type WorkerResult = {
   claimed: number;
   done: number;
@@ -95,14 +133,7 @@ export async function runScanWorker(limit = 5): Promise<WorkerResult> {
         }
       }
 
-            let detectedRows: {
-        category: string | null; subcategory: string | null; colors: string[]; material: string[];
-        season: string | null; style: string | null; occasion: string | null; description: string | null;
-        confidence: number; bbox: unknown; brand: string | null; price: number | null; currency: string | null;
-        formality: number | null; day_evening: string | null; sleeve_length: string | null;
-        length: string | null; fit: string | null; heel_height: string | null; toe_shape: string | null;
-        closure: string | null; gender: string | null; style_tags: string[];
-      }[];
+      let detectedRows: DetectedRow[];
 
       if (prefill) {
         // Single product photo from a URL — same engine as manual
@@ -110,35 +141,14 @@ export async function runScanWorker(limit = 5): Promise<WorkerResult> {
         // detector (which is tuned to find several worn garments and can
         // mistake a decorative detail — a buckle, an embellishment — for
         // a second item on an isolated product photo).
-        const analysis = await analyzeWardrobeImageCore(dataUrl);
-                detectedRows = [{
-          category: analysis.category || null,
-          subcategory: analysis.subcategory || null,
-          colors: analysis.colors,
-          material: prefill.materials?.length ? prefill.materials : analysis.materials,
-          season: analysis.seasons[0] ?? null,
-          style: analysis.styles.join(", ") || null,
-          occasion: analysis.occasions.join(", ") || null,
-          description: null,
-          confidence: 0.9,
-          bbox: null,
-          brand: analysis.brand || prefill.brand || null,
-          price: prefill.priceValue ?? null,
-          currency: prefill.priceCurrency ?? null,
-          formality: analysis.formality ?? null,
-          day_evening: analysis.dayEvening || null,
-          sleeve_length: analysis.sleeveLength || null,
-          length: analysis.length || null,
-          fit: analysis.fit || null,
-          heel_height: analysis.heelHeight || null,
-          toe_shape: analysis.toeShape || null,
-          closure: analysis.closure || null,
-          gender: analysis.gender || null,
-          style_tags: analysis.styleTags ?? [],
-        }];
+        detectedRows = [rowFromSingleAnalysis(await analyzeWardrobeImageCore(dataUrl), prefill)];
       } else {
-        const detection = await detectOutfitItems(dataUrl);
+        const detection = await detectOutfitItems(dataUrl, { loosePieces: true });
         if (!detection.ok) throw new Error(detection.error);
+        // Pieces photographed on their own (product photo, hanger, laid flat) are what people upload
+        // here: the detector is told so (loosePieces). If it still finds nothing, the photo is read again
+        // as a single piece, as when one piece is added by hand — before, it was closed as "done" with
+        // no piece and silently lost (reported: two photos uploaded, one piece).
         detectedRows = detection.items.map((it) => ({
           category: it.category || null,
           subcategory: it.subcategory || null,
@@ -164,11 +174,22 @@ export async function runScanWorker(limit = 5): Promise<WorkerResult> {
           gender: it.gender || null,
           style_tags: it.styleTags ?? [],
         }));
+        if (!detectedRows.length) {
+          const single = rowFromSingleAnalysis(await analyzeWardrobeImageCore(dataUrl), null);
+          if (single.category) detectedRows = [single];
+        }
       }
 
       await supabaseAdmin.from("scan_detected_items").delete().eq("job_id", job.id);
 
-      if (detectedRows.length) {
+      // Nothing recognised even as a single piece: the photo is counted as not read (the batch ends
+      // "with errors" and says so) instead of disappearing. Not retried: the same photo gives the same answer.
+      if (!detectedRows.length) {
+        await supabaseAdmin.from("scan_jobs").update({ status: "failed", claimed_at: null, error_message: "NO_PIECE_RECOGNISED" }).eq("id", job.id);
+        result.failed++;
+        return;
+      }
+      {
         const rows = detectedRows.map((it) => ({
           job_id: job.id,
           scan_id: job.scan_id,

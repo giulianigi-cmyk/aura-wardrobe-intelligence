@@ -94,7 +94,9 @@ const BOX: Record<Bucket, { w: number; h: number }> = {
   bag: { w: 0.40, h: 0.34 },
   sunglasses: { w: 0.28, h: 0.10 },
   headwear: { w: 0.28, h: 0.16 }, // a cap or hat is ~25 cm: it read smaller than the earrings at .22 × .12 (reported)
-  earrings: { w: 0.12, h: 0.12 },
+  // .12 × .12 drew a pair of 4 cm hoops about three times their size next to 100 cm jeans (reported):
+  // .08 keeps them clearly visible, about twice their real size like the other small pieces.
+  earrings: { w: 0.08, h: 0.08 },
   necklace: { w: 0.20, h: 0.12 },
   brooch: { w: 0.07, h: 0.07 },
   wrist: { w: 0.10, h: 0.15 }, // watch, bracelet, ring, gloves
@@ -329,10 +331,19 @@ export function layoutOutfit(allItems: LayoutInput[], W = CANVAS_W, H = CANVAS_H
 
   // The board scale (px per real cm): the garment scale, lowered for the whole board when a piece
   // would not fit at it (a 150 cm jumpsuit) — never for one piece alone.
+  // A jacket is worn OVER the top, so it is never drawn smaller than it: a 60 cm short jacket came out
+  // shorter and narrower than the 64 cm sweater under it (reported). A jacket not longer than the top
+  // (bomber, short or cropped jacket) is drawn 10% longer than it and at least as wide; a blazer or a
+  // coat, already longer, keeps its real length.
+  const topCm = Math.max(0, ...items.filter((it) => it.bucket === "top").map((it) => realCm("top", it.subcategory, it.length) ?? REFERENCE.top!.cm));
+  const shortOverTop = (it: LayoutInput) =>
+    it.bucket === "outer" && topCm > 0 && (realCm("outer", it.subcategory, it.length) ?? REFERENCE.outer!.cm) <= topCm;
+  const garmentCm = (it: LayoutInput): number | null =>
+    shortOverTop(it) ? topCm * 1.1 : realCm(it.bucket, it.subcategory, it.length);
   let pxPerCm = GARMENT_PX_PER_CM * H;
   for (const it of items) {
     if (!isGarment(it.bucket)) continue;
-    const cm = realCm(it.bucket, it.subcategory, it.length);
+    const cm = garmentCm(it);
     if (cm) pxPerCm = Math.min(pxPerCm, (GARMENT_MAX_H[it.bucket]! * H) / cm);
   }
 
@@ -354,10 +365,18 @@ export function layoutOutfit(allItems: LayoutInput[], W = CANVAS_W, H = CANVAS_H
     let w: number, maxW: number, maxH: number;
     if (isGarment(it.bucket)) {
       // garments by their real length (a mini skirt short, a maxi long, a blazer shorter than a coat)
-      const cm = realCm(it.bucket, it.subcategory, it.length) ?? REFERENCE[it.bucket]!.cm;
+      const cm = garmentCm(it) ?? REFERENCE[it.bucket]!.cm;
       w = (cm * pxPerCm * k) / aspect;
       maxW = GARMENT_MAX_W[it.bucket]! * W * k;
       maxH = GARMENT_MAX_H[it.bucket]! * H * k;
+      // …and never narrower than it either (a sweater photographed with its sleeves spread).
+      if (shortOverTop(it)) {
+        for (const top of by.get("top") ?? []) {
+          const ta = top.aspect > 0 ? top.aspect : 1;
+          const tw = Math.min(((realCm("top", top.subcategory, top.length) ?? REFERENCE.top!.cm) * pxPerCm * k) / ta, GARMENT_MAX_W.top! * W * k, (GARMENT_MAX_H.top! * H * k) / ta);
+          w = Math.max(w, tw);
+        }
+      }
     } else if (it.bucket === "shoes") {
       const len = (realCm("shoes", it.subcategory, it.length) ?? 27) * pxPerCm * SHOE_SCALE * strapK * k;
       w = aspect > 1 ? len / aspect : len; // the longest side is the shoe's length
