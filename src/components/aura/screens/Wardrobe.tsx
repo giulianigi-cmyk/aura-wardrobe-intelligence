@@ -1186,7 +1186,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
       {/* Cambio stagione + Select: always here, so pieces can be put away (several at once) even by
           someone with a single location; in the storage view, Select brings several back at once. */}
       {!showArchived && !showLoaned && (
-        <div className="mx-6 mt-3 flex items-center justify-between gap-2">
+        <div className="mx-6 mt-2 flex items-center justify-between gap-2">
           {gapFilter ? <span /> : (
             <button
               onClick={() => { setShowStored((v) => !v); setShowArchived(false); setShowLoaned(false); exitSelectMode(); }}
@@ -1197,7 +1197,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
           )}
           <button
             onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] uppercase tracking-widest border ${selectMode ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"}`}
+            className={`shrink-0 -my-2 rounded-full px-3 py-1.5 text-[10px] uppercase tracking-widest border ${selectMode ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"}`}
           >{selectMode ? t("wardrobe.cancel") : t("wardrobe.select")}</button>
         </div>
       )}
@@ -1285,7 +1285,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
         />
       )}
       {locations.length > 1 && !showArchived && !showLoaned && !showStored && (
-        <div className="mx-6 mt-3 flex items-center gap-2">
+        <div className="mx-6 mt-5 flex items-center gap-2">
           <div className="flex gap-2 overflow-x-auto no-scrollbar flex-1">
             <button
               onClick={() => setViewLocationId("all")}
