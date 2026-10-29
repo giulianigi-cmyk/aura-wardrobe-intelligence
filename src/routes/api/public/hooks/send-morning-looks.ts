@@ -15,8 +15,11 @@ export const Route = createFileRoute("/api/public/hooks/send-morning-looks")({
           return Response.json({ error: "Unauthorized" }, { status: 401 });
         }
         try {
-          const { runScheduledPush } = await import("@/lib/morning-push.server");
-          return Response.json({ ok: true, ...(await runScheduledPush()) });
+          const { runScheduledPush, runNewsPush } = await import("@/lib/morning-push.server");
+          const scheduled = await runScheduledPush();
+          // «Novità» never holds back the daily notifications above.
+          const news = await runNewsPush().catch((e) => { console.error("[AURA news-push] failed", e instanceof Error ? e.message : "error"); return null; });
+          return Response.json({ ok: true, ...scheduled, news });
         } catch (err) {
           console.error("[AURA morning-push] worker failed", err instanceof Error ? err.message : "error");
           return Response.json({ ok: false }, { status: 500 });

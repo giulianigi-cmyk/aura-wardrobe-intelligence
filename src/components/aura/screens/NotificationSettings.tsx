@@ -12,7 +12,7 @@ import { sendTestPush } from "@/lib/push.functions";
 import { track } from "@/lib/telemetry-client";
 
 type Prefs = {
-  outfit_share: boolean; weather_change: boolean; system: boolean; season_change?: boolean; laundry_reminders?: boolean;
+  outfit_share: boolean; weather_change: boolean; system: boolean; season_change?: boolean; laundry_reminders?: boolean; feature_news?: boolean;
   morning_look?: boolean; morning_look_time?: string; event_reminder?: boolean; event_reminder_time?: string;
 };
 const DEFAULTS: Prefs = { outfit_share: true, weather_change: true, system: true, season_change: true, morning_look: false, event_reminder: false };
@@ -55,7 +55,7 @@ export function NotificationSettings({ go }: { go: (s: Screen) => void }) {
     if (error) { toast.error(error); setPrefs(before); return false; }
     return true;
   };
-  const setPref = async (key: "outfit_share" | "weather_change" | "system" | "season_change" | "laundry_reminders", value: boolean) => {
+  const setPref = async (key: "outfit_share" | "weather_change" | "system" | "season_change" | "laundry_reminders" | "feature_news", value: boolean) => {
     await save({ ...prefs, [key]: value });
   };
 
@@ -206,6 +206,13 @@ export function NotificationSettings({ go }: { go: (s: Screen) => void }) {
             <p className="text-[11px] text-muted-foreground mt-0.5">{t("settings.notifLaundrySub")}</p>
           </div>
           <Toggle on={prefs.laundry_reminders !== false} onClick={() => void setPref("laundry_reminders", prefs.laundry_reminders === false)} />
+        </div>
+        <div className="flex items-center justify-between px-4 py-3.5">
+          <div className="min-w-0 pr-3">
+            <p className="text-sm">{t("settings.notifNews")}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{t("settings.notifNewsSub")}</p>
+          </div>
+          <Toggle on={prefs.feature_news !== false} onClick={() => void setPref("feature_news", prefs.feature_news === false)} />
         </div>
         <div className="flex items-center justify-between px-4 py-3.5">
           <div className="min-w-0 pr-3">

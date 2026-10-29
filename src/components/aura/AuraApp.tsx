@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { LegalConsentGate } from "@/components/aura/LegalDocs";
 import { ShareLibraryAsk } from "@/components/aura/ShareLibraryAsk";
+import { FeatureNewsSheet } from "@/components/aura/FeatureNewsSheet";
 import { firstHttpUrl, setPendingImportUrl } from "@/lib/pending-import";
 import { hasAcceptedLegal } from "@/lib/legal/legal";
 import { Splash } from "./screens/Splash";
@@ -332,6 +333,8 @@ function Inner() {
         setScreen("wardrobe");
         window.dispatchEvent(new Event("aura:open-season-change")); // Wardrobe already on screen
 
+      } else if (params.get("open") === "shop") {
+        setScreen("shop"); // a «Novità» notification (feature-news.ts)
       } else if (params.get("open") === "wardrobe") {
         setScreen("wardrobe"); // a dry cleaner or loan reminder: Wardrobe shows them at the top
       } else if (params.get("open") === "report-problem") {
@@ -595,6 +598,7 @@ function Inner() {
         {/* Privacy policy and terms must be accepted (again, when LEGAL_VERSION changes) before using the app. */}
         {user && !hasAcceptedLegal(user.user_metadata) && !["splash", "onboarding", "auth", "reset"].includes(screen) && <LegalConsentGate />}
         {user && <ShareLibraryAsk userId={user.id} />}
+        {user && hasAcceptedLegal(user.user_metadata) && !tourOpen && <FeatureNewsSheet user={user} screen={screen} go={go} />}
 
         {/* Everything else — unchanged mount-on-demand behavior. */}
         {!isMainTab && (

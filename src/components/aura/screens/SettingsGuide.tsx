@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { takeGuideArticle } from "@/components/aura/FeatureNewsSheet";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, ChevronDown, Compass, Lightbulb, Loader2, Search } from "lucide-react";
 import type { Screen } from "../AuraApp";
@@ -17,7 +18,8 @@ export function SettingsGuide({ go, replayTour }: { go: (s: Screen) => void; rep
   const lang = guideLanguage(i18n.language);
   const [text, setText] = useState<GuideText | null>(null);
   const [failed, setFailed] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
+  // Opened from a «Novità» card: that article open and in view.
+  const [openId, setOpenId] = useState<string | null>(() => takeGuideArticle());
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -28,6 +30,13 @@ export function SettingsGuide({ go, replayTour }: { go: (s: Screen) => void; rep
       .catch((e) => { if (!cancelled) { setFailed(true); console.warn("[AURA guide] text failed to load", e); } });
     return () => { cancelled = true; };
   }, [lang]);
+
+  useEffect(() => {
+    if (!text || !openId) return;
+    document.getElementById(`guide-${openId}`)?.scrollIntoView({ block: "start" });
+    // Only once, when the text arrives with an article asked for.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text]);
 
   const results = useMemo(() => (text && query.trim() ? searchGuide(text, query) : null), [text, query]);
   const articleById = useMemo(() => new Map(GUIDE.flatMap((c) => c.articles).map((a) => [a.id, a])), []);
@@ -42,7 +51,7 @@ export function SettingsGuide({ go, replayTour }: { go: (s: Screen) => void; rep
     if (!a || !text) return null;
     const isOpen = forceOpen || openId === def.id;
     return (
-      <div key={def.id} className="border-b border-border last:border-b-0">
+      <div key={def.id} id={`guide-${def.id}`} className="border-b border-border last:border-b-0 scroll-mt-4">
         <button
           onClick={() => !forceOpen && toggle(def.id)}
           aria-expanded={isOpen}

@@ -116,6 +116,8 @@
     "notifSeasonChangeSub": "Al massimo un paio di volte l'anno, con il look del mattino, quando le temperature cambiano e ci sono capi da spostare",
     "notifLaundry": "Tintoria e prestiti",
     "notifLaundrySub": "Con il look del mattino: i capi da ritirare in tintoria dopo 7 giorni e quelli prestati dopo 14",
+    "notifNews": "Novità di {{appName}}",
+    "notifNewsSub": "Quando arriva una funzione nuova che non hai ancora provato. Al massimo una volta a settimana.",
     "notifSystem": "Aggiornamenti di sistema",
     "notifSystemSub": "Comunicazioni importanti su {{appName}}",
     "sharedLibrary": "Libreria condivisa",
@@ -2832,5 +2834,9 @@
     "notNow": "Non ora",
     "thanks": "Grazie! I tuoi capi entrano nella libreria.",
     "failed": "Non è stato possibile salvare. Riprova."
+  },
+  "featureNews": {
+    "howTo": "Come si usa",
+    "tryIt": "Provala"
   }
 }
