@@ -430,12 +430,12 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
                     <div className="mt-2 flex gap-2">
                       <button
                         onClick={() => setSearchingForDetectionId(d.detectionId)}
-                        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5"
+                        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1"
                       ><Search size={11} /> {t("logWear.searchWardrobe")}</button>
                       <button
                         onClick={() => void addDetectionToWardrobe(d)}
                         disabled={croppingDetectionId === d.detectionId}
-                        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1 disabled:opacity-50"
                       >
                         {croppingDetectionId === d.detectionId ? <Loader2 size={11} className="animate-spin" /> : <ShoppingBag size={11} />}
                         {t("logWear.addToWardrobe")}
@@ -480,7 +480,7 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
                     )}
                     <button
                       onClick={() => setSearchingForDetectionId(d.detectionId)}
-                      className="h-7 px-3 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center gap-1.5"
+                      className="h-7 px-4 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center gap-1"
                     ><Search size={10} /> {t("logWear.searchWardrobe")}</button>
                   </div>
                 </div>
@@ -589,7 +589,7 @@ export function LogWear({ go, openBuilder, openAddItemWithGarment }: {
           <button
             onClick={() => void onConfirm()}
             disabled={confirming || confirmedItemIds.length === 0}
-            className="mt-6 w-full h-14 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-2 disabled:opacity-40"
+            className="mt-6 w-full h-14 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-1.5 disabled:opacity-40"
           >
             {confirming && <Loader2 size={12} className="animate-spin" />}
             {t("logWear.confirmButton", { count: confirmedItemIds.length })}

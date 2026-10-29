@@ -124,7 +124,7 @@ export function LegalConsentGate() {
         <button
           onClick={() => void accept()}
           disabled={saving}
-          className="mt-8 w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 disabled:opacity-40"
+          className="mt-8 w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-1.5 disabled:opacity-40"
         >
           {saving && <Loader2 size={12} className="animate-spin" />}{text.accept}
         </button>

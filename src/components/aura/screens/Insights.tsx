@@ -211,7 +211,7 @@ export function Insights({ go, openWardrobeGap, openBuilder }: { go: (s: Screen)
           <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
             {t("insights.addPiecesHint")}
           </p>
-          <button onClick={() => go("add")} className="mt-6 h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center gap-2">
+          <button onClick={() => go("add")} className="mt-6 h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center gap-1">
             <Sparkles size={12} /> {t("insights.addAPiece")}
           </button>
         </section>
@@ -376,11 +376,11 @@ export function Insights({ go, openWardrobeGap, openBuilder }: { go: (s: Screen)
                   <div className="flex gap-2">
                     <button
                       onClick={() => openBuilder({ itemIds: [], anchorItemId: item.id })}
-                      className="h-8 px-3 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] active:scale-95 inline-flex items-center gap-1.5"
+                      className="h-8 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] active:scale-95 inline-flex items-center gap-1"
                     ><Sparkles size={11} /> {t("insights.forgottenTryOutfit")}</button>
                     <button
                       onClick={() => setLifecycleSheetItem(item)}
-                      className="h-8 px-3 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] active:scale-95 inline-flex items-center gap-1.5"
+                      className="h-8 px-4 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] active:scale-95 inline-flex items-center gap-1"
                     ><Tag size={11} /> {t("insights.forgottenSellGift")}</button>
                   </div>
                 </div>
@@ -398,12 +398,12 @@ export function Insights({ go, openWardrobeGap, openBuilder }: { go: (s: Screen)
             <button
               onClick={() => void markLifecycle("sold")}
               disabled={lifecycleBusy}
-              className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-60 inline-flex items-center justify-center gap-2"
+              className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-60 inline-flex items-center justify-center gap-1.5"
             >{lifecycleBusy && <Loader2 size={12} className="animate-spin" />} {t("insights.markSold")}</button>
             <button
               onClick={() => void markLifecycle("donated")}
               disabled={lifecycleBusy}
-              className="w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-60 inline-flex items-center justify-center gap-2"
+              className="w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-60 inline-flex items-center justify-center gap-1.5"
             >{lifecycleBusy && <Loader2 size={12} className="animate-spin" />} {t("insights.markDonated")}</button>
             <button
               onClick={() => setLifecycleSheetItem(null)}

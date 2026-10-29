@@ -415,14 +415,14 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
             {compareSlots.length < MAX_COMPARE && (
               <button
                 onClick={addCompareSlot}
-                className="mt-3 w-full h-10 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.25em] text-muted-foreground flex items-center justify-center gap-2"
+                className="mt-3 w-full h-10 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.25em] text-muted-foreground flex items-center justify-center gap-1.5"
               ><Plus size={12} /> {t("shop.addAnotherToCompare")}</button>
             )}
 
             <button
               onClick={() => void runCompare()}
               disabled={comparing || !compareSlots.every(compareSlotReady)}
-              className="mt-3 w-full h-11 rounded-full bg-foreground text-background flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.3em] disabled:opacity-60"
+              className="mt-3 w-full h-11 rounded-full bg-foreground text-background flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.3em] disabled:opacity-60"
             >
               {comparing && <Loader2 size={13} className="animate-spin" />}
               {t("shop.compareThesePieces")}
@@ -539,7 +539,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
               {photoDataUrl && (
                 <button
                   onClick={() => labelForPhotoRef.current?.click()}
-                  className="mt-2 w-full h-9 rounded-full border border-border text-[10px] uppercase tracking-widest text-muted-foreground flex items-center justify-center gap-1.5"
+                  className="mt-2 w-full h-9 rounded-full border border-border text-[10px] uppercase tracking-widest text-muted-foreground flex items-center justify-center gap-1"
                 >
                   <Tag size={11} />
                   {labelDataUrl ? t("shop.labelPhotoAdded") : t("shop.addLabelPhotoOptional")}
@@ -571,7 +571,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
           <button
             onClick={() => void runCheck()}
             disabled={checking || (mode === "url" ? !linkUrl.trim() : mode === "photo" ? !photoDataUrl : !labelDataUrl)}
-            className="mt-3 w-full h-11 rounded-full bg-foreground text-background flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.3em] disabled:opacity-60"
+            className="mt-3 w-full h-11 rounded-full bg-foreground text-background flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.3em] disabled:opacity-60"
           >
             {checking ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
             {t("shop.checkThisPiece")}
@@ -633,7 +633,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <button disabled={savingWish || resultDone.wished} onClick={() => void addToWishlist()}
-                  className="h-9 px-3 rounded-full bg-foreground text-background text-[10px] uppercase tracking-widest inline-flex items-center gap-1.5 disabled:opacity-60">
+                  className="h-9 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-widest inline-flex items-center gap-1 disabled:opacity-60">
                   {resultDone.wished ? <Check size={11} /> : <Heart size={11} />} {t(resultDone.wished ? "wishlist.added" : "wishlist.addButton")}
                 </button>
               </div>
@@ -699,7 +699,7 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
             </p>
             <button
               onClick={() => go("add")}
-              className="mt-4 h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center gap-2"
+              className="mt-4 h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center gap-1.5"
             ><Plus size={12} /> {t("shop.addAPiece")}</button>
           </div>
         ) : error || !suggestion ? (
@@ -728,11 +728,11 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
               <div className="mt-5 flex flex-wrap gap-2">
                 <button
                   onClick={() => go("add")}
-                  className="h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center gap-2"
+                  className="h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center gap-1.5"
                 ><Plus size={12} /> {t("shop.addThisPiece")}</button>
                 <button
                   onClick={() => void openOwnPicker()}
-                  className="h-11 px-5 rounded-full border border-foreground/40 text-[10px] uppercase tracking-[0.3em] inline-flex items-center gap-2"
+                  className="h-11 px-5 rounded-full border border-foreground/40 text-[10px] uppercase tracking-[0.3em] inline-flex items-center gap-1.5"
                 ><Check size={12} /> {t("shop.alreadyOwnIt")}</button>
               </div>
             </div>

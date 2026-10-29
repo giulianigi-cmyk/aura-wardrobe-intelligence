@@ -960,7 +960,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
 
           <button
             onClick={() => void openWardrobeSearch("__add__")}
-            className="w-full h-11 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center justify-center gap-2 active:scale-[0.98]"
+            className="w-full h-11 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center justify-center gap-1.5 active:scale-[0.98]"
           ><Plus size={13} /> {t("outfitScan.addPieceFromWardrobe", { defaultValue: "Aggiungi un capo dal guardaroba" })}</button>
 
           <div className="pt-2 pb-4 flex gap-2">
@@ -971,7 +971,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
             <button
               onClick={save}
               disabled={toSave.length === 0 && !scanItems.some((it) => it.status === "confirmed-duplicate")}
-              className="flex-1 h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] disabled:opacity-50 flex items-center justify-center gap-1.5"
             >
               <Check size={14} /> {toSave.length > 0 ? t("outfitScan.saveItemsCount", { count: toSave.length }) : t("outfitScan.continueToOutfit", { defaultValue: "Continua" })}
             </button>
@@ -1040,7 +1040,7 @@ export function OutfitScan({ go }: { go: (s: Screen) => void }) {
             <button
               onClick={() => void finishCalendar()}
               disabled={savingOutfit}
-              className="h-12 rounded-full bg-foreground text-background text-xs uppercase tracking-[0.25em] inline-flex items-center justify-center gap-2 disabled:opacity-50"
+              className="h-12 rounded-full bg-foreground text-background text-xs uppercase tracking-[0.25em] inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
             >{savingOutfit && <Loader2 size={14} className="animate-spin" />} {assignToCalendar ? t("outfitScan.saveOutfitButton", { defaultValue: "Salva" }) : t("outfitScan.doneButton", { defaultValue: "Fatto" })}</button>
             {assignToCalendar && (
               <button

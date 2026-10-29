@@ -718,7 +718,7 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
               <button
                 onClick={() => void removeBgFromAll()}
                 disabled={bulkBgRunning}
-                className="w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 disabled:opacity-60"
+                className="w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-1.5 disabled:opacity-60"
               >
                 {bulkBgRunning ? <Loader2 size={13} className="animate-spin" /> : null}
                 {bulkBgRunning ? t("batchReview.removingBackgrounds", { done: bulkBgProgress.done, total: bulkBgProgress.total }) : t("batchReview.removeBackgroundFromAll")}
@@ -743,7 +743,7 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
             <button
               onClick={saveAll}
               disabled={saving || toSave.length === 0}
-              className="w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] disabled:opacity-50 flex items-center justify-center gap-1.5"
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
               {saving && bulkBgRunning

@@ -102,7 +102,7 @@ function NewChatSheet({ onClose, onCreated }: { onClose: () => void; onCreated: 
             <button
               onClick={() => void start()}
               disabled={!selected.length || busy}
-              className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-50 inline-flex items-center justify-center gap-2"
+              className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
             >
               {busy && <Loader2 size={12} className="animate-spin" />}
               {selected.length > 1 ? t("chats.createGroup") : t("chats.openChat")}

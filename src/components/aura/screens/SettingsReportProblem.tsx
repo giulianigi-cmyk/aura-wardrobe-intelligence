@@ -167,14 +167,14 @@ export function SettingsReportProblem({ go }: { go: (s: Screen) => void }) {
                         <button
                           onClick={() => { setEditingId(r.id); setDraft(r.message); }}
                           aria-label={t("reportProblem.edit")}
-                          className="h-8 px-3 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5"
+                          className="h-8 px-4 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1"
                         ><Pencil size={11} /> {t("reportProblem.edit")}</button>
                       )}
                       <button
                         onClick={() => void remove(r.id)}
                         disabled={busyId === r.id}
                         aria-label={t("reportProblem.delete")}
-                        className="h-8 px-3 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5 disabled:opacity-50"
+                        className="h-8 px-4 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1 disabled:opacity-50"
                       ><Trash2 size={11} /> {t("reportProblem.delete")}</button>
                     </div>
                   )}

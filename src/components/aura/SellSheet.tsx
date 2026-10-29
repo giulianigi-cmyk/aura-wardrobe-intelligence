@@ -121,7 +121,7 @@ export function SellSheet({ piece, imageUrl, resaleLow, resaleHigh, onSold, onCl
           className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-[13px] leading-relaxed" />
 
         <button onClick={() => void copy()}
-          className="mt-5 w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 active:scale-95">
+          className="mt-5 w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-1.5 active:scale-95">
           <Copy size={13} /> {t("sell.copy")}
         </button>
         <button onClick={() => { track("flow_step", { feature: "sell", step: "sold" }); onSold(); }} className="mt-4 w-full text-center text-[12px] underline underline-offset-2 text-foreground/80">

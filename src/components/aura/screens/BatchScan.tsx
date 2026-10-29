@@ -298,11 +298,11 @@ export function BatchScan({ go, openReview }: { go: (s: Screen) => void; openRev
         <div className="flex rounded-full border border-border p-1 mb-4">
           <button
             onClick={() => setMode("photos")}
-            className={`flex-1 h-9 rounded-full text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 ${mode === "photos" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+            className={`flex-1 h-9 rounded-full text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1 ${mode === "photos" ? "bg-foreground text-background" : "text-muted-foreground"}`}
           ><Images size={12} /> {t("batchScan.fromPhotos")}</button>
           <button
             onClick={() => setMode("urls")}
-            className={`flex-1 h-9 rounded-full text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 ${mode === "urls" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+            className={`flex-1 h-9 rounded-full text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1 ${mode === "urls" ? "bg-foreground text-background" : "text-muted-foreground"}`}
           ><Link2 size={12} /> {t("batchScan.fromUrls")}</button>
         </div>
 
@@ -362,7 +362,7 @@ export function BatchScan({ go, openReview }: { go: (s: Screen) => void; openRev
             </div>
             <button
               onClick={addUrlRow}
-              className="mt-3 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
+              className="mt-3 flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
             ><Plus size={12} /> {t("batchScan.addUrl")}</button>
             <button
               disabled={busy}

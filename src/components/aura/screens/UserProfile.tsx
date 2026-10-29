@@ -110,13 +110,13 @@ export function UserProfile({ userId, onBack }: { userId: string; go?: (s: Scree
                 <button
                   onClick={() => void acceptRequest()}
                   disabled={busy}
-                  className="h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center gap-2 disabled:opacity-50"
+                  className="h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center gap-1.5 disabled:opacity-50"
                 ><Check size={12} /> {t("userProfile.accept")}</button>
               ) : (
                 <button
                   onClick={() => void sendRequest()}
                   disabled={busy}
-                  className="h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center gap-2 disabled:opacity-50"
+                  className="h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center gap-1.5 disabled:opacity-50"
                 ><UserPlus size={12} /> {t("userProfile.addFriend")}</button>
               )}
             </div>

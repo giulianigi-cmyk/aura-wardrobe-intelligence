@@ -261,7 +261,7 @@ export function Community({ go, openConversation, openUserProfile, initialTab = 
                   ) : (
                     <button
                       onClick={() => void sendRequest(r.id)}
-                      className="h-8 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] active:scale-95 inline-flex items-center gap-1.5"
+                      className="h-8 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] active:scale-95 inline-flex items-center gap-1"
                     ><UserPlus size={11} /> {t("community.add")}</button>
                   )}
                 </div>

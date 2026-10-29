@@ -36,7 +36,7 @@ export function WeatherPanel() {
         <div className="flex gap-1.5 shrink-0">
           <button
             onClick={detect}
-            className="h-8 px-3 rounded-full border border-border text-[10px] uppercase tracking-widest flex items-center gap-1.5 active:scale-95"
+            className="h-8 px-4 rounded-full border border-border text-[10px] uppercase tracking-widest flex items-center gap-1 active:scale-95"
           >
             {status === "loading" ? <Loader2 size={10} className="animate-spin" /> : <MapPin size={10} />}
             {t("weatherPanel.auto")}

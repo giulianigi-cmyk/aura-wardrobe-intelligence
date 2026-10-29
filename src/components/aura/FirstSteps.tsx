@@ -50,10 +50,10 @@ export function FirstSteps({ items, go }: { items: { category: string | null }[]
         </ul>
 
         <div className="mt-5 grid grid-cols-2 gap-2">
-          <button onClick={() => open("batch-scan")} className="h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 active:scale-[0.98]">
+          <button onClick={() => open("batch-scan")} className="h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1 active:scale-[0.98]">
             <Images size={13} /> {t("firstSteps.addMany")}
           </button>
-          <button onClick={() => open("add")} className="h-12 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 active:scale-[0.98]">
+          <button onClick={() => open("add")} className="h-12 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1 active:scale-[0.98]">
             <Camera size={13} /> {t("firstSteps.addOne")}
           </button>
         </div>

@@ -209,7 +209,7 @@ function GroupSheet({
                 <span className="text-sm flex-1">{f.username ?? "—"}</span>
                 <button
                   onClick={() => void run(() => addParticipant(conversation.conversation_id, f.other_id), t("chatThread.toastAddedToGroup"))}
-                  className="h-8 px-3 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] active:scale-95 inline-flex items-center gap-1.5"
+                  className="h-8 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] active:scale-95 inline-flex items-center gap-1"
                 ><UserPlus size={11} /> {t("chatThread.add")}</button>
               </div>
             ))}
@@ -218,7 +218,7 @@ function GroupSheet({
 
         <button
           onClick={() => void run(async () => { await leaveConversation(conversation.conversation_id); onClose(); }, t("chatThread.toastLeftGroup"))}
-          className="w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-2"
+          className="w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
         ><LogOut size={12} /> {t("chatThread.leaveGroup")}</button>
       </div>
     </div>,

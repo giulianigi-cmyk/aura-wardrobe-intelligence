@@ -1140,7 +1140,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
       {(archivedCount > 0 || showArchived) && (
         <button
           onClick={() => { setShowArchived((v) => !v); setShowLoaned(false); setShowStored(false); exitSelectMode(); }}
-          className="mx-6 mt-3 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
+          className="mx-6 mt-3 flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
         >
           {showArchived ? <><X size={11} /> {t("wardrobe.backToCloset")}</> : <><Archive size={11} /> {t("wardrobe.archivedCount", { count: archivedCount })}</>}
         </button>
@@ -1148,14 +1148,14 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
       {showLoaned ? (
         <button
           onClick={() => { setShowLoaned(false); exitSelectMode(); }}
-          className="mx-6 mt-2 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
+          className="mx-6 mt-2 flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
         >
           <X size={11} /> {t("wardrobe.backToCloset")}
         </button>
       ) : !showArchived && !showStored && !gapFilter && (
         <button
           onClick={() => setAwayOpen(true)}
-          className="mx-6 mt-2 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
+          className="mx-6 mt-2 flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
         >
           <Shirt size={11} /> {t("wardrobe.awayCount", { count: basketCount + dryCleanerCount + loanedCount })}
         </button>
@@ -1190,7 +1190,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
           {gapFilter ? <span /> : (
             <button
               onClick={() => { setShowStored((v) => !v); setShowArchived(false); setShowLoaned(false); exitSelectMode(); }}
-              className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
+              className="flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
             >
               {showStored ? <><X size={11} /> {t("wardrobe.backToCloset")}</> : <><Package size={11} /> {t("wardrobe.storedCount", { count: storedCount })}</>}
             </button>
@@ -1450,7 +1450,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                       <button
                         onClick={removeItemBackground}
                         disabled={removingBg}
-                        className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.2em] text-muted-foreground active:scale-95 disabled:opacity-50"
+                        className="flex items-center gap-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground active:scale-95 disabled:opacity-50"
                       >
                         {removingBg ? <Loader2 size={12} className="animate-spin" /> : "✂️"} {t("wardrobe.removeBackgroundButton")}
                       </button>
@@ -1470,7 +1470,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                   {!editing && (
                     <button
                       onClick={() => { setDetail(null); openBuilder({ itemIds: [], anchorItemId: detail.id }); }}
-                      className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 active:scale-[0.98]"
+                      className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-1.5 active:scale-[0.98]"
                     ><Sparkles size={14} /> {t("wardrobe.createOutfitFromThisButton")}</button>
                   )}
                 </>
@@ -1661,14 +1661,14 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
 
                 <button
                   onClick={openEdit}
-                  className="mt-5 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 active:scale-95"
+                  className="mt-5 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-1.5 active:scale-95"
                 >
                   <Pencil size={12} /> {t("wardrobe.editDetailsButton")}
                 </button>
                 {/* One "Opzioni" button instead of a row of small ones (easy to hit the wrong one with a
                     finger): archive, seasonal storage, lend, sell, laundry basket and dry cleaner. */}
                 <button onClick={() => setActionsOpen(true)}
-                  className="mt-3 w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 active:scale-95">
+                  className="mt-3 w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-1.5 active:scale-95">
                   <MoreHorizontal size={14} /> {t("wardrobe.optionsButton")}
                 </button>
                 {actionsOpen && (() => {
@@ -1783,7 +1783,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                         <button
                           onClick={deleteItem}
                           disabled={deleting}
-                          className="h-11 rounded-full bg-destructive text-destructive-foreground text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                          className="h-11 rounded-full bg-destructive text-destructive-foreground text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-1.5 disabled:opacity-60"
                         >
                           {deleting && <Loader2 size={12} className="animate-spin" />}
                           {t("wardrobe.deleteButton")}
@@ -1818,7 +1818,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                         <button
                           onClick={() => void lendDetailItem()}
                           disabled={lending || !borrowerName.trim()}
-                          className="h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                          className="h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-1.5 disabled:opacity-60"
                         >
                           {lending && <Loader2 size={12} className="animate-spin" />}
                           {t("wardrobe.confirmLoanButton")}
@@ -1853,7 +1853,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                         <button
                           onClick={() => void returnDetailItem(null)}
                           disabled={returning}
-                          className="mt-4 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                          className="mt-4 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-1.5 disabled:opacity-60"
                         >
                           {returning && <Loader2 size={12} className="animate-spin" />}
                           {t("wardrobe.confirmReturnButton")}
@@ -2219,7 +2219,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                   <button
                     onClick={saveEdit}
                     disabled={savingEdit}
-                    className="h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                    className="h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-1.5 disabled:opacity-60"
                   >
                     {savingEdit && <Loader2 size={12} className="animate-spin" />}
 

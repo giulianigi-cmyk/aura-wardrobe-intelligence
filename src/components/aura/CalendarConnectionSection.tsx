@@ -154,7 +154,7 @@ export function CalendarConnectionSection() {
           <button
             onClick={() => void connect()}
             disabled={connecting}
-            className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 disabled:opacity-60"
+            className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-1.5 disabled:opacity-60"
           >
             {connecting ? <Loader2 size={12} className="animate-spin" /> : null}
             {t("calendarConnect.connectButton", { name: "Google Calendar" })}
@@ -329,7 +329,7 @@ export function AppleCalendarConnectionSection() {
           <button
             onClick={() => void connect()}
             disabled={connecting}
-            className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 disabled:opacity-60"
+            className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-1.5 disabled:opacity-60"
           >
             {connecting ? <Loader2 size={12} className="animate-spin" /> : null}
             {t("calendarConnect.connectButton", { name: "Apple Calendar" })}
@@ -459,7 +459,7 @@ export function OutlookCalendarConnectionSection() {
           <button
             onClick={() => void connect()}
             disabled={connecting}
-            className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 disabled:opacity-60"
+            className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-1.5 disabled:opacity-60"
           >
             {connecting ? <Loader2 size={12} className="animate-spin" /> : null}
             {t("calendarConnect.connectButton", { name: "Outlook Calendar" })}

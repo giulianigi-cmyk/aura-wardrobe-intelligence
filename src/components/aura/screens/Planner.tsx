@@ -289,11 +289,11 @@ export function Planner({ go, openStylistChat, openBuilder, openAvatarTryOn, foc
         <div className="mt-4 grid grid-cols-2 gap-2">
           <button
             onClick={() => go("builder")}
-            className="min-h-10 px-3 py-2 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.22em] leading-tight text-center active:scale-95 inline-flex items-center justify-center gap-1.5"
+            className="min-h-10 px-4 py-2 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.22em] leading-tight text-center active:scale-95 inline-flex items-center justify-center gap-1"
           ><Sparkles size={12} strokeWidth={1.5} /> {t("planner.createOutfit")}</button>
           <button
             onClick={() => go("trips")}
-            className="min-h-10 px-3 py-2 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.22em] leading-tight text-center active:scale-95 inline-flex items-center justify-center gap-1.5"
+            className="min-h-10 px-4 py-2 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.22em] leading-tight text-center active:scale-95 inline-flex items-center justify-center gap-1"
           ><Luggage size={12} strokeWidth={1.5} /> {t("planner.tripsAria")}</button>
         </div>
       </header>
@@ -755,12 +755,12 @@ function DayDetail({
       <button
         type="button"
         onClick={() => setViewingLook({ itemIds: p.item_ids, occasion: p.occasion ?? null, notes: p.notes ?? null })}
-        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 active:scale-[0.98]"
+        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1 active:scale-[0.98]"
       ><LayoutGrid size={12} /> {t("outfitViewer.canvas", { defaultValue: "Canvas" })}</button>
       <button
         type="button"
         onClick={() => openAvatarTryOn(p.item_ids)}
-        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 active:scale-[0.98]"
+        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1 active:scale-[0.98]"
       ><User size={12} /> {t("outfitViewer.onAvatar", { defaultValue: "Avatar" })}</button>
     </div>
   );
@@ -823,7 +823,7 @@ function DayDetail({
       ) : (
         <div className="mt-2 flex gap-2">
           <button onClick={onOpen} className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em]">{t("planner.choosePieces")}</button>
-          <button onClick={onAsk} className="flex-1 min-w-0 h-9 px-3 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5"><Sparkles size={11} className="shrink-0" /><span className="truncate">{t("planner.askStylist")}</span></button>
+          <button onClick={onAsk} className="flex-1 min-w-0 h-9 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1"><Sparkles size={11} className="shrink-0" /><span className="truncate">{t("planner.askStylist")}</span></button>
         </div>
       )}
     </div>
@@ -1048,7 +1048,7 @@ function DayDetail({
                     <button
                       onClick={() => { setWornSelected(plan.item_ids); setWornPickerOpen(true); }}
                       disabled={saving}
-                      className="h-11 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2"
+                      className="h-11 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-1.5"
                     >
                       {saving ? <Loader2 size={13} className="animate-spin" /> : null}
                       {t("planner.markAsWorn")}
@@ -1073,7 +1073,7 @@ function DayDetail({
                   <button
                     onClick={() => void save({ log: isPast })}
                     disabled={saving}
-                    className="flex-1 h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2"
+                    className="flex-1 h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-1.5"
                   >
                     {saving ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
                     {plan ? t("planner.saveButton") : isPast ? t("planner.logOutfit") : t("planner.planOutfit")}
@@ -1114,7 +1114,7 @@ function DayDetail({
               <button
                 onClick={() => void confirmWorn(wornSelected)}
                 disabled={saving}
-                className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 disabled:opacity-60"
+                className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-1.5 disabled:opacity-60"
               >
                 {saving ? <Loader2 size={13} className="animate-spin" /> : null}
                 {t("planner.confirmWorn")}

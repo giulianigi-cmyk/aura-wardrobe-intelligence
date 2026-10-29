@@ -180,7 +180,7 @@ export function TripEssentialsCopySheet({
             <button
               onClick={() => void submit()}
               disabled={busy || checked.size === 0}
-              className="mt-4 w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50"
+              className="mt-4 w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50"
             >
               {busy ? <Loader2 size={14} className="animate-spin" /> : null}
               {t("tripDetail.addSelected", { count: checked.size, defaultValue: "Add {{count}} to this trip" })}

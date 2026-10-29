@@ -109,7 +109,7 @@ export function SettingsGuide({ go, replayTour }: { go: (s: Screen) => void; rep
           <div className="px-6 mt-4">
             <button
               onClick={() => { track("flow_step", { feature: "guide", step: "replay_tour" }); replayTour(); }}
-              className="w-full h-12 rounded-full border border-border flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.2em] active:scale-[0.98]"
+              className="w-full h-12 rounded-full border border-border flex items-center justify-center gap-1 text-[10px] uppercase tracking-[0.2em] active:scale-[0.98]"
             >
               <Compass size={14} /> {text.replayTour}
             </button>
