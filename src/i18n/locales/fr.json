@@ -2824,6 +2824,17 @@
     "optDryCleanerHint": "Nous vous rappelons de la récupérer après 7 jours",
     "toDryCleanerShort": "Pressing"
   },
+  "pushAsk": {
+    "title": "Voulez-vous recevoir des notifications ?",
+    "bodyPiece": "Chaque matin, nous vous envoyons le look du jour, composé avec vos pièces et la météo : pas besoin d'ouvrir {{appName}} pour le découvrir.",
+    "bodyOutfit": "Chaque matin le look du jour avec vos pièces et la météo, et de temps en temps une nouveauté de {{appName}} qui peut vous être utile.",
+    "detail": "Une notification le matin au maximum, à 07:30 si vous n'avez pas choisi une autre heure. Changez l'heure ou désactivez-les quand vous voulez dans Paramètres › Notifications.",
+    "yes": "Oui, activer",
+    "notNow": "Pas maintenant",
+    "done": "C'est fait : le look du jour arrive chaque matin à {{time}}",
+    "gotIt": "Compris",
+    "installStep3": "ouvrez {{appName}} depuis l'icône : activez les notifications dans Paramètres › Notifications."
+  },
   "shareAsk": {
     "titleAdded": "Partager vos pièces dans la bibliothèque ?",
     "bodyAdded": "Dans la bibliothèque, les autres trouvent déjà prêtes les pièces que vous avez, avec photo et détails, et vous trouvez les leurs. Plus il y a de pièces, plus elle est utile à tous, vous compris.",

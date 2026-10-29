@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { askPush } from "@/lib/push-ask";
 import { savePlanAskingSameDay } from "@/lib/same-day-choice";
 import { useTranslation } from "react-i18next";
 import { useServerFn } from "@tanstack/react-start";
@@ -291,6 +292,7 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
     if (error) { toast.error(error.message); return; }
     setSaved(true);
     toast.success(t("avatar.savedToOutfits"));
+    askPush("outfit");
   };
 
   const saveToCalendar = async () => {

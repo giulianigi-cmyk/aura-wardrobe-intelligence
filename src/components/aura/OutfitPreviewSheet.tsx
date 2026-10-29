@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { askPush } from "@/lib/push-ask";
 import { savePlanAskingSameDay } from "@/lib/same-day-choice";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -91,6 +92,7 @@ export function OutfitPreviewSheet({
     setSavedId(id);
     setSaved(true);
     onSaved?.();
+    askPush("outfit");
     return id;
   };
 

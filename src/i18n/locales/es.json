@@ -2824,6 +2824,17 @@
     "optDryCleanerHint": "Te recordamos recogerla a los 7 días",
     "toDryCleanerShort": "Tintorería"
   },
+  "pushAsk": {
+    "title": "¿Quieres recibir notificaciones?",
+    "bodyPiece": "Cada mañana te enviamos el look del día pensado con tus prendas y el tiempo, así no tienes que abrir {{appName}} para descubrirlo.",
+    "bodyOutfit": "Cada mañana el look del día con tus prendas y el tiempo, y de vez en cuando una novedad de {{appName}} que te puede servir.",
+    "detail": "Como mucho una notificación por la mañana, a las 07:30 si no has elegido otra hora. Cambia la hora o desactívalas cuando quieras en Ajustes › Notificaciones.",
+    "yes": "Sí, activar",
+    "notNow": "Ahora no",
+    "done": "Listo: el look del día llega cada mañana a las {{time}}",
+    "gotIt": "Entendido",
+    "installStep3": "abre {{appName}} desde el icono: activa las notificaciones en Ajustes › Notificaciones."
+  },
   "shareAsk": {
     "titleAdded": "¿Compartes tus prendas en la biblioteca?",
     "bodyAdded": "En la biblioteca otros encuentran ya listas las prendas que tienes, con foto y detalles, y tú encuentras las suyas. Cuantas más prendas haya, más útil es para todos, también para ti.",
