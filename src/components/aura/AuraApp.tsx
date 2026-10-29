@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useRef, useState, type Componen
 import { LegalConsentGate } from "@/components/aura/LegalDocs";
 import { ShareLibraryAsk } from "@/components/aura/ShareLibraryAsk";
 import { FeatureNewsSheet } from "@/components/aura/FeatureNewsSheet";
+import { NEWS_SCREENS } from "@/lib/feature-news";
 import { firstHttpUrl, setPendingImportUrl } from "@/lib/pending-import";
 import { hasAcceptedLegal } from "@/lib/legal/legal";
 import { Splash } from "./screens/Splash";
@@ -333,8 +334,8 @@ function Inner() {
         setScreen("wardrobe");
         window.dispatchEvent(new Event("aura:open-season-change")); // Wardrobe already on screen
 
-      } else if (params.get("open") === "shop") {
-        setScreen("shop"); // a «Novità» notification (feature-news.ts)
+      } else if ((NEWS_SCREENS as readonly string[]).includes(params.get("open") ?? "") && params.get("open") !== "wardrobe") {
+        setScreen(params.get("open") as Screen); // a «Novità» notification (feature-news.ts)
       } else if (params.get("open") === "wardrobe") {
         setScreen("wardrobe"); // a dry cleaner or loan reminder: Wardrobe shows them at the top
       } else if (params.get("open") === "report-problem") {

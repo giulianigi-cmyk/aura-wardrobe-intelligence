@@ -16,6 +16,7 @@ import { dryCleanerPushDay, loanPushDay } from "./laundry-basket";
 import { laundryReminderMessage } from "./laundry-reminder-message";
 import { garmentWithColor } from "./garment-names";
 import { NEWS_PUSH_TIME, newsPushAllowed, newsText, nextNews } from "./feature-news";
+import { usedNews } from "./feature-news-usage";
 
 type Candidate = { id: string; language: string | null; latitude: number | null; longitude: number | null; notification_preferences: (MorningPrefs & EventReminderPrefs & { season_change?: boolean; laundry_reminders?: boolean }) | null };
 
@@ -213,18 +214,14 @@ export async function runNewsPush(now = new Date()): Promise<{ checked: number; 
     const clock = localClock(now, tz);
     if (!isDue(NEWS_PUSH_TIME, clock.minutes)) continue;
     out.checked++;
-    const [{ data: sentRows }, { data: lastOpenRows }, wish, compare] = await Promise.all([
+    const [{ data: sentRows }, { data: lastOpenRows }] = await Promise.all([
       admin.from("push_send_log").select("kind, local_date").eq("user_id", p.id).like("kind", "news_%").order("local_date", { ascending: false }),
       admin.from("app_events").select("created_at").eq("user_id", p.id).eq("name", "app_open").order("created_at", { ascending: false }).limit(1),
-      admin.from("wishlist_items").select("id", { count: "exact", head: true }).eq("user_id", p.id),
-      admin.from("ai_usage_ledger").select("id", { count: "exact", head: true }).eq("user_id", p.id).eq("feature", "advisor_compare"),
     ]);
     const sent = (sentRows ?? []) as { kind: string; local_date: string }[];
     if (!newsPushAllowed({ lastNewsPush: sent[0]?.local_date ?? null, lastOpen: lastOpenRows?.[0]?.created_at ?? null, today: clock.date, now })) continue;
-    const used = new Set<string>();
-    if ((wish.count ?? 0) > 0) used.add("wishlist");
-    if ((compare.count ?? 0) > 0) used.add("compare");
-    const news = nextNews({ signedUpAt: p.created_at, told: new Set(sent.map((r) => r.kind.slice("news_".length))), used });
+    const used = await usedNews(admin, p.id);
+    const news = nextNews({ told: new Set(sent.map((r) => r.kind.slice("news_".length))), used });
     if (!news) continue;
     const { data: claimed, error } = await admin.from("push_send_log")
       .upsert({ user_id: p.id, kind: `news_${news.id}`, local_date: clock.date }, { onConflict: "user_id,kind,local_date", ignoreDuplicates: true })
