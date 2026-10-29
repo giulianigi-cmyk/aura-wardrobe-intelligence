@@ -1836,6 +1836,10 @@
     "profilePhotoHint": "Facoltativa — ma un ritratto aiuta a personalizzare la tua analisi colore più avanti. Non è una foto di un capo per il guardaroba.",
     "shareLibraryLabel": "Condividi il mio guardaroba nella libreria comune",
     "shareLibraryDetail": "I tuoi capi — brand, prezzo, tag e foto — diventano visibili e riutilizzabili da altri membri, in forma anonima: nessuno saprà che vengono da te. I dati personali (il tuo nome, quanto spesso indossi le cose, dove le tieni) non vengono mai condivisi. Puoi disattivarlo in qualsiasi momento dal tuo profilo; i capi già importati da altri restano nel loro guardaroba.",
+    "shareLibraryTitle": "Aiuta la libreria di {{appName}}",
+    "shareLibraryPitch": "Più capi ci sono, più è facile per tutti trovare il proprio già pronto, con foto e dettagli: basta cercarlo e toccarlo. Vale anche per te.",
+    "shareLibraryYes": "Sì, condivido",
+    "shareLibraryNo": "No, grazie",
     "back": "Indietro",
     "enterAura": "Entra in {{appName}}",
     "continue": "Continua"
@@ -2582,6 +2586,8 @@
     },
     "addMany": "Più foto insieme",
     "addOne": "Un capo",
+    "library": "Cerca nella libreria {{appName}}",
+    "libraryHint": "Molti capi sono già lì, con foto e dettagli: cerca marca o modello, toccalo ed è nel tuo guardaroba.",
     "tip": "Consiglio: fotografa i capi stesi su un fondo chiaro, uno per foto. Lo sfondo lo togliamo noi."
   },
   "tour": {
@@ -2809,5 +2815,16 @@
     "optDryCleaner": "In tintoria",
     "optDryCleanerHint": "Ti ricordiamo di ritirarlo dopo 7 giorni",
     "toDryCleanerShort": "Tintoria"
+  },
+  "shareAsk": {
+    "titleAdded": "Condividi i tuoi capi nella libreria?",
+    "bodyAdded": "Nella libreria altri trovano già pronti i capi che hai tu, con foto e dettagli, e tu trovi i loro. Più capi ci sono, più è utile a tutti, anche a te.",
+    "title": "Hai trovato il tuo capo nella libreria",
+    "body": "C'era perché qualcuno l'ha condiviso. Vuoi fare lo stesso con i tuoi capi? Così la libreria cresce e la prossima volta trovi ancora di più.",
+    "detail": "Le foto prodotto, la marca e i dettagli dei tuoi capi diventano visibili agli altri in forma anonima: nessuno saprà che vengono da te. Puoi cambiare idea quando vuoi in Impostazioni › Privacy.",
+    "yes": "Sì, condivido",
+    "notNow": "Non ora",
+    "thanks": "Grazie! I tuoi capi entrano nella libreria.",
+    "failed": "Non è stato possibile salvare. Riprova."
   }
 }

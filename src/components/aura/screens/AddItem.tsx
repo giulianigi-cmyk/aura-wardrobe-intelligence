@@ -19,7 +19,8 @@ import { removeBackgroundClient } from "@/lib/bg-removal-client";
 import { analyzeCutoutQuality } from "@/lib/cutout-quality";
 import { removeBackground } from "@/lib/ai-bgremove.functions";
 import { importProductFromUrl, type CompositionEntry } from "@/lib/import-url.functions";
-import { takePendingImportUrl } from "@/lib/pending-import";
+import { takePendingAddLibrary, takePendingImportUrl } from "@/lib/pending-import";
+import { askShareLibrary } from "@/lib/share-library-ask";
 import { listLocations } from "@/lib/wardrobe-locations.functions";
 import { downloadImportImage } from "@/lib/import-image.functions";
 import { searchProductLibrary, browseProductLibrary, type ProductLibraryItem } from "@/lib/product-library";
@@ -562,6 +563,7 @@ export function AddItem({ onClose, initialGarment }: {
 
   // A link handed over by the + sheet ("Incolla un link") or shared to the app: import it right away.
   useEffect(() => {
+    if (takePendingAddLibrary()) { setStep("library"); return; }
     const pending = takePendingImportUrl();
     if (!pending) return;
     setUrlInput(pending);
@@ -977,6 +979,8 @@ export function AddItem({ onClose, initialGarment }: {
       }
       toast.success(t("addItem.toastAddedToCloset"));
       void syncMySharedLibrary().catch(() => {});
+      // Just took a piece someone shared: the moment to ask whether to share theirs too.
+      askShareLibrary(fromSharedRef.current ? "found" : "added");
       // Fire-and-forget, same as syncMySharedLibrary above — the wardrobe
       // save itself is already done and confirmed to the person; a
       // visual embedding is a background enhancement to future

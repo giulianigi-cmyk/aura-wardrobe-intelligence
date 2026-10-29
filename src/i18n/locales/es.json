@@ -1836,6 +1836,10 @@
     "profilePhotoHint": "Opcional — pero un retrato ayuda a personalizar tu análisis de color más adelante. No es una foto de una prenda para el armario.",
     "shareLibraryLabel": "Compartir mi armario en la biblioteca común",
     "shareLibraryDetail": "Tus prendas — marca, precio, etiquetas y foto — se vuelven visibles y reutilizables por otros miembros, de forma anónima: nadie sabrá que vienen de ti. Los datos personales (tu nombre, con qué frecuencia usas las cosas, dónde las guardas) nunca se comparten. Puedes desactivarlo en cualquier momento desde tu perfil; las prendas que otros ya importaron permanecen en su propio armario.",
+    "shareLibraryTitle": "Ayuda a la biblioteca {{appName}}",
+    "shareLibraryPitch": "Cuantas más prendas tenga, más fácil es para todos encontrar la suya ya lista, con foto y detalles: basta con buscarla y tocarla. También para ti.",
+    "shareLibraryYes": "Sí, comparto",
+    "shareLibraryNo": "No, gracias",
     "back": "Atrás",
     "enterAura": "Entrar en {{appName}}",
     "continue": "Continuar"
@@ -2582,6 +2586,8 @@
     },
     "addMany": "Varias fotos",
     "addOne": "Una prenda",
+    "library": "Buscar en la biblioteca {{appName}}",
+    "libraryHint": "Muchas prendas ya están allí, con foto y detalles: busca la marca o el modelo, tócala y ya está en tu armario.",
     "tip": "Consejo: fotografía las prendas extendidas sobre un fondo claro, una por foto. El fondo lo quitamos nosotros."
   },
   "tour": {
@@ -2809,5 +2815,16 @@
     "optDryCleaner": "A la tintorería",
     "optDryCleanerHint": "Te recordamos recogerla a los 7 días",
     "toDryCleanerShort": "Tintorería"
+  },
+  "shareAsk": {
+    "titleAdded": "¿Compartes tus prendas en la biblioteca?",
+    "bodyAdded": "En la biblioteca otros encuentran ya listas las prendas que tienes, con foto y detalles, y tú encuentras las suyas. Cuantas más prendas haya, más útil es para todos, también para ti.",
+    "title": "Has encontrado tu prenda en la biblioteca",
+    "body": "Estaba ahí porque alguien la compartió. ¿Quieres hacer lo mismo con tus prendas? Así la biblioteca crece y la próxima vez encontrarás aún más.",
+    "detail": "Las fotos de producto, la marca y los detalles de tus prendas serán visibles para otros de forma anónima: nadie sabrá que vienen de ti. Puedes cambiar de idea cuando quieras en Ajustes › Privacidad.",
+    "yes": "Sí, comparto",
+    "notNow": "Ahora no",
+    "thanks": "¡Gracias! Tus prendas entran en la biblioteca.",
+    "failed": "No se ha podido guardar. Inténtalo de nuevo."
   }
 }

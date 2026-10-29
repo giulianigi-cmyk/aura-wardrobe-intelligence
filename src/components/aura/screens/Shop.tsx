@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { resolveWardrobeUrls, toStoragePath } from "@/lib/wardrobe-image";
 import { analyzeWardrobeGap, type GapSuggestion } from "@/lib/wardrobe-gap.functions";
+import { gapSignature, readGapCache, writeGapCache } from "@/lib/gap-cache";
 import { analyzePurchase, comparePurchases, type PurchaseAdvisorResult, type ComparePurchasesResult, type CachedFacts } from "@/lib/purchase-advisor.functions";
 import { findColorByName } from "@/lib/color-palette";
 import { productKey } from "@/lib/wardrobe-feedback";
@@ -193,21 +194,22 @@ export function Shop({ go }: { go: (s: Screen) => void }) {
         setLoading(false);
         return;
       }
-      const res = await analyzeGap({
-        data: {
-          items: items.map((it) => ({
-            id: it.id, category: it.category, subcategory: it.subcategory,
-            colors: it.colors ?? (it.color ? [it.color] : []),
-            style: it.style ? (Array.isArray(it.style) ? it.style : [it.style]) : [],
-            brand: it.brand ?? null,
-            model: (it as { model?: string | null }).model ?? null,
-            details: (it as { details?: string[] | null }).details ?? null,
-            material: it.material ?? null,
-            season: it.season ?? null,
-          })),
-        },
-      });
+      const input = items.map((it) => ({
+        id: it.id, category: it.category, subcategory: it.subcategory,
+        colors: it.colors ?? (it.color ? [it.color] : []),
+        style: it.style ? (Array.isArray(it.style) ? it.style : [it.style]) : [],
+        brand: it.brand ?? null,
+        model: (it as { model?: string | null }).model ?? null,
+        details: (it as { details?: string[] | null }).details ?? null,
+        material: it.material ?? null,
+        season: it.season ?? null,
+      }));
+      // Same wardrobe as last time: the suggestion already worked out is shown again (gap-cache.ts).
+      const sig = gapSignature(input);
+      const kept = gapRefresh === 0 ? readGapCache<GapSuggestion>(user.id, sig) : null;
+      const res = kept ? { ok: true as const, suggestion: kept } : await analyzeGap({ data: { items: input } });
       if (res.ok) {
+        if (!kept) writeGapCache(user.id, sig, res.suggestion);
         setSuggestion(res.suggestion);
         const matching = items.filter((it) => res.suggestion.pairsWithIds.includes(it.id));
         setSigned(await resolveWardrobeUrls(matching));

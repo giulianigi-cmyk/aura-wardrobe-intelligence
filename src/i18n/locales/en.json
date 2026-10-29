@@ -1836,6 +1836,10 @@
     "profilePhotoHint": "Optional — but a portrait helps personalize your color analysis later. This is not a wardrobe item photo.",
     "shareLibraryLabel": "Share my wardrobe in the common library",
     "shareLibraryDetail": "Your pieces — brand, price, tags and photo — become visible and reusable by other members, anonymously: nobody will know they came from you. Personal data (your name, how often you wear things, where you keep them) is never shared. You can turn this off at any time in your profile; pieces others already imported stay in their own closet.",
+    "shareLibraryTitle": "Help the {{appName}} library",
+    "shareLibraryPitch": "The more pieces it has, the easier it is for everyone to find theirs ready-made, with photo and details: just search and tap. That goes for you too.",
+    "shareLibraryYes": "Yes, I'll share",
+    "shareLibraryNo": "No, thanks",
     "back": "Back",
     "enterAura": "Enter {{appName}}",
     "continue": "Continue"
@@ -2582,6 +2586,8 @@
     },
     "addMany": "Several photos",
     "addOne": "One piece",
+    "library": "Search the {{appName}} Library",
+    "libraryHint": "Many pieces are already there, with photo and details: search the brand or model, tap it and it's in your wardrobe.",
     "tip": "Tip: photograph pieces laid flat on a light background, one per photo. We remove the background."
   },
   "tour": {
@@ -2809,5 +2815,16 @@
     "optDryCleaner": "To the dry cleaner",
     "optDryCleanerHint": "We remind you to collect it after 7 days",
     "toDryCleanerShort": "Dry cleaner"
+  },
+  "shareAsk": {
+    "titleAdded": "Share your pieces in the library?",
+    "bodyAdded": "In the library others find the pieces you own ready-made, with photo and details, and you find theirs. The more pieces it has, the more useful it is for everyone, you included.",
+    "title": "You found your piece in the library",
+    "body": "It was there because someone shared it. Would you like to do the same with your pieces? The library grows and next time you'll find even more.",
+    "detail": "The product photos, brand and details of your pieces become visible to others anonymously: nobody will know they come from you. You can change your mind any time in Settings › Privacy.",
+    "yes": "Yes, I'll share",
+    "notNow": "Not now",
+    "thanks": "Thank you! Your pieces are going into the library.",
+    "failed": "Couldn't save. Please try again."
   }
 }
