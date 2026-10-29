@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 import { Sparkles, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { track } from "@/lib/telemetry-client";
-import { newsText, nextNews, type FeatureNews } from "@/lib/feature-news";
+import { newsCardAllowed, newsText, nextNews, type FeatureNews } from "@/lib/feature-news";
+import { usedNews } from "@/lib/feature-news-usage";
 import type { Screen } from "./AuraApp";
 
 const GUIDE_ARTICLE_KEY = "aura.guideArticle";
@@ -24,19 +25,15 @@ export function FeatureNewsSheet({ user, screen, go }: {
     if (screen !== "home" || checkedRef.current) return;
     checkedRef.current = true;
     const told = new Set(Array.isArray(user.user_metadata?.news_seen) ? (user.user_metadata!.news_seen as string[]) : []);
-    // Nothing to tell an account created after the newest feature: the tour covers it.
-    if (!nextNews({ signedUpAt: user.created_at, told, used: new Set() })) return;
+    // Not in the first days (the tour comes first), at most one card every few days.
+    const lastShown = typeof user.user_metadata?.news_last_shown === "string" ? (user.user_metadata.news_last_shown as string) : null;
+    if (!newsCardAllowed({ signedUpAt: user.created_at, lastShown, now: new Date() })) return;
+    if (!nextNews({ told, used: new Set() })) return;
     let alive = true;
     const timer = setTimeout(() => {
       void (async () => {
-        const [wish, compare] = await Promise.all([
-          supabase.from("wishlist_items").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-          supabase.from("ai_usage_ledger").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("feature", "advisor_compare"),
-        ]);
-        const used = new Set<string>();
-        if ((wish.count ?? 0) > 0) used.add("wishlist");
-        if ((compare.count ?? 0) > 0) used.add("compare");
-        const n = nextNews({ signedUpAt: user.created_at, told, used });
+        const used = await usedNews(supabase, user.id);
+        const n = nextNews({ told, used });
         if (alive && n) { setNews(n); track("flow_step", { feature: "news", step: `shown_${n.id}` }); }
       })().catch(() => { /* told another time */ });
     }, 1500);
@@ -49,7 +46,7 @@ export function FeatureNewsSheet({ user, screen, go }: {
   const close = (step: "try" | "guide" | "dismiss") => {
     track("flow_step", { feature: "news", step: `${step}_${news.id}` });
     const seen = Array.isArray(user.user_metadata?.news_seen) ? (user.user_metadata!.news_seen as string[]) : [];
-    void supabase.auth.updateUser({ data: { news_seen: [...new Set([...seen, news.id])] } });
+    void supabase.auth.updateUser({ data: { news_seen: [...new Set([...seen, news.id])], news_last_shown: new Date().toISOString() } });
     setNews(null);
     if (step === "try") go(news.open);
     if (step === "guide") {
