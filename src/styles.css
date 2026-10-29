@@ -207,3 +207,16 @@ html:lang(zh) em,
 html:lang(zh) i {
   font-style: normal;
 }
+
+/* iPhone: a date field keeps its own minimum width and ignores w-full, so it ran past the edge of
+   sheets (e.g. «Aggiungi al calendario»). Without the native look it fits its box like other fields;
+   tapping it still opens the system date picker. */
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+}
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
