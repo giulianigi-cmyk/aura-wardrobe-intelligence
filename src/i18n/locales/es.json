@@ -114,8 +114,8 @@
     "notifWeatherChangeSub": "Cuando cambia el pronóstico para un día en el que ya has planificado un outfit",
     "notifSeasonChange": "Cambio de armario",
     "notifSeasonChangeSub": "Como mucho un par de veces al año, con el look de la mañana, cuando cambian las temperaturas y hay prendas que mover",
-    "notifLaundry": "Tintorería y préstamos",
-    "notifLaundrySub": "Con el look de la mañana: prendas por recoger en la tintorería a los 7 días y prestadas a los 14",
+    "notifLaundry": "Colada, tintorería y préstamos",
+    "notifLaundrySub": "Con el look de la mañana: prendas quizá para lavar, prendas por recoger en la tintorería a los 7 días y prestadas a los 14",
     "notifNews": "Novedades de {{appName}}",
     "notifNewsSub": "Cuando llega una función nueva que aún no has probado. Como mucho una vez a la semana.",
     "notifSystem": "Actualizaciones del sistema",
@@ -2834,6 +2834,22 @@
     "done": "Listo: el look del día llega cada mañana a las {{time}}",
     "gotIt": "Entendido",
     "installStep3": "abre {{appName}} desde el icono: activa las notificaciones en Ajustes › Notificaciones."
+  },
+  "laundryDue": {
+    "title": "Quizá para lavar",
+    "intro": "Prendas que has llevado suficientes veces, según la temperatura de esos días: con calor se lavan antes.",
+    "banner_one": "Una prenda quizá para lavar",
+    "banner_other": "{{count}} prendas quizá para lavar",
+    "worn_one": "Usada 1 vez",
+    "worn_other": "Usada {{count}} veces",
+    "wornAt_one": "1 vez · la última a {{temp}}°",
+    "wornAt_other": "{{count}} veces · la última a {{temp}}°",
+    "toBasket": "Al cesto ({{count}})",
+    "stillClean": "Aún limpias",
+    "stillCleanToast_one": "De acuerdo, te lo volveremos a preguntar tras el próximo uso",
+    "stillCleanToast_other": "De acuerdo, te lo volveremos a preguntar tras el próximo uso",
+    "none": "Nada que lavar por ahora.",
+    "how": "Contamos los usos desde el último lavado. Por ejemplo: camiseta 1 vez con calor, 2 con frío; vaqueros 3 y 5; jersey de lana 5. Chaquetas, zapatos y accesorios no se cuentan; la ropa deportiva va sola al cesto."
   },
   "shareAsk": {
     "titleAdded": "¿Compartes tus prendas en la biblioteca?",

@@ -335,6 +335,11 @@ function Inner() {
         setScreen("wardrobe");
         window.dispatchEvent(new Event("aura:open-season-change")); // Wardrobe already on screen
 
+      } else if (params.get("open") === "laundry-due") {
+        // «Forse da lavare»: Wardrobe opens on the pieces to wash.
+        try { sessionStorage.setItem("aura.openLaundryDue", "1"); } catch { /* storage unavailable */ }
+        setScreen("wardrobe");
+        window.dispatchEvent(new Event("aura:open-laundry-due"));
       } else if ((NEWS_SCREENS as readonly string[]).includes(params.get("open") ?? "") && params.get("open") !== "wardrobe") {
         setScreen(params.get("open") as Screen); // a «Novità» notification (feature-news.ts)
       } else if (params.get("open") === "wardrobe") {

@@ -114,8 +114,8 @@
     "notifWeatherChangeSub": "Quand les prévisions changent pour un jour où vous avez déjà planifié une tenue",
     "notifSeasonChange": "Rangement saisonnier",
     "notifSeasonChangeSub": "Au plus deux fois par an, avec le look du matin, quand les températures changent et qu'il y a des pièces à déplacer",
-    "notifLaundry": "Pressing et prêts",
-    "notifLaundrySub": "Avec le look du matin : pièces à récupérer au pressing après 7 jours et pièces prêtées après 14",
+    "notifLaundry": "Linge, pressing et prêts",
+    "notifLaundrySub": "Avec le look du matin : pièces peut-être à laver, pièces à récupérer au pressing après 7 jours et pièces prêtées après 14",
     "notifNews": "Nouveautés de {{appName}}",
     "notifNewsSub": "Quand une nouvelle fonction arrive et que vous ne l'avez pas encore essayée. Au plus une fois par semaine.",
     "notifSystem": "Mises à jour du système",
@@ -2834,6 +2834,22 @@
     "done": "C'est fait : le look du jour arrive chaque matin à {{time}}",
     "gotIt": "Compris",
     "installStep3": "ouvrez {{appName}} depuis l'icône : activez les notifications dans Paramètres › Notifications."
+  },
+  "laundryDue": {
+    "title": "Peut-être à laver",
+    "intro": "Les pièces portées assez de fois, selon la température de ces jours-là : par temps chaud, on les lave plus tôt.",
+    "banner_one": "Une pièce peut-être à laver",
+    "banner_other": "{{count}} pièces peut-être à laver",
+    "worn_one": "Portée 1 fois",
+    "worn_other": "Portée {{count}} fois",
+    "wornAt_one": "1 fois · la dernière à {{temp}}°",
+    "wornAt_other": "{{count}} fois · la dernière à {{temp}}°",
+    "toBasket": "Au panier ({{count}})",
+    "stillClean": "Encore propres",
+    "stillCleanToast_one": "D'accord, nous redemanderons après la prochaine utilisation",
+    "stillCleanToast_other": "D'accord, nous redemanderons après la prochaine utilisation",
+    "none": "Rien à laver pour l'instant.",
+    "how": "Nous comptons les utilisations depuis le dernier lavage. Par exemple : t-shirt 1 fois quand il fait chaud, 2 quand il fait froid ; jean 3 et 5 ; pull en laine 5. Vestes, chaussures et accessoires ne sont pas comptés ; les vêtements de sport vont au panier tout seuls."
   },
   "shareAsk": {
     "titleAdded": "Partager vos pièces dans la bibliothèque ?",

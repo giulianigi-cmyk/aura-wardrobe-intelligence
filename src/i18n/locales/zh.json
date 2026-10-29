@@ -114,8 +114,8 @@
     "notifWeatherChangeSub": "当你已规划穿搭的日子天气预报发生变化时",
     "notifSeasonChange": "换季收纳",
     "notifSeasonChangeSub": "每年最多一两次，随早安造型发送：气温变化且有单品需要移入或取出换季收纳时",
-    "notifLaundry": "干洗店和借出",
-    "notifLaundrySub": "随早安造型发送：干洗 7 天后提醒取回，借出 14 天后提醒",
+    "notifLaundry": "洗衣、干洗和借出",
+    "notifLaundrySub": "随早安造型发送：可能需要洗的单品、干洗 7 天后提醒取回、借出 14 天后提醒",
     "notifNews": "{{appName}} 新功能",
     "notifNewsSub": "有你还没试过的新功能时通知你。每周最多一次。",
     "notifSystem": "系统更新",
@@ -2834,6 +2834,22 @@
     "done": "已开启：每天早上 {{time}} 收到当日搭配",
     "gotIt": "知道了",
     "installStep3": "从图标打开 {{appName}}：在 设置 › 通知 中开启通知。"
+  },
+  "laundryDue": {
+    "title": "可能需要洗了",
+    "intro": "根据穿着当天的气温，这些单品已经穿了足够多次：天热时需要更早清洗。",
+    "banner_one": "1 件单品可能需要洗了",
+    "banner_other": "{{count}} 件单品可能需要洗了",
+    "worn_one": "穿过 1 次",
+    "worn_other": "穿过 {{count}} 次",
+    "wornAt_one": "1 次 · 最近一次 {{temp}}°",
+    "wornAt_other": "{{count}} 次 · 最近一次 {{temp}}°",
+    "toBasket": "放进洗衣篮（{{count}}）",
+    "stillClean": "还很干净",
+    "stillCleanToast_one": "好的，下次穿后再提醒你",
+    "stillCleanToast_other": "好的，下次穿后再提醒你",
+    "none": "暂时没有需要洗的单品。",
+    "how": "我们从上次清洗开始计算穿着次数。例如：T 恤天热穿 1 次、天冷穿 2 次；牛仔裤 3 次和 5 次；羊毛毛衣 5 次。外套、鞋子和配饰不计算；运动服穿后会自动放进洗衣篮。"
   },
   "shareAsk": {
     "titleAdded": "要把你的单品分享到单品库吗？",

@@ -6,7 +6,7 @@ import { isShoeCategory, sizeEquivalences } from "@/lib/size-conversion";
 import { MaterialCombobox } from "@/components/aura/MaterialCombobox";
 import { AddSourceSheet } from "@/components/aura/AddSourceSheet";
 
-import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown, Package, PackageOpen, Lightbulb, Tag, WashingMachine, Shirt, MoreHorizontal } from "lucide-react";
+import { Plus, Filter, Search, Loader2, Trash2, X, Pencil, Wand2, Archive, ArchiveRestore, Check, Users, Sparkles, ArrowUpDown, Package, PackageOpen, Lightbulb, Tag, WashingMachine, Shirt, MoreHorizontal, Droplets } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { migrateLegacyTaxonomy } from "@/lib/migrate-legacy-taxonomy.functions";
@@ -67,6 +67,10 @@ import { logsWear, sellReason, type SellCheckable, type SellReason } from "@/lib
 import { DetailSection } from "@/components/aura/DetailSection";
 import { careProfileFor, laundryTextFor } from "@/lib/laundry-care";
 import { SeasonChangeSheet } from "@/components/aura/SeasonChangeSheet";
+import { LaundryDueSheet } from "@/components/aura/LaundryDueSheet";
+import { getLaundryDue } from "@/lib/laundry-due.functions";
+import type { LaundryDuePiece } from "@/lib/laundry-due-data";
+import { logWardrobeEvent } from "@/lib/wardrobe-events";
 import { FastScroller } from "@/components/aura/FastScroller";
 import type { WardrobeLocation } from "@/lib/wardrobe-location";
 import i18n from "@/i18n/config";
@@ -145,6 +149,20 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
   const [storageTipsOpen, setStorageTipsOpen] = useState(false);
   const [laundryOpen, setLaundryOpen] = useState(false);
   const [seasonChangeOpen, setSeasonChangeOpen] = useState(false);
+  const [laundryDueOpen, setLaundryDueOpen] = useState(false);
+  // Opened from the «Forse da lavare» notification.
+  useEffect(() => {
+    const open = () => {
+      try {
+        if (sessionStorage.getItem("aura.openLaundryDue") !== "1") return;
+        sessionStorage.removeItem("aura.openLaundryDue");
+      } catch { return; /* storage unavailable */ }
+      setLaundryDueOpen(true);
+    };
+    open();
+    window.addEventListener("aura:open-laundry-due", open);
+    return () => window.removeEventListener("aura:open-laundry-due", open);
+  }, []);
   // Opened from the season-change notification (AuraApp sets the flag before showing Wardrobe).
   useEffect(() => {
     const open = () => {
@@ -701,12 +719,37 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
   const basketCount = items.filter((it) => it.laundry_kind === "basket" && isInLaundry(it)).length;
   const dryCleanerCount = items.filter((it) => it.laundry_kind === "dry_cleaner" && isInLaundry(it)).length;
   const dryCleanerDueCount = items.filter((it) => dryCleanerOverdue(it)).length;
+  // «Forse da lavare» (laundry-due.ts): worn enough times for the temperature of those days.
+  const fetchLaundryDue = useServerFn(getLaundryDue);
+  const [laundryDue, setLaundryDue] = useState<LaundryDuePiece[]>([]);
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    fetchLaundryDue().then((r) => { if (!cancelled) setLaundryDue(r); }).catch((e) => console.warn("[AURA laundry] due pieces not read", e));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+  const stillClean = async (ids: string[]) => {
+    if (!user?.id) return;
+    const today = new Date();
+    const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const r = await logWardrobeEvent({ userId: user.id, eventType: "laundry_ok", date, itemIds: ids });
+    if (r.error) { toast.error(r.error); return; }
+    setLaundryDue((prev) => prev.filter((d) => !ids.includes(d.id)));
+    toast.message(t("laundryDue.stillCleanToast", { count: ids.length }));
+  };
   const setLaundry = async (ids: string[], kind: LaundryKind | null) => {
     if (!ids.length) return;
     const since = kind ? new Date().toISOString() : null;
     const { error } = await (supabase.from("wardrobe_items" as never) as any)
       .update({ laundry_since: since, laundry_kind: kind }).in("id", ids);
     if (error) { toast.error(error.message); return; }
+    // The wash, remembered: «Forse da lavare» counts the wears from here (laundry-due.ts).
+    if (kind && user?.id) {
+      void logWardrobeEvent({ userId: user.id, eventType: kind === "basket" ? "cleaned" : "dry_cleaned", date: since!.slice(0, 10), itemIds: ids })
+        .then((r) => { if (r.error) console.error("[AURA laundry] wash not logged", r.error); });
+    }
+    setLaundryDue((prev) => prev.filter((d) => !ids.includes(d.id)));
     const idSet = new Set(ids);
     setItems((prev) => prev.map((it) => (idSet.has(it.id) ? { ...it, laundry_since: since, laundry_kind: kind } as WardrobeItem : it)));
     setDetail((d) => (d && idSet.has(d.id) ? ({ ...d, laundry_since: since, laundry_kind: kind } as WardrobeItem) : d));
@@ -1085,6 +1128,14 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
           <span className="text-muted-foreground">›</span>
         </button>
       )}
+      {!gapFilter && laundryDue.length > 0 && (
+        <button onClick={() => setLaundryDueOpen(true)}
+          className="mx-6 mt-3 w-[calc(100%-3rem)] flex items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-left text-[12px] active:scale-[0.99]">
+          <Droplets size={14} className="shrink-0" />
+          <span className="flex-1">{t("laundryDue.banner", { count: laundryDue.length })}</span>
+          <span className="text-muted-foreground">›</span>
+        </button>
+      )}
       {!gapFilter && loanReminders.map((loan) => {
         const it = items.find((x) => x.id === loan.item_id);
         const piece = it ? garmentWithColor((it as unknown as { subcategory?: string | null }).subcategory || it.category || "", it.colors?.[0] ?? null, i18n.language) : "";
@@ -1270,6 +1321,16 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
           />
         );
       })()}
+      {laundryDueOpen && (
+        <LaundryDueSheet
+          due={laundryDue}
+          items={items}
+          signed={signed}
+          onBasket={async (ids) => { await setLaundry(ids, "basket"); if (laundryDue.every((d) => ids.includes(d.id))) setLaundryDueOpen(false); }}
+          onStillClean={async (ids) => { await stillClean(ids); if (laundryDue.every((d) => ids.includes(d.id))) setLaundryDueOpen(false); }}
+          onClose={() => setLaundryDueOpen(false)}
+        />
+      )}
       {seasonChangeOpen && (
         <SeasonChangeSheet
           items={items}
