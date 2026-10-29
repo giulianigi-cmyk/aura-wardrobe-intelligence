@@ -2582,6 +2582,8 @@
     },
     "addMany": "Più foto insieme",
     "addOne": "Un capo",
+    "library": "Cerca nella libreria {{appName}}",
+    "libraryHint": "Molti capi sono già lì, con foto e dettagli: cerca marca o modello, toccalo ed è nel tuo guardaroba.",
     "tip": "Consiglio: fotografa i capi stesi su un fondo chiaro, uno per foto. Lo sfondo lo togliamo noi."
   },
   "tour": {

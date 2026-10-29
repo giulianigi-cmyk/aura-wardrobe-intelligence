@@ -2582,6 +2582,8 @@
     },
     "addMany": "Plusieurs photos",
     "addOne": "Une pièce",
+    "library": "Rechercher dans la bibliothèque {{appName}}",
+    "libraryHint": "Beaucoup de pièces y sont déjà, avec photo et détails : cherchez la marque ou le modèle, touchez-la et elle est dans votre garde-robe.",
     "tip": "Conseil : photographiez les pièces à plat sur un fond clair, une par photo. Nous retirons le fond."
   },
   "tour": {

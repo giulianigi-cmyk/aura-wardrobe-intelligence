@@ -2582,6 +2582,8 @@
     },
     "addMany": "Several photos",
     "addOne": "One piece",
+    "library": "Search the {{appName}} Library",
+    "libraryHint": "Many pieces are already there, with photo and details: search the brand or model, tap it and it's in your wardrobe.",
     "tip": "Tip: photograph pieces laid flat on a light background, one per photo. We remove the background."
   },
   "tour": {

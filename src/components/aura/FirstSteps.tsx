@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { Camera, Check, Images } from "lucide-react";
+import { Camera, Check, Images, Search } from "lucide-react";
+import { setPendingAddLibrary } from "@/lib/pending-import";
 import type { Screen } from "./AuraApp";
 import { FIRST_LOOK_MIN, FIRST_STEPS_TARGET, starterProgress } from "@/lib/first-steps";
 import { track } from "@/lib/telemetry-client";
@@ -12,9 +13,10 @@ export function FirstSteps({ items, go }: { items: { category: string | null }[]
   const { profile } = useProfile();
   const p = starterProgress(items, profile?.gender);
   const pct = Math.min(100, (p.total / FIRST_STEPS_TARGET) * 100);
-  const open = (to: "batch-scan" | "add") => {
-    track("flow_step", { feature: "first_steps", step: to === "add" ? "add_one" : "add_batch", count: p.total });
-    go(to);
+  const open = (to: "batch-scan" | "add" | "library") => {
+    track("flow_step", { feature: "first_steps", step: to === "add" ? "add_one" : to === "library" ? "library" : "add_batch", count: p.total });
+    if (to === "library") setPendingAddLibrary();
+    go(to === "library" ? "add" : to);
   };
   return (
     <section className="px-6 mt-6 animate-fade-up" aria-labelledby="first-steps-title" data-tour="first-steps">
@@ -55,6 +57,14 @@ export function FirstSteps({ items, go }: { items: { category: string | null }[]
             <Camera size={13} /> {t("firstSteps.addOne")}
           </button>
         </div>
+        {/* The quickest start: a piece someone already added, with its photo and details ready. */}
+        <button onClick={() => open("library")} className="mt-2 w-full rounded-2xl bg-secondary/50 px-4 py-3 text-left flex items-center gap-3 active:scale-[0.99]">
+          <Search size={15} className="shrink-0" />
+          <span className="min-w-0">
+            <span className="block text-[11px] uppercase tracking-[0.2em]">{t("firstSteps.library")}</span>
+            <span className="block text-[11px] text-muted-foreground leading-snug mt-0.5">{t("firstSteps.libraryHint")}</span>
+          </span>
+        </button>
         <p className="mt-3 text-[11px] text-muted-foreground leading-relaxed">{t("firstSteps.tip")}</p>
       </div>
     </section>

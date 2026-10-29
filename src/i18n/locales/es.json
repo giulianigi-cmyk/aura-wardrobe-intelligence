@@ -2582,6 +2582,8 @@
     },
     "addMany": "Varias fotos",
     "addOne": "Una prenda",
+    "library": "Buscar en la biblioteca {{appName}}",
+    "libraryHint": "Muchas prendas ya están allí, con foto y detalles: busca la marca o el modelo, tócala y ya está en tu armario.",
     "tip": "Consejo: fotografía las prendas extendidas sobre un fondo claro, una por foto. El fondo lo quitamos nosotros."
   },
   "tour": {

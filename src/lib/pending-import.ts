@@ -13,6 +13,24 @@ export function setPendingImportUrl(url: string): void {
   try { sessionStorage.setItem(KEY, url); } catch { /* storage unavailable: the screen just opens empty */ }
 }
 
+// The add-a-piece screen opened straight on the shared library ("Primi passi").
+const STEP_KEY = "aura.pendingAddStep";
+
+export function setPendingAddLibrary(): void {
+  try { sessionStorage.setItem(STEP_KEY, "library"); } catch { /* the screen just opens on the camera */ }
+}
+
+/** Reads and clears the request to open on the library. */
+export function takePendingAddLibrary(): boolean {
+  try {
+    const v = sessionStorage.getItem(STEP_KEY);
+    if (v) sessionStorage.removeItem(STEP_KEY);
+    return v === "library";
+  } catch {
+    return false;
+  }
+}
+
 /** Reads and clears the pending link. */
 export function takePendingImportUrl(): string | null {
   try {
