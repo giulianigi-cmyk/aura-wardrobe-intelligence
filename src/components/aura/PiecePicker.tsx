@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n/config";
 import { garmentWithColor } from "@/lib/garment-names";
@@ -10,6 +10,8 @@ import { ITEM_CATEGORIES } from "@/lib/wardrobe-options";
 import { thumbSrc, toStoragePath } from "@/lib/wardrobe-image";
 import { listLocations } from "@/lib/wardrobe-locations.functions";
 import type { WardrobeLocation } from "@/lib/wardrobe-location";
+
+const PICKER_PAGE = 40;
 
 /**
  * Shared piece picker — the single Closet-style grid used everywhere the
@@ -57,6 +59,22 @@ export function PiecePicker({
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Shown a page at a time, the next page when the end of the grid comes into view: a wardrobe of
+  // hundreds of pieces drawn all at once (every photo decoded) is what made Safari on iPhone reload
+  // the canvas editor when the picker was opened for the second piece (reported).
+  const [shownCount, setShownCount] = useState(PICKER_PAGE);
+  const moreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { setShownCount(PICKER_PAGE); }, [q, cat, locId]);
+  useEffect(() => {
+    const el = moreRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) setShownCount((n) => n + PICKER_PAGE);
+    }, { rootMargin: "400px" });
+    io.observe(el);
+    return () => io.disconnect();
+  });
 
   const visible = useMemo(() => {
     // Every word must match brand, model, type, colour, material…; words in any language are
@@ -123,7 +141,7 @@ export function PiecePicker({
         </p>
       ) : (
         <div className={`mt-4 grid ${columns === 3 ? "grid-cols-3 gap-x-2 gap-y-4" : "grid-cols-2 gap-x-3 gap-y-5"}`}>
-          {visible.map((it) => {
+          {visible.slice(0, shownCount).map((it) => {
             const src = thumbSrc(it, signed) || (toStoragePath(it.image_url) ? signed[toStoragePath(it.image_url)!] ?? "" : "");
             const on = selectedIds.includes(it.id);
             const label = it.colors?.[0] ?? it.color ?? it.category ?? t("wardrobe.wardrobePieceFallback");
@@ -155,6 +173,7 @@ export function PiecePicker({
           })}
         </div>
       )}
+      {!loading && visible.length > shownCount && <div ref={moreRef} className="h-10" aria-hidden />}
     </div>
   );
 }
