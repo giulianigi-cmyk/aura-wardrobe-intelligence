@@ -2784,14 +2784,8 @@
     "daysAgo_one": "depuis 1 jour",
     "daysAgo_other": "depuis {{count}} jours",
     "basketTitle": "Panier à linge",
-    "basketIntro": "Triées par machine. Une fois lavées, touchez « Lavées » ; si vous oubliez, elles reviennent seules dans la garde-robe après 10 jours.",
+    "basketIntro": "Une fois lavées, touchez « Lavées » ; si vous oubliez, elles reviennent seules dans la garde-robe après 10 jours.",
     "basketEmpty": "Le panier est vide.",
-    "groups": {
-      "whites": "Blancs",
-      "darks": "Noirs et foncés",
-      "colors": "Couleurs",
-      "delicates": "Délicats"
-    },
     "washedAll": "Lavées",
     "washed": "Lavée",
     "dryCleanerTitle": "Pressing",

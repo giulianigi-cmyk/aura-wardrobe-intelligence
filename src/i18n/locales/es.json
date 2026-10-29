@@ -2784,14 +2784,8 @@
     "daysAgo_one": "desde hace 1 día",
     "daysAgo_other": "desde hace {{count}} días",
     "basketTitle": "Cesto de la ropa",
-    "basketIntro": "Separadas por lavadora. Cuando las laves toca «Lavadas»; si se te olvida, a los 10 días vuelven solas al armario.",
+    "basketIntro": "Cuando las laves toca «Lavadas»; si se te olvida, a los 10 días vuelven solas al armario.",
     "basketEmpty": "El cesto está vacío.",
-    "groups": {
-      "whites": "Blancos",
-      "darks": "Negros y oscuros",
-      "colors": "Colores",
-      "delicates": "Delicados"
-    },
     "washedAll": "Lavadas",
     "washed": "Lavada",
     "dryCleanerTitle": "Tintorería",

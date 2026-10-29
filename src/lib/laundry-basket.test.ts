@@ -1,7 +1,7 @@
 // Run with: bun test src/lib/laundry-basket.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { basketExpired, dryCleanerOverdue, dryCleanerPushDay, isInLaundry, isSportPiece, loanPushDay, loanReminderDue, washGroup } from "./laundry-basket";
+import { basketExpired, dryCleanerOverdue, dryCleanerPushDay, isInLaundry, isSportPiece, loanPushDay, loanReminderDue } from "./laundry-basket";
 
 const now = Date.parse("2026-11-20T08:00:00Z");
 const daysAgo = (d: number) => new Date(now - d * 86_400_000).toISOString();
@@ -33,12 +33,8 @@ test("a loan is asked about 14 days after it, then 14 days after each 'still has
   assert.equal(loanReminderDue({ loaned_at: daysAgo(30), returned_at: daysAgo(1) }, now), false);
 });
 
-test("sport pieces and wash groups", () => {
+test("sport pieces", () => {
   assert.equal(isSportPiece({ category: "Activewear" }), true);
   assert.equal(isSportPiece({ category: "Tops", occasion: "Sport, Gym" }), true);
   assert.equal(isSportPiece({ category: "Tops", occasion: "Sport, Weekend" }), false);
-  assert.equal(washGroup({ category: "Tops", colors: ["White"], material: ["Cotton"] }), "whites");
-  assert.equal(washGroup({ category: "Bottoms", colors: ["Jet Black"], material: ["Denim"] }), "darks");
-  assert.equal(washGroup({ category: "Tops", colors: ["Cherry Red"], material: ["Cotton"] }), "colors");
-  assert.equal(washGroup({ category: "Tops", colors: ["White"], material: ["Silk"] }), "delicates");
 });

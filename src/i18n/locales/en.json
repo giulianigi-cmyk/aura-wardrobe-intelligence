@@ -2784,14 +2784,8 @@
     "daysAgo_one": "for 1 day",
     "daysAgo_other": "for {{count}} days",
     "basketTitle": "Laundry basket",
-    "basketIntro": "Split by machine load. Once washed tap “Washed”; if you forget, after 10 days they go back to the wardrobe on their own.",
+    "basketIntro": "Once washed tap “Washed”; if you forget, after 10 days they go back to the wardrobe on their own.",
     "basketEmpty": "The basket is empty.",
-    "groups": {
-      "whites": "Whites",
-      "darks": "Blacks and darks",
-      "colors": "Colours",
-      "delicates": "Delicates"
-    },
     "washedAll": "Washed",
     "washed": "Washed",
     "dryCleanerTitle": "Dry cleaner",
