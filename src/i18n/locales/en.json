@@ -114,8 +114,8 @@
     "notifWeatherChangeSub": "When the forecast changes for a day you've already planned an outfit",
     "notifSeasonChange": "Seasonal storage",
     "notifSeasonChangeSub": "At most a couple of times a year, with the morning look, when temperatures change and there are pieces to move",
-    "notifLaundry": "Dry cleaner and loans",
-    "notifLaundrySub": "With the morning look: pieces to collect from the dry cleaner after 7 days and lent pieces after 14",
+    "notifLaundry": "Laundry, dry cleaner and loans",
+    "notifLaundrySub": "With the morning look: pieces that may need washing, pieces to collect from the dry cleaner after 7 days and lent pieces after 14",
     "notifNews": "What's new in {{appName}}",
     "notifNewsSub": "When a new feature arrives that you haven't tried yet. At most once a week.",
     "notifSystem": "System updates",
@@ -2834,6 +2834,22 @@
     "done": "Done: the day's look arrives every morning at {{time}}",
     "gotIt": "Got it",
     "installStep3": "open {{appName}} from the icon: turn notifications on in Settings › Notifications."
+  },
+  "laundryDue": {
+    "title": "May need washing",
+    "intro": "Pieces you've worn enough times, counting the temperature of those days: in the heat they need washing sooner.",
+    "banner_one": "One piece may need washing",
+    "banner_other": "{{count}} pieces may need washing",
+    "worn_one": "Worn once",
+    "worn_other": "Worn {{count}} times",
+    "wornAt_one": "Once · last at {{temp}}°",
+    "wornAt_other": "{{count}} times · last at {{temp}}°",
+    "toBasket": "To the basket ({{count}})",
+    "stillClean": "Still clean",
+    "stillCleanToast_one": "OK, we'll ask again after the next wear",
+    "stillCleanToast_other": "OK, we'll ask again after the next wear",
+    "none": "Nothing to wash for now.",
+    "how": "We count wears since the last wash. For example: T-shirt once in the heat, twice in the cold; jeans 3 in the heat, 5 in the cold; wool jumper 5. Jackets, shoes and accessories aren't counted; sportswear goes to the basket on its own."
   },
   "shareAsk": {
     "titleAdded": "Share your pieces in the library?",

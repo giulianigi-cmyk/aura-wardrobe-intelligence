@@ -13,7 +13,9 @@ import { normalizeOccasionForFeedback } from "./activity-kind";
 export type WardrobeEventType =
   | "planned" | "worn" | "edited" | "cancelled"
   | "imported" | "purchased" | "sold" | "donated"
-  | "archived" | "cleaned" | "repaired" | "dry_cleaned";
+  | "archived" | "cleaned" | "repaired" | "dry_cleaned"
+  // «Ancora pulito» on a piece «Forse da lavare» (laundry-due.ts): asked again after the next wear.
+  | "laundry_ok";
 
 export type LogWardrobeEventInput = {
   userId: string;
@@ -134,6 +136,7 @@ async function sendSportPiecesToBasket(userId: string, itemIds: string[]): Promi
     const { error } = await (supabase.from("wardrobe_items" as never) as any)
       .update({ laundry_since: new Date().toISOString(), laundry_kind: "basket" }).eq("user_id", userId).in("id", ids);
     if (error) { console.error("[AURA laundry] sport pieces to basket failed", error); return; }
+    void logWardrobeEvent({ userId, eventType: "cleaned", date: new Date().toISOString().slice(0, 10), itemIds: ids });
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(SPORT_TO_BASKET_EVENT, { detail: { ids } }));
   } catch (e) {
     console.error("[AURA laundry] sport pieces to basket failed", e);

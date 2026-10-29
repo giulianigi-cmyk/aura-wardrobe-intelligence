@@ -114,8 +114,8 @@
     "notifWeatherChangeSub": "Quando le previsioni cambiano per un giorno in cui hai già pianificato un outfit",
     "notifSeasonChange": "Cambio stagione",
     "notifSeasonChangeSub": "Al massimo un paio di volte l'anno, con il look del mattino, quando le temperature cambiano e ci sono capi da spostare",
-    "notifLaundry": "Tintoria e prestiti",
-    "notifLaundrySub": "Con il look del mattino: i capi da ritirare in tintoria dopo 7 giorni e quelli prestati dopo 14",
+    "notifLaundry": "Bucato, tintoria e prestiti",
+    "notifLaundrySub": "Con il look del mattino: i capi forse da lavare, quelli da ritirare in tintoria dopo 7 giorni e quelli prestati dopo 14",
     "notifNews": "Novità di {{appName}}",
     "notifNewsSub": "Quando arriva una funzione nuova che non hai ancora provato. Al massimo una volta a settimana.",
     "notifSystem": "Aggiornamenti di sistema",
@@ -2834,6 +2834,22 @@
     "done": "Fatto: il look del giorno arriva ogni mattina alle {{time}}",
     "gotIt": "Ho capito",
     "installStep3": "apri {{appName}} dall'icona: le notifiche si attivano da Impostazioni › Notifiche."
+  },
+  "laundryDue": {
+    "title": "Forse da lavare",
+    "intro": "Capi che hai indossato abbastanza volte, contando la temperatura di quei giorni: con il caldo si lavano prima.",
+    "banner_one": "Un capo forse da lavare",
+    "banner_other": "{{count}} capi forse da lavare",
+    "worn_one": "Indossato 1 volta",
+    "worn_other": "Indossato {{count}} volte",
+    "wornAt_one": "1 volta · ultima a {{temp}}°",
+    "wornAt_other": "{{count}} volte · ultima a {{temp}}°",
+    "toBasket": "Nel cesto ({{count}})",
+    "stillClean": "Ancora puliti",
+    "stillCleanToast_one": "Va bene, te lo richiediamo dopo il prossimo utilizzo",
+    "stillCleanToast_other": "Va bene, te li richiediamo dopo il prossimo utilizzo",
+    "none": "Nessun capo da lavare per ora.",
+    "how": "Contiamo gli utilizzi dall'ultimo lavaggio. Esempi: maglietta 1 volta col caldo, 2 col freddo; jeans 3 col caldo, 5 col freddo; maglione di lana 5. Giacche, scarpe e accessori non li contiamo; i capi sportivi vanno nel cesto da soli."
   },
   "shareAsk": {
     "titleAdded": "Condividi i tuoi capi nella libreria?",
