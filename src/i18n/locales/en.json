@@ -2731,6 +2731,7 @@
     "importedToast": "Details taken from the page: check them",
     "importFailed": "Couldn't read the page: fill it in by hand",
     "photoReady": "Photo ready (tap to change it)",
+    "pickPhoto": "Choose the photo",
     "fieldPhoto": "Photo (optional)",
     "fieldCategory": "Type (optional)",
     "addSave": "Add",

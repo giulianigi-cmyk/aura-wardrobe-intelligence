@@ -2731,6 +2731,7 @@
     "importedToast": "已从页面获取信息：请检查",
     "importFailed": "无法读取页面：请手动填写",
     "photoReady": "照片已就绪（点按可更换）",
+    "pickPhoto": "选择照片",
     "fieldPhoto": "照片（可选）",
     "fieldCategory": "类型（可选）",
     "addSave": "添加",

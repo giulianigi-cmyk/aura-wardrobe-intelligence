@@ -2731,6 +2731,7 @@
     "importedToast": "Datos tomados de la página: revísalos",
     "importFailed": "No se pudo leer la página: rellénalo a mano",
     "photoReady": "Foto lista (toca para cambiarla)",
+    "pickPhoto": "Elige la foto",
     "fieldPhoto": "Foto (opcional)",
     "fieldCategory": "Tipo (opcional)",
     "addSave": "Añadir",
