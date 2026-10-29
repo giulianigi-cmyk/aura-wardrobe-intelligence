@@ -116,6 +116,8 @@
     "notifSeasonChangeSub": "每年最多一两次，随早安造型发送：气温变化且有单品需要移入或取出换季收纳时",
     "notifLaundry": "干洗店和借出",
     "notifLaundrySub": "随早安造型发送：干洗 7 天后提醒取回，借出 14 天后提醒",
+    "notifNews": "{{appName}} 新功能",
+    "notifNewsSub": "有你还没试过的新功能时通知你。每周最多一次。",
     "notifSystem": "系统更新",
     "notifSystemSub": "关于 {{appName}} 的重要公告",
     "sharedLibrary": "共享单品库",
@@ -2832,5 +2834,9 @@
     "notNow": "以后再说",
     "thanks": "谢谢！你的单品将加入单品库。",
     "failed": "无法保存，请重试。"
+  },
+  "featureNews": {
+    "howTo": "如何使用",
+    "tryIt": "试一试"
   }
 }

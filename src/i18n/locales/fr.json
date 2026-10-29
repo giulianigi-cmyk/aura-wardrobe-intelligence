@@ -116,6 +116,8 @@
     "notifSeasonChangeSub": "Au plus deux fois par an, avec le look du matin, quand les températures changent et qu'il y a des pièces à déplacer",
     "notifLaundry": "Pressing et prêts",
     "notifLaundrySub": "Avec le look du matin : pièces à récupérer au pressing après 7 jours et pièces prêtées après 14",
+    "notifNews": "Nouveautés de {{appName}}",
+    "notifNewsSub": "Quand une nouvelle fonction arrive et que vous ne l'avez pas encore essayée. Au plus une fois par semaine.",
     "notifSystem": "Mises à jour du système",
     "notifSystemSub": "Annonces importantes concernant {{appName}}",
     "sharedLibrary": "Bibliothèque partagée",
@@ -2832,5 +2834,9 @@
     "notNow": "Pas maintenant",
     "thanks": "Merci ! Vos pièces entrent dans la bibliothèque.",
     "failed": "Impossible d'enregistrer. Réessayez."
+  },
+  "featureNews": {
+    "howTo": "Comment l'utiliser",
+    "tryIt": "L'essayer"
   }
 }

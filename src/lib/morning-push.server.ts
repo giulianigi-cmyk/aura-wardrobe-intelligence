@@ -15,6 +15,7 @@ import { SEASON_CHANGE_GAP_DAYS, seasonChangeMessage, seasonChangeWorthTelling }
 import { dryCleanerPushDay, loanPushDay } from "./laundry-basket";
 import { laundryReminderMessage } from "./laundry-reminder-message";
 import { garmentWithColor } from "./garment-names";
+import { NEWS_PUSH_TIME, newsPushAllowed, newsText, nextNews } from "./feature-news";
 
 type Candidate = { id: string; language: string | null; latitude: number | null; longitude: number | null; notification_preferences: (MorningPrefs & EventReminderPrefs & { season_change?: boolean; laundry_reminders?: boolean }) | null };
 
@@ -188,4 +189,51 @@ export async function runScheduledPush(now = new Date()): Promise<{ morning: Cou
     }
   }
   return { morning, events };
+}
+
+/** «Novità» by push (feature-news.ts): at 18:30 in the person's time zone, to someone with a device
+ *  who hasn't opened the app for a few days, the newest feature they haven't used and weren't told
+ *  about by push — at most one a week. Off with notification_preferences.feature_news = false. */
+export async function runNewsPush(now = new Date()): Promise<{ checked: number; sent: number; failed: number }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const admin = supabaseAdmin as any;
+  const out = { checked: 0, sent: 0, failed: 0 };
+  const { data: subs } = await admin.from("push_subscriptions").select("user_id");
+  const withDevice = [...new Set(((subs ?? []) as { user_id: string }[]).map((s) => s.user_id))];
+  if (!withDevice.length) return out;
+  const { data: profiles } = await admin.from("profiles").select("id, language, created_at, notification_preferences").in("id", withDevice);
+  const people = ((profiles ?? []) as { id: string; language: string | null; created_at: string; notification_preferences: { feature_news?: boolean } | null }[])
+    .filter((p) => p.notification_preferences?.feature_news !== false);
+  if (!people.length) return out;
+  const { data: plans } = await admin.from("user_plans").select("user_id, time_zone").in("user_id", people.map((p) => p.id));
+  const tzOf = new Map(((plans ?? []) as { user_id: string; time_zone: string | null }[]).map((p) => [p.user_id, p.time_zone]));
+
+  for (const p of people) {
+    const tz = isValidTimeZone(tzOf.get(p.id)) ? tzOf.get(p.id)! : DEFAULT_TIME_ZONE;
+    const clock = localClock(now, tz);
+    if (!isDue(NEWS_PUSH_TIME, clock.minutes)) continue;
+    out.checked++;
+    const [{ data: sentRows }, { data: lastOpenRows }, wish, compare] = await Promise.all([
+      admin.from("push_send_log").select("kind, local_date").eq("user_id", p.id).like("kind", "news_%").order("local_date", { ascending: false }),
+      admin.from("app_events").select("created_at").eq("user_id", p.id).eq("name", "app_open").order("created_at", { ascending: false }).limit(1),
+      admin.from("wishlist_items").select("id", { count: "exact", head: true }).eq("user_id", p.id),
+      admin.from("ai_usage_ledger").select("id", { count: "exact", head: true }).eq("user_id", p.id).eq("feature", "advisor_compare"),
+    ]);
+    const sent = (sentRows ?? []) as { kind: string; local_date: string }[];
+    if (!newsPushAllowed({ lastNewsPush: sent[0]?.local_date ?? null, lastOpen: lastOpenRows?.[0]?.created_at ?? null, today: clock.date, now })) continue;
+    const used = new Set<string>();
+    if ((wish.count ?? 0) > 0) used.add("wishlist");
+    if ((compare.count ?? 0) > 0) used.add("compare");
+    const news = nextNews({ signedUpAt: p.created_at, told: new Set(sent.map((r) => r.kind.slice("news_".length))), used });
+    if (!news) continue;
+    const { data: claimed, error } = await admin.from("push_send_log")
+      .upsert({ user_id: p.id, kind: `news_${news.id}`, local_date: clock.date }, { onConflict: "user_id,kind,local_date", ignoreDuplicates: true })
+      .select("user_id");
+    if (error || !claimed?.length) continue;
+    const tx = newsText(p.language, news.id);
+    const r = await sendPushToUser(p.id, { title: tx.pushTitle, body: tx.pushBody, url: `/?open=${news.open}`, tag: "feature-news" });
+    out.sent += r.sent;
+    out.failed += r.failed;
+  }
+  return out;
 }

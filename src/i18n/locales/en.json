@@ -116,6 +116,8 @@
     "notifSeasonChangeSub": "At most a couple of times a year, with the morning look, when temperatures change and there are pieces to move",
     "notifLaundry": "Dry cleaner and loans",
     "notifLaundrySub": "With the morning look: pieces to collect from the dry cleaner after 7 days and lent pieces after 14",
+    "notifNews": "What's new in {{appName}}",
+    "notifNewsSub": "When a new feature arrives that you haven't tried yet. At most once a week.",
     "notifSystem": "System updates",
     "notifSystemSub": "Important announcements about {{appName}}",
     "sharedLibrary": "Shared library",
@@ -2832,5 +2834,9 @@
     "notNow": "Not now",
     "thanks": "Thank you! Your pieces are going into the library.",
     "failed": "Couldn't save. Please try again."
+  },
+  "featureNews": {
+    "howTo": "How to use it",
+    "tryIt": "Try it"
   }
 }

@@ -116,6 +116,8 @@
     "notifSeasonChangeSub": "Como mucho un par de veces al año, con el look de la mañana, cuando cambian las temperaturas y hay prendas que mover",
     "notifLaundry": "Tintorería y préstamos",
     "notifLaundrySub": "Con el look de la mañana: prendas por recoger en la tintorería a los 7 días y prestadas a los 14",
+    "notifNews": "Novedades de {{appName}}",
+    "notifNewsSub": "Cuando llega una función nueva que aún no has probado. Como mucho una vez a la semana.",
     "notifSystem": "Actualizaciones del sistema",
     "notifSystemSub": "Anuncios importantes sobre {{appName}}",
     "sharedLibrary": "Biblioteca compartida",
@@ -2832,5 +2834,9 @@
     "notNow": "Ahora no",
     "thanks": "¡Gracias! Tus prendas entran en la biblioteca.",
     "failed": "No se ha podido guardar. Inténtalo de nuevo."
+  },
+  "featureNews": {
+    "howTo": "Cómo se usa",
+    "tryIt": "Pruébala"
   }
 }
