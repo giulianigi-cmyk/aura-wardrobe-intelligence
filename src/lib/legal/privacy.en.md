@@ -1,6 +1,6 @@
 # Nimbèa Privacy Policy
 
-*Last updated: 28 October 2026. This is a translation: the Italian version prevails.*
+*Last updated: 29 October 2026. This is a translation: the Italian version prevails.*
 
 This policy explains which personal data the Nimbèa app processes, why, who it is shared with and what your rights are, under Regulation (EU) 2016/679 ("GDPR") and Italian Legislative Decree 196/2003.
 
@@ -55,7 +55,7 @@ Body and face photos are used only to generate the virtual try-on images. We do 
 ## 4. Your optional choices
 
 Beyond what is needed to run the app, you decide, separately and at any time in Settings › Privacy:
-- **News and offers by email:** we write to you about new features, tips and Nimbèa offers. Off until you switch it on.
+- **News and offers by email:** we write to you about new features, tips and Nimbèa offers. Off until you switch it on. Our emails contain no tracking pixels or other tools that detect whether, when or where you open them or what you tap.
 - **Partner offers:** we share with selected partners (shops and resale sites) your style preferences, sizes, favourite brands and the pieces you choose, so they can offer you deals or services that suit you. We never share face or body photos, your email or your password. Off until you switch it on; before adding a new kind of partner we will update this policy.
 - **Anonymous statistics:** we use aggregated data that cannot be traced back to you (for example which brands or styles are most common and at what prices they resell) to improve the app, and we may share it with brands, shops and resale sites. You can ask for your data to be left out.
 

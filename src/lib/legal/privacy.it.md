@@ -1,6 +1,6 @@
 # Informativa sulla privacy di Nimbèa
 
-*Ultimo aggiornamento: 28 ottobre 2026.*
+*Ultimo aggiornamento: 29 ottobre 2026.*
 
 Questa informativa spiega quali dati personali tratta l'app Nimbèa, perché li tratta, con chi li condivide e quali diritti hai, ai sensi del Regolamento (UE) 2016/679 ("GDPR") e del D.Lgs. 196/2003.
 
@@ -55,7 +55,7 @@ Le foto del corpo e del viso servono solo a generare le immagini della prova vir
 ## 4. Le tue scelte facoltative
 
 Oltre a ciò che serve per far funzionare l'app, puoi decidere tu, separatamente e in qualsiasi momento in Impostazioni › Privacy:
-- **Novità e offerte via email:** ti scriviamo per nuove funzioni, consigli e offerte di Nimbèa. È spento finché non lo attivi.
+- **Novità e offerte via email:** ti scriviamo per nuove funzioni, consigli e offerte di Nimbèa. È spento finché non lo attivi. Le nostre email non contengono pixel di tracciamento né altri strumenti che rilevano se, quando o da dove le apri o su cosa tocchi.
 - **Offerte dei partner:** condividiamo con partner selezionati (negozi e siti di rivendita) le tue preferenze di stile, taglie, marche preferite e i capi che scegli, perché ti propongano offerte o servizi adatti a te. Non condividiamo mai foto del viso o del corpo, email o password. È spento finché non lo attivi; prima di ogni nuovo tipo di partner aggiorneremo questa informativa.
 - **Statistiche anonime:** usiamo dati aggregati e non riconducibili a te (per esempio quali marche o stili sono più diffusi e a quali prezzi si rivendono) per migliorare l'app e possiamo condividerli con marchi, negozi e siti di rivendita. Puoi chiedere di escludere i tuoi dati.
 
