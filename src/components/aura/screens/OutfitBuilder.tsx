@@ -39,7 +39,7 @@ import { submitOutfitFeedback } from "@/lib/outfit-feedback.functions";
 import { normalizeOccasionForFeedback } from "@/lib/activity-kind";
 import { resolvePlanSlot } from "@/lib/outfit-plan-slot";
 import i18n from "@/i18n/config";
-import { garmentWithColor } from "@/lib/garment-names";
+import { garmentWithColor, optionLabel } from "@/lib/garment-names";
 import { BRAND_NAME, BRAND_WORDMARK } from "@/lib/brand";
 
 // Stored value (English: the outfit engine, dress preferences and feedback all read it) → label key.
@@ -1221,17 +1221,17 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
 
       {/* Toolbar */}
       <div className="mx-6 mt-3 grid grid-cols-4 gap-2">
-        <button onClick={() => setPickerOpen(true)} className="h-11 rounded-2xl bg-foreground text-background inline-flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.25em]">
-          <Plus size={12} /> {t("outfitBuilder.add")}
+        <button onClick={() => setPickerOpen(true)} className="h-14 rounded-2xl bg-foreground text-background min-w-0 px-1 inline-flex flex-col items-center justify-center gap-1 text-[10px] uppercase tracking-[0.12em]">
+          <Plus size={14} className="shrink-0" /><span className="max-w-full truncate">{t("outfitBuilder.add")}</span>
         </button>
-        <button onClick={bringForward} disabled={!selectedKey || selectedLocked} className="h-11 rounded-2xl border border-border inline-flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.25em] disabled:opacity-40">
-          <ChevronUp size={12} /> {t("outfitBuilder.front")}
+        <button onClick={bringForward} disabled={!selectedKey || selectedLocked} className="h-14 rounded-2xl border border-border min-w-0 px-1 inline-flex flex-col items-center justify-center gap-1 text-[10px] uppercase tracking-[0.12em] disabled:opacity-40">
+          <ChevronUp size={14} className="shrink-0" /><span className="max-w-full truncate">{t("outfitBuilder.front")}</span>
         </button>
-        <button onClick={sendBackward} disabled={!selectedKey || selectedLocked} className="h-11 rounded-2xl border border-border inline-flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.25em] disabled:opacity-40">
-          <ChevronDown size={12} /> {t("outfitBuilder.back")}
+        <button onClick={sendBackward} disabled={!selectedKey || selectedLocked} className="h-14 rounded-2xl border border-border min-w-0 px-1 inline-flex flex-col items-center justify-center gap-1 text-[10px] uppercase tracking-[0.12em] disabled:opacity-40">
+          <ChevronDown size={14} className="shrink-0" /><span className="max-w-full truncate">{t("outfitBuilder.back")}</span>
         </button>
-        <button onClick={removeSelected} disabled={!selectedKey} className="h-11 rounded-2xl border border-border inline-flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.25em] disabled:opacity-40">
-          <Trash2 size={12} /> {t("outfitBuilder.del")}
+        <button onClick={removeSelected} disabled={!selectedKey} className="h-14 rounded-2xl border border-border min-w-0 px-1 inline-flex flex-col items-center justify-center gap-1 text-[10px] uppercase tracking-[0.12em] disabled:opacity-40">
+          <Trash2 size={14} className="shrink-0" /><span className="max-w-full truncate">{t("outfitBuilder.del")}</span>
         </button>
       </div>
       <div className="mx-6 mt-2 flex items-start gap-3">
@@ -1389,7 +1389,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
                       key={f}
                       onClick={() => setPickerFilter(f)}
                       className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-[0.25em] ${pickerFilter === f ? "bg-foreground text-background" : "text-foreground/70"}`}
-                    >{f === "all" ? t("outfitBuilder.all") : t("outfitBuilder.forSeason", { season })}</button>
+                    >{f === "all" ? t("outfitBuilder.all") : t("outfitBuilder.forSeason", { season: optionLabel(season, i18n.language).toLocaleLowerCase(i18n.language) })}</button>
                   ))}
                 </div>
                 <button onClick={() => setPickerOpen(false)} aria-label={t("outfitBuilder.closeAria")} className="h-9 w-9 rounded-full border border-border flex items-center justify-center"><X size={15} /></button>
