@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Camera, Check, ChevronRight, PiggyBank, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Camera, Check, ChevronRight, Link as LinkIcon, Loader2, PiggyBank, Plus, Trash2, X } from "lucide-react";
 import { useSheetCanClose } from "@/hooks/use-sheet-can-close";
 import { supabase } from "@/integrations/supabase/client";
 import { signStoragePaths } from "@/lib/signed-url-cache";
-import { setPendingImportUrl } from "@/lib/pending-import";
+import { firstHttpUrl, setPendingImportUrl } from "@/lib/pending-import";
+import { importProductFromUrl } from "@/lib/import-url.functions";
+import { downloadImportImage } from "@/lib/import-image.functions";
 import { countPairings } from "@/lib/purchase-pairings";
 import { similarOwnedPiece } from "@/lib/purchase-similarity";
 import { localizeLabel, garmentName } from "@/lib/garment-names";
@@ -45,8 +48,17 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
   const [openId, setOpenId] = useState<string | null>(null);
   // A piece added by hand, without "Devo comprarlo?": name, and when known brand, type, price, link, photo.
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState({ title: "", brand: "", category: "", price: "", url: "" });
+  const [draft, setDraft] = useState({ title: "", brand: "", category: "", price: "", currency: "EUR", url: "" });
   const [draftPhoto, setDraftPhoto] = useState<File | null>(null);
+  // A pasted product link fills the form by itself (same page reader as "Aggiungi un capo").
+  const importUrl = useServerFn(importProductFromUrl);
+  const [importing, setImporting] = useState(false);
+  // The photos found on the page: the person picks the right one (packshot, colour…).
+  const downloadImage = useServerFn(downloadImportImage);
+  const [photoChoices, setPhotoChoices] = useState<{ urls: string[]; referer: string }>({ urls: [], referer: "" });
+  const [chosenPhoto, setChosenPhoto] = useState<string | null>(null);
+  const [photoLoading, setPhotoLoading] = useState<string | null>(null);
+  const lastImportedRef = useRef<string | null>(null);
   const [skippedMonth, setSkippedMonth] = useState<string | null>(() => {
     try { return localStorage.getItem(skipKey(userId)); } catch { return null; }
   });
@@ -173,7 +185,72 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
     }
   };
 
-  const openAdd = () => { setDraft({ title: "", brand: "", category: "", price: "", url: "" }); setDraftPhoto(null); setAdding(true); };
+  const openAdd = () => {
+    setDraft({ title: "", brand: "", category: "", price: "", currency: "EUR", url: "" });
+    setDraftPhoto(null);
+    setPhotoChoices({ urls: [], referer: "" });
+    setChosenPhoto(null);
+    lastImportedRef.current = null;
+    setAdding(true);
+  };
+
+  /** Reads the product page: name, brand, price and photo fill the fields still empty. */
+  const fillFromLink = useCallback(async (link: string) => {
+    lastImportedRef.current = link;
+    setImporting(true);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const res = await importUrl({ data: { url: link, accessToken: sess.session?.access_token } });
+      if (!res.ok) { toast.error(res.error); return; }
+      let photo: File | null = null;
+      if (res.imageDataUrl) {
+        const blob = await (await fetch(res.imageDataUrl)).blob();
+        photo = new File([blob], `wish-${Date.now()}.${blob.type.includes("png") ? "png" : "jpg"}`, { type: blob.type || "image/jpeg" });
+      }
+      setDraft((d) => ({
+        ...d,
+        title: d.title.trim() ? d.title : (res.title ?? ""),
+        brand: d.brand.trim() ? d.brand : (res.brand ?? ""),
+        price: d.price.trim() || res.priceValue == null ? d.price : String(res.priceValue),
+        currency: d.price.trim() || res.priceValue == null ? d.currency : (res.priceCurrency || "EUR").toUpperCase(),
+      }));
+      if (photo) setDraftPhoto((p) => p ?? photo);
+      const urls = (res.imageCandidates ?? []).filter((u) => /^https?:\/\//i.test(u));
+      setPhotoChoices({ urls, referer: new URL(link).origin });
+      setChosenPhoto(urls[0] ?? null);
+      toast.success(t("wishlist.importedToast"));
+    } catch (e) {
+      console.error("[AURA wishlist] link import failed", e);
+      toast.error(t("wishlist.importFailed"));
+    } finally {
+      setImporting(false);
+    }
+  }, [importUrl, t]);
+
+  const pickPhoto = async (u: string) => {
+    if (photoLoading) return;
+    setPhotoLoading(u);
+    try {
+      const res = await downloadImage({ data: { url: u, referer: photoChoices.referer || undefined } });
+      if (!res.ok) { toast.error(res.error); return; }
+      const blob = await (await fetch(res.imageDataUrl)).blob();
+      setDraftPhoto(new File([blob], `wish-${Date.now()}.${blob.type.includes("png") ? "png" : "jpg"}`, { type: blob.type || "image/jpeg" }));
+      setChosenPhoto(u);
+    } catch (e) {
+      console.error("[AURA wishlist] photo pick failed", e);
+      toast.error(t("wishlist.importFailed"));
+    } finally {
+      setPhotoLoading(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!adding) return;
+    const link = firstHttpUrl(draft.url);
+    if (!link || link === lastImportedRef.current) return;
+    const timer = setTimeout(() => void fillFromLink(link), 600);
+    return () => clearTimeout(timer);
+  }, [adding, draft.url, fillFromLink]);
 
   /** Adds a piece by hand at the bottom of the list. The link is kept only when it is a web address. */
   const addByHand = async () => {
@@ -193,7 +270,7 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
       const last = wishes.filter((w) => !w.bought_at).reduce((m, w) => Math.max(m, w.priority), -1);
       const { error } = await supabase.from("wishlist_items").insert({
         user_id: userId, title, brand: draft.brand.trim() || null, category: draft.category || null,
-        price: price > 0 ? Math.round(price * 100) / 100 : null, currency: price > 0 ? "EUR" : null,
+        price: price > 0 ? Math.round(price * 100) / 100 : null, currency: price > 0 ? draft.currency : null,
         product_url: url, image_url: imagePath, priority: last + 1,
       });
       if (error) throw error;
@@ -354,6 +431,17 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
       <>
         <p className="font-serif italic text-lg pr-10">{t("wishlist.addTitle")}</p>
         <div className="mt-4 space-y-2.5">
+          {/* The link first: pasted, it fills the rest by itself. */}
+          <div className="flex items-center gap-2 rounded-full border border-border bg-background pl-4 pr-1.5 py-1">
+            <LinkIcon size={13} className="shrink-0 text-muted-foreground" />
+            <input inputMode="url" value={draft.url} onChange={(e) => setDraft((d) => ({ ...d, url: e.target.value }))}
+              placeholder={t("wishlist.fieldLink")} aria-label={t("wishlist.fieldLink")} className="flex-1 min-w-0 bg-transparent text-sm outline-none py-1" />
+            {importing ? <Loader2 size={15} className="mr-2 animate-spin text-muted-foreground" /> : firstHttpUrl(draft.url) ? (
+              <button type="button" onClick={() => { const l = firstHttpUrl(draft.url); if (l) void fillFromLink(l); }}
+                className="h-8 px-3 rounded-full bg-secondary text-[10px] uppercase tracking-widest shrink-0">{t("wishlist.fillFromLink")}</button>
+            ) : null}
+          </div>
+          {importing && <p className="text-[11px] text-muted-foreground px-4">{t("wishlist.importing")}</p>}
           <input value={draft.title} onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
             placeholder={t("wishlist.fieldName")} aria-label={t("wishlist.fieldName")} className={field} />
           <input value={draft.brand} onChange={(e) => setDraft((d) => ({ ...d, brand: e.target.value }))}
@@ -361,10 +449,8 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
           <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2">
             <input inputMode="decimal" value={draft.price} onChange={(e) => setDraft((d) => ({ ...d, price: e.target.value }))}
               placeholder={t("wishlist.fieldPrice")} aria-label={t("wishlist.fieldPrice")} className="flex-1 min-w-0 bg-transparent text-sm outline-none" />
-            <span className="text-sm text-muted-foreground">€</span>
+            <span className="text-sm text-muted-foreground">{symbolOf(draft.currency)}</span>
           </div>
-          <input inputMode="url" value={draft.url} onChange={(e) => setDraft((d) => ({ ...d, url: e.target.value }))}
-            placeholder={t("wishlist.fieldLink")} aria-label={t("wishlist.fieldLink")} className={field} />
         </div>
         <p className="mt-4 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("wishlist.fieldCategory")}</p>
         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -375,9 +461,30 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
             </button>
           ))}
         </div>
-        <label className="mt-4 h-10 px-4 rounded-full border border-border inline-flex items-center gap-2 text-[11px] cursor-pointer">
-          <Camera size={13} /> {draftPhoto ? draftPhoto.name : t("wishlist.fieldPhoto")}
-          <input type="file" accept="image/*" className="hidden" onChange={(e) => setDraftPhoto(e.target.files?.[0] ?? null)} />
+        {photoChoices.urls.length > 1 && (
+          <div className="mt-4">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("wishlist.pickPhoto")}</p>
+            <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              {photoChoices.urls.map((u) => (
+                <button key={u} type="button" onClick={() => void pickPhoto(u)} disabled={photoLoading !== null}
+                  aria-label={t("addItem.useThisPhotoAria")}
+                  className={`relative h-20 w-16 shrink-0 rounded-xl overflow-hidden bg-white active:scale-95 transition ${chosenPhoto === u ? "border-2 border-foreground" : "border border-border"}`}>
+                  <img src={u} alt="" loading="lazy" className="h-full w-full object-contain"
+                    onError={() => setPhotoChoices((c) => ({ ...c, urls: c.urls.filter((x) => x !== u) }))} />
+                  {photoLoading === u && (
+                    <span className="absolute inset-0 flex items-center justify-center bg-background/60"><Loader2 size={14} className="animate-spin" /></span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <label className="mt-4 h-10 pl-1.5 pr-4 rounded-full border border-border inline-flex items-center gap-2 text-[11px] cursor-pointer">
+          <span className={`h-7 w-7 rounded-full flex items-center justify-center ${draftPhoto ? "bg-foreground text-background" : ""}`}>
+            {draftPhoto ? <Check size={13} /> : <Camera size={13} />}
+          </span>
+          {draftPhoto ? t("wishlist.photoReady") : t("wishlist.fieldPhoto")}
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => { setDraftPhoto(e.target.files?.[0] ?? null); setChosenPhoto(null); }} />
         </label>
         <div className="mt-5">
           <button disabled={busy || !draft.title.trim()} onClick={() => void addByHand()}
