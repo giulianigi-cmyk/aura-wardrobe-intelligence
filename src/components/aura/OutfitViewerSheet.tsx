@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { askPush } from "@/lib/push-ask";
 import { savePlanAskingSameDay } from "@/lib/same-day-choice";
 import { FramedPhoto } from "./FramedPhoto";
 import type { PhotoFraming } from "@/lib/photo-framing";
@@ -176,6 +177,7 @@ export function OutfitViewerSheet({
     const id = (data as { id: string }).id;
     setSavedId(id);
     onSaved?.();
+    askPush("outfit");
     return id;
   };
 

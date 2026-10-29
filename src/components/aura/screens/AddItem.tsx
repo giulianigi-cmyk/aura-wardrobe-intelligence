@@ -21,6 +21,7 @@ import { removeBackground } from "@/lib/ai-bgremove.functions";
 import { importProductFromUrl, type CompositionEntry } from "@/lib/import-url.functions";
 import { takePendingAddLibrary, takePendingImportUrl } from "@/lib/pending-import";
 import { askShareLibrary } from "@/lib/share-library-ask";
+import { askPush } from "@/lib/push-ask";
 import { listLocations } from "@/lib/wardrobe-locations.functions";
 import { downloadImportImage } from "@/lib/import-image.functions";
 import { searchProductLibrary, browseProductLibrary, type ProductLibraryItem } from "@/lib/product-library";
@@ -981,6 +982,7 @@ export function AddItem({ onClose, initialGarment }: {
       void syncMySharedLibrary().catch(() => {});
       // Just took a piece someone shared: the moment to ask whether to share theirs too.
       askShareLibrary(fromSharedRef.current ? "found" : "added");
+      askPush("piece");
       // Fire-and-forget, same as syncMySharedLibrary above — the wardrobe
       // save itself is already done and confirmed to the person; a
       // visual embedding is a background enhancement to future

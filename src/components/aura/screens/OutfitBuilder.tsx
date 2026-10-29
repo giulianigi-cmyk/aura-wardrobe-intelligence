@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { askPush } from "@/lib/push-ask";
 import { isWearableNow } from "@/lib/wardrobe-storage";
 import { isInLaundry } from "@/lib/laundry-basket";
 import { useServerFn } from "@tanstack/react-start";
@@ -878,6 +879,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
       // saved (or just-edited) outfit show up there without leaving and
       // reopening the whole app.
       outfitsCache.invalidate();
+      if (!init?.outfitId) askPush("outfit");
 
       // A person building and saving an outfit BY HAND chose every one of
       // these pieces on purpose — a strong positive signal for the exact

@@ -2824,6 +2824,17 @@
     "optDryCleanerHint": "Ti ricordiamo di ritirarlo dopo 7 giorni",
     "toDryCleanerShort": "Tintoria"
   },
+  "pushAsk": {
+    "title": "Vuoi ricevere le notifiche?",
+    "bodyPiece": "Ogni mattina ti mandiamo il look del giorno pensato con i tuoi capi e il meteo, così non devi aprire {{appName}} per scoprirlo.",
+    "bodyOutfit": "Ogni mattina il look del giorno con i tuoi capi e il meteo, e ogni tanto una novità di {{appName}} che può esserti utile.",
+    "detail": "Al massimo una notifica al mattino, alle 07:30 se non hai scelto un altro orario. Puoi cambiare orario o spegnerle quando vuoi in Impostazioni › Notifiche.",
+    "yes": "Sì, attiva",
+    "notNow": "Non ora",
+    "done": "Fatto: il look del giorno arriva ogni mattina alle {{time}}",
+    "gotIt": "Ho capito",
+    "installStep3": "apri {{appName}} dall'icona: le notifiche si attivano da Impostazioni › Notifiche."
+  },
   "shareAsk": {
     "titleAdded": "Condividi i tuoi capi nella libreria?",
     "bodyAdded": "Nella libreria altri trovano già pronti i capi che hai tu, con foto e dettagli, e tu trovi i loro. Più capi ci sono, più è utile a tutti, anche a te.",

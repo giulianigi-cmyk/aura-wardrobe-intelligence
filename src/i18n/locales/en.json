@@ -2824,6 +2824,17 @@
     "optDryCleanerHint": "We remind you to collect it after 7 days",
     "toDryCleanerShort": "Dry cleaner"
   },
+  "pushAsk": {
+    "title": "Would you like notifications?",
+    "bodyPiece": "Every morning we send you the day's look, put together from your pieces and the weather, so you don't need to open {{appName}} to find it.",
+    "bodyOutfit": "Every morning the day's look from your pieces and the weather, and now and then something new in {{appName}} you may find useful.",
+    "detail": "At most one notification in the morning, at 07:30 unless you chose another time. Change the time or turn them off whenever you like in Settings › Notifications.",
+    "yes": "Yes, turn on",
+    "notNow": "Not now",
+    "done": "Done: the day's look arrives every morning at {{time}}",
+    "gotIt": "Got it",
+    "installStep3": "open {{appName}} from the icon: turn notifications on in Settings › Notifications."
+  },
   "shareAsk": {
     "titleAdded": "Share your pieces in the library?",
     "bodyAdded": "In the library others find the pieces you own ready-made, with photo and details, and you find theirs. The more pieces it has, the more useful it is for everyone, you included.",

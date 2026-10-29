@@ -6,7 +6,7 @@ import { Users } from "lucide-react";
 import { useProfile } from "@/hooks/use-profile";
 import { syncMySharedLibrary } from "@/lib/shared-library.functions";
 import { track } from "@/lib/telemetry-client";
-import { SHARE_ASK_EVENT, snoozeShareAsk, snoozedRecently, type ShareAskKind } from "@/lib/share-library-ask";
+import { SHARE_ASK_EVENT, setShareAskOpen, snoozeShareAsk, snoozedRecently, type ShareAskKind } from "@/lib/share-library-ask";
 
 /** The question «Vuoi condividere anche i tuoi capi?» (share-library-ask.ts), mounted once in the app. */
 export function ShareLibraryAsk({ userId }: { userId: string }) {
@@ -23,6 +23,8 @@ export function ShareLibraryAsk({ userId }: { userId: string }) {
     window.addEventListener(SHARE_ASK_EVENT, onAsk);
     return () => window.removeEventListener(SHARE_ASK_EVENT, onAsk);
   }, [profile, userId]);
+
+  useEffect(() => { setShareAskOpen(!!open); return () => setShareAskOpen(false); }, [open]);
 
   if (!open) return null;
 

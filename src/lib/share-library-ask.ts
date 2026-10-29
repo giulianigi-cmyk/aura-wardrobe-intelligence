@@ -9,6 +9,11 @@ const snoozeKey = (userId: string) => `aura.shareLibraryAskSnooze.${userId}`;
 
 export type ShareAskKind = "found" | "added";
 
+// Whether the question is on screen: another question (notifications) waits for its turn.
+let open = false;
+export const isShareAskOpen = () => open;
+export const setShareAskOpen = (value: boolean) => { open = value; };
+
 /** Ask (if the person does not share yet and did not say "Not now" lately). "found": the piece came
  *  from the library; "added": any other piece. */
 export function askShareLibrary(kind: ShareAskKind): void {
