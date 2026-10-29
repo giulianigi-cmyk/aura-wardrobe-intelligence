@@ -1784,7 +1784,7 @@
     "shareLibraryLabel": "Partager ma garde-robe dans la bibliothèque commune",
     "shareLibraryDetail": "Vos pièces — marque, prix, étiquettes et photo — deviennent visibles et réutilisables par d'autres membres, de façon anonyme : personne ne saura qu'elles viennent de vous. Les données personnelles (votre nom, la fréquence d'utilisation, où vous les rangez) ne sont jamais partagées. Vous pouvez désactiver cela à tout moment dans votre profil ; les pièces déjà importées par d'autres restent dans leur propre garde-robe.",
     "shareLibraryTitle": "Aidez la bibliothèque {{appName}}",
-    "shareLibraryPitch": "Plus elle contient de pièces, plus il est facile pour chacun de trouver la sienne déjà prête, avec photo et détails : il suffit de la chercher et de la toucher. C'est vrai pour vous aussi.",
+    "shareLibraryPitch": "Plus elle contient de pièces, plus il est facile pour chacun de trouver la sienne déjà prête, avec photo et détails. C'est vrai pour vous aussi.",
     "shareLibraryYes": "Oui, je partage",
     "shareLibraryNo": "Non, merci",
     "back": "Retour",
