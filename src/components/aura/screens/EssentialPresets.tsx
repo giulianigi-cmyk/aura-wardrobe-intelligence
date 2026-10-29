@@ -236,7 +236,7 @@ export function EssentialPresets({ go }: { go: (s: Screen) => void }) {
                         ) : (
                           <button
                             onClick={() => setCopyChooserFor(p.id)}
-                            className="w-full h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.25em] flex items-center justify-center gap-2"
+                            className="w-full h-10 rounded-full border border-border text-[10px] uppercase tracking-[0.25em] flex items-center justify-center gap-1.5"
                           ><Copy size={13} /> {t("essentialPresets.copyItemsFrom", { defaultValue: "Copy items from another list" })}</button>
                         )}
                       </div>
@@ -263,7 +263,7 @@ export function EssentialPresets({ go }: { go: (s: Screen) => void }) {
           ) : (
             <button
               onClick={() => setAddingPreset(true)}
-              className="w-full h-12 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center justify-center gap-2"
+              className="w-full h-12 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center justify-center gap-1.5"
             ><Plus size={14} /> {t("essentialPresets.newPreset")}</button>
           )}
         </div>

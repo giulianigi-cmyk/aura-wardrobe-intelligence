@@ -65,7 +65,7 @@ export function Trips({ go, openTrip }: { go: (s: Screen) => void; openTrip: (tr
       <div className="px-6 mt-4">
         <button
           onClick={() => go("trip-create")}
-          className="w-full h-12 rounded-full bg-foreground text-background text-xs uppercase tracking-[0.3em] active:scale-[0.98] shadow-luxe inline-flex items-center justify-center gap-2"
+          className="w-full h-12 rounded-full bg-foreground text-background text-xs uppercase tracking-[0.3em] active:scale-[0.98] shadow-luxe inline-flex items-center justify-center gap-1.5"
         ><Plus size={16} /> {t("trips.planATrip")}</button>
       </div>
 

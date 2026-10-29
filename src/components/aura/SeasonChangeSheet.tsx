@@ -113,7 +113,7 @@ export function SeasonChangeSheet({
                   {grid(plan.putAway, away, flip(setAway))}
                   <button
                     onClick={() => void run("away")} disabled={!away.size || !!busy}
-                    className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.25em] inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.25em] inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
                   >{busy === "away" && <Loader2 size={12} className="animate-spin" />}{t("seasonChange.putAwayButton", { count: away.size })}</button>
                 </>
               ) : <p className="text-sm text-muted-foreground">{t("seasonChange.putAwayNone")}</p>}
@@ -138,7 +138,7 @@ export function SeasonChangeSheet({
                   {grid(plan.bringBack, back, flip(setBack))}
                   <button
                     onClick={() => void run("back")} disabled={!back.size || !!busy}
-                    className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.25em] inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="mt-3 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.25em] inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
                   >{busy === "back" && <Loader2 size={12} className="animate-spin" />}{t("seasonChange.bringBackButton", { count: back.size })}</button>
                 </>
               ) : <p className="text-sm text-muted-foreground">{t("seasonChange.bringBackNone")}</p>}
@@ -156,7 +156,7 @@ export function SeasonChangeSheet({
                   ];
                   onAskStylist(parts.filter(Boolean).join(" "));
                 }}
-                className="mt-6 w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.25em] inline-flex items-center justify-center gap-2"
+                className="mt-6 w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.25em] inline-flex items-center justify-center gap-1.5"
               ><Sparkles size={12} /> {t("seasonChange.askStylist")}</button>
             )}
 

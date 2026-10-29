@@ -250,7 +250,7 @@ export function ShareOutfitSheet({ outfitId, onClose }: { outfitId: string; onCl
               <button
                 onClick={() => void shareToFriends()}
                 disabled={!selected.length || busy}
-                className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
               >{busy && <Loader2 size={12} className="animate-spin" />} {t("shareOutfitSheet.sendInChat")}</button>
             </>
           )
@@ -286,7 +286,7 @@ export function ShareOutfitSheet({ outfitId, onClose }: { outfitId: string; onCl
             </div>
             <button
               onClick={() => void openCalendarPicker()}
-              className="w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-2"
+              className="w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
             ><CalendarIcon size={13} /> {t("shareOutfitSheet.addToCalendar")}</button>
           </>
         )}

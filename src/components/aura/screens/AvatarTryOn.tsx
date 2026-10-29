@@ -406,11 +406,11 @@ export function AvatarTryOn({ go, itemIds: initialItemIds }: { go: (s: Screen) =
           <div className="flex items-center justify-center gap-1 rounded-full border border-border p-1 w-fit mx-auto">
             <button
               onClick={() => setView("person")}
-              className={`h-9 px-4 rounded-full flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] transition ${view === "person" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+              className={`h-9 px-4 rounded-full flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] transition ${view === "person" ? "bg-foreground text-background" : "text-muted-foreground"}`}
             ><User size={12} /> {t("avatar.viewPerson")}</button>
             <button
               onClick={() => setView("items")}
-              className={`h-9 px-4 rounded-full flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] transition ${view === "items" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+              className={`h-9 px-4 rounded-full flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] transition ${view === "items" ? "bg-foreground text-background" : "text-muted-foreground"}`}
             ><Shirt size={12} /> {t("avatar.viewItems")}</button>
           </div>
 

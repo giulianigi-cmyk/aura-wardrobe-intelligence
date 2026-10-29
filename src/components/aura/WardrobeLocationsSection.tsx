@@ -269,7 +269,7 @@ export function WardrobeLocationsSection() {
       ) : locations.length > 0 ? (
         <button
           onClick={() => setAdding(true)}
-          className="mt-2 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
+          className="mt-2 flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
         ><Plus size={12} /> {t("wardrobeLocations.addAnother")}</button>
       ) : null}
       {confirmDeleteId && (

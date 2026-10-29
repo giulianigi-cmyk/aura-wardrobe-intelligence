@@ -449,7 +449,7 @@ export function Profile({ go: _go, openConversation, openUserProfile }: { go: (s
         <p className="text-center text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-3">{user?.email}</p>
         <button
           onClick={signOut}
-          className="w-full h-12 rounded-full border border-border flex items-center justify-center gap-2 text-xs uppercase tracking-[0.3em] active:scale-[0.98]"
+          className="w-full h-12 rounded-full border border-border flex items-center justify-center gap-1.5 text-xs uppercase tracking-[0.3em] active:scale-[0.98]"
         >
           <LogOut size={14} /> {t("profileScreen.signOut")}
         </button>

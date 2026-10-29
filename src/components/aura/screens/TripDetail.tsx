@@ -805,14 +805,14 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
               <button
                 onClick={() => void saveStop()}
                 disabled={savingStop || !stopName.trim() || stopLat == null || !stopStart || !stopEnd || stopEnd < stopStart}
-                className="h-10 rounded-full bg-foreground text-background text-[11px] uppercase tracking-[0.25em] inline-flex items-center justify-center gap-2 disabled:opacity-40"
+                className="h-10 rounded-full bg-foreground text-background text-[11px] uppercase tracking-[0.25em] inline-flex items-center justify-center gap-1.5 disabled:opacity-40"
               >{savingStop && <Loader2 size={12} className="animate-spin" />}{t("tripDetail.saveStop")}</button>
             </div>
           </div>
         ) : (
           <button
             onClick={openAddStop}
-            className="w-full h-10 rounded-full border border-dashed border-border text-[11px] uppercase tracking-[0.25em] text-muted-foreground flex items-center justify-center gap-2 active:scale-[0.98]"
+            className="w-full h-10 rounded-full border border-dashed border-border text-[11px] uppercase tracking-[0.25em] text-muted-foreground flex items-center justify-center gap-1.5 active:scale-[0.98]"
           ><Plus size={13} /> {t("tripDetail.addStop")}</button>
         )}
 
@@ -904,15 +904,15 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
           <div className="mt-3 space-y-2">
             <button
               onClick={() => setAddingEssential(true)}
-              className="w-full h-11 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center justify-center gap-2"
+              className="w-full h-11 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center justify-center gap-1.5"
             ><Plus size={13} /> {t("tripDetail.addItem")}</button>
             <button
               onClick={() => setAddingLists(true)}
-              className="w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2"
+              className="w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-1.5"
             ><ListPlus size={13} /> {t("tripDetail.addLists", { defaultValue: "Add saved lists" })}</button>
             <button
               onClick={() => setCopyingEssentials(true)}
-              className="w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2"
+              className="w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-1.5"
             ><Copy size={13} /> {t("tripDetail.copyFromTrip", { defaultValue: "Copy from another trip" })}</button>
           </div>
         )}
@@ -980,7 +980,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
 
         <button
           onClick={() => void openPicker()}
-          className="w-full h-11 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center justify-center gap-2"
+          className="w-full h-11 rounded-full border border-dashed border-border text-[10px] uppercase tracking-[0.3em] text-muted-foreground flex items-center justify-center gap-1.5"
         ><Plus size={13} /> {t("tripDetail.addFromWardrobe")}</button>
       </section>
 
@@ -1123,7 +1123,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
             <button
               onClick={() => void saveEditPlan()}
               disabled={savingPlan}
-              className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 disabled:opacity-40"
+              className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-1.5 disabled:opacity-40"
             >
               {savingPlan ? <Loader2 size={14} className="animate-spin" /> : null}
               {t("tripDetail.savePieces", { count: editItemIds.length })}
@@ -1253,11 +1253,11 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
           <div className="mt-3 flex gap-2">
             <button
               onClick={() => { setDuplicatingActivity(null); setEditingActivityId(null); setActDate(minDate ?? ""); setActSegment("day"); setActType(""); setActDressCode(""); setActStartTime(""); setActEndTime(""); setAddingActivity(true); }}
-              className="flex-1 min-h-14 py-2 px-3 rounded-[1.75rem] border border-dashed border-border text-[10px] uppercase tracking-[0.25em] text-muted-foreground flex flex-col items-center justify-center gap-1 text-center"
+              className="flex-1 min-h-14 py-2 px-3 rounded-[1.75rem] border border-dashed border-border text-[10px] uppercase tracking-[0.25em] text-muted-foreground flex flex-col items-center justify-center gap-1.5 text-center"
             ><Plus size={14} className="shrink-0" /><span className="leading-snug">{t("tripDetail.addActivity")}</span></button>
             <button
               onClick={() => void openCalendarPicker()}
-              className="flex-1 min-h-14 py-2 px-3 rounded-[1.75rem] border border-dashed border-border text-[10px] uppercase tracking-[0.25em] text-muted-foreground flex flex-col items-center justify-center gap-1 text-center"
+              className="flex-1 min-h-14 py-2 px-3 rounded-[1.75rem] border border-dashed border-border text-[10px] uppercase tracking-[0.25em] text-muted-foreground flex flex-col items-center justify-center gap-1.5 text-center"
             ><CalendarPlus size={14} className="shrink-0" /><span className="leading-snug">{t("tripDetail.chooseFromCalendar")}</span></button>
           </div>
         )}
@@ -1344,7 +1344,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
               <button
                 onClick={() => void confirmReuseOutfit(true)}
                 disabled={linkingOutfit}
-                className="h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                className="h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-1.5 disabled:opacity-60"
               >
                 {linkingOutfit && <Loader2 size={12} className="animate-spin" />}
                 {t("tripDetail.useThisOutfit")}
@@ -1381,7 +1381,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
                         setStoredAdding(false);
                       }
                     }}
-                    className="h-9 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] inline-flex items-center gap-1.5 disabled:opacity-50"
+                    className="h-9 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] inline-flex items-center gap-1 disabled:opacity-50"
                   >{storedAdding && <Loader2 size={11} className="animate-spin" />}{t("tripDetail.storedOfferYes")}</button>
                   <button
                     onClick={() => {
@@ -1605,7 +1605,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
           <button
             onClick={() => void generateCapsule()}
             disabled={generating}
-            className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 disabled:opacity-40 shadow-luxe pointer-events-auto"
+            className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-1.5 disabled:opacity-40 shadow-luxe pointer-events-auto"
           >
             {generating ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
             {outfitPlans.length > 0 ? t("tripDetail.generateRemaining") : t("tripDetail.generateOutfits")}
@@ -1664,7 +1664,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
               </div>
               <button
                 onClick={() => { setPreviewItem(null); go("wardrobe"); }}
-                className="mt-4 w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2"
+                className="mt-4 w-full h-11 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-1.5"
               ><Pencil size={13} /> {t("tripDetail.openInWardrobe")}</button>
             </div>
           </div>

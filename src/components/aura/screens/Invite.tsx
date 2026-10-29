@@ -49,7 +49,7 @@ export function Invite({ go }: { go: (s: Screen) => void }) {
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <button onClick={share} className="h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-2">
+          <button onClick={share} className="h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-1">
             <Share2 size={12} /> {t("invite.share")}
           </button>
           <a href={`mailto:?subject=${encodeURIComponent(`Join me on ${BRAND_NAME}`)}&body=${encodeURIComponent(link)}`}

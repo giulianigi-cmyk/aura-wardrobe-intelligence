@@ -244,7 +244,7 @@ export function TripCreate({ go, onCreated }: { go: (s: Screen) => void; onCreat
             ))}
             <button
               onClick={addLeg}
-              className="w-full h-11 rounded-full border border-dashed border-border text-[11px] uppercase tracking-[0.25em] text-muted-foreground flex items-center justify-center gap-2 active:scale-[0.98]"
+              className="w-full h-11 rounded-full border border-dashed border-border text-[11px] uppercase tracking-[0.25em] text-muted-foreground flex items-center justify-center gap-1.5 active:scale-[0.98]"
             ><Plus size={13} /> {t("tripCreate.addStop")}</button>
           </div>
 
@@ -350,7 +350,7 @@ export function TripCreate({ go, onCreated }: { go: (s: Screen) => void; onCreat
           <button
             onClick={() => void create()}
             disabled={!canCreate || creating}
-            className="w-full h-12 rounded-full bg-foreground text-background text-xs uppercase tracking-[0.3em] active:scale-[0.98] shadow-luxe disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full h-12 rounded-full bg-foreground text-background text-xs uppercase tracking-[0.3em] active:scale-[0.98] shadow-luxe disabled:opacity-50 flex items-center justify-center gap-1.5"
           >
             {creating && <Loader2 size={14} className="animate-spin" />}
             {t("tripCreate.createTrip")}

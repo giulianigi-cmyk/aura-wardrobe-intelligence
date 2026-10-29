@@ -72,7 +72,7 @@ export function ResetPassword({ onDone }: { onDone: () => void }) {
 
             <button
               type="submit" disabled={loading}
-              className="mt-4 w-full h-14 rounded-full bg-foreground text-background uppercase tracking-[0.3em] text-xs disabled:opacity-50 active:scale-[0.98] transition shadow-luxe flex items-center justify-center gap-2"
+              className="mt-4 w-full h-14 rounded-full bg-foreground text-background uppercase tracking-[0.3em] text-xs disabled:opacity-50 active:scale-[0.98] transition shadow-luxe flex items-center justify-center gap-1.5"
             >
               {loading ? <Loader2 size={14} className="animate-spin" /> : t("resetPassword.updateButton")}
             </button>

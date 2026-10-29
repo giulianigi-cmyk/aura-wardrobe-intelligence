@@ -460,7 +460,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
           </div>
           <button
             onClick={() => { if (city) setManualOpen(v => !v); else detect(); }}
-            className="shrink-0 ml-2 h-8 px-3 rounded-full bg-background border border-border text-[10px] uppercase tracking-widest flex items-center gap-1.5 active:scale-95"
+            className="shrink-0 ml-2 h-8 px-4 rounded-full bg-background border border-border text-[10px] uppercase tracking-widest flex items-center gap-1 active:scale-95"
           >
             {status === "loading" ? <Loader2 size={11} className="animate-spin" /> : <MapPin size={11} />}
             {city ? t("home.change") : t("home.useLocation")}

@@ -1136,7 +1136,7 @@ export function AddItem({ onClose, initialGarment }: {
           <button
             onClick={runLibrarySearch}
             disabled={librarySearching || !libraryQuery.trim()}
-            className="mt-4 w-full h-12 rounded-full bg-foreground text-background flex items-center justify-center gap-2 text-xs uppercase tracking-[0.3em] disabled:opacity-60"
+            className="mt-4 w-full h-12 rounded-full bg-foreground text-background flex items-center justify-center gap-1.5 text-xs uppercase tracking-[0.3em] disabled:opacity-60"
           >
             {librarySearching ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
             {t("addItem.searchButton")}
@@ -1282,7 +1282,7 @@ export function AddItem({ onClose, initialGarment }: {
                 <button
                   onClick={() => void loadMoreShared()}
                   disabled={sharedLoadingMore}
-                  className="mt-4 shrink-0 w-full h-11 rounded-full border border-border text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-2 disabled:opacity-60"
+                  className="mt-4 shrink-0 w-full h-11 rounded-full border border-border text-xs uppercase tracking-[0.25em] flex items-center justify-center gap-1.5 disabled:opacity-60"
                 >
                   {sharedLoadingMore && <Loader2 size={14} className="animate-spin" />}
                   {t("addItem.showMore", { defaultValue: "Show more" })}
@@ -1343,7 +1343,7 @@ export function AddItem({ onClose, initialGarment }: {
             </div>
             <button
               onClick={() => void pasteFromClipboard()}
-              className="mt-2 w-full h-10 rounded-full border border-dashed border-border flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground active:scale-[0.98] transition"
+              className="mt-2 w-full h-10 rounded-full border border-dashed border-border flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.3em] text-muted-foreground active:scale-[0.98] transition"
             >
               <Clipboard size={12} />
               {t("addItem.pasteFromClipboard")}
@@ -1351,7 +1351,7 @@ export function AddItem({ onClose, initialGarment }: {
             <button
               onClick={() => void handleImportUrl()}
               disabled={importing || !urlInput.trim()}
-              className="mt-4 w-full h-12 rounded-full bg-foreground text-background flex items-center justify-center gap-2 text-xs uppercase tracking-[0.3em] disabled:opacity-60"
+              className="mt-4 w-full h-12 rounded-full bg-foreground text-background flex items-center justify-center gap-1.5 text-xs uppercase tracking-[0.3em] disabled:opacity-60"
             >
               {importing ? <Loader2 size={14} className="animate-spin" /> : <LinkIcon size={14} />}
               {t("addItem.importProduct")}
@@ -1399,7 +1399,7 @@ export function AddItem({ onClose, initialGarment }: {
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button
                 onClick={handleSearchGoogle}
-                className="h-11 rounded-full border border-foreground/15 bg-secondary/40 flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-widest active:scale-95 transition"
+                className="h-11 rounded-full border border-foreground/15 bg-secondary/40 flex items-center justify-center gap-1 text-[10px] uppercase tracking-widest active:scale-95 transition"
               >
                 <Search size={13} />
                 {t("addItem.searchOnGoogle")}
@@ -1407,7 +1407,7 @@ export function AddItem({ onClose, initialGarment }: {
               <button
                 onClick={() => void handleSearchByPhoto()}
                 disabled={searchingByPhoto}
-                className="h-11 rounded-full border border-foreground/15 bg-secondary/40 flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-widest active:scale-95 transition disabled:opacity-60"
+                className="h-11 rounded-full border border-foreground/15 bg-secondary/40 flex items-center justify-center gap-1 text-[10px] uppercase tracking-widest active:scale-95 transition disabled:opacity-60"
               >
                 {searchingByPhoto ? <Loader2 size={13} className="animate-spin" /> : <ImageIcon size={13} />}
                 {t("addItem.searchByPhoto")}

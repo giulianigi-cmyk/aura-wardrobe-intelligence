@@ -60,7 +60,7 @@ export function WardrobeLocationExpiryBanner() {
             <button
               onClick={() => void confirm(loc)}
               disabled={busyId === loc.id}
-              className="flex-1 h-9 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 disabled:opacity-60"
+              className="flex-1 h-9 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1 disabled:opacity-60"
             >
               {busyId === loc.id && <Loader2 size={11} className="animate-spin" />}
               {t("wardrobeLocations.moveBack")}

@@ -112,7 +112,7 @@ export function AvatarCropper({ src, onCancel, onSave }: Props) {
           </button>
           <button
             onClick={handleSave} disabled={saving || !area}
-            className="flex-1 h-12 rounded-full bg-foreground text-background flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-60"
+            className="flex-1 h-12 rounded-full bg-foreground text-background flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-60"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : null}
             {t("avatarCropper.save")}

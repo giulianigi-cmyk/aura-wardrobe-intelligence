@@ -121,7 +121,7 @@ export function SavedOutfits({ go, openBuilder }: { go: (s: Screen) => void; ope
           </p>
           <button
             onClick={() => go("builder")}
-            className="mt-6 h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center gap-2"
+            className="mt-6 h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center gap-1.5"
           ><Sparkles size={12} /> {t("savedOutfits.openBuilder")}</button>
         </section>
       ) : (

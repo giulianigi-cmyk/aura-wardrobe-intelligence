@@ -1037,7 +1037,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
           <button
             onClick={() => { if (occasion) void aiSuggest(); else setOccasionAsk("pick"); }}
             disabled={aiBusy || loading}
-            className="w-full h-9 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+            className="w-full h-9 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] inline-flex items-center justify-center gap-1 disabled:opacity-50"
           >
             {aiBusy ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
             {t("outfitBuilder.anchorGenerate")}
@@ -1219,22 +1219,22 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
 
       {/* Toolbar */}
       <div className="mx-6 mt-3 grid grid-cols-4 gap-2">
-        <button onClick={() => setPickerOpen(true)} className="h-11 rounded-2xl bg-foreground text-background inline-flex items-center justify-center gap-1 text-[10px] uppercase tracking-[0.25em]">
+        <button onClick={() => setPickerOpen(true)} className="h-11 rounded-2xl bg-foreground text-background inline-flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.25em]">
           <Plus size={12} /> {t("outfitBuilder.add")}
         </button>
-        <button onClick={bringForward} disabled={!selectedKey || selectedLocked} className="h-11 rounded-2xl border border-border inline-flex items-center justify-center gap-1 text-[10px] uppercase tracking-[0.25em] disabled:opacity-40">
+        <button onClick={bringForward} disabled={!selectedKey || selectedLocked} className="h-11 rounded-2xl border border-border inline-flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.25em] disabled:opacity-40">
           <ChevronUp size={12} /> {t("outfitBuilder.front")}
         </button>
-        <button onClick={sendBackward} disabled={!selectedKey || selectedLocked} className="h-11 rounded-2xl border border-border inline-flex items-center justify-center gap-1 text-[10px] uppercase tracking-[0.25em] disabled:opacity-40">
+        <button onClick={sendBackward} disabled={!selectedKey || selectedLocked} className="h-11 rounded-2xl border border-border inline-flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.25em] disabled:opacity-40">
           <ChevronDown size={12} /> {t("outfitBuilder.back")}
         </button>
-        <button onClick={removeSelected} disabled={!selectedKey} className="h-11 rounded-2xl border border-border inline-flex items-center justify-center gap-1 text-[10px] uppercase tracking-[0.25em] disabled:opacity-40">
+        <button onClick={removeSelected} disabled={!selectedKey} className="h-11 rounded-2xl border border-border inline-flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.25em] disabled:opacity-40">
           <Trash2 size={12} /> {t("outfitBuilder.del")}
         </button>
       </div>
       <div className="mx-6 mt-2 flex items-start gap-3">
         <button onClick={toggleLayersLocked} aria-pressed={layersLocked}
-          className={`shrink-0 h-8 px-3 rounded-full text-[10px] uppercase tracking-[0.2em] inline-flex items-center gap-1.5 border ${layersLocked ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"}`}>
+          className={`shrink-0 h-8 px-4 rounded-full text-[10px] uppercase tracking-[0.2em] inline-flex items-center gap-1 border ${layersLocked ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"}`}>
           <Layers size={11} /> {t("outfitBuilder.lockLayers")}
         </button>
         <p className="text-[11px] leading-snug text-muted-foreground pt-1.5">
@@ -1263,7 +1263,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
        <button
           onClick={save}
           disabled={saving || loading || !placed.length}
-          className="w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-2 disabled:opacity-50"
+          className="w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
         >
           {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
           {t("outfitBuilder.saveOutfit")}
@@ -1271,7 +1271,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         {placed.length > 0 && (
           <button
             onClick={() => openAvatarTryOn(placed.map((p) => p.itemId))}
-            className="w-full h-12 rounded-full border border-foreground/15 bg-secondary/40 text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-2"
+            className="w-full h-12 rounded-full border border-foreground/15 bg-secondary/40 text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
           >
             <Sparkles size={12} /> {t("avatar.tryOnCta")}
           </button>
@@ -1279,7 +1279,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
                {shareState && (
           <button
             onClick={() => setShareOpen(true)}
-            className="w-full h-12 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-2"
+            className="w-full h-12 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
           >
             <Share2 size={12} /> {t("outfitBuilder.shareThisLook")}
           </button>
@@ -1287,7 +1287,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         {savedOutfitId && (
           <button
             onClick={() => setCalendarOpen(true)}
-            className="w-full h-12 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-2"
+            className="w-full h-12 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
           >
             <CalendarIcon size={12} /> {t("outfitBuilder.addToCalendar")}
           </button>
@@ -1359,7 +1359,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
             <button
               onClick={() => void addToCalendar()}
               disabled={addingToCalendar}
-              className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-60 inline-flex items-center justify-center gap-2"
+              className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] disabled:opacity-60 inline-flex items-center justify-center gap-1.5"
             >
               {addingToCalendar && <Loader2 size={12} className="animate-spin" />}
               {t("outfitBuilder.saveToCalendar")}

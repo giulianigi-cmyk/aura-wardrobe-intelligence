@@ -103,12 +103,12 @@ export function QrFullscreen({ userId, onClose }: { userId: string | undefined; 
               <button
                 disabled={!dataUrl}
                 onClick={() => dataUrl && downloadBlob(dataUrlToBlob(dataUrl), `aura-${username}.png`)}
-                className="h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center gap-2 active:scale-95 disabled:opacity-40"
+                className="h-11 px-6 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center gap-1.5 active:scale-95 disabled:opacity-40"
               ><Download size={13} /> {t("myQrCode.save")}</button>
               <button
                 disabled={!dataUrl}
                 onClick={() => dataUrl && void shareQr(dataUrl, username)}
-                className="h-11 px-6 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] flex items-center gap-2 active:scale-95 disabled:opacity-40"
+                className="h-11 px-6 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] flex items-center gap-1.5 active:scale-95 disabled:opacity-40"
               ><Share2 size={13} /> {t("myQrCode.share")}</button>
             </div>
           </>

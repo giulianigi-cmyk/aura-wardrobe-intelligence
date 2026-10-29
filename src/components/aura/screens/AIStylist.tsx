@@ -655,12 +655,12 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
       <button
         type="button"
         onClick={() => setViewing(look)}
-        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 active:scale-[0.98]"
+        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1 active:scale-[0.98]"
       ><LayoutGrid size={12} /> {t("outfitViewer.canvas", { defaultValue: "Canvas" })}</button>
       <button
         type="button"
         onClick={() => openAvatarTryOn(look.itemIds)}
-        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 active:scale-[0.98]"
+        className="flex-1 h-9 rounded-full border border-border text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1 active:scale-[0.98]"
       ><User size={12} /> {t("outfitViewer.onAvatar", { defaultValue: "Avatar" })}</button>
     </div>
   );
@@ -773,7 +773,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
                   <button
                     onClick={() => void confirmWorn(tp)}
                     disabled={confirmingPlanId === tp.id || getWornIds(tp).length === 0}
-                    className="mt-3 w-full h-9 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1.5 disabled:opacity-60"
+                    className="mt-3 w-full h-9 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1 disabled:opacity-60"
                   ><Check size={12} /> {t("aiStylist.thisIsWhatImWearing")}</button>
                 )}
               </div>
@@ -793,7 +793,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
                 <button
                   onClick={() => void confirmWorn(p)}
                   disabled={confirmingPlanId === p.id || getWornIds(p).length === 0}
-                  className="flex-1 min-h-9 py-2 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-60"
+                  className="flex-1 min-h-9 py-2 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-1 disabled:opacity-60"
                 ><Check size={12} className="shrink-0" /><span className="text-center leading-snug">{t("aiStylist.yesThisIsWhatIWore")}</span></button>
                 <button
                   onClick={() => void dismissPlan(p)}
@@ -1062,12 +1062,12 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
         </div>
         <button
           onClick={() => go("stylist-chat")}
-          className="mt-2 w-full h-12 rounded-full border border-foreground text-foreground text-xs uppercase tracking-[0.3em] active:scale-[0.98] flex items-center justify-center gap-2"
+          className="mt-2 w-full h-12 rounded-full border border-foreground text-foreground text-xs uppercase tracking-[0.3em] active:scale-[0.98] flex items-center justify-center gap-1.5"
         ><Sparkles size={13} /> {t("aiStylist.askYourStylist")}</button>
 
         <button
           onClick={() => setWeeklySheetOpen(true)}
-          className="mt-2 w-full h-12 rounded-full border border-border text-foreground text-xs uppercase tracking-[0.3em] active:scale-[0.98] flex items-center justify-center gap-2"
+          className="mt-2 w-full h-12 rounded-full border border-border text-foreground text-xs uppercase tracking-[0.3em] active:scale-[0.98] flex items-center justify-center gap-1.5"
         ><CalendarIcon size={13} /> {t("aiStylist.createWorkOutfits")}</button>
 
         {/* Always open: the occasion chips and the AI suggestion used to hide behind a fold. */}
@@ -1275,7 +1275,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
             <button
               onClick={() => void saveEditWorn()}
               disabled={savingWornEdit || !editWornItemIds.length}
-              className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 disabled:opacity-40"
+              className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-1.5 disabled:opacity-40"
             >
               {savingWornEdit ? <Loader2 size={14} className="animate-spin" /> : null}
               {t("aiStylist.saveButton")}
@@ -1301,7 +1301,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
               <button
                 onClick={() => void removeWornEntry(confirmDeleteWorn)}
                 disabled={!!deletingWornId}
-                className="h-11 rounded-full bg-destructive text-destructive-foreground text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                className="h-11 rounded-full bg-destructive text-destructive-foreground text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-1.5 disabled:opacity-60"
               >
                 {deletingWornId && <Loader2 size={12} className="animate-spin" />}
                 {t("aiStylist.delete")}
@@ -1469,7 +1469,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
                 <button
                   onClick={() => void runWeeklyGeneration()}
                   disabled={weeklyGenerating}
-                  className="w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-2 disabled:opacity-60"
+                  className="w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-1.5 disabled:opacity-60"
                 >
                   {weeklyGenerating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
                   {t("aiStylist.generate")}

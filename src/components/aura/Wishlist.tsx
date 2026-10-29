@@ -233,7 +233,7 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
       <div className="flex items-center justify-between gap-3 mb-3">
         <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("wishlist.title")}</p>
         <button onClick={openAdd}
-          className="h-8 px-3 rounded-full border border-border text-[10px] uppercase tracking-widest inline-flex items-center gap-1.5 shrink-0">
+          className="h-8 px-4 rounded-full border border-border text-[10px] uppercase tracking-widest inline-flex items-center gap-1 shrink-0">
           <Plus size={11} /> {t("wishlist.addAmount")}
         </button>
       </div>
@@ -400,7 +400,7 @@ export function WishlistSection({ userId, wardrobe, refreshKey, go }: {
             <p className="font-serif text-2xl leading-tight">{fmt(balance)} €</p>
           </div>
           <button onClick={() => { setAddingAmount(addingAmount ? null : "manual"); setAmountText(""); }}
-            className="h-9 px-3 rounded-full border border-border text-[10px] uppercase tracking-widest inline-flex items-center gap-1.5 shrink-0">
+            className="h-9 px-4 rounded-full border border-border text-[10px] uppercase tracking-widest inline-flex items-center gap-1 shrink-0">
             <Plus size={11} /> {t("wishlist.addAmount")}
           </button>
         </div>
