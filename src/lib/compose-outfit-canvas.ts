@@ -108,7 +108,9 @@ function loadCachedImage(url: string): Promise<HTMLImageElement> {
     p = toDataUrl(url).then(loadImageEl);
     imageCache.set(url, p);
     p.catch(() => imageCache.delete(url));
-    if (imageCache.size > 30) {
+    // Each entry holds a decoded board-sized image and its PNG copy: 16 covers a full board and the
+    // Home look without piling up memory on an iPhone.
+    if (imageCache.size > 16) {
       const oldest = imageCache.keys().next().value;
       if (oldest !== undefined) imageCache.delete(oldest);
     }
