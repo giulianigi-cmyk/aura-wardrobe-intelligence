@@ -143,7 +143,7 @@ export const GUIDE: GuideChapterDef[] = [
         id: "basket", open: "wardrobe",
         visuals: [
           { kind: "option", icon: "shirt", labelKey: "laundry.optBasket", hintKey: "laundry.optBasketHint" },
-          { kind: "chips", labelKeys: ["laundry.groups.whites", "laundry.groups.darks", "laundry.groups.colors", "laundry.groups.delicates"] },
+          { kind: "chips", labelKeys: ["laundry.washedAll", "laundry.washed"] },
           { kind: "option", icon: "shirt", labelKey: "laundry.optDryCleaner", hintKey: "laundry.optDryCleanerHint" },
           { kind: "chips", labelKeys: ["laundry.loanBack", "laundry.loanStillOut"] },
         ],

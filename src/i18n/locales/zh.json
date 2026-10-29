@@ -2784,14 +2784,8 @@
     "daysAgo_one": "已 1 天",
     "daysAgo_other": "已 {{count}} 天",
     "basketTitle": "洗衣篮",
-    "basketIntro": "按洗衣批次分组。洗好后点按“已洗”；如果忘了，10 天后它们会自动回到衣橱。",
+    "basketIntro": "洗好后点按“已洗”；如果忘了，10 天后它们会自动回到衣橱。",
     "basketEmpty": "洗衣篮是空的。",
-    "groups": {
-      "whites": "白色",
-      "darks": "黑色和深色",
-      "colors": "彩色",
-      "delicates": "精细衣物"
-    },
     "washedAll": "已洗",
     "washed": "已洗",
     "dryCleanerTitle": "干洗店",

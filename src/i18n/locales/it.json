@@ -2784,14 +2784,8 @@
     "daysAgo_one": "da 1 giorno",
     "daysAgo_other": "da {{count}} giorni",
     "basketTitle": "Cesto del bucato",
-    "basketIntro": "Divisi per lavatrice. Quando li hai lavati tocca «Lavati»; se te ne dimentichi, dopo 10 giorni tornano da soli nell'armadio.",
+    "basketIntro": "Quando li hai lavati tocca «Lavati»; se te ne dimentichi, dopo 10 giorni tornano da soli nell'armadio.",
     "basketEmpty": "Il cesto è vuoto.",
-    "groups": {
-      "whites": "Bianchi",
-      "darks": "Neri e scuri",
-      "colors": "Colorati",
-      "delicates": "Delicati"
-    },
     "washedAll": "Lavati",
     "washed": "Lavato",
     "dryCleanerTitle": "Tintoria",

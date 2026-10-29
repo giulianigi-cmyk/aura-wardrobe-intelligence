@@ -8,8 +8,6 @@
 // - Sport pieces go to the basket by themselves when an outfit is logged as worn.
 // - Loans have no return date: a reminder 14 days after the loan, then 14 days after each
 //   "ce l'ha ancora" (the loan's updated_at), until "ripreso".
-import { careProfileFor } from "./laundry-care";
-import { colorLightness } from "./outfit-match";
 
 export type LaundryKind = "basket" | "dry_cleaner";
 export type LaundryFields = { laundry_since?: string | null; laundry_kind?: string | null };
@@ -79,18 +77,4 @@ export function isSportPiece(item: { category?: string | null; occasion?: string
   if (item.category === "Activewear") return true;
   const tags = (item.occasion ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   return tags.length > 0 && tags.every((t) => /sport|gym|training|running|yoga/i.test(t));
-}
-
-/** Which machine load a basket piece belongs to: whites, darks, colours, or delicates (silk, wool,
- *  down, viscose, velvet, embellished — washed apart on a delicate programme). */
-export type WashGroup = "whites" | "darks" | "colors" | "delicates";
-const DELICATE_PROFILES = new Set(["silk", "wool", "down", "viscose", "velvet", "embellished", "swim"]);
-export function washGroup(item: { material?: string[] | null; category?: string | null; colors?: string[] | null; color?: string | null }): WashGroup {
-  const profile = careProfileFor(item.material ?? [], item.category);
-  if (profile && DELICATE_PROFILES.has(profile)) return "delicates";
-  const main = item.colors?.[0] ?? item.color ?? "";
-  const l = main ? colorLightness(main) : null;
-  if (l != null && l >= 80) return "whites";
-  if (l != null && l <= 30) return "darks";
-  return "colors";
 }

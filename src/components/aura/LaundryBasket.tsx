@@ -1,14 +1,11 @@
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import { washGroup, type WashGroup } from "@/lib/laundry-basket";
 
 export type LaundryPiece = {
   id: string; label: string; imageUrl: string; since: string;
   material?: string[] | null; category?: string | null; colors?: string[] | null;
 };
-
-const GROUPS: WashGroup[] = ["whites", "darks", "colors", "delicates"];
 
 function daysAgo(iso: string): number {
   return Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 86_400_000));
@@ -30,13 +27,13 @@ function PieceRow({ p, action, onAction }: { p: LaundryPiece; action: string; on
   );
 }
 
-/** The laundry basket, split by machine load (whites, darks, colours, delicates): "Lavati" for a
- *  whole load or one piece at a time. Pieces left in it go back to the wardrobe after 10 days. */
+/** The laundry basket: one list, "Lavati" for all of it or one piece at a time. Not split by machine
+ *  load: colour and material are often missing or approximate, and a wrong load can ruin a piece.
+ *  Pieces left in it go back to the wardrobe after 10 days. */
 export function LaundryBasketSheet({ pieces, onWashed, onClose }: {
   pieces: LaundryPiece[]; onWashed: (ids: string[]) => void; onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const byGroup = GROUPS.map((g) => ({ g, list: pieces.filter((p) => washGroup(p) === g) })).filter((x) => x.list.length > 0);
   return createPortal(
     <div className="fixed inset-0 z-[85] bg-background/80 backdrop-blur flex items-end justify-center" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()}
@@ -46,20 +43,19 @@ export function LaundryBasketSheet({ pieces, onWashed, onClose }: {
           <button onClick={onClose} aria-label={t("wardrobe.closeAria")} className="h-9 w-9 rounded-full border border-border flex items-center justify-center shrink-0"><X size={15} /></button>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">{t("laundry.basketIntro")}</p>
-        {byGroup.length === 0 && <p className="mt-6 text-sm text-muted-foreground">{t("laundry.basketEmpty")}</p>}
-        <div className="mt-4 space-y-5">
-          {byGroup.map(({ g, list }) => (
-            <section key={g}>
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t(`laundry.groups.${g}`)} · {list.length}</p>
-                <button onClick={() => onWashed(list.map((p) => p.id))} className="rounded-full bg-foreground text-background px-3 py-1 text-[11px]">{t("laundry.washedAll")}</button>
-              </div>
-              <ul className="space-y-2">
-                {list.map((p) => <PieceRow key={p.id} p={p} action={t("laundry.washed")} onAction={() => onWashed([p.id])} />)}
-              </ul>
-            </section>
-          ))}
-        </div>
+        {pieces.length === 0 ? (
+          <p className="mt-6 text-sm text-muted-foreground">{t("laundry.basketEmpty")}</p>
+        ) : (
+          <>
+            <button onClick={() => onWashed(pieces.map((p) => p.id))}
+              className="mt-4 w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em]">
+              {t("laundry.washedAll")}
+            </button>
+            <ul className="mt-4 space-y-2">
+              {pieces.map((p) => <PieceRow key={p.id} p={p} action={t("laundry.washed")} onAction={() => onWashed([p.id])} />)}
+            </ul>
+          </>
+        )}
       </div>
     </div>,
     document.body,
