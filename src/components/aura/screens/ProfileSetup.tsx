@@ -60,7 +60,8 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
   });
   const [styles, setStyles] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
-  const [shareLibrary, setShareLibrary] = useState(false);
+  // Library sharing is consent: nothing chosen until the person taps Yes or No.
+  const [shareLibrary, setShareLibrary] = useState<boolean | null>(null);
   const [avatar, setAvatar] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
@@ -155,7 +156,7 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
       language: language || null,
       style_preferences: styles,
       favorite_brands: brands,
-      share_wardrobe_to_library: shareLibrary,
+      share_wardrobe_to_library: shareLibrary === true,
       setup_complete: true,
     };
     // Lo username è facoltativo: lo salviamo solo se valido e disponibile
@@ -352,24 +353,21 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
               <p className="mt-4 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("profileSetup.profilePhotoLabel")}</p>
               <p className="mt-2 text-xs text-muted-foreground max-w-[260px]">{t("profileSetup.profilePhotoHint")}</p>
 
-              {/* Consenso libreria condivisa: checkbox VUOTA, opt-in esplicito. */}
-              <button
-                type="button"
-                role="checkbox"
-                aria-checked={shareLibrary}
-                onClick={() => setShareLibrary(v => !v)}
-                className="mt-8 w-full flex items-start gap-3 rounded-2xl border border-border bg-card p-4 text-left active:scale-[0.99] transition"
-              >
-                <span className={`mt-0.5 h-5 w-5 shrink-0 rounded-md border flex items-center justify-center transition ${shareLibrary ? "bg-foreground border-foreground text-background" : "border-border"}`}>
-                  {shareLibrary && <Check size={12} />}
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-sm">{t("profileSetup.shareLibraryLabel")}</span>
-                  <span className="block text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                    {t("profileSetup.shareLibraryDetail")}
-                  </span>
-                </span>
-              </button>
+              {/* Consenso libreria condivisa: opt-in esplicito, nessuna risposta preselezionata;
+                  Sì e No hanno lo stesso peso. */}
+              <div className="mt-8 w-full rounded-2xl border border-border bg-card p-4 text-left">
+                <p className="text-sm font-medium">{t("profileSetup.shareLibraryTitle")}</p>
+                <p className="mt-1 text-[13px] leading-relaxed">{t("profileSetup.shareLibraryPitch")}</p>
+                <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">{t("profileSetup.shareLibraryDetail")}</p>
+                <div className="mt-3 grid grid-cols-2 gap-2" role="radiogroup" aria-label={t("profileSetup.shareLibraryTitle")}>
+                  {([[true, "shareLibraryYes"], [false, "shareLibraryNo"]] as const).map(([v, k]) => (
+                    <button key={k} type="button" role="radio" aria-checked={shareLibrary === v} onClick={() => setShareLibrary(v)}
+                      className={`h-10 rounded-full border text-[11px] inline-flex items-center justify-center gap-1.5 transition ${shareLibrary === v ? "bg-foreground text-background border-foreground" : "border-border"}`}>
+                      {shareLibrary === v && <Check size={12} />} {t(`profileSetup.${k}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 

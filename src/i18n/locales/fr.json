@@ -1783,6 +1783,10 @@
     "profilePhotoHint": "Facultatif — mais un portrait aide à personnaliser votre analyse des couleurs plus tard. Ce n'est pas une photo de pièce de garde-robe.",
     "shareLibraryLabel": "Partager ma garde-robe dans la bibliothèque commune",
     "shareLibraryDetail": "Vos pièces — marque, prix, étiquettes et photo — deviennent visibles et réutilisables par d'autres membres, de façon anonyme : personne ne saura qu'elles viennent de vous. Les données personnelles (votre nom, la fréquence d'utilisation, où vous les rangez) ne sont jamais partagées. Vous pouvez désactiver cela à tout moment dans votre profil ; les pièces déjà importées par d'autres restent dans leur propre garde-robe.",
+    "shareLibraryTitle": "Aidez la bibliothèque {{appName}}",
+    "shareLibraryPitch": "Plus elle contient de pièces, plus il est facile pour chacun de trouver la sienne déjà prête, avec photo et détails : il suffit de la chercher et de la toucher. C'est vrai pour vous aussi.",
+    "shareLibraryYes": "Oui, je partage",
+    "shareLibraryNo": "Non, merci",
     "back": "Retour",
     "enterAura": "Entrer dans {{appName}}",
     "continue": "Continuer"
@@ -2811,5 +2815,16 @@
     "optDryCleaner": "Au pressing",
     "optDryCleanerHint": "Nous vous rappelons de la récupérer après 7 jours",
     "toDryCleanerShort": "Pressing"
+  },
+  "shareAsk": {
+    "titleAdded": "Partager vos pièces dans la bibliothèque ?",
+    "bodyAdded": "Dans la bibliothèque, les autres trouvent déjà prêtes les pièces que vous avez, avec photo et détails, et vous trouvez les leurs. Plus il y a de pièces, plus elle est utile à tous, vous compris.",
+    "title": "Vous avez trouvé votre pièce dans la bibliothèque",
+    "body": "Elle y était parce que quelqu'un l'a partagée. Voulez-vous faire de même avec vos pièces ? La bibliothèque s'agrandit et la prochaine fois vous trouverez encore plus.",
+    "detail": "Les photos produit, la marque et les détails de vos pièces deviennent visibles par les autres de façon anonyme : personne ne saura qu'elles viennent de vous. Vous pouvez changer d'avis à tout moment dans Paramètres › Confidentialité.",
+    "yes": "Oui, je partage",
+    "notNow": "Pas maintenant",
+    "thanks": "Merci ! Vos pièces entrent dans la bibliothèque.",
+    "failed": "Impossible d'enregistrer. Réessayez."
   }
 }

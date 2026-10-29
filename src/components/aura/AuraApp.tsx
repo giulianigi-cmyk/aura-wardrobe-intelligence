@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { LegalConsentGate } from "@/components/aura/LegalDocs";
+import { ShareLibraryAsk } from "@/components/aura/ShareLibraryAsk";
 import { firstHttpUrl, setPendingImportUrl } from "@/lib/pending-import";
 import { hasAcceptedLegal } from "@/lib/legal/legal";
 import { Splash } from "./screens/Splash";
@@ -593,6 +594,7 @@ function Inner() {
 
         {/* Privacy policy and terms must be accepted (again, when LEGAL_VERSION changes) before using the app. */}
         {user && !hasAcceptedLegal(user.user_metadata) && !["splash", "onboarding", "auth", "reset"].includes(screen) && <LegalConsentGate />}
+        {user && <ShareLibraryAsk userId={user.id} />}
 
         {/* Everything else — unchanged mount-on-demand behavior. */}
         {!isMainTab && (
