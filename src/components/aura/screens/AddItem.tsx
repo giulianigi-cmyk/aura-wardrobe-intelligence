@@ -1527,19 +1527,8 @@ export function AddItem({ onClose, initialGarment }: {
                 {currentRetailFromImport ? t("addItem.currentRetailPriceFromImportHint") : t("addItem.currentRetailPriceHint")}
               </p>
             </div>
-            <div className="border-b border-border/60 pb-3">
-              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("addItem.historicalRetailPriceLabel")}</p>
-              <input
-                value={historicalRetailPrice}
-                onChange={(e) => { setHistoricalRetailPrice(e.target.value.replace(/[^0-9.,]/g, "")); setHistoricalRetailFromImport(false); }}
-                inputMode="decimal"
-                placeholder={t("addItem.historicalRetailPricePlaceholder")}
-                className="mt-1 w-full bg-transparent font-serif text-lg outline-none placeholder:text-muted-foreground/50"
-              />
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                {historicalRetailFromImport ? t("addItem.historicalRetailPriceFromImportHint") : t("addItem.historicalRetailPriceHint")}
-              </p>
-            </div>
+            {/* «Prezzo retail all'acquisto» is not asked any more (it confused people and the estimate
+                does not use it): the product page still fills it, saved as before. */}
             <div className="border-b border-border/60 pb-3">
               <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("addItem.modelLabel")}</p>
               <input

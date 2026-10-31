@@ -2735,7 +2735,7 @@
     "materials": "材质",
     "color": "颜色",
     "brand": "品牌",
-    "copy": "复制商品信息",
+    "copy": "复制整条信息",
     "copied": "已复制：粘贴到你喜欢的二手平台即可",
     "copyFailed": "无法复制。请长按文字进行复制。",
     "savePhoto": "保存照片",
@@ -2754,7 +2754,9 @@
       "seasonMissed": "上一整季都没有穿过",
       "sixMonths": "6 个月没有穿过",
       "twoYears": "2 年没有穿过"
-    }
+    },
+    "fieldCopied": "已复制",
+    "copyField": "复制{{field}}"
   },
   "wishlist": {
     "title": "心愿单",

@@ -2735,7 +2735,7 @@
     "materials": "Materials",
     "color": "Colour",
     "brand": "Brand",
-    "copy": "Copy listing",
+    "copy": "Copy the whole listing",
     "copied": "Listing copied: paste it on the resale site you prefer",
     "copyFailed": "Couldn't copy. Press and hold the text to copy it.",
     "savePhoto": "Save photo",
@@ -2754,7 +2754,9 @@
       "seasonMissed": "Not worn during its whole last season",
       "sixMonths": "Not worn for 6 months",
       "twoYears": "Not worn for 2 years"
-    }
+    },
+    "fieldCopied": "Copied",
+    "copyField": "Copy {{field}}"
   },
   "wishlist": {
     "title": "Wishlist",

@@ -2735,7 +2735,7 @@
     "materials": "Matières",
     "color": "Couleur",
     "brand": "Marque",
-    "copy": "Copier l'annonce",
+    "copy": "Copier toute l'annonce",
     "copied": "Annonce copiée : collez-la sur le site de revente de votre choix",
     "copyFailed": "Impossible de copier. Appuyez longuement sur le texte pour le copier.",
     "savePhoto": "Enregistrer la photo",
@@ -2754,7 +2754,9 @@
       "seasonMissed": "Pas portée de toute sa dernière saison",
       "sixMonths": "Pas portée depuis 6 mois",
       "twoYears": "Pas portée depuis 2 ans"
-    }
+    },
+    "fieldCopied": "Copié",
+    "copyField": "Copier {{field}}"
   },
   "wishlist": {
     "title": "Liste d'envies",

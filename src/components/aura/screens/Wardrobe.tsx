@@ -215,7 +215,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
     currency: "EUR",
     purchaseDate: "" as string,
     currentRetailPrice: "" as string,
-    historicalRetailPrice: "" as string,
     iconicity: "" as Iconicity | "",
     model: "" as string,
     bagSizeClass: "" as string,
@@ -255,7 +254,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
       currency: (detail.currency && CURRENCY_OPTIONS.includes(detail.currency)) ? detail.currency : "EUR",
       purchaseDate: (detail as unknown as { purchase_date?: string | null }).purchase_date ?? "",
       currentRetailPrice: raw.current_retail_price != null ? String(raw.current_retail_price) : "",
-      historicalRetailPrice: raw.historical_retail_price != null ? String(raw.historical_retail_price) : "",
       iconicity: raw.iconicity ?? "",
       model: raw.model ?? "",
       bagSizeClass: raw.bag_size_class ?? "",
@@ -293,8 +291,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
       if (priceNum != null && !Number.isFinite(priceNum)) throw new Error(t("wardrobe.invalidPrice"));
       const retailNum = edit.currentRetailPrice.trim() === "" ? null : Number(edit.currentRetailPrice);
       if (retailNum != null && !Number.isFinite(retailNum)) throw new Error(t("wardrobe.invalidPrice"));
-      const historicalRetailNum = edit.historicalRetailPrice.trim() === "" ? null : Number(edit.historicalRetailPrice);
-      if (historicalRetailNum != null && !Number.isFinite(historicalRetailNum)) throw new Error(t("wardrobe.invalidPrice"));
 
       const sameArray = (a: string[], b: string[] | null | undefined) => {
         const bb = b ?? [];
@@ -344,8 +340,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
         current_retail_price: retailNum,
         current_retail_source: retailNum != null ? "user" : null,
         current_retail_updated_at: retailNum != null ? new Date().toISOString() : null,
-        historical_retail_price: historicalRetailNum,
-        historical_retail_source: historicalRetailNum != null ? "user" : null,
         iconicity: edit.iconicity || null,
         model: edit.model.trim() || null,
         bag_size_class: edit.bagSizeClass || null,
@@ -2208,22 +2202,6 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
                     />
                   </div>
                   <p className="mt-1.5 text-[10px] text-muted-foreground px-1">{t("wardrobe.currentRetailPriceHint")}</p>
-                </div>
-
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("wardrobe.historicalRetailPriceLabel")}</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground w-6 text-center">{currencySymbol[edit.currency]}</span>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      value={edit.historicalRetailPrice}
-                      onChange={(e) => setEdit((s) => ({ ...s, historicalRetailPrice: e.target.value }))}
-                      placeholder={t("wardrobe.historicalRetailPricePlaceholder")}
-                      className="flex-1 bg-secondary/60 rounded-full px-4 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
-                    />
-                  </div>
-                  <p className="mt-1.5 text-[10px] text-muted-foreground px-1">{t("wardrobe.historicalRetailPriceHint")}</p>
                 </div>
 
                 <div>

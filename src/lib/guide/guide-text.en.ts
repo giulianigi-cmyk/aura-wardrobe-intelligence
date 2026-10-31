@@ -138,7 +138,7 @@ const text: GuideText = {
       steps: [
         "Open the piece, tap “Options” and then “Sell this piece”.",
         "Choose the condition: the suggested price adapts, based on the estimated resale value.",
-        "Check title and description, save the photo (already without background) and tap “Copy listing”: paste it on the resale site you prefer.",
+        "Check title and description, save the photo (already without background) and copy each field with its own button (title, description, price, size…) or tap “Copy the whole listing”, then paste it on the resale site you prefer.",
         "Once sold, tap “Mark as sold”: the piece moves to Archived.",
       ],
       tip: "In Closet we suggest the pieces you haven't worn for a whole season (6 months for all-season pieces, 2 years for occasion pieces), if you log what you wear. With “Keep it” we won't suggest them again for a year.",

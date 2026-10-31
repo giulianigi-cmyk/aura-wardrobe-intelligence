@@ -16,9 +16,20 @@ export type SellPiece = {
   colors?: string[] | null; size?: string | null; material?: string[] | null; currency?: string | null;
 };
 
+/** A small "copy" button next to one field of the listing: resale sites ask for each in its own box. */
+function CopyField({ label, onCopy }: { label: string; onCopy: () => void }) {
+  return (
+    <button type="button" onClick={onCopy} aria-label={label} title={label}
+      className="h-8 w-8 shrink-0 rounded-full border border-border flex items-center justify-center active:scale-90">
+      <Copy size={13} />
+    </button>
+  );
+}
+
 /** "Vendi questo capo": the listing ready to paste on any resale site — title, description,
  *  condition, suggested price (from the resale range of the piece's "Valore") and its photo, already
- *  without background. "Segna come venduto" archives the piece. */
+ *  without background. Each field has its own copy button (sites ask for them one by one), plus one
+ *  to copy everything. "Segna come venduto" archives the piece. */
 export function SellSheet({ piece, imageUrl, resaleLow, resaleHigh, onSold, onClose }: {
   piece: SellPiece; imageUrl: string; resaleLow: number | null; resaleHigh: number | null;
   onSold: () => void; onClose: () => void;
@@ -40,16 +51,27 @@ export function SellSheet({ piece, imageUrl, resaleLow, resaleHigh, onSold, onCl
   const price = suggestedPrice(resaleLow, resaleHigh, condition);
   const symbol = piece.currency === "USD" ? "$" : piece.currency === "GBP" ? "£" : "€";
 
-  const copy = async () => {
-    const text = [title ?? listing.title, "", description ?? listing.description, price != null ? `\n${t("sell.priceLine", { price: `${price} ${symbol}` })}` : ""].join("\n").trim();
+  const copyText = async (text: string, field: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      track("flow_step", { feature: "sell", step: "copied", condition });
-      toast.success(t("sell.copied"));
+      track("flow_step", { feature: "sell", step: "copied", condition, field });
+      toast.success(field === "all" ? t("sell.copied") : t("sell.fieldCopied"));
     } catch {
       toast.error(t("sell.copyFailed"));
     }
   };
+  const copy = () => copyText(
+    [title ?? listing.title, "", description ?? listing.description, price != null ? `\n${t("sell.priceLine", { price: `${price} ${symbol}` })}` : ""].join("\n").trim(),
+    "all",
+  );
+  // The details the sites ask for in their own boxes, each to copy on its own.
+  const details = [
+    { key: "brand", label: t("sell.brand"), value: piece.brand?.trim() || null },
+    { key: "size", label: t("sell.size"), value: piece.size?.trim() || null },
+    { key: "color", label: t("sell.color"), value: piece.colors?.length ? piece.colors.map((c) => colorName(c, i18n.language)).join(", ") : null },
+    { key: "materials", label: t("sell.materials"), value: (piece.material ?? []).map((m) => t(`materials.${m}`, { defaultValue: m })).join(", ") || null },
+    { key: "condition", label: t("sell.condition"), value: t(`sell.conditions.${condition}`) },
+  ].filter((d): d is { key: string; label: string; value: string } => !!d.value);
 
   const savePhoto = async () => {
     try {
@@ -106,7 +128,10 @@ export function SellSheet({ piece, imageUrl, resaleLow, resaleHigh, onSold, onCl
         <p className="mt-5 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("sell.suggestedPrice")}</p>
         {price != null ? (
           <>
-            <p className="mt-1 font-serif text-2xl">{price} {symbol}</p>
+            <div className="mt-1 flex items-center gap-2">
+              <p className="font-serif text-2xl">{price} {symbol}</p>
+              <CopyField label={t("sell.copyField", { field: t("sell.suggestedPrice") })} onCopy={() => void copyText(String(price), "price")} />
+            </div>
             <p className="text-[11px] text-muted-foreground">{t("sell.priceHint")}</p>
           </>
         ) : (
@@ -114,11 +139,29 @@ export function SellSheet({ piece, imageUrl, resaleLow, resaleHigh, onSold, onCl
         )}
 
         <label className="block mt-5 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("sell.titleLabel")}</label>
-        <input value={title ?? listing.title} onChange={(e) => setTitle(e.target.value.slice(0, 60))}
-          className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" />
-        <label className="block mt-4 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("sell.descriptionLabel")}</label>
+        <div className="mt-1.5 flex items-center gap-2">
+          <input value={title ?? listing.title} onChange={(e) => setTitle(e.target.value.slice(0, 60))}
+            className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm" />
+          <CopyField label={t("sell.copyField", { field: t("sell.titleLabel") })} onCopy={() => void copyText(title ?? listing.title, "title")} />
+        </div>
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <label className="block text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("sell.descriptionLabel")}</label>
+          <CopyField label={t("sell.copyField", { field: t("sell.descriptionLabel") })} onCopy={() => void copyText(description ?? listing.description, "description")} />
+        </div>
         <textarea value={description ?? listing.description} onChange={(e) => setDescription(e.target.value)} rows={7}
           className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-[13px] leading-relaxed" />
+
+        {details.length > 0 && (
+          <ul className="mt-4 divide-y divide-border/60 rounded-xl border border-border">
+            {details.map((d) => (
+              <li key={d.key} className="flex items-center gap-2 px-3 py-1.5">
+                <span className="w-24 shrink-0 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{d.label}</span>
+                <span className="min-w-0 flex-1 truncate text-[13px]">{d.value}</span>
+                <CopyField label={t("sell.copyField", { field: d.label })} onCopy={() => void copyText(d.value, d.key)} />
+              </li>
+            ))}
+          </ul>
+        )}
 
         <button onClick={() => void copy()}
           className="mt-5 w-full h-12 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] inline-flex items-center justify-center gap-1.5 active:scale-95">

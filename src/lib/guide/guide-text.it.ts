@@ -138,7 +138,7 @@ const text: GuideText = {
       steps: [
         "Apri il capo, tocca «Opzioni» e poi «Vendi questo capo».",
         "Scegli le condizioni: il prezzo suggerito si adatta, in base al valore di rivendita stimato.",
-        "Controlla titolo e descrizione, salva la foto (è già senza sfondo) e tocca «Copia annuncio»: incollalo sul sito di vendita che preferisci.",
+        "Controlla titolo e descrizione, salva la foto (è già senza sfondo) e copia ogni campo con il suo pulsante (titolo, descrizione, prezzo, taglia…) oppure tocca «Copia tutto l'annuncio», e incollalo sul sito di vendita che preferisci.",
         "Quando l'hai venduto tocca «Segna come venduto»: il capo va in Archiviati.",
       ],
       tip: "In Guardaroba ti proponiamo i capi che non metti da un'intera stagione (6 mesi per quelli di tutte le stagioni, 2 anni per quelli da cerimonia), se segni ciò che indossi. Con «Lo tengo» non te li riproponiamo per un anno.",
