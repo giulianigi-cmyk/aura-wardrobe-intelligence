@@ -25,27 +25,29 @@ function Example({ slide }: { slide: Slide }) {
   const { t } = useTranslation();
   if (slide === "outfits") {
     return (
+      // The pieces small, the outfit made from them clearly the main thing.
       <div className="flex items-center gap-3">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-1.5">
           {PIECES.map((p) => (
-            <Tile key={p} className="h-[72px] w-[72px] overflow-hidden"><img src={`/onboarding/${p}.webp`} alt="" className="h-full w-full object-contain p-1.5" /></Tile>
+            <Tile key={p} className="h-14 w-14 rounded-xl overflow-hidden"><img src={`/onboarding/${p}.webp`} alt="" className="h-full w-full object-contain p-1.5" /></Tile>
           ))}
         </div>
         <ArrowRight size={18} className="text-muted-foreground shrink-0" />
-        <Tile className="w-40 aspect-[4/5] overflow-hidden"><img src="/onboarding/look.webp" alt={t("onboarding.exampleLook")} className="h-full w-full object-contain" /></Tile>
+        <Tile className="w-44 aspect-[4/5] overflow-hidden"><img src="/onboarding/look.webp" alt={t("onboarding.exampleLook")} className="h-full w-full object-contain" /></Tile>
       </div>
     );
   }
   if (slide === "scan") {
     return (
       <div className="relative">
-        <Tile className="h-52 w-72 relative overflow-hidden">
+        {/* Every piece and its check stay inside the frame of the photo. */}
+        <Tile className="h-44 w-72 relative overflow-hidden">
           <div className="absolute inset-3 rounded-xl border-2 border-dashed border-foreground/25" />
-          <div className="flex gap-3">
+          <div className="flex gap-2.5">
             {SCANNED.map((p) => (
-              <div key={p} className="relative h-24 w-[72px] rounded-xl bg-secondary/40 flex items-center justify-center">
-                <img src={`/onboarding/${p}.webp`} alt="" className="h-full w-full object-contain p-1" />
-                <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-foreground text-background flex items-center justify-center"><Check size={11} /></span>
+              <div key={p} className="relative h-[88px] w-[70px] rounded-xl bg-secondary/40 overflow-hidden">
+                <img src={`/onboarding/${p}.webp`} alt="" className="h-full w-full object-contain p-2" />
+                <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-foreground text-background flex items-center justify-center"><Check size={9} /></span>
               </div>
             ))}
           </div>
