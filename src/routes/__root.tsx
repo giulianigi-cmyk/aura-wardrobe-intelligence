@@ -104,9 +104,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "alternate", hrefLang: "x-default", href: META.en.url },
       // Installable app (Add to Home Screen) — needed on iPhone for the morning notification.
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "icon", href: "/favicon.ico?v=11", sizes: "16x16 32x32 48x48" },
-      { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png?v=11" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=11" },
+      { rel: "icon", href: "/favicon.ico?v=12", sizes: "16x16 32x32 48x48" },
+      { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png?v=12" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=12" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap" },
