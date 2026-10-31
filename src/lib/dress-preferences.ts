@@ -27,6 +27,9 @@ export type DressPreferences = {
   // column level and this type is shared by both.
   max_heel_height?: HeelHeight;
   custom_notes?: string;
+  // How cold the person feels (Preferenze di stile): shifts every temperature rule by 3 °C. Not a
+  // dress rule — hasAnyPreference and the prompt text ignore it.
+  cold_sensitivity?: "cold" | "normal" | "warm";
 };
 
 export const BOOL_PREFS: { key: keyof DressPreferences; label: string }[] = [

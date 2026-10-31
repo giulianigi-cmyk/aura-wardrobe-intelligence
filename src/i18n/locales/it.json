@@ -135,7 +135,14 @@
     "usageSub": "Il tuo piano e quanto hai usato",
     "reportProblem": "Segnala un problema",
     "reportProblemSub": "Qualcosa non funziona? Dicci cosa",
-    "followNimbea": "Segui Nimbèa"
+    "followNimbea": "Segui Nimbèa",
+    "coldSensitivity": "Temperatura",
+    "coldSensitivityHint": "Come senti il freddo: sposta di 3 °C i consigli su cappotti, giacche e strati.",
+    "coldSensitivityOptions": {
+      "cold": "Sento il freddo",
+      "normal": "Nella media",
+      "warm": "Sento il caldo"
+    }
   },
   "community": {
     "chooseUsername": "Scegli uno username",

@@ -299,6 +299,9 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
               data: {
                 temperature: weather?.current.temperature ?? null,
                 tempMin: weather?.daily?.[0]?.tempMin ?? null,
+                tempMax: weather?.daily?.[0]?.tempMax ?? null,
+                apparentTemperature: weather?.current.apparentTemperature ?? null,
+                localHour: new Date().getHours(),
                 condition: weather ? describeWeather(weather.current.weatherCode, weather.current.isDay).label : null,
                 dressRules,
                 items: activeItems.map((it) => ({

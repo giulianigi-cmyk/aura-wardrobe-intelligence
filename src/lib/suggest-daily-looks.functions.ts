@@ -5,7 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
 import { z } from "zod";
 import { parseAiJson } from "./ai-json";
-import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE, MID_SEASON_OUTER_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule } from "./outfit-weather-rules";
+import { anyItemViolatesWeather, forPerson, outerLayerTemperature, BLAZER_WARMTH_PROMPT_RULE, MID_SEASON_OUTER_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
 import { CATALOG_MAX_ITEMS, compactCatalogJson } from "./wardrobe-catalog";
 import { TALL_BOOTS_PROMPT_RULE, violatesTallBootsRule, isTallBoot } from "./tall-boots-rule";
@@ -67,6 +67,11 @@ const InputSchema = z.object({
   temperature: z.number().nullable().optional(),
   /** Today's minimum: outside summer a cool morning leaves summer pieces out (withoutSummerPieces). */
   tempMin: z.number().nullable().optional(),
+  // Perceived temperature now, the day's maximum and the local hour: the outer layer is chosen for
+  // the coldest perceived hour the person is out (outfit-weather-rules.ts outerLayerTemperature).
+  apparentTemperature: z.number().nullable().optional(),
+  tempMax: z.number().nullable().optional(),
+  localHour: z.number().min(0).max(24).nullable().optional(),
   condition: z.string().nullable().optional(),
   dressRules: z.string().max(8000).nullable().optional(),
   items: z.array(ItemSchema).min(3),
@@ -148,10 +153,6 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     const gateway = createLovableAiGatewayProvider(key);
     const model = gateway("google/gemini-2.5-flash");
 
-    const wx = data.temperature != null
-      ? `Today's weather: ${Math.round(data.temperature)}°C, ${data.condition ?? "unknown"}.`
-      : "Today's weather: unknown.";
-
     // Dress preferences ("things to avoid") are a HARD filter here too, as in every other engine —
     // they used to reach this one only as prompt text the model could ignore. Read from the profile
     // so the Work look uses the work-specific preferences (they fully replace the general ones when
@@ -163,6 +164,16 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     const workPrefs: DressPreferences | null = hasAnyPreference(prefs?.work_dress_preferences) ? prefs!.work_dress_preferences! : generalPrefs;
     const allowedFor = (occasion: string, it: Parameters<typeof isItemAllowedByDressPreferences>[0]): boolean =>
       isItemAllowedByDressPreferences(it, occasion === "Work" ? workPrefs : generalPrefs);
+
+    // The temperatures the outfit is chosen for: perceived, and as this person feels it (freddolosa /
+    // calorosa); the outer layer for the coldest perceived hour they are out today.
+    const sensitivity = generalPrefs?.cold_sensitivity ?? null;
+    const feltTemp = forPerson(data.apparentTemperature ?? data.temperature, sensitivity);
+    const outerTemp = forPerson(outerLayerTemperature(data), sensitivity);
+    const wx = data.temperature != null
+      ? `Today's weather: ${Math.round(data.temperature)}°C, ${data.condition ?? "unknown"}.` +
+        (outerTemp != null ? ` OUTER-LAYER TEMPERATURE (perceived, coldest hour out, adjusted to this person): ${Math.round(outerTemp)}°C.` : "")
+      : "Today's weather: unknown.";
 
     // Rotation (outfit-rotation.ts): the model used to get the first 200 pieces in wardrobe order —
     // the newest ones — so older pieces were never even seen and the same recent ones kept coming
@@ -420,7 +431,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     // missed material entirely and used a strict `season === "winter"`
     // that silently never matched multi-value season tags like
     // "Autumn, Winter". Both are fixed by using the shared function.
-    const violatesWeather = (ids: string[]): boolean => anyItemViolatesWeather(ids, catalog, data.temperature ?? null);
+    const violatesWeather = (ids: string[]): boolean => anyItemViolatesWeather(ids, catalog, feltTemp, outerTemp);
     // A warm coat over a T-shirt alone (see coatOverBareArms): rejected like any other weather mismatch.
     const violatesCoatOverBareArms = (ids: string[]): boolean =>
       coatOverBareArms(ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is NonNullable<typeof c> => !!c));

@@ -17,6 +17,7 @@
 // per la generazione finale.
 
 import { isSummerSeason } from "./outfit-styling-rules";
+import { temperatureAt } from "./commute-weather";
 
 export const HOT_THRESHOLD_C = 26;
 export const COLD_THRESHOLD_C = 10;
@@ -51,9 +52,61 @@ export function isLightPadded(item: { category?: string | null; subcategory?: st
   return item.length === "Short" || LIGHT_PADDED.test(`${item.subcategory ?? ""} ${(item.styleTags ?? []).join(" ")}`);
 }
 
+/** A leather jacket stops at LEATHER_MAX_C: from there on it is too warm even in the evening. */
+export const LEATHER_MAX_C = 22;
+const LEATHER = /leather|pelle|suede|camoscio/i;
+
+/** A leather or suede jacket (not a coat: a long leather coat counts as a coat). */
+export function isLeatherJacket(item: { category?: string | null; subcategory?: string | null; material?: string[] | null }): boolean {
+  if (item.category !== "Outerwear") return false;
+  return /leather jacket|biker/i.test(item.subcategory ?? "") || (/jacket|giacc|bomber|shacket/i.test(item.subcategory ?? "") && LEATHER.test((item.material ?? []).join(" ")));
+}
+
 export const MID_SEASON_OUTER_PROMPT_RULE =
-  "OUTER LAYER BY TEMPERATURE: at 10\u00b0C or below a real coat (wool coat, parka, long or heavy puffer) or a wool jacket. From 10 to 17\u00b0C a leather jacket, a lightly padded jacket, a light or sleeveless puffer, a trench or a blazer: never a heavy coat or a wool jacket. " +
-  "Above 17\u00b0C nothing padded: a trench, a light jacket, a blazer, or no outer layer.";
+  "OUTER LAYER BY TEMPERATURE — use the OUTER-LAYER TEMPERATURE given with the weather (perceived temperature over the hours the person is out, already adjusted to how cold they feel), not the bare number: " +
+  "24\u00b0C and above: no outer layer. 20\u201323\u00b0C: only if needed, a light blazer, a linen or denim jacket, a cardigan (mostly for the evening). " +
+  "17\u201319\u00b0C: a denim jacket, a blazer, a light trench, a leather jacket in the evening. 11\u201316\u00b0C: a leather jacket, a trench, a lightly padded jacket or a sleeveless puffer over a knit. " +
+  "7\u201310\u00b0C: a wool coat, a wool jacket, a short puffer. Below 7\u00b0C: a long coat, a long puffer or a parka, plus a scarf. " +
+  "Never a heavy coat or a wool jacket above 10\u00b0C, nothing padded above 17\u00b0C, no leather jacket from 22\u00b0C. In the rain lean towards a trench or a water-resistant layer within the band.";
+
+// ---- The temperature an outfit is chosen for -------------------------------------------------
+
+/** How cold the person feels: «freddolosa» dresses as if it were 3 °C colder, «calorosa» 3 °C warmer. */
+export type ColdSensitivity = "cold" | "normal" | "warm";
+export const SENSITIVITY_OFFSET_C: Record<ColdSensitivity, number> = { cold: -3, normal: 0, warm: 3 };
+
+/** A temperature as this person feels it (null stays null). */
+export function forPerson(t: number | null | undefined, sensitivity: ColdSensitivity | null | undefined): number | null {
+  if (t == null || Number.isNaN(t)) return null;
+  return t + SENSITIVITY_OFFSET_C[sensitivity ?? "normal"];
+}
+
+/** Hours the day's outer layer has to cover: from now (not before 8:00) to 20:00. */
+const OUT_FROM = 8;
+const OUT_TO = 20;
+
+/**
+ * The temperature the outer layer is chosen for: the perceived temperature (wind and humidity:
+ * 12 °C with wind feel like 8) at the coldest hour the person is out today, from now to the
+ * evening — a 9 °C morning that turns into a 16 °C afternoon still needs the morning's layer.
+ * Hours on the day's min/max curve (commute-weather.ts), shifted by how far the perceived
+ * temperature is from the air temperature right now. Without a min/max: the perceived temperature now.
+ */
+export function outerLayerTemperature(w: {
+  temperature?: number | null; apparentTemperature?: number | null;
+  tempMin?: number | null; tempMax?: number | null; localHour?: number | null;
+}): number | null {
+  const air = w.temperature ?? null;
+  const feels = w.apparentTemperature ?? air;
+  if (feels == null) return null;
+  if (w.tempMin == null || w.tempMax == null || air == null) return feels;
+  const delta = feels - air;
+  const from = Math.max(OUT_FROM, Math.floor(w.localHour ?? OUT_FROM));
+  if (from > OUT_TO) return feels;
+  let coldest = feels;
+  for (let h = from; h <= OUT_TO; h++) coldest = Math.min(coldest, temperatureAt(h, w.tempMin, w.tempMax) + delta);
+  return Math.round(coldest * 10) / 10;
+}
 
 /** Outerwear for real cold: a Coat, Parka or Puffer (or a shearling, a down coat), and any wool
  *  jacket ("giacchetto di lana" — reported too), not a trench, a raincoat or a blazer. */
@@ -138,13 +191,16 @@ export interface WeatherCheckableItem {
 /** True if a single item is wrong for the given temperature. `temperature
  *  == null` always returns false — no weather data means no opinion,
  *  never a guess. */
-export function violatesWeatherRule(item: WeatherCheckableItem, temperature: number | null): boolean {
+export function violatesWeatherRule(item: WeatherCheckableItem, temperature: number | null, outerTemp?: number | null): boolean {
   if (temperature == null) return false;
+  // Outer layers follow the outer-layer temperature (the coldest perceived hour out) when known.
+  const ot = outerTemp ?? temperature;
   const hot = temperature >= HOT_THRESHOLD_C;
   const cold = temperature <= COLD_THRESHOLD_C;
   const warmHeavy = temperature >= WARM_HEAVY_THRESHOLD_C;
-  if (temperature > COLD_THRESHOLD_C && isHeavyCoat(item)) return true;
-  if (temperature > MID_SEASON_MAX_C && isPadded(item)) return true;
+  if (ot > COLD_THRESHOLD_C && isHeavyCoat(item)) return true;
+  if (ot > MID_SEASON_MAX_C && isPadded(item)) return true;
+  if (ot >= LEATHER_MAX_C && isLeatherJacket(item)) return true;
   if (!hot && !cold && !warmHeavy) return false;
 
   const text = `${item.category ?? ""} ${item.subcategory ?? ""} ${(item.styleTags ?? []).join(" ")} ${(item.material ?? []).join(" ")}`;
@@ -174,13 +230,14 @@ export function violatesWeatherRule(item: WeatherCheckableItem, temperature: num
 export function anyItemViolatesWeather<T extends WeatherCheckableItem & { id: string }>(
   ids: string[],
   catalog: T[],
-  temperature: number | null
+  temperature: number | null,
+  outerTemp?: number | null
 ): boolean {
   if (temperature == null) return false;
   return ids.some((id) => {
     const item = catalog.find((c) => c.id === id);
     if (!item) return false;
-    return violatesWeatherRule(item, temperature);
+    return violatesWeatherRule(item, temperature, outerTemp);
   });
 }
 

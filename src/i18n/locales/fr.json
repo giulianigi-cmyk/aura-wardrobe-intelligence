@@ -135,7 +135,14 @@
     "usageSub": "Votre forfait et votre utilisation",
     "reportProblem": "Signaler un problème",
     "reportProblemSub": "Quelque chose ne marche pas ? Dites-le-nous",
-    "followNimbea": "Suivre Nimbèa"
+    "followNimbea": "Suivre Nimbèa",
+    "coldSensitivity": "Température",
+    "coldSensitivityHint": "Votre sensibilité au froid : décale de 3 °C les conseils de manteaux, vestes et couches.",
+    "coldSensitivityOptions": {
+      "cold": "Sensible au froid",
+      "normal": "Dans la moyenne",
+      "warm": "Sensible à la chaleur"
+    }
   },
   "community": {
     "chooseUsername": "Choisissez un nom d'utilisateur",

@@ -6,7 +6,7 @@ import { z } from "zod";
 import { parseAiJson } from "./ai-json";
 import { isItemAtAnyLocation } from "./wardrobe-location";
 import { isItemAllowedByDressPreferences, hasAnyPreference, coversShoulders, coversArms, coversLegs, type DressPreferences } from "./dress-preferences";
-import { anyItemViolatesWeather, violatesSleeveClimate, violatesWeatherRule, BLAZER_WARMTH_PROMPT_RULE, MID_SEASON_OUTER_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule, MILD_COOL_THRESHOLD_C, COLD_THRESHOLD_C } from "./outfit-weather-rules";
+import { anyItemViolatesWeather, violatesSleeveClimate, violatesWeatherRule, forPerson, BLAZER_WARMTH_PROMPT_RULE, MID_SEASON_OUTER_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule, MILD_COOL_THRESHOLD_C, COLD_THRESHOLD_C } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, rainLayerFor, rainReason, RAIN_PROMPT_RULE } from "./rain-rules";
 import { isWarmOuter, isWarmAndRainReady, isDressyOuter, coatOverBareArms, COAT_SLEEVES_PROMPT_RULE } from "./warm-outer";
 import { editorialPairingRule, naturePairingRule } from "./nature-color-pairings";
@@ -257,6 +257,16 @@ export async function suggestOutfitCore(params: {
     eligibleItems = eligibleItems.filter((it) => isItemAllowedByDressPreferences(it, activeDressPrefs));
   }
 
+  // How cold the person feels (freddolosa / calorosa, Preferenze di stile): every temperature below is
+  // the one they feel; the weather line keeps the real number. The outer layer is chosen for the
+  // colder of the day's temperature and its morning (outfit-weather-rules.ts).
+  const realTemperature = params.temperature;
+  const sensitivity = prefsRowTyped?.dress_preferences?.cold_sensitivity ?? null;
+  if (sensitivity && sensitivity !== "normal") {
+    params = { ...params, temperature: forPerson(params.temperature, sensitivity), morningTemp: params.morningTemp == null ? params.morningTemp : forPerson(params.morningTemp, sensitivity) };
+  }
+  const outerTemp = [params.temperature, params.morningTemp].filter((t): t is number => typeof t === "number").reduce<number | null>((a, b) => (a == null ? b : Math.min(a, b)), null);
+
   // Work dress code (from Style Preferences) sets an acceptable formality
   // RANGE for a Work outfit, same mapping as the Outfit Engine spec
   // (Business Casual ~3, Business Formal ~4, etc). Only ever narrows the
@@ -334,7 +344,7 @@ export async function suggestOutfitCore(params: {
     const target = (params.occasion ?? "").split(/[·-]/)[0].trim();
     const certainMisfit = (it: SuggestOutfitItem): boolean => {
       if (protectedIds.has(it.id)) return false;
-      if (violatesWeatherRule({ ...it, material: Array.isArray(it.material) ? it.material : it.material ? [it.material] : [] }, params.temperature ?? null)) return true;
+      if (violatesWeatherRule({ ...it, material: Array.isArray(it.material) ? it.material : it.material ? [it.material] : [] }, params.temperature ?? null, outerTemp)) return true;
       const tags = (it.occasion ?? "").split(",").map((t) => t.trim()).filter(Boolean);
       return tags.length > 0 && tags.every((t) => SPECIALIZED_OCCASION_TAGS.includes(t)) && !tags.includes(target);
     };
@@ -352,8 +362,9 @@ export async function suggestOutfitCore(params: {
     eligibleItems = [...eligibleItems.filter((it) => protectedIds.has(it.id)), ...eligibleItems.filter((it) => !protectedIds.has(it.id))];
   }
 
-  const wx = params.temperature != null
-    ? `Weather: ${Math.round(params.temperature)}°C, ${params.condition ?? "unknown"}.`
+  const wx = realTemperature != null
+    ? `Weather: ${Math.round(realTemperature)}°C, ${params.condition ?? "unknown"}.` +
+      (outerTemp != null ? ` OUTER-LAYER TEMPERATURE (coldest of the day's readings, adjusted to this person): ${Math.round(outerTemp)}°C.` : "")
     : "Weather: unknown.";
   const occ = params.occasion ? `Occasion: ${params.occasion}.` : "Occasion: everyday.";
 
@@ -656,7 +667,7 @@ export async function suggestOutfitCore(params: {
 
   // Weather is a hard constraint for EVERY occasion, not just Work — see
   // outfit-weather-rules.ts (unica fonte di verità, condivisa con Home).
-  const violatesWeather = (ids: string[]): boolean => anyItemViolatesWeather(ids, catalog, params.temperature);
+  const violatesWeather = (ids: string[]): boolean => anyItemViolatesWeather(ids, catalog, params.temperature, outerTemp);
 
   const isWorkOccasion = (params.occasion ?? "").toLowerCase().startsWith("work") || isProEvent;
 

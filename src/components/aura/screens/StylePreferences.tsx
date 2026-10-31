@@ -8,6 +8,9 @@ import { useProfile } from "@/hooks/use-profile";
 const WORK_DRESS_CODES = ["None", "Casual", "Smart Casual", "Business Casual", "Business Formal", "Uniform"];
 const PERSONAL_FORMALITY = ["Very casual", "Casual", "Smart Casual", "Elegant", "Very elegant"];
 const STYLE_BOLDNESS = ["Classic", "Balanced", "Creative", "Bold"];
+// How cold the person feels: shifts every temperature rule of the outfits by 3 °C (outfit-weather-rules.ts).
+const COLD_SENSITIVITY = ["cold", "normal", "warm"] as const;
+type ColdSensitivityOption = (typeof COLD_SENSITIVITY)[number];
 const WEEKDAYS: { code: string; label: string }[] = [
   { code: "MO", label: "Mon" }, { code: "TU", label: "Tue" }, { code: "WE", label: "Wed" },
   { code: "TH", label: "Thu" }, { code: "FR", label: "Fri" }, { code: "SA", label: "Sat" }, { code: "SU", label: "Sun" },
@@ -65,6 +68,7 @@ export function StylePreferences({ go }: { go: (s: Screen) => void }) {
   const [workEndTime, setWorkEndTime] = useState("18:00");
   const [saving, setSaving] = useState(false);
   const [infoPopup, setInfoPopup] = useState<"work" | "formality" | null>(null);
+  const [coldSensitivity, setColdSensitivity] = useState<ColdSensitivityOption>("normal");
 
   useEffect(() => {
     if (!profile) return;
@@ -74,6 +78,7 @@ export function StylePreferences({ go }: { go: (s: Screen) => void }) {
     setWorkDays(profile.work_days ?? ["MO", "TU", "WE", "TH", "FR"]);
     setWorkStartTime(profile.work_start_time ?? "09:00");
     setWorkEndTime(profile.work_end_time ?? "18:00");
+    setColdSensitivity(profile.dress_preferences?.cold_sensitivity ?? "normal");
   }, [profile]);
 
   const save = async () => {
@@ -85,6 +90,8 @@ export function StylePreferences({ go }: { go: (s: Screen) => void }) {
       work_days: workDays,
       work_start_time: workStartTime,
       work_end_time: workEndTime,
+      // Kept beside the dress rules, which stay as they are.
+      dress_preferences: { ...(profile?.dress_preferences ?? {}), cold_sensitivity: coldSensitivity },
     });
     setSaving(false);
     if (error) { toast.error(error); return; }
@@ -132,6 +139,19 @@ export function StylePreferences({ go }: { go: (s: Screen) => void }) {
               <button key={f} onClick={() => setPersonalFormality(f)}
                 className={`rounded-full px-3 py-1.5 text-xs border transition ${personalFormality === f ? "bg-foreground text-background border-foreground" : "border-border bg-background"}`}>
                 {t(FORMALITY_KEYS[f])}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{t("settings.coldSensitivity")}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5 mb-1">{t("settings.coldSensitivityHint")}</p>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {COLD_SENSITIVITY.map((c) => (
+              <button key={c} onClick={() => setColdSensitivity(c)}
+                className={`rounded-full px-3 py-1.5 text-xs border transition ${coldSensitivity === c ? "bg-foreground text-background border-foreground" : "border-border bg-background"}`}>
+                {t(`settings.coldSensitivityOptions.${c}`)}
               </button>
             ))}
           </div>

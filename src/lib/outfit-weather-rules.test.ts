@@ -93,3 +93,27 @@ test("10–17 °C: pelle, imbottiti leggeri e piumini smanicati sì; sopra 17 °
   assert.equal(violatesWeatherRule(leather, 19), false);
   assert.equal(violatesWeatherRule(puffy, 8), false);
 });
+
+test("temperatura del capospalla: percepita, ora più fredda fuori casa, sensibilità della persona", async () => {
+  const { outerLayerTemperature, forPerson, isLeatherJacket } = await import("./outfit-weather-rules");
+  // 12 °C con vento che sembrano 8: conta la percepita.
+  assert.equal(outerLayerTemperature({ temperature: 12, apparentTemperature: 8 }), 8);
+  // Mattina fresca, pomeriggio caldo: alle 8 si esce con il fresco del mattino.
+  const morning = outerLayerTemperature({ temperature: 9, apparentTemperature: 9, tempMin: 8, tempMax: 18, localHour: 8 })!;
+  assert.ok(morning <= 9);
+  // Nel pomeriggio non conta più il freddo del mattino, ma la sera sì.
+  const afternoon = outerLayerTemperature({ temperature: 18, apparentTemperature: 18, tempMin: 8, tempMax: 18, localHour: 15 })!;
+  assert.ok(afternoon < 18 && afternoon > morning);
+  assert.equal(forPerson(13, "cold"), 10);
+  assert.equal(forPerson(13, "warm"), 16);
+  assert.equal(forPerson(13, null), 13);
+  // Freddolosa a 13 °C: il cappotto va bene; normale no.
+  const coat = { category: "Outerwear", subcategory: "Coat", material: ["Wool"] };
+  assert.equal(violatesWeatherRule(coat, 13, forPerson(13, "cold")), false);
+  assert.equal(violatesWeatherRule(coat, 13, 13), true);
+  // Giacca di pelle: no da 22 °C.
+  const leather = { category: "Outerwear", subcategory: "Leather Jacket" };
+  assert.equal(isLeatherJacket(leather), true);
+  assert.equal(violatesWeatherRule(leather, 22), true);
+  assert.equal(violatesWeatherRule(leather, 19), false);
+});

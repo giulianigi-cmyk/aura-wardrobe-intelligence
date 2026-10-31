@@ -29,6 +29,8 @@ export type Profile = {
   work_start_time: string | null;
   work_end_time: string | null;
   share_wardrobe_to_library: boolean | null;
+  /** Dress rules (DressPreferencesSection) and the cold sensitivity (Preferenze di stile). */
+  dress_preferences?: { cold_sensitivity?: "cold" | "normal" | "warm" } & Record<string, unknown> | null;
   profession: string | null;
 
     setup_complete: boolean;
