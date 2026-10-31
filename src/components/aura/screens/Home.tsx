@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { isWearableNow } from "@/lib/wardrobe-storage";
 import { useServerFn } from "@tanstack/react-start";
 import { useTranslation } from "react-i18next";
-import { Bell, Search, Sparkles, TrendingUp, MapPin, Loader2 } from "lucide-react";
+import { Bell, Search, Sparkles, TrendingUp, MapPin, Loader2, RefreshCw } from "lucide-react";
 import type { Screen, BuilderInit } from "../AuraApp";
 import { useProfile } from "@/hooks/use-profile";
 import { useLocation } from "@/hooks/use-location";
@@ -507,8 +507,10 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
           <h2 className="font-serif text-2xl italic">{t("home.todaysEdit")}</h2>
           <div className="flex items-baseline gap-4">
             {canChangeLook && todayLook && !looksLoading && (
+              // Barely visible on purpose: it is there to film the app, not to show in the video.
               <button onClick={() => { forceNewLookRef.current = true; setChangeLookKey((k) => k + 1); }}
-                className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("home.changeLook")}</button>
+                aria-label={t("home.changeLook")} title={t("home.changeLook")}
+                className="h-6 w-6 -my-1 flex items-center justify-center text-muted-foreground/20"><RefreshCw size={11} /></button>
             )}
             <button onClick={() => go("ai")} className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("home.styleALook")}</button>
           </div>
