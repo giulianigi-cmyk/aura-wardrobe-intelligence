@@ -70,6 +70,8 @@ const InputSchema = z.object({
   condition: z.string().nullable().optional(),
   dressRules: z.string().max(8000).nullable().optional(),
   items: z.array(ItemSchema).min(3),
+  // "Cambia look" on Home: the pieces of the look being replaced, so the new one is different.
+  avoidTodayIds: z.array(z.string()).max(40).nullable().optional(),
 });
 
 const LookSchema = z.object({
@@ -315,6 +317,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     const todayRules = [
       ...(isWetCondition(data.condition) ? [RAIN_PROMPT_RULE] : []),
       ...(summerIsOver(todayIso, data.tempMin) ? [summerOverPromptRule(data.tempMin as number)] : []),
+      ...(data.avoidTodayIds?.length ? [`NEW LOOK: the person asked for a different "today" look. Do not repeat the previous one (ids ${data.avoidTodayIds.join(", ")}): at most one of those pieces may come back.`] : []),
     ];
     const userContent = `${dressRulesBlock}Wardrobe:\n${compactCatalogJson(catalog)}\n\n${wx}${todayRules.length ? `\n${todayRules.join("\n")}` : ""}`;
     const validIds = new Set(catalog.map((c) => c.id));

@@ -43,7 +43,8 @@
     "occasionEveryday": "Au quotidien",
     "noImage": "Aucune image",
     "looksGenerateFailed": "Impossible de créer les looks du jour.",
-    "looksLoadFailed": "Impossible de charger les looks du jour."
+    "looksLoadFailed": "Impossible de charger les looks du jour.",
+    "changeLook": "Autre look"
   },
   "profile": {
     "languageLabel": "Langue"

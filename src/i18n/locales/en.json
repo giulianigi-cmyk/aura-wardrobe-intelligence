@@ -43,7 +43,8 @@
     "occasionEveryday": "Everyday",
     "noImage": "No image",
     "looksGenerateFailed": "Couldn't generate today's looks.",
-    "looksLoadFailed": "Couldn't load today's looks."
+    "looksLoadFailed": "Couldn't load today's looks.",
+    "changeLook": "New look"
   },
   "profile": {
     "languageLabel": "Language"

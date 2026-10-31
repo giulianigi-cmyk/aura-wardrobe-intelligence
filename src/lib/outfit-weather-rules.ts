@@ -21,6 +21,22 @@ import { isSummerSeason } from "./outfit-styling-rules";
 export const HOT_THRESHOLD_C = 26;
 export const COLD_THRESHOLD_C = 10;
 
+// A real coat (wool coat, parka, puffer, shearling) only at COLD_THRESHOLD_C or below: above it a
+// trench, a jacket or a blazer is enough (reported: a coat proposed for a mild day "is too much,
+// coats are from 10 degrees down"). Trench and rain coats are mid-season pieces and stay allowed.
+const HEAVY_COAT_TYPE = /^(coat|parka|puffer jacket)$/i;
+const HEAVY_COAT_TEXT = /piumino|shearling|montone|overcoat|cappotto|down coat/i;
+const MID_SEASON_COAT = /trench|rain|impermeabile/i;
+
+/** A coat for real cold: a Coat, Parka or Puffer (or a shearling, a down coat), not a trench. */
+export function isHeavyCoat(item: { category?: string | null; subcategory?: string | null; styleTags?: string[] | null }): boolean {
+  if (item.category !== "Outerwear") return false;
+  const sub = item.subcategory ?? "";
+  const text = `${sub} ${(item.styleTags ?? []).join(" ")}`;
+  if (MID_SEASON_COAT.test(text)) return false;
+  return HEAVY_COAT_TYPE.test(sub.trim()) || HEAVY_COAT_TEXT.test(text);
+}
+
 // From here up (still below HOT) the genuinely WINTER pieces are out: wool and other heavy
 // cold-weather fabrics, and boots. A wool skirt with ankle boots on a 23°C September day is
 // not a "mild" choice, it is the wrong season — but a light knit or a sweater is still
@@ -96,6 +112,7 @@ export function violatesWeatherRule(item: WeatherCheckableItem, temperature: num
   const hot = temperature >= HOT_THRESHOLD_C;
   const cold = temperature <= COLD_THRESHOLD_C;
   const warmHeavy = temperature >= WARM_HEAVY_THRESHOLD_C;
+  if (temperature > COLD_THRESHOLD_C && isHeavyCoat(item)) return true;
   if (!hot && !cold && !warmHeavy) return false;
 
   const text = `${item.category ?? ""} ${item.subcategory ?? ""} ${(item.styleTags ?? []).join(" ")} ${(item.material ?? []).join(" ")}`;

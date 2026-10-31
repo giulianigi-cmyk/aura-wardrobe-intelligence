@@ -19,6 +19,7 @@ import { useWardrobeItems } from "@/lib/wardrobe-query";
 import { loadDressRules } from "@/lib/dress-preferences";
 import { retryOnNetworkError } from "@/lib/network-retry";
 import { suggestDailyLooks, type DailyLook } from "@/lib/suggest-daily-looks.functions";
+import { amIReportAdmin } from "@/lib/problem-reports.functions";
 import { tempBucket } from "@/lib/outfit-weather-rules";
 import { cachedLooksStillFresh, lookFingerprint } from "@/lib/daily-look-cache";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
@@ -72,6 +73,17 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
   }, [profile?.language]);
 
   const generateLooks = useServerFn(suggestDailyLooks);
+  // "Cambia look": a new "today" look on request, only for the app's admins (to film the app). Not
+  // for everyone: every tap is a paid AI call.
+  const checkAdmin = useServerFn(amIReportAdmin);
+  const [canChangeLook, setCanChangeLook] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    checkAdmin().then((r) => { if (alive) setCanChangeLook(r.admin); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const forceNewLookRef = useRef(false);
+  const [changeLookKey, setChangeLookKey] = useState(0);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualCity, setManualCity] = useState("");
   const [autoTried, setAutoTried] = useState(false);
@@ -148,8 +160,10 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
     // all, weather will never arrive, so don't wait forever in that case.
     if (latitude != null && longitude != null && wxLoading) return;
 
+    const forceNew = forceNewLookRef.current;
+    forceNewLookRef.current = false;
     void (async () => {
-      if (!looksShownRef.current) setLooksLoading(true);
+      if (!looksShownRef.current || forceNew) setLooksLoading(true);
       setLooksError(null);
       let today_: DailyLook | null = null;
       let curated_: DailyLook[] = [];
@@ -234,7 +248,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
           return { todayPath, curatedPaths };
         };
 
-        if (cacheStillValid(cachedRow)) {
+        if (!forceNew && cacheStillValid(cachedRow)) {
           useRow(cachedRow!);
           // Composes whichever images this cached row is still missing — a row cached before
           // composed images existed (none at all), or one where some compositions failed (an image
@@ -305,6 +319,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
                   occasion: it.occasion ?? "",
                 })),
                 language: i18n.language,
+                avoidTodayIds: forceNew ? (cachedRow?.today_item_ids ?? []) : null,
               },
             }));
             if (res.ok) {
@@ -364,7 +379,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
         setLooksLoading(false);
       }
     })();
-  }, [user, itemsLoaded, allItems, weather, wxLoading, latitude, longitude, refreshKey]);
+  }, [user, itemsLoaded, allItems, weather, wxLoading, latitude, longitude, refreshKey, changeLookKey]);
 
   // Signs the composed images once their storage paths are known — kept
   // separate from looksSigned (item thumbnails) since these are a
@@ -490,7 +505,13 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
       <section className="px-6 mt-8 animate-fade-up">
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="font-serif text-2xl italic">{t("home.todaysEdit")}</h2>
-          <button onClick={() => go("ai")} className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("home.styleALook")}</button>
+          <div className="flex items-baseline gap-4">
+            {canChangeLook && todayLook && !looksLoading && (
+              <button onClick={() => { forceNewLookRef.current = true; setChangeLookKey((k) => k + 1); }}
+                className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("home.changeLook")}</button>
+            )}
+            <button onClick={() => go("ai")} className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{t("home.styleALook")}</button>
+          </div>
         </div>
 
        {looksLoading ? (

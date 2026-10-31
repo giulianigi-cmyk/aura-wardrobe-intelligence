@@ -43,7 +43,8 @@
     "occasionEveryday": "日常",
     "noImage": "无图片",
     "looksGenerateFailed": "无法生成今日造型。",
-    "looksLoadFailed": "无法加载今日造型。"
+    "looksLoadFailed": "无法加载今日造型。",
+    "changeLook": "换一套"
   },
   "profile": {
     "languageLabel": "语言"
