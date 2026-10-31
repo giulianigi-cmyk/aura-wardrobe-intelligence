@@ -2306,7 +2306,10 @@
     "photo": "照片",
     "pieces": "单品",
     "saveCanvas": "保存画布",
-    "seeCanvas": "查看画布"
+    "seeCanvas": "查看画布",
+    "setToday": "设为今日造型",
+    "setTodayDone": "已设为今日造型",
+    "setTodayFailed": "设置失败：请先打开一次首页"
   },
   "colorHarmony": {
     "title": "色彩和谐",

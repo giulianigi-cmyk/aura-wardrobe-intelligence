@@ -2306,7 +2306,10 @@
     "photo": "Photo",
     "pieces": "Pièces",
     "saveCanvas": "Enregistrer le canvas",
-    "seeCanvas": "Voir le canvas"
+    "seeCanvas": "Voir le canvas",
+    "setToday": "Définir comme look du jour",
+    "setTodayDone": "C'est maintenant le look du jour",
+    "setTodayFailed": "Impossible : ouvrez d'abord l'accueil aujourd'hui"
   },
   "colorHarmony": {
     "title": "Harmonie des couleurs",

@@ -19,6 +19,7 @@ import type { WardrobeItem } from "@/lib/aura-types";
 import { composeOutfitImage, computeBuilderLayout, type BuilderLayoutEntry, type ComposeItem } from "@/lib/compose-outfit-canvas";
 import { ShareOutfitSheet } from "./ShareOutfitSheet";
 import { optionLabel } from "@/lib/garment-names";
+import { amIReportAdmin } from "@/lib/problem-reports.functions";
 
 type View = "canvas" | "pieces" | "photo";
 
@@ -85,6 +86,40 @@ export function OutfitViewerSheet({
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarDate, setCalendarDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [savingCalendar, setSavingCalendar] = useState(false);
+
+  // «Metti come look di oggi»: a look of one's own as Home's "today" look, for the app's admins (to
+  // film the app). Replaces only today's look; the curated ones stay.
+  const checkAdmin = useServerFn(amIReportAdmin);
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    checkAdmin().then((r) => { if (alive) setIsAdmin(r.admin); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const [settingToday, setSettingToday] = useState(false);
+  const setAsTodayLook = async () => {
+    if (!user) return;
+    setSettingToday(true);
+    try {
+      const { data, error } = await (supabase.from("home_suggestions" as never) as any)
+        .update({
+          date: new Date().toISOString().slice(0, 10),
+          today_item_ids: itemIds,
+          today_occasion: occasion ?? "",
+          today_explanation: explanation ?? notes ?? "",
+          today_image_path: canvasPath ?? null,
+        })
+        .eq("user_id", user.id)
+        .select("user_id");
+      if (error || !data?.length) throw error ?? new Error("no home row");
+      toast.success(t("outfitViewer.setTodayDone"));
+    } catch (e) {
+      console.error("[AURA outfit-viewer] set as today failed", e);
+      toast.error(t("outfitViewer.setTodayFailed"));
+    } finally {
+      setSettingToday(false);
+    }
+  };
 
   // ── the pieces ──
   const picks = useMemo(() => {
@@ -355,6 +390,12 @@ export function OutfitViewerSheet({
             disabled={opening}
             className="w-full h-12 rounded-full border border-border flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.25em] active:scale-[0.98] disabled:opacity-60"
           >{opening ? <Loader2 size={14} className="animate-spin" /> : <LayoutGrid size={13} />} {t("aiStylist.openOnCanvas")}</button>
+          {isAdmin && (
+            <button onClick={() => void setAsTodayLook()} disabled={settingToday}
+              className="w-full pt-1 text-center text-[11px] text-muted-foreground underline underline-offset-2 disabled:opacity-60">
+              {t("outfitViewer.setToday")}
+            </button>
+          )}
         </div>
       </div>
 

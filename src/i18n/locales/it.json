@@ -2306,7 +2306,10 @@
     "photo": "Foto",
     "pieces": "Capi",
     "saveCanvas": "Salva canvas",
-    "seeCanvas": "Vedi canvas"
+    "seeCanvas": "Vedi canvas",
+    "setToday": "Metti come look di oggi in Home",
+    "setTodayDone": "Ora è il look di oggi in Home",
+    "setTodayFailed": "Non sono riuscita a metterlo in Home: apri prima la Home una volta oggi"
   },
   "colorHarmony": {
     "title": "Armonia dei colori",
