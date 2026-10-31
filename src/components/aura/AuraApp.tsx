@@ -529,7 +529,10 @@ function Inner() {
     }
   }, [user, loading, screen, profile, profileLoading]);
 
-  const finishOnboarding = () => {
+  // «Crea account» at the end of the onboarding opens the sign-up form, «Ho già un account» sign-in.
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const finishOnboarding = (mode: "signin" | "signup" = "signin") => {
+    setAuthMode(mode);
     localStorage.setItem("aura.onboarded", "1");
     setOnboarded(true);
     if (!user) setScreen("auth");
@@ -617,7 +620,7 @@ function Inner() {
               language, which would make the server-rendered splash mismatch again (#418). */}
           {screen === "splash" && <Splash go={go} />}
           {screen === "onboarding" && <Onboarding onDone={finishOnboarding} />}
-          {screen === "auth" && <Auth />}
+          {screen === "auth" && <Auth initialMode={authMode} />}
           {/* Plain background while a code-split screen downloads (usually already prefetched). */}
           <Suspense fallback={<div className="h-full w-full bg-background" />}>
           {screen === "reset" && <ResetPassword onDone={() => setScreen(user ? "home" : "auth")} />}

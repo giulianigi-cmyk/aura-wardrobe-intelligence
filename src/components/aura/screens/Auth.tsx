@@ -9,10 +9,10 @@ import { BRAND_NAME, BRAND_WORDMARK } from "@/lib/brand";
 
 type Mode = "signin" | "signup" | "forgot";
 
-export function Auth() {
+export function Auth({ initialMode = "signin" }: { initialMode?: "signin" | "signup" } = {}) {
   const { t, i18n } = useTranslation();
   const { signIn, signUp, resetPassword, signInWithProvider } = useAuth();
-  const [mode, setMode] = useState<Mode>("signin");
+  const [mode, setMode] = useState<Mode>(initialMode);
   // The language picker is shown exactly once, the moment someone taps
   // "New to AURA? Create account" for the first time — not on every app
   // open (that was the earlier, buggy placement: a standalone pre-splash
