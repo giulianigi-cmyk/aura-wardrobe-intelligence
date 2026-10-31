@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { GridColumnsToggle, useGridColumns } from "@/components/aura/GridColumnsToggle";
 import { saveGeneralPlanAskingSameDay } from "@/lib/same-day-choice";
 import { toast } from "sonner";
 import { ArrowLeft, Heart, Sparkles, Calendar as CalendarIcon, Loader2, Plus, Trash2, Copy, Share2 } from "lucide-react";
@@ -18,6 +19,7 @@ export function SavedOutfits({ go, openBuilder }: { go: (s: Screen) => void; ope
   const { user } = useAuth();
   const { t } = useTranslation();
   const [outfits, setOutfits] = useState<Outfit[]>([]);
+  const [gridCols, setGridCols] = useGridColumns(2);
   const [signed, setSigned] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [assignFor, setAssignFor] = useState<Outfit | null>(null);
@@ -125,7 +127,9 @@ export function SavedOutfits({ go, openBuilder }: { go: (s: Screen) => void; ope
           ><Sparkles size={12} /> {t("savedOutfits.openBuilder")}</button>
         </section>
       ) : (
-        <div className="mx-4 mt-4 grid grid-cols-2 gap-3">
+        <>
+        <GridColumnsToggle value={gridCols} onChange={setGridCols} className="mx-4 mt-4 justify-end" />
+        <div className={`mx-4 mt-3 grid ${gridCols === 3 ? "grid-cols-3 gap-2" : "grid-cols-2 gap-3"}`}>
                     {outfits.map((o) => {
             const url = outfitThumbSrc(o, signed);
             const imgPath = o.thumbnail_path || o.canvas_image_url;
@@ -198,6 +202,7 @@ export function SavedOutfits({ go, openBuilder }: { go: (s: Screen) => void; ope
             );
           })}
         </div>
+        </>
       )}
 
       {shareFor && (

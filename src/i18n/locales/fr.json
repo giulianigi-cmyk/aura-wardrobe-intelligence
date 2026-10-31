@@ -549,7 +549,15 @@
     "heelLabel": "Talon",
     "toeShapeLabel": "Forme du bout",
     "legShapeLabel": "Forme de la jambe",
-    "legShapes": {"skinny": "Skinny", "slim": "Slim", "straight": "Droite", "tapered": "Fuselée", "bootcut": "Bootcut", "flare": "Évasée", "wide": "Large"},
+    "legShapes": {
+      "skinny": "Skinny",
+      "slim": "Slim",
+      "straight": "Droite",
+      "tapered": "Fuselée",
+      "bootcut": "Bootcut",
+      "flare": "Évasée",
+      "wide": "Large"
+    },
     "closureLabel": "Fermeture",
     "genderLabel": "Genre",
     "styleTagsLabel": "Étiquettes de style",
@@ -1189,7 +1197,8 @@
       "everyday": "Quotidien",
       "concert": "Concert",
       "businessDinner": "Dîner d'affaires"
-    }
+    },
+    "allSeasons": "Toutes saisons"
   },
   "tabBar": {
     "home": "Accueil",
@@ -2389,6 +2398,15 @@
       "Underwear": "Lingerie",
       "Swimwear": "Maillots",
       "Activewear": "Sport"
+    },
+    "availableNow": "Disponibles",
+    "allPieces": "Toutes",
+    "away": {
+      "archived": "Archivée",
+      "stored": "Rangée",
+      "lent": "Prêtée",
+      "basket": "Au panier",
+      "dryCleaner": "Au pressing"
     }
   },
   "sameDay": {
@@ -2825,7 +2843,9 @@
     "optBasketHint": "À laver : revient seule dans la garde-robe après 10 jours",
     "optDryCleaner": "Au pressing",
     "optDryCleanerHint": "Nous vous rappelons de la récupérer après 7 jours",
-    "toDryCleanerShort": "Pressing"
+    "toDryCleanerShort": "Pressing",
+    "sportAsk_one": "Vous avez porté {{count}} pièce de sport : au panier ?",
+    "sportAsk_other": "Vous avez porté {{count}} pièces de sport : au panier ?"
   },
   "pushAsk": {
     "title": "Voulez-vous recevoir des notifications ?",
@@ -2868,5 +2888,8 @@
   "featureNews": {
     "howTo": "Comment l'utiliser",
     "tryIt": "L'essayer"
+  },
+  "grid": {
+    "columnsAria": "{{count}} par ligne"
   }
 }

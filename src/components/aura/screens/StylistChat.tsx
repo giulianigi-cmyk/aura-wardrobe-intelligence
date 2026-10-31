@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import type { BuilderInit, Screen, StylistChatInit } from "../AuraApp";
 import { supabase } from "@/integrations/supabase/client";
+import { mentionedEvent } from "@/lib/chat-event-match";
 import type { WardrobeItem } from "@/lib/aura-types";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
@@ -492,9 +493,23 @@ export function StylistChat({ go, openBuilder, initialMessage }: { go: (s: Scree
     markActionDone(index, action.type);
   };
 
+  // Not opened from an event: the day's event the conversation names (pilates, a birthday…) gets the
+  // outfit (chat-event-match.ts); otherwise it is added to the day, never replacing its outfit.
+  const eventNamedInChat = async (date: string): Promise<string | null> => {
+    if (!user) return null;
+    const next = new Date(`${date}T00:00:00`); next.setDate(next.getDate() + 1);
+    const { data } = await (supabase.from("calendar_events_cache" as never) as any)
+      .select("id, title").eq("user_id", user.id)
+      .gte("start_time", new Date(`${date}T00:00:00`).toISOString()).lt("start_time", next.toISOString())
+      .eq("dismissed_by_user", false).eq("removed_from_source", false);
+    const said = messages.filter((m) => m.role === "user").map((m) => m.content).join(" ");
+    return mentionedEvent((data ?? []) as { id: string; title: string | null }[], said)?.id ?? null;
+  };
+
   const confirmCalendarDate = async (index: number, itemIds: string[], date: string) => {
     try {
-      await saveOutfitPlan({ data: { itemIds, date, calendarEventId: eventIdRef.current } });
+      const calendarEventId = eventIdRef.current ?? (await eventNamedInChat(date).catch(() => null));
+      await saveOutfitPlan({ data: { itemIds, date, calendarEventId, sameDay: calendarEventId ? undefined : "add" } });
     } catch (e) {
       console.error("[AURA add_calendar]", e);
       toast.error(errorMessage(e, t("stylistChat.couldNotAddToCalendar")));

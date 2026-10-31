@@ -113,12 +113,12 @@ export async function logWardrobeEvent(input: LogWardrobeEventInput): Promise<{ 
   const { error: itemsErr } = await (supabase.from("wardrobe_event_items" as never) as any).insert(rows);
   if (itemsErr) return { error: itemsErr.message, eventId };
 
-  // Worn today: sport pieces go straight to the laundry basket (laundry-basket.ts). The screens
-  // hear about it through a window event and offer "Annulla". Never fails the wear itself.
+  // Worn today: the app asks whether the sport pieces go to the laundry basket (laundry-basket.ts) —
+  // asked, not done: the wear may be logged before the workout. Never fails the wear itself.
   const d = new Date();
   const todayLocal = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   if (input.eventType === "worn" && input.date === todayLocal) {
-    void sendSportPiecesToBasket(input.userId, input.itemIds);
+    void askSportPiecesToBasket(input.userId, input.itemIds);
   }
 
   return { error: null, eventId };
@@ -126,21 +126,27 @@ export async function logWardrobeEvent(input: LogWardrobeEventInput): Promise<{ 
 
 export const SPORT_TO_BASKET_EVENT = "aura:sport-to-basket";
 
-async function sendSportPiecesToBasket(userId: string, itemIds: string[]): Promise<void> {
+/** The sport pieces among those just worn (not already in the laundry): the app asks about them. */
+async function askSportPiecesToBasket(userId: string, itemIds: string[]): Promise<void> {
   try {
     const { data } = await (supabase.from("wardrobe_items" as never) as any)
       .select("id, category, occasion, laundry_since").eq("user_id", userId).in("id", itemIds);
     const ids = ((data ?? []) as { id: string; category: string | null; occasion: string | null; laundry_since: string | null }[])
       .filter((it) => !it.laundry_since && isSportPiece(it)).map((it) => it.id);
     if (!ids.length) return;
-    const { error } = await (supabase.from("wardrobe_items" as never) as any)
-      .update({ laundry_since: new Date().toISOString(), laundry_kind: "basket" }).eq("user_id", userId).in("id", ids);
-    if (error) { console.error("[AURA laundry] sport pieces to basket failed", error); return; }
-    void logWardrobeEvent({ userId, eventType: "cleaned", date: new Date().toISOString().slice(0, 10), itemIds: ids });
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(SPORT_TO_BASKET_EVENT, { detail: { ids } }));
   } catch (e) {
-    console.error("[AURA laundry] sport pieces to basket failed", e);
+    console.error("[AURA laundry] sport pieces not read", e);
   }
+}
+
+/** «Nel cesto» on that question: into the basket, and the wash remembered (laundry-due.ts). */
+export async function putSportPiecesInBasket(userId: string, ids: string[]): Promise<boolean> {
+  const { error } = await (supabase.from("wardrobe_items" as never) as any)
+    .update({ laundry_since: new Date().toISOString(), laundry_kind: "basket" }).eq("user_id", userId).in("id", ids);
+  if (error) { console.error("[AURA laundry] sport pieces to basket failed", error); return false; }
+  void logWardrobeEvent({ userId, eventType: "cleaned", date: new Date().toISOString().slice(0, 10), itemIds: ids });
+  return true;
 }
 
 /** Confirms a planned outfit was actually worn — flips outfit_plans.status

@@ -9,6 +9,9 @@ import type { WardrobeItem } from "@/lib/aura-types";
 import { ITEM_CATEGORIES } from "@/lib/wardrobe-options";
 import { thumbSrc, toStoragePath } from "@/lib/wardrobe-image";
 import { listLocations } from "@/lib/wardrobe-locations.functions";
+import { isWearableNow } from "@/lib/wardrobe-storage";
+import { isInLaundry } from "@/lib/laundry-basket";
+import { GridColumnsToggle, gridClass, useGridColumns } from "./GridColumnsToggle";
 import type { WardrobeLocation } from "@/lib/wardrobe-location";
 
 const PICKER_PAGE = 40;
@@ -19,8 +22,20 @@ const PICKER_PAGE = 40;
  * editing a saved outfit in the builder). Search + category chips +
  * location chips only help *find* a piece; they never restrict which
  * pieces can be selected — the full wardrobe is always reachable by
- * clearing the filters.
+ * clearing the filters. «Disponibili ora» (the default) hides pieces put
+ * away in the cambio stagione, archived, lent or in the laundry; «Tutti»
+ * shows them too, marked, for planning further ahead.
  */
+
+/** Why a piece can't be worn right now, for its label under «Tutti». */
+function unavailableReason(it: WardrobeItem): "archived" | "stored" | "lent" | "basket" | "dryCleaner" | null {
+  const x = it as unknown as { archived?: boolean | null; stored_at?: string | null; active_loan_id?: string | null; laundry_kind?: string | null; laundry_since?: string | null };
+  if (x.archived) return "archived";
+  if (x.stored_at) return "stored";
+  if (x.active_loan_id) return "lent";
+  if (isInLaundry(x)) return x.laundry_kind === "dry_cleaner" ? "dryCleaner" : "basket";
+  return null;
+}
 export function PiecePicker({
   items,
   signed,
@@ -31,6 +46,7 @@ export function PiecePicker({
   extraChips,
   className = "",
   columns = 2,
+  showAllByDefault = false,
 }: {
   items: WardrobeItem[];
   signed: Record<string, string>;
@@ -41,8 +57,10 @@ export function PiecePicker({
   /** Optional context-specific chips (e.g. "Suggested" in the planner). */
   extraChips?: ReactNode;
   className?: string;
-  /** 3 for big wardrobes where more pieces per screen helps (avatar try-on). */
+  /** Columns until the person picks 2 or 3 with the toggle (then their choice, everywhere). */
   columns?: 2 | 3;
+  /** «Tutti» instead of «Disponibili ora» on opening (planning far ahead, e.g. a trip). */
+  showAllByDefault?: boolean;
 }) {
   const { t } = useTranslation();
   const fetchLocations = useServerFn(listLocations);
@@ -50,6 +68,9 @@ export function PiecePicker({
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("All");
   const [locId, setLocId] = useState<string>("all");
+  const [onlyAvailable, setOnlyAvailable] = useState(!showAllByDefault);
+  const [cols, setCols] = useGridColumns(columns);
+  const someUnavailable = useMemo(() => items.some((i) => !isWearableNow(i as never)), [items]);
 
   useEffect(() => {
     let alive = true;
@@ -65,7 +86,7 @@ export function PiecePicker({
   // the canvas editor when the picker was opened for the second piece (reported).
   const [shownCount, setShownCount] = useState(PICKER_PAGE);
   const moreRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { setShownCount(PICKER_PAGE); }, [q, cat, locId]);
+  useEffect(() => { setShownCount(PICKER_PAGE); }, [q, cat, locId, onlyAvailable]);
   useEffect(() => {
     const el = moreRef.current;
     if (!el || typeof IntersectionObserver === "undefined") return;
@@ -81,6 +102,8 @@ export function PiecePicker({
     // expanded to the stored English values ("gonna nera" → skirt + black, "lino" → linen).
     const words = normalizeText(q).split(" ").filter(Boolean);
     return items.filter((i) => {
+      // A piece already chosen stays visible so it can be removed.
+      if (onlyAvailable && !isWearableNow(i as never) && !selectedIds.includes(i.id)) return false;
       const itemLoc = (i as unknown as { location_id?: string | null }).location_id ?? null;
       if (!((locId === "all" || itemLoc === locId) && (cat === "All" || i.category === cat))) return false;
       if (!words.length) return true;
@@ -90,7 +113,7 @@ export function PiecePicker({
       ].filter(Boolean).join(" "));
       return words.every((w) => expandSearchWord(w).some((x) => hay.includes(x)));
     });
-  }, [items, cat, q, locId]);
+  }, [items, cat, q, locId, onlyAvailable, selectedIds]);
 
   return (
     <div className={className}>
@@ -133,6 +156,21 @@ export function PiecePicker({
         </div>
       )}
 
+      <div className="mt-2 flex items-center justify-between gap-2">
+        {someUnavailable ? (
+          <div className="flex gap-1 rounded-full bg-secondary/60 p-1">
+            {([true, false] as const).map((v) => (
+              <button
+                key={String(v)}
+                onClick={() => setOnlyAvailable(v)}
+                className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.15em] ${onlyAvailable === v ? "bg-foreground text-background" : "text-foreground/70"}`}
+              >{v ? t("piecePicker.availableNow") : t("piecePicker.allPieces")}</button>
+            ))}
+          </div>
+        ) : <span />}
+        <GridColumnsToggle value={cols} onChange={setCols} />
+      </div>
+
       {loading ? (
         <div className="py-10 flex justify-center"><Loader2 className="animate-spin" /></div>
       ) : visible.length === 0 ? (
@@ -140,11 +178,12 @@ export function PiecePicker({
           {items.length === 0 ? (emptyHint ?? t("piecePicker.emptyDefault")) : t("piecePicker.noMatches")}
         </p>
       ) : (
-        <div className={`mt-4 grid ${columns === 3 ? "grid-cols-3 gap-x-2 gap-y-4" : "grid-cols-2 gap-x-3 gap-y-5"}`}>
+        <div className={`mt-4 grid ${gridClass(cols)}`}>
           {visible.slice(0, shownCount).map((it) => {
             const src = thumbSrc(it, signed) || (toStoragePath(it.image_url) ? signed[toStoragePath(it.image_url)!] ?? "" : "");
             const on = selectedIds.includes(it.id);
             const label = it.colors?.[0] ?? it.color ?? it.category ?? t("wardrobe.wardrobePieceFallback");
+            const away = unavailableReason(it);
             return (
               <button key={it.id} onClick={() => onToggle(it.id)} className="group text-left">
                 <div
@@ -156,6 +195,9 @@ export function PiecePicker({
                   ) : (
                     <div className="h-full w-full animate-pulse" style={{ background: "#EDEDED" }} />
                   )}
+                  {away && (
+                    <span className="absolute bottom-1.5 left-1.5 rounded-full bg-background/90 border border-border px-2 py-0.5 text-[9px] uppercase tracking-[0.1em] text-muted-foreground">{t(`piecePicker.away.${away}`)}</span>
+                  )}
                   {on && (
                     <span className="absolute top-2 right-2 h-6 w-6 rounded-full bg-foreground border border-foreground flex items-center justify-center">
                       <Check size={13} className="text-background" />
@@ -164,7 +206,7 @@ export function PiecePicker({
                 </div>
                 <div className="px-0.5 mt-1.5">
                   <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground truncate">{it.brand ?? it.category}</p>
-                  <p className={`font-serif leading-tight truncate ${columns === 3 ? "text-[13px]" : "text-[15px]"}`}>
+                  <p className={`font-serif leading-tight truncate ${cols === 3 ? "text-[13px]" : "text-[15px]"}`}>
                     {garmentWithColor(it.subcategory || it.category, it.colors?.[0] ?? it.color, i18n.language) || label}
                   </p>
                 </div>

@@ -1065,6 +1065,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
             loading={wardrobeLoading}
             emptyHint={t("tripDetail.noPiecesYet")}
             columns={3}
+            showAllByDefault
           />
           <div className="px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 border-t border-border/60">
             <button onClick={() => setPickerOpen(false)} className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em]">{t("tripDetail.done")}</button>
@@ -1092,6 +1093,7 @@ export function TripDetail({ go, tripId, focusActivityId = null, openBuilder, op
             loading={wardrobeLoading}
             emptyHint={t("tripDetail.noPiecesYet")}
             columns={3}
+            showAllByDefault
           />
           <div className="px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 border-t border-border/60">
             <button onClick={() => setCapsulePickerOpen(false)} className="w-full h-11 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em]">{t("tripDetail.done")}</button>

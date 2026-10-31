@@ -1,4 +1,5 @@
 import { ColorWheelPicker } from "@/components/ColorWheelPicker";
+import { GridColumnsToggle, gridClass, useGridColumns } from "@/components/aura/GridColumnsToggle";
 import { ColorPicker } from "@/components/aura/ColorPicker";
 import { COLOR_PALETTE } from "@/lib/color-palette";
 import { getHarmonies, hexToHsl, nearestWheelName } from "@/lib/itten-wheel";
@@ -101,6 +102,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const [gridCols, setGridCols] = useGridColumns(2);
   const { latitude, longitude, city } = useLocation();
   const { data: weather } = useWeather(latitude, longitude);
   const queryClient = useQueryClient();
@@ -1401,7 +1403,9 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
           )}
         </div>
       ) : (
-        <div className="px-6 mt-6 grid grid-cols-2 gap-x-3 gap-y-5">
+        <>
+        <GridColumnsToggle value={gridCols} onChange={setGridCols} className="px-6 mt-4 justify-end" />
+        <div className={`px-6 mt-3 grid ${gridClass(gridCols)}`}>
           {filtered.map((it, i) => {
             const src = thumbSrc(it, signed);
             const label = (it.colors?.[0] ?? it.color ?? it.category ?? t("wardrobe.wardrobePieceFallback"));
@@ -1457,6 +1461,7 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
             );
           })}
         </div>
+        </>
       )}
       {detail && (
         <div
