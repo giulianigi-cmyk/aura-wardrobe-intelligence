@@ -1120,7 +1120,7 @@ const AiDetailsSchema = z.object({
  *  JSON inside <script> tags, invisible to the fixed extraction above). */
 function detailsTextForAi(html: string): string {
   const snippets: string[] = [];
-  for (const m of html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)) {
+  for (const m of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)) {
     const body = m[1];
     for (const k of body.matchAll(/price|composition|composizione|materials?|fabric|tessuto/gi)) {
       const at = k.index ?? 0;
@@ -1129,7 +1129,7 @@ function detailsTextForAi(html: string): string {
     }
     if (snippets.length >= 60) break;
   }
-  const text = decodeHtml(stripExcludedSections(html).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<[^>]+>/g, " ")).replace(/\s+/g, " ");
+  const text = decodeHtml(stripExcludedSections(html).replace(/<script\b[\s\S]*?<\/script\b[^>]*>|<style\b[\s\S]*?<\/style\b[^>]*>|<[^>]+>/gi, " ")).replace(/\s+/g, " ");
   return `${text.slice(0, 30000)}\n\nSCRIPT DATA:\n${snippets.join("\n").slice(0, 20000)}`;
 }
 
