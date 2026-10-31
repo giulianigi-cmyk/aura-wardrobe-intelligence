@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n/config";
-import { garmentWithColor, matchesSearch, searchableText } from "@/lib/garment-names";
-import { expandSearchWord, normalizeText } from "@/lib/wardrobe-search";
+import { garmentWithColor, searchableText } from "@/lib/garment-names";
+import { matchesPieceSearch, normalizeText } from "@/lib/wardrobe-search";
 import { Search, Check, Loader2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import type { WardrobeItem } from "@/lib/aura-types";
@@ -100,13 +100,13 @@ export function PiecePicker({
   const visible = useMemo(() => {
     // Every word must match brand, model, type, colour, material…; words in any language are
     // expanded to the stored English values ("gonna nera" → skirt + black, "lino" → linen).
-    const words = normalizeText(q).split(" ").filter(Boolean);
+    const query = q.trim();
     return items.filter((i) => {
       // A piece already chosen stays visible so it can be removed.
       if (onlyAvailable && !isWearableNow(i as never) && !selectedIds.includes(i.id)) return false;
       const itemLoc = (i as unknown as { location_id?: string | null }).location_id ?? null;
       if (!((locId === "all" || itemLoc === locId) && (cat === "All" || i.category === cat))) return false;
-      if (!words.length) return true;
+      if (!query) return true;
       const values = [
         i.category, i.subcategory, i.brand, i.model, i.color, i.style, i.occasion, i.season,
         ...(i.colors ?? []), ...(Array.isArray(i.material) ? i.material : []), ...(i.style_tags ?? []),
@@ -115,7 +115,7 @@ export function PiecePicker({
       // Same as the Guardaroba search too: names in the person's language and part of a word
       // ("giac" finds a giacca) — this picker used to find only whole dictionary words (reported).
       const localized = searchableText(values, i18n.language);
-      return words.every((w) => matchesSearch(localized, w) || expandSearchWord(w).some((x) => hay.includes(x)));
+      return matchesPieceSearch(query, localized, hay);
     });
   }, [items, cat, q, locId, onlyAvailable, selectedIds]);
 
