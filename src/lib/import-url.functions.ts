@@ -1098,6 +1098,84 @@ async function extractViaAi(
 }
 
 
+/** A product title as a model name: the brand and the shop's suffix ("| ZARA Italia", " - Nero")
+ *  taken off, at most 80 characters; null when nothing is left. */
+export function cleanProductName(title: string | null | undefined, brand: string | null | undefined): string | null {
+  let t = (title ?? "").split(/\s[|–—]\s/)[0].trim();
+  const b = (brand ?? "").trim().toLowerCase();
+  if (b && t.toLowerCase().startsWith(b)) t = t.slice(b.length).replace(/^\s*[-:·]?\s*/, "").trim();
+  t = t.replace(/\s+/g, " ").slice(0, 80).trim();
+  return t.length >= 2 ? t : null;
+}
+
+const AiDetailsSchema = z.object({
+  title: z.string().nullable().optional(),
+  priceValue: z.number().nullable(),
+  priceCurrency: z.string().nullable(),
+  composition: z.array(z.object({ material: z.string(), pct: z.number().nullable().optional() })).nullable().optional(),
+});
+
+/** What a page says about price and fabric, for the model: its visible text plus the bits of its
+ *  scripts that mention a price or a composition (many shops, Zara among them, render both from
+ *  JSON inside <script> tags, invisible to the fixed extraction above). */
+function detailsTextForAi(html: string): string {
+  const snippets: string[] = [];
+  for (const m of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)) {
+    const body = m[1];
+    for (const k of body.matchAll(/price|composition|composizione|materials?|fabric|tessuto/gi)) {
+      const at = k.index ?? 0;
+      snippets.push(body.slice(Math.max(0, at - 150), at + 250));
+      if (snippets.length >= 60) break;
+    }
+    if (snippets.length >= 60) break;
+  }
+  const text = decodeHtml(stripExcludedSections(html).replace(/<script\b[\s\S]*?<\/script\b[^>]*>|<style\b[\s\S]*?<\/style\b[^>]*>|<[^>]+>/gi, " ")).replace(/\s+/g, " ");
+  return `${text.slice(0, 30000)}\n\nSCRIPT DATA:\n${snippets.join("\n").slice(0, 20000)}`;
+}
+
+/**
+ * When the page was read but its price or fabric composition was not found (prices and
+ * compositions drawn by the page's own scripts), a model reads them like a person would. Only on
+ * that path, one cheap call; null on any failure — the fields stay empty for the person to fill.
+ */
+async function extractDetailsViaAi(html: string, target: URL): Promise<z.infer<typeof AiDetailsSchema> | null> {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) return null;
+  try {
+    const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
+    const model = createLovableAiGatewayProvider(key)("google/gemini-2.5-flash");
+    const prompt = [
+      `This is the content of a fashion e-commerce product page (${target.toString()}). For the MAIN product only (not related or recommended items):`,
+      "- its product name as shown on the page (without the brand),",
+      "- its current selling price as a plain number and ISO currency code,",
+      "- its fabric composition of the main/outer fabric: each material in English (Cotton, Polyester, Viscose, Wool, Linen, Silk, Elastane, Leather…) with its percentage when given.",
+      "Only what the page actually says; use null or an empty list when it is not there. Respond with ONLY a JSON object, no markdown:",
+      '{"title": null, "priceValue": null, "priceCurrency": null, "composition": []}',
+      "",
+      detailsTextForAi(html),
+    ].join("\n");
+    const { text } = await generateText({ model, messages: [{ role: "user", content: prompt }] });
+    return parseAiJson(text, AiDetailsSchema);
+  } catch (e) {
+    console.warn("[AURA import-url] AI details fallback failed", e);
+    return null;
+  }
+}
+
+/** AI composition → the canonical materials and composition the app stores (unknown fibres
+ *  dropped, as in extractMaterials). */
+function canonicalComposition(list: { material: string; pct?: number | null }[] | null | undefined): { materials: string[]; composition: CompositionEntry[] } {
+  const seen = new Map<string, number | null>();
+  for (const c of list ?? []) {
+    const canon = canonicalFiber(c.material);
+    if (!canon || seen.has(canon)) continue;
+    const pct = typeof c.pct === "number" && c.pct > 0 && c.pct <= 100 ? Math.round(c.pct) : null;
+    seen.set(canon, pct);
+  }
+  const sorted = [...seen.entries()].sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0));
+  return { materials: sorted.map(([m]) => m), composition: sorted.map(([material, pct]) => ({ material, pct })) };
+}
+
 export type ResolvedProductImage =
   | ({ ok: true; imageUrl: string; candidates: string[] } & ReturnType<typeof extractProductMeta>)
   | { ok: false; error: string; rateLimited?: boolean };
@@ -1404,10 +1482,15 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
     const imageDataUrl = dl.dataUrl;
 
         const meta = extractProductMeta(html, target, extracted);
+    // Price or fabric not found on the page: the model reads them (prices and compositions drawn by
+    // the page's scripts, e.g. Zara).
+    const details = html && ((meta.priceValue == null && aiMeta?.priceValue == null) || !meta.materials.length)
+      ? await extractDetailsViaAi(html, target) : null;
+    const aiFabric = !meta.materials.length ? canonicalComposition(details?.composition) : null;
     const brand = aiMeta?.brand || meta.brand;
     const title = aiMeta?.title || meta.title;
-    const priceValue = meta.priceValue ?? aiMeta?.priceValue ?? null;
-    const priceCurrency = meta.priceCurrency ?? aiMeta?.priceCurrency ?? null;
+    const priceValue = meta.priceValue ?? aiMeta?.priceValue ?? (details?.priceValue != null && details.priceValue > 0 ? details.priceValue : null);
+    const priceCurrency = meta.priceCurrency ?? aiMeta?.priceCurrency ?? (details?.priceCurrency ? details.priceCurrency.toUpperCase().slice(0, 3) : null);
     const price = priceValue != null ? (priceCurrency ? `${priceValue} ${priceCurrency}` : String(priceValue)) : meta.price;
     // Original/pre-discount price: structured-data-only (see extractProductMeta),
     // never inferred by the AI fallback — best effort, often empty, that's fine.
@@ -1438,8 +1521,10 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
       extractionMethod: aiMeta ? "ai-fallback" : extracted.method,
       confidence: aiMeta ? "medium" as const : extracted.confidence,
       imageCandidates: validatedAltCandidates.length ? validatedAltCandidates : [imageUrl],
-      materials: meta.materials,
-      composition: meta.composition,
+      // The product's own name, without the brand (filled in as the model).
+      productName: cleanProductName(details?.title || title, brand),
+      materials: aiFabric?.materials.length ? aiFabric.materials : meta.materials,
+      composition: aiFabric?.composition.length ? aiFabric.composition : meta.composition,
             colorWarning: meta.colorWarning,
       usedFallback,
     };

@@ -399,7 +399,7 @@ export function AddItem({ onClose, initialGarment }: {
     const runPipeline = async (initialFile: File, opts?: {
     brand?: string; source?: "photo" | "url" | "library"; price?: string; currency?: string;
     materials?: string[]; composition?: CompositionEntry[]; productId?: string;
-    category?: string; subcategory?: string; colors?: string[]; season?: string;
+    category?: string; subcategory?: string; colors?: string[]; season?: string; model?: string;
     currentRetailPrice?: string; currentRetailFromImport?: boolean;
     historicalRetailPrice?: string; historicalRetailFromImport?: boolean;
     fromShared?: boolean;
@@ -430,6 +430,7 @@ export function AddItem({ onClose, initialGarment }: {
     }
     if (opts?.brand) setBrand(opts.brand);
     if (opts?.price) setPrice(opts.price);
+    if (opts?.model) setModel(opts.model);
     if (opts?.currency) setCurrency(opts.currency);
     if (opts?.materials?.length) setMaterials(opts.materials);
     if (opts?.composition?.length) setComposition(opts.composition);
@@ -537,6 +538,9 @@ export function AddItem({ onClose, initialGarment }: {
       await runPipeline(file, {
         brand: result.brand || undefined,
         source: "url",
+        // The product page's price is also what was paid, most of the time: filled in, editable.
+        price: result.priceValue != null ? String(result.priceValue) : undefined,
+        model: result.productName || undefined,
         currency: result.priceCurrency || undefined,
         currentRetailPrice: result.priceValue != null ? String(result.priceValue) : undefined,
         currentRetailFromImport: result.priceValue != null,
