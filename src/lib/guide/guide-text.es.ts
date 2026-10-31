@@ -138,7 +138,7 @@ const text: GuideText = {
       steps: [
         "Abre la prenda, toca «Opciones» y luego «Vender esta prenda».",
         "Elige el estado: el precio sugerido se adapta, según el valor de reventa estimado.",
-        "Revisa título y descripción, guarda la foto (ya sin fondo) y toca «Copiar anuncio»: pégalo en la web de venta que prefieras.",
+        "Revisa título y descripción, guarda la foto (ya sin fondo) y copia cada campo con su botón (título, descripción, precio, talla…) o toca «Copiar todo el anuncio», y pégalo en la web de venta que prefieras.",
         "Cuando la vendas toca «Marcar como vendida»: la prenda pasa a Archivadas.",
       ],
       tip: "En Armario te proponemos las prendas que no usas desde toda una temporada (6 meses las de todas las temporadas, 2 años las de ceremonia), si registras lo que te pones. Con «Me la quedo» no te las volvemos a proponer en un año.",

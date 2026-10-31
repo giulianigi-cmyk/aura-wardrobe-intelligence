@@ -181,3 +181,42 @@ test("Plausibility: senza market premium sourced, resale_high non supera mai il 
   );
   assert.ok(r.resaleHigh! <= 200, `resaleHigh (${r.resaleHigh}) ha superato il retail senza essere un market premium sourced`);
 });
+
+test("Mai sopra il pagato: un capo d'abbigliamento non si rivende a più di quanto è costato", () => {
+  const r = computeItemValuation(
+    baseInput({ price: 128, purchaseDate: "2026-08-01", category: "Tops", subcategory: "T-Shirt", wornCount: 0 }),
+    CONFIG
+  );
+  assert.ok(r.resaleHigh! <= 128, `resaleHigh ${r.resaleHigh}`);
+  assert.ok(r.resaleLow! <= r.resaleHigh!);
+  // Anche se oggi costa poco di più (o uguale, o meno).
+  const similar = computeItemValuation(
+    baseInput({ price: 128, currentRetailPrice: 140, currentRetailSource: "import", purchaseDate: "2026-08-01", category: "Tops", subcategory: "T-Shirt" }),
+    CONFIG
+  );
+  assert.ok(similar.resaleHigh! <= 128);
+});
+
+test("Pagato 50, oggi costa 400 (anche dalla pagina prodotto): la stima può superare il pagato, mai il prezzo di oggi", () => {
+  const r = computeItemValuation(
+    baseInput({ price: 50, currentRetailPrice: 400, currentRetailSource: "import", purchaseDate: "2026-08-01", category: "Outerwear", subcategory: "Leather Jacket" }),
+    CONFIG
+  );
+  assert.equal(r.anchorType, "current_retail");
+  assert.ok(r.resaleHigh! > 50 && r.resaleHigh! <= 400, `resaleHigh ${r.resaleHigh}`);
+});
+
+test("Alto lusso: borse/accessori di brand top o con profilo modello possono superare il pagato", () => {
+  const rolex = computeItemValuation(
+    baseInput({ price: 8000, purchaseDate: "2026-08-01", category: "Accessories", subcategory: "Watch", brand: "Rolex" }),
+    CONFIG
+  );
+  assert.ok(rolex.resaleHigh! > 8000);
+  const prada = computeItemValuation(
+    baseInput({ price: 1000, purchaseDate: "2026-08-01", category: "Bags", brand: "Prada", model: "Re-Edition" }),
+    CONFIG
+  );
+  assert.ok(prada.resaleHigh! > 1000);
+  const shoes = computeItemValuation(baseInput({ price: 300, purchaseDate: "2026-08-01", category: "Shoes" }), CONFIG);
+  assert.ok(shoes.resaleHigh! <= 300);
+});

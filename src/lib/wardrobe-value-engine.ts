@@ -16,6 +16,13 @@
 //    è quella mostrata come "confidence" principale in UI.
 // 5. Plausibility: se l'anchor è current_retail e non siamo in un caso di
 //    market_premium sourced, resale_high non supera mai l'anchor.
+// 6. Mai sopra il prezzo pagato: un capo usato raramente si rivende a più di
+//    quanto è costato. Fanno eccezione solo (a) il retail di oggi molto più alto
+//    del pagato (≥ RETAIL_JUMP volte: pagato 50, oggi 400) — in quel caso il
+//    prezzo della pagina prodotto (import) fa da anchor anche se non verificato,
+//    perché può solo alzare la stima e resta comunque il tetto; (b) l'alto lusso:
+//    un profilo modello (Birkin, Rolex…) o borse, scarpe e accessori di un brand
+//    con modifier ≥ HIGH_LUXURY_BRAND_MODIFIER.
 //
 // Pure/testabile senza DB — fetchValuationConfig() è l'unica funzione che
 // tocca Supabase, in fondo al file.
@@ -42,6 +49,11 @@ export type ValuationLevel =
   | "none";
 
 const ANCHOR_ELIGIBLE_SOURCES: ReadonlySet<CurrentRetailSource> = new Set(["user", "ai_lookup_verified"]);
+/** Fonti del retail di oggi che possono alzare la stima quando è molto sopra il pagato (punto 6). */
+const RETAIL_JUMP_SOURCES: ReadonlySet<CurrentRetailSource> = new Set(["user", "ai_lookup_verified", "import", "product_link"]);
+export const RETAIL_JUMP = 1.5;
+export const HIGH_LUXURY_BRAND_MODIFIER = 1.15;
+const HIGH_LUXURY_CATEGORIES = new Set(["bags", "shoes", "accessories"]);
 
 export interface CategoryProfile {
   category: string;
@@ -271,7 +283,10 @@ export function computeItemValuation(input: ValuationInput, config: ValuationCon
   const wornCount = input.wornCount ?? 0;
 
   // ---- 1. ANCHOR SELECTION — solo fonti anchor-eligible fanno da anchor ----
-  const retailAnchorEligible = currentRetailPrice != null && currentRetailSource != null && ANCHOR_ELIGIBLE_SOURCES.has(currentRetailSource);
+  const retailJump =
+    currentRetailPrice != null && purchasePrice != null && purchasePrice > 0 && currentRetailSource != null &&
+    RETAIL_JUMP_SOURCES.has(currentRetailSource) && currentRetailPrice >= purchasePrice * RETAIL_JUMP;
+  const retailAnchorEligible = currentRetailPrice != null && currentRetailSource != null && (ANCHOR_ELIGIBLE_SOURCES.has(currentRetailSource) || retailJump);
   const anchorType: ValuationResult["anchorType"] = retailAnchorEligible ? "current_retail" : purchasePrice != null ? "purchase_price" : null;
   const anchorValue = retailAnchorEligible ? currentRetailPrice : purchasePrice ?? null;
 
@@ -389,6 +404,16 @@ export function computeItemValuation(input: ValuationInput, config: ValuationCon
     } else if (resaleCenter > anchorValue) {
       marketPremium = true; // nessun clamp — caso sourced (Prada, Rolex, Birkin/Kelly)
     }
+  }
+
+  // ---- 8. MAI SOPRA IL PAGATO — salvo retail di oggi molto più alto o alto lusso ----
+  const highLuxury =
+    modelProfile != null ||
+    (brand.matched && brand.modifier >= HIGH_LUXURY_BRAND_MODIFIER && HIGH_LUXURY_CATEGORIES.has((input.category ?? "").trim().toLowerCase()));
+  if (purchasePrice != null && purchasePrice > 0 && !retailJump && !highLuxury && resaleHigh > purchasePrice) {
+    resaleHigh = purchasePrice;
+    resaleLow = Math.min(resaleLow, resaleHigh);
+    breakdown.cappedAtPurchasePrice = true;
   }
 
   const resaleChangeVsPurchase =

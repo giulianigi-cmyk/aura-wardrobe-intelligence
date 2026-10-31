@@ -2735,7 +2735,7 @@
     "materials": "Materiales",
     "color": "Color",
     "brand": "Marca",
-    "copy": "Copiar anuncio",
+    "copy": "Copiar todo el anuncio",
     "copied": "Anuncio copiado: pégalo en la web de venta que prefieras",
     "copyFailed": "No se ha podido copiar. Mantén pulsado el texto para copiarlo.",
     "savePhoto": "Guardar foto",
@@ -2754,7 +2754,9 @@
       "seasonMissed": "Sin usar en toda su última temporada",
       "sixMonths": "Sin usar desde hace 6 meses",
       "twoYears": "Sin usar desde hace 2 años"
-    }
+    },
+    "fieldCopied": "Copiado",
+    "copyField": "Copiar {{field}}"
   },
   "wishlist": {
     "title": "Lista de deseos",

@@ -2735,7 +2735,7 @@
     "materials": "Materiali",
     "color": "Colore",
     "brand": "Brand",
-    "copy": "Copia annuncio",
+    "copy": "Copia tutto l'annuncio",
     "copied": "Annuncio copiato: incollalo sul sito di vendita che preferisci",
     "copyFailed": "Non è stato possibile copiare. Tieni premuto sul testo per copiarlo.",
     "savePhoto": "Salva foto",
@@ -2754,7 +2754,9 @@
       "seasonMissed": "Non indossato per tutta la sua ultima stagione",
       "sixMonths": "Non indossato da 6 mesi",
       "twoYears": "Non indossato da 2 anni"
-    }
+    },
+    "fieldCopied": "Copiato",
+    "copyField": "Copia {{field}}"
   },
   "wishlist": {
     "title": "Wishlist",
