@@ -103,7 +103,7 @@ export function Onboarding({ onDone }: { onDone: (mode: "signup" | "signin") => 
             {t("onboarding.skip")}
           </button>
         </div>
-        <p className="absolute top-24 inset-x-0 text-center font-serif text-3xl italic text-foreground/85">{BRAND_WORDMARK}</p>
+        <p className="absolute top-22 inset-x-0 text-center font-serif text-3xl italic text-foreground/85">{BRAND_WORDMARK}</p>
         <div key={slide} className="absolute inset-x-0 top-36 bottom-4 flex items-center justify-center animate-fade-up">
           <Example slide={slide} />
         </div>
