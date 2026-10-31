@@ -87,3 +87,18 @@ test("single search words expand to the stored English values", () => {
   assert.ok(expandSearchWord("gonna").includes("skirt"));
   assert.deepEqual(expandSearchWord("zara"), ["zara"]);
 });
+
+test("Scegli capi: «H&M» finds the H&M piece only, not every piece with an h and an m", async () => {
+  const { matchesPieceSearch, normalizeText } = await import("./wardrobe-search");
+  const { searchableText } = await import("./garment-names");
+  const piece = (values: string[]) => [searchableText(values, "it"), normalizeText(values.join(" "))] as const;
+  const hm = piece(["Bottoms", "Jeans", "H&M", "Blue", "Denim"]);
+  const scervino = piece(["Bottoms", "Skirt", "Ermanno Scervino", "Black", "Sequins"]);
+  const burberry = piece(["Outerwear", "Trench Coat", "Burberry", "Beige", "Cotton"]);
+  assert.equal(matchesPieceSearch("H&M", ...hm), true);
+  assert.equal(matchesPieceSearch("H&M", ...scervino), false);
+  assert.equal(matchesPieceSearch("H&M", ...burberry), false);
+  assert.equal(matchesPieceSearch("burb", ...burberry), true);
+  assert.equal(matchesPieceSearch("scervino nera", ...scervino), true);
+  assert.equal(matchesPieceSearch("gonna", ...scervino), true);
+});

@@ -208,6 +208,19 @@ export function expandSearchWord(word: string): string[] {
   return [...out];
 }
 
+/** The "Scegli capi" search over a piece: `localized` = searchableText() of its values, `hay` =
+ *  normalizeText() of them. The whole query as typed first ("h&m", "max mara"), as the Guardaroba
+ *  search does; then every word on its own, in any language. A one-letter word ("H&M" splits into
+ *  "h" and "m") must be a whole word, or it would match nearly every piece (reported). */
+export function matchesPieceSearch(query: string, localized: string, hay: string): boolean {
+  const phrase = query.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  if (!phrase || localized.includes(phrase)) return true;
+  const words = normalizeText(query).split(" ").filter(Boolean);
+  if (!words.length) return false;
+  const tokens = new Set(hay.split(" "));
+  return words.every((w) => (w.length < 2 ? tokens.has(w) : localized.includes(w) || expandSearchWord(w).some((x) => hay.includes(x))));
+}
+
 /** Wardrobe categories a message names ("borsa" → Bags, "décolleté" → Shoes, "gonna" → Bottoms). */
 export function mentionedCategories(message: string): string[] {
   const text = normalizeText(message);
