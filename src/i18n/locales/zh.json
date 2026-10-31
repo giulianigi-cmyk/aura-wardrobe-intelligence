@@ -135,7 +135,14 @@
     "usageSub": "你的套餐和已使用的额度",
     "reportProblem": "报告问题",
     "reportProblemSub": "遇到问题了？告诉我们",
-    "followNimbea": "关注 Nimbèa"
+    "followNimbea": "关注 Nimbèa",
+    "coldSensitivity": "温度",
+    "coldSensitivityHint": "你对冷的感受：外套、夹克和叠穿建议会相应调整 3 °C。",
+    "coldSensitivityOptions": {
+      "cold": "怕冷",
+      "normal": "一般",
+      "warm": "怕热"
+    }
   },
   "community": {
     "chooseUsername": "选择用户名",
