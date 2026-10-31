@@ -71,3 +71,10 @@ test("un cappotto vero solo da 10 °C in giù; trench e giacche restano anche so
   assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Blazer" }, 14), false);
   assert.equal(isHeavyCoat({ category: "Outerwear", subcategory: "Rain Jacket" }), false);
 });
+
+test("anche la giacca di lana solo da 10 °C in giù; il blazer di lana resta", () => {
+  assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Shacket", material: ["Wool"] }, 14), true);
+  assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Shacket", material: ["Wool"] }, 9), false);
+  assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Blazer", material: ["Wool"] }, 14), false);
+  assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Denim Jacket", material: ["Cotton"] }, 14), false);
+});

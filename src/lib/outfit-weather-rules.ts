@@ -21,20 +21,25 @@ import { isSummerSeason } from "./outfit-styling-rules";
 export const HOT_THRESHOLD_C = 26;
 export const COLD_THRESHOLD_C = 10;
 
-// A real coat (wool coat, parka, puffer, shearling) only at COLD_THRESHOLD_C or below: above it a
-// trench, a jacket or a blazer is enough (reported: a coat proposed for a mild day "is too much,
+// A real coat (wool coat, parka, puffer, shearling) or a wool jacket only at COLD_THRESHOLD_C or
+// below: above it a trench, a light jacket or a blazer is enough (reported: a coat proposed for a mild day "is too much,
 // coats are from 10 degrees down"). Trench and rain coats are mid-season pieces and stay allowed.
 const HEAVY_COAT_TYPE = /^(coat|parka|puffer jacket)$/i;
 const HEAVY_COAT_TEXT = /piumino|shearling|montone|overcoat|cappotto|down coat/i;
 const MID_SEASON_COAT = /trench|rain|impermeabile/i;
 
-/** A coat for real cold: a Coat, Parka or Puffer (or a shearling, a down coat), not a trench. */
-export function isHeavyCoat(item: { category?: string | null; subcategory?: string | null; styleTags?: string[] | null }): boolean {
+const WOOL = /wool|lana|cashmere|cachemire|tweed|bouclé|boucle|loden/i;
+const TAILORED = /blazer|vest|gilet/i;
+
+/** Outerwear for real cold: a Coat, Parka or Puffer (or a shearling, a down coat), and any wool
+ *  jacket ("giacchetto di lana" — reported too), not a trench, a raincoat or a blazer. */
+export function isHeavyCoat(item: { category?: string | null; subcategory?: string | null; styleTags?: string[] | null; material?: string[] | null }): boolean {
   if (item.category !== "Outerwear") return false;
   const sub = item.subcategory ?? "";
   const text = `${sub} ${(item.styleTags ?? []).join(" ")}`;
   if (MID_SEASON_COAT.test(text)) return false;
-  return HEAVY_COAT_TYPE.test(sub.trim()) || HEAVY_COAT_TEXT.test(text);
+  if (HEAVY_COAT_TYPE.test(sub.trim()) || HEAVY_COAT_TEXT.test(text)) return true;
+  return !TAILORED.test(sub) && WOOL.test((item.material ?? []).join(" "));
 }
 
 // From here up (still below HOT) the genuinely WINTER pieces are out: wool and other heavy
