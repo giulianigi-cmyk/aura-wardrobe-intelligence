@@ -43,7 +43,8 @@
     "occasionEveryday": "Everyday",
     "noImage": "No image",
     "looksGenerateFailed": "Couldn't generate today's looks.",
-    "looksLoadFailed": "Couldn't load today's looks."
+    "looksLoadFailed": "Couldn't load today's looks.",
+    "changeLook": "New look"
   },
   "profile": {
     "languageLabel": "Language"
@@ -2305,7 +2306,10 @@
     "photo": "Photo",
     "pieces": "Pieces",
     "saveCanvas": "Save canvas",
-    "seeCanvas": "See canvas"
+    "seeCanvas": "See canvas",
+    "setToday": "Set as today's look on Home",
+    "setTodayDone": "It's now today's look on Home",
+    "setTodayFailed": "Couldn't set it: open Home once today first"
   },
   "colorHarmony": {
     "title": "Color Harmony",

@@ -9,6 +9,7 @@ import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces,
 import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
 import { CATALOG_MAX_ITEMS, compactCatalogJson } from "./wardrobe-catalog";
 import { TALL_BOOTS_PROMPT_RULE, violatesTallBootsRule, isTallBoot } from "./tall-boots-rule";
+import { COAT_LENGTH_PROMPT_RULE, midCoatOverFloorLength, isMidLengthCoat } from "./coat-length-rule";
 import { bagClashesWithDressyLook, DRESSY_EVENING_BAG_PROMPT_RULE } from "./outfit-styling-rules";
 import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, isSummerSeason } from "./outfit-styling-rules";
 import { buildStyleMemoryPromptSection } from "./style-memory-prompt";
@@ -69,6 +70,8 @@ const InputSchema = z.object({
   condition: z.string().nullable().optional(),
   dressRules: z.string().max(8000).nullable().optional(),
   items: z.array(ItemSchema).min(3),
+  // "Cambia look" on Home: the pieces of the look being replaced, so the new one is different.
+  avoidTodayIds: z.array(z.string()).max(40).nullable().optional(),
 });
 
 const LookSchema = z.object({
@@ -213,6 +216,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       ACCESSORY_OCCASION_PROMPT_RULE,
     OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
       TALL_BOOTS_PROMPT_RULE,
+      COAT_LENGTH_PROMPT_RULE,
       DRESSY_EVENING_BAG_PROMPT_RULE,
       EMBELLISHED_EVENING_PROMPT_RULE,
       EVENING_ONLY_PROMPT_RULE,
@@ -313,6 +317,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     const todayRules = [
       ...(isWetCondition(data.condition) ? [RAIN_PROMPT_RULE] : []),
       ...(summerIsOver(todayIso, data.tempMin) ? [summerOverPromptRule(data.tempMin as number)] : []),
+      ...(data.avoidTodayIds?.length ? [`NEW LOOK: the person asked for a different "today" look. Do not repeat the previous one (ids ${data.avoidTodayIds.join(", ")}): at most one of those pieces may come back.`] : []),
     ];
     const userContent = `${dressRulesBlock}Wardrobe:\n${compactCatalogJson(catalog)}\n\n${wx}${todayRules.length ? `\n${todayRules.join("\n")}` : ""}`;
     const validIds = new Set(catalog.map((c) => c.id));
@@ -441,6 +446,18 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     // Knee / over-the-knee boots with trousers that can't go inside them (tall-boots-rule.ts).
     const violatesTallBoots = (ids: string[]): boolean =>
       violatesTallBootsRule(ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => !!c));
+    // A knee-length coat over a maxi dress or a full-length jumpsuit (coat-length-rule.ts).
+    const violatesCoatLength = (ids: string[]): boolean =>
+      midCoatOverFloorLength(ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => !!c));
+    /** A mid-length coat over a floor-length piece: the rest of the look is good, it is the coat that
+     *  is wrong. Swapped for a long coat from the wardrobe when there is one, else left out (no coat
+     *  beats the wrong one). */
+    const withRightCoat = (occasion: string, ids: string[]): string[] => {
+      if (!violatesCoatLength(ids)) return ids;
+      const rest = ids.filter((id) => !isMidLengthCoat(catalog.find((c) => c.id === id) ?? {}));
+      const long = pickPiece(occasion, rest, (c) => c.category === "Outerwear" && c.length === "Long");
+      return long ? [...rest, long.id] : rest;
+    };
     // A printed or casual bag in a sequins-and-velvet evening look (outfit-styling-rules.ts).
     const clashingBagId = (ids: string[]): string | null => {
       const pieces = ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => !!c);
@@ -718,6 +735,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       if (violatesCoatOverBareArms(today.item_ids)) {
         today.item_ids = today.item_ids.filter((id) => catalog.find((c) => c.id === id)?.category !== "Outerwear");
       }
+      today.item_ids = withRightCoat(r.today.occasion, today.item_ids);
       // Tall boots with trousers that can't go inside them: the boots go, ensureShoes picks another pair.
       if (violatesTallBoots(today.item_ids)) {
         today.item_ids = today.item_ids.filter((id) => !isTallBoot(catalog.find((c) => c.id === id) ?? {}));
@@ -727,7 +745,8 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       if (offBag) today.item_ids = today.item_ids.filter((id) => id !== offBag);
       const seen = [today.item_ids];
       const curated: DailyLook[] = [];
-      for (const l of r.curated) {
+      for (const raw of r.curated) {
+        const l = { ...raw, item_ids: withRightCoat(raw.occasion, raw.item_ids) };
         if (isValidCuratedLook(l, seen)) {
           curated.push(l);
           seen.push(l.item_ids);
