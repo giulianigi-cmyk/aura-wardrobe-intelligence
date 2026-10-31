@@ -8,8 +8,30 @@ import {
 } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 
+import { createIsomorphicFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import appCss from "../styles.css?url";
 import { BRAND_NAME } from "@/lib/brand";
+
+// Title and description in the visitor's market: Italian on nimbea.it, English on nimbea.app (and
+// anywhere else). What Google and link previews (WhatsApp, LinkedIn) show; the app itself then uses
+// the phone's language. hreflang tells Google the two domains are the same app in two languages.
+const pageHost = createIsomorphicFn()
+  .server(() => { try { return new URL(getRequest().url).hostname; } catch { return ""; } })
+  .client(() => window.location.hostname);
+
+const META = {
+  it: {
+    title: `${BRAND_NAME} — Outfit con i vestiti che hai già`,
+    description: "Fotografa i tuoi capi, anche più insieme, e ricevi ogni mattina l'outfit giusto per il meteo e i tuoi impegni. Armadio digitale, stylist AI e valigia per i viaggi.",
+    url: "https://nimbea.it/", locale: "it_IT",
+  },
+  en: {
+    title: `${BRAND_NAME} — Outfits from the clothes you already own`,
+    description: "Photograph your clothes, several at once, and get the right outfit every morning for the weather and your plans. Digital wardrobe, AI stylist and trip packing.",
+    url: "https://nimbea.app/", locale: "en_US",
+  },
+} as const;
 
 function NotFoundComponent() {
   return (
@@ -52,26 +74,34 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
+  loader: () => ({ host: pageHost() }),
+  head: ({ loaderData }) => {
+    const m = /(^|\.)nimbea\.it$/i.test(loaderData?.host ?? "") ? META.it : META.en;
+    return ({
     meta: [
       { charSet: "utf-8" },
       { name: "google-site-verification", content: "7TkfNyEP6vqwtTnXjrdNwlHrH6SerKwUHA864Mu_eFs" },
       { name: "google", content: "notranslate" },
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" },
-      { title: `${BRAND_NAME} — Your wardrobe, intelligently styled` },
-      { name: "description", content: `${BRAND_NAME} is the luxury fashion intelligence app. Digitize your wardrobe, generate editorial outfits with AI, plan your style, and discover what suits you.` },
+      { title: m.title },
+      { name: "description", content: m.description },
       { name: "theme-color", content: "#f5efe6" },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: `${BRAND_NAME}` },
-      { property: "og:title", content: `${BRAND_NAME} — Your wardrobe, intelligently styled` },
-      { property: "og:description", content: `${BRAND_NAME} is the luxury fashion intelligence app. Digitize your wardrobe, generate editorial outfits with AI, plan your style, and discover what suits you.` },
-      { property: "og:url", content: "https://nimbea.app/" },
+      { property: "og:title", content: m.title },
+      { property: "og:description", content: m.description },
+      { property: "og:url", content: m.url },
+      { property: "og:locale", content: m.locale },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: `${BRAND_NAME} — Your wardrobe, intelligently styled` },
-      { name: "twitter:description", content: "Digitize your wardrobe, generate editorial outfits with AI, and plan your style." },
+      { name: "twitter:title", content: m.title },
+      { name: "twitter:description", content: m.description },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "canonical", href: m.url },
+      { rel: "alternate", hrefLang: "it", href: META.it.url },
+      { rel: "alternate", hrefLang: "en", href: META.en.url },
+      { rel: "alternate", hrefLang: "x-default", href: META.en.url },
       // Installable app (Add to Home Screen) — needed on iPhone for the morning notification.
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "icon", href: "/favicon.ico?v=11", sizes: "16x16 32x32 48x48" },
@@ -88,7 +118,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@context": "https://schema.org",
           "@type": "WebSite",
           name: `${BRAND_NAME}`,
-          url: "https://nimbea.app/",
+          url: m.url,
         }),
       },
       {
@@ -97,12 +127,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@context": "https://schema.org",
           "@type": "Organization",
           name: `${BRAND_NAME}`,
-          url: "https://nimbea.app/",
-          description: `${BRAND_NAME} is a wardrobe intelligence and AI styling service that digitizes your closet, generates outfits, and plans what to wear.`,
+          url: m.url,
+          description: m.description,
         }),
       },
     ],
-  }),
+  });
+  },
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
