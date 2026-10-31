@@ -684,7 +684,7 @@
     "languageAria": "Idioma",
     "next": "Siguiente",
     "outfitsEyebrow": "¿Qué me pongo?",
-    "outfitsTitle": "Outfits con la ropa\nque ya tienes.",
+    "outfitsTitle": "{{appName}} te crea outfits\ncon la ropa que ya tienes.",
     "outfitsBody": "{{appName}} combina tus prendas por ti, con el tiempo de hoy y la ocasión adecuada.",
     "scanEyebrow": "En pocos minutos",
     "scanTitle": "Todo tu armario,\nen una foto.",
