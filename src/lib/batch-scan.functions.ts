@@ -371,7 +371,7 @@ export const confirmDetectedItems = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const results: { id: string; ok: boolean; error?: string }[] = [];
+    const results: { id: string; ok: boolean; error?: string; itemId?: string }[] = [];
 
         const ids = data.items.map((it) => it.id);
     const { data: owned, error: ownErr } = await supabaseAdmin
@@ -446,7 +446,7 @@ export const confirmDetectedItems = createServerFn({ method: "POST" })
           .from("scan_detected_items").update({ status: "confirmed" }).eq("id", it.id).eq("user_id", userId);
         if (updErr) throw new Error(updErr.message);
 
-        results.push({ id: it.id, ok: true });
+        results.push({ id: it.id, ok: true, itemId: (insertedRow as { id: string } | null)?.id });
       } catch (err) {
         results.push({ id: it.id, ok: false, error: err instanceof Error ? err.message : "failed" });
       }

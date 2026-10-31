@@ -2010,7 +2010,11 @@
     "failedCount_other": "{{count}} échouées",
     "serviceUnavailable": "Service momentanément indisponible, réessaie plus tard.",
     "review": "Examiner",
-    "removeBatchAria": "Retirer ce lot"
+    "removeBatchAria": "Retirer ce lot",
+    "tip1": "Une pièce entière par photo, ou plusieurs bien séparées sans se chevaucher.",
+    "tip2": "Un fond uni qui contraste avec la pièce (une pièce blanche sur une surface sombre).",
+    "tip3": "Une bonne lumière sans ombres fortes ; la pièce entière dans le cadre.",
+    "tip4": "Si un détourage est raté, touchez « Ajuster le recadrage » dans la révision avant de l'ajouter."
   },
   "batchReview": {
     "couldntLoadBatch": "Impossible de charger ce lot.",
@@ -2076,7 +2080,12 @@
     "fieldPrice": "Prix",
     "fieldCurrency": "Devise",
     "fieldSize": "Taille",
-    "fieldPurchaseDate": "Date d'achat"
+    "fieldPurchaseDate": "Date d'achat",
+    "needsCrop": "Le détourage automatique a échoué : touchez « Ajuster le recadrage » et cadrez la pièce, sinon elle ne sera pas ajoutée.",
+    "needsCropSkipped_one": "{{count}} pièce sans détourage valide est restée ici : corrigez-la avec « Ajuster le recadrage ».",
+    "needsCropSkipped_other": "{{count}} pièces sans détourage valide sont restées ici : corrigez-les avec « Ajuster le recadrage ».",
+    "missedPhotos_one": "Aucune pièce reconnue sur {{count}} photo. Ajoutez-la depuis « Ajouter une pièce », ou reprenez la photo avec la pièce bien visible sur un fond uni.",
+    "missedPhotos_other": "Aucune pièce reconnue sur {{count}} photos. Ajoutez-les depuis « Ajouter une pièce », ou reprenez les photos avec les pièces bien visibles sur un fond uni."
   },
   "tripDetail": {
     "couldntLoadTrip": "Impossible de charger ce voyage",

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { syncMySharedLibrary } from "@/lib/shared-library.functions";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { parsePositivePrice } from "@/lib/price-parse";
@@ -32,8 +33,39 @@ type Draft = DetectedItemDraft & {
   dedupe: DedupeResult;
   included: boolean;
   bgRemoved: boolean;
+  /** The automatic crop failed (white/empty): the person has to frame the piece with «Ritaglia». */
+  needsCrop?: boolean;
+  /** Framed by hand with «Ritaglia»: their choice (a white shirt on white is not «empty»). */
+  adjusted?: boolean;
   embedding: number[] | null;
 };
+
+/** False for a crop that came out white or empty (the segmentation or the box missed the piece):
+ *  such an image must never be saved as the piece's photo (reported: white squares). */
+function hasVisibleContent(dataUrl: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const size = 48;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(true); return; }
+      ctx.drawImage(img, 0, 0, size, size);
+      const { data } = ctx.getImageData(0, 0, size, size);
+      let filled = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        const alpha = data[i + 3];
+        const isWhiteish = data[i] > 245 && data[i + 1] > 245 && data[i + 2] > 245;
+        if (alpha > 20 && !isWhiteish) filled++;
+      }
+      resolve(filled / (size * size) > 0.02);
+    };
+    img.onerror = () => resolve(true);
+    img.src = dataUrl;
+  });
+}
 
 async function cropFromUrl(src: string, bbox: BBox | null): Promise<string | null> {
   try {
@@ -90,6 +122,8 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
   const findVisualDupes = useServerFn(findVisualDuplicates);
 
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  // Photos where no piece was recognised: shown, never silently dropped.
+  const [missedPhotos, setMissedPhotos] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loadProgress, setLoadProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
@@ -129,6 +163,8 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
           if (data?.signedUrl) signed.set(j.image_path, data.signedUrl);
         }
 
+        const withItems = new Set(res.items.map((it) => it.job_id));
+        if (!cancelled) setMissedPhotos(res.jobs.filter((j) => !withItems.has(j.id)).map((j) => signed.get(j.image_path)).filter((u): u is string => !!u));
         const built: Draft[] = [];
         clearSegmentationCache();
         setLoadProgress({ done: 0, total: res.items.length });
@@ -145,8 +181,13 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
                 console.error("[AURA batch-review] segmentation failed for item, falling back to plain crop", it.id, segErr);
               }
             }
-            if (!cropUrl) {
-              cropUrl = src ? (await cropFromUrl(src, it.bbox)) ?? src : null;
+            // A white/empty crop is never kept: the detected box, then the whole photo to frame by hand.
+            let needsCrop = false;
+            if (cropUrl && !(await hasVisibleContent(cropUrl))) cropUrl = null;
+            if (!cropUrl && src) {
+              const boxed = await cropFromUrl(src, it.bbox);
+              if (boxed && (await hasVisibleContent(boxed))) cropUrl = boxed;
+              else { cropUrl = src; needsCrop = true; }
             }
 
             const category = it.category ?? "";
@@ -215,6 +256,7 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
               dedupe,
               included: dedupe.verdict !== "certain",
               bgRemoved: false,
+              needsCrop,
             });
           } catch (itemErr) {
             console.error("[AURA batch-review] failed to process item, skipping it", it.id, itemErr);
@@ -294,29 +336,6 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
     setCopyFromId(null);
   };
 
-  const hasVisibleContent = (dataUrl: string): Promise<boolean> =>
-    new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const size = 48;
-        const canvas = document.createElement("canvas");
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) { resolve(true); return; }
-        ctx.drawImage(img, 0, 0, size, size);
-        const { data } = ctx.getImageData(0, 0, size, size);
-        let filled = 0;
-        for (let i = 0; i < data.length; i += 4) {
-          const alpha = data[i + 3];
-          const isWhiteish = data[i] > 245 && data[i + 1] > 245 && data[i + 2] > 245;
-          if (alpha > 20 && !isWhiteish) filled++;
-        }
-        resolve(filled / (size * size) > 0.02);
-      };
-      img.onerror = () => resolve(true);
-      img.src = dataUrl;
-    });
 
   const performBgRemoval = async (id: string, url: string): Promise<boolean> => {
     try {
@@ -386,7 +405,7 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
 
   const applyManualCrop = async (id: string, dataUrl: string, box: FractionalBox) => {
     const hadBgRemoved = drafts.find((d) => d.id === id)?.bgRemoved ?? false;
-    setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, cropUrl: dataUrl, bbox: box, bgRemoved: false } : d)));
+    setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, cropUrl: dataUrl, bbox: box, bgRemoved: false, needsCrop: false, adjusted: true } : d)));
     if (hadBgRemoved) {
       await removeBg(id, dataUrl);
     }
@@ -434,11 +453,14 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
 
       }> = [];
 
+      let blank = 0;
       for (let i = 0; i < finalToSave.length; i++) {
         const d = finalToSave[i];
         if (!d.cropUrl) continue;
-        const path = `${user.id}/batch-item-${Date.now()}-${i}-${Math.random().toString(36).slice(2)}.png`;
         const trimmed = await trimWhiteMargins(d.cropUrl);
+        // Never a white square in the wardrobe: such a piece stays here to be framed with «Ritaglia».
+        if (d.needsCrop || (!d.adjusted && !(await hasVisibleContent(trimmed.dataUrl)))) { blank++; continue; }
+        const path = `${user.id}/batch-item-${Date.now()}-${i}-${Math.random().toString(36).slice(2)}.png`;
         const file = await dataUrlToFile(trimmed.dataUrl, "item.png");
         const { error } = await supabase.storage.from("wardrobe").upload(path, file, {
           cacheControl: "3600", upsert: false, contentType: "image/png",
@@ -490,17 +512,21 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
         });
       }
 
+      if (blank) toast.error(t("batchReview.needsCropSkipped", { count: blank }), { duration: 8000 });
       if (!payload.length) {
-        toast.error(t("batchReview.nothingToSave"));
+        if (!blank) toast.error(t("batchReview.nothingToSave"));
         return;
       }
 
       const res = (await confirm({ data: { items: payload } })) as unknown as {
         confirmed: number;
-        results: { id: string; ok: boolean; error?: string }[];
+        results: { id: string; ok: boolean; error?: string; itemId?: string }[];
       };
 
       if (res.confirmed > 0) {
+        // The new pieces reach the shared library now, if the person shares (it did not happen before).
+        const confirmedIds = res.results.map((r) => r.itemId).filter((x): x is string => !!x);
+        void syncMySharedLibrary({ data: { itemIds: confirmedIds } }).catch(() => {});
         const dupNote = skippedCount ? t("batchReview.skippedAsDuplicates", { count: skippedCount }) : "";
         toast.success(t("batchReview.addedToCloset", { count: res.confirmed }) + dupNote);
         wardrobeCache.invalidate();
@@ -513,7 +539,11 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
           t("batchReview.itemsNotSaved", { count: failedItems.length, reasons: reasons.join("; ") }),
         );
       }
-      if (res.confirmed > 0) go("wardrobe");
+      // Pieces still to frame keep the review open; the saved ones leave it.
+      if (blank && res.confirmed > 0) {
+        const savedIds = new Set(res.results.filter((r) => r.ok).map((r) => r.id));
+        setDrafts((prev) => prev.filter((d) => !savedIds.has(d.id)));
+      } else if (res.confirmed > 0) go("wardrobe");
     } catch (e) {
       console.error("[AURA batch-review] save failed", e);
       toast.error(e instanceof Error ? e.message : t("batchReview.someItemsNotSaved"));
@@ -556,6 +586,15 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
         </div>
       )}
 
+      {!loading && missedPhotos.length > 0 && (
+        <div className="mx-6 mt-4 rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 text-[12px] leading-relaxed text-amber-900">
+          <p className="flex items-start gap-1.5"><AlertTriangle size={12} className="shrink-0 mt-0.5" /><span>{t("batchReview.missedPhotos", { count: missedPhotos.length })}</span></p>
+          <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar">
+            {missedPhotos.map((u) => <img key={u} src={u} alt="" className="h-16 w-16 shrink-0 rounded-lg object-cover" />)}
+          </div>
+        </div>
+      )}
+
       {!loading && drafts.length === 0 && (
         <p className="mx-6 mt-10 text-sm text-muted-foreground">
           {t("batchReview.nothingLeftToReview")}
@@ -586,6 +625,12 @@ export function BatchReview({ go, scanId }: { go: (s: Screen) => void; scanId: s
                 <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] uppercase tracking-widest bg-amber-100 text-amber-800">
                   <AlertTriangle size={11} />
                   {t("batchReview.looksSimilarToOwned")}
+                </div>
+              )}
+              {d.needsCrop && (
+                <div className="mb-1.5 flex items-start gap-1.5 rounded-2xl px-3 py-2 text-[11px] leading-snug bg-amber-100 text-amber-800">
+                  <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+                  <span>{t("batchReview.needsCrop")}</span>
                 </div>
               )}
               <DetectedItemCard
