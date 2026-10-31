@@ -1433,7 +1433,12 @@
     "fieldPrice": "Precio",
     "fieldCurrency": "Moneda",
     "fieldSize": "Talla",
-    "fieldPurchaseDate": "Fecha de compra"
+    "fieldPurchaseDate": "Fecha de compra",
+    "needsCrop": "El recorte automático no ha funcionado: toca «Ajustar recorte» y encuadra la prenda; si no, no se añadirá.",
+    "needsCropSkipped_one": "{{count}} prenda sin un recorte válido se ha quedado aquí: arréglala con «Ajustar recorte».",
+    "needsCropSkipped_other": "{{count}} prendas sin un recorte válido se han quedado aquí: arréglalas con «Ajustar recorte».",
+    "missedPhotos_one": "En {{count}} foto no se ha reconocido ninguna prenda. Añádela desde «Añadir una prenda» o repite la foto con la prenda bien visible sobre un fondo liso.",
+    "missedPhotos_other": "En {{count}} fotos no se ha reconocido ninguna prenda. Añádelas desde «Añadir una prenda» o repite las fotos con las prendas bien visibles sobre un fondo liso."
   },
   "profileScreen": {
     "couldntSaveProfile": "No se pudo guardar el perfil",
@@ -1582,7 +1587,11 @@
     "failedCount_other": "{{count}} fallidas",
     "serviceUnavailable": "Servicio no disponible temporalmente, inténtalo más tarde.",
     "review": "Revisar",
-    "removeBatchAria": "Eliminar este lote"
+    "removeBatchAria": "Eliminar este lote",
+    "tip1": "Una prenda entera por foto, o varias bien separadas sin superponerlas.",
+    "tip2": "Un fondo liso que contraste con la prenda (una prenda blanca sobre una superficie oscura).",
+    "tip3": "Buena luz sin sombras fuertes; la prenda entera dentro del encuadre.",
+    "tip4": "Si un recorte no ha salido bien, toca «Ajustar recorte» en la revisión antes de añadirla."
   },
   "tabBar": {
     "home": "Inicio",

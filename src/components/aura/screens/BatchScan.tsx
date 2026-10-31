@@ -314,6 +314,12 @@ export function BatchScan({ go, openReview }: { go: (s: Screen) => void; openRev
               <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                 {t("batchScan.uploadHint")}
               </p>
+              {/* How to get every piece recognised: the cases that left white squares (reported). */}
+              <ul className="mt-4 space-y-1.5 text-left text-[12px] text-muted-foreground leading-snug">
+                {(["tip1", "tip2", "tip3", "tip4"] as const).map((k) => (
+                  <li key={k} className="flex gap-2"><span aria-hidden>·</span><span>{t(`batchScan.${k}`)}</span></li>
+                ))}
+              </ul>
               <button
                 disabled={busy}
                 onClick={() => fileRef.current?.click()}

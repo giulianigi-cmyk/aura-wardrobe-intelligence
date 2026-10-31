@@ -89,7 +89,16 @@ export async function revokeSharedLibrary(userId: string): Promise<{ removed: nu
  * rimuove le righe di capi cancellati o archiviati.
  * Se il consenso è spento, equivale a una revoca completa.
  */
-export async function syncSharedLibrary(userId: string): Promise<{ synced: number; removed: number }> {
+/** Same stored value (arrays and null compared as values). */
+function sameValue(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+}
+
+/** Aligns the person's shared copies with their wardrobe. With `onlyItemIds` (a piece just added or
+ *  edited) only those pieces are handled — immediate; without, the whole wardrobe, new pieces first and
+ *  untouched pieces skipped (it used to rewrite every row one by one, so on a large wardrobe a new
+ *  piece could wait for the next full pass — reported). */
+export async function syncSharedLibrary(userId: string, onlyItemIds?: string[]): Promise<{ synced: number; removed: number }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const { data: profile } = await (supabaseAdmin as any)
@@ -102,17 +111,23 @@ export async function syncSharedLibrary(userId: string): Promise<{ synced: numbe
 
   const hash = await ownerHash(supabaseAdmin, userId);
 
-  const [{ data: items }, { data: existing }] = await Promise.all([
-    (supabaseAdmin as any).from("wardrobe_items").select("*").eq("user_id", userId).eq("archived", false),
-    (supabaseAdmin as any).from("shared_library_items")
-      .select("id, source_item_id, image_url, thumbnail_path, source_image_path").eq("owner_hash", hash),
-  ]);
+  const partial = !!onlyItemIds?.length;
+  let itemsQuery = (supabaseAdmin as any).from("wardrobe_items").select("*").eq("user_id", userId).eq("archived", false);
+  let existingQuery = (supabaseAdmin as any).from("shared_library_items")
+    .select(`id, source_item_id, image_url, thumbnail_path, source_image_path, ${PRODUCT_FIELDS.join(", ")}`).eq("owner_hash", hash);
+  if (partial) {
+    itemsQuery = itemsQuery.in("id", onlyItemIds);
+    existingQuery = existingQuery.in("source_item_id", onlyItemIds);
+  }
+  const [{ data: rawItems }, { data: existing }] = await Promise.all([itemsQuery, existingQuery]);
 
   const byItem = new Map<string, any>((existing ?? []).map((r: any) => [r.source_item_id, r]));
   const liveIds = new Set<string>();
   let synced = 0;
+  // Pieces not shared yet first: they are the ones people are waiting to see.
+  const items = [...(rawItems ?? [])].sort((a: any, b: any) => Number(byItem.has(a.id)) - Number(byItem.has(b.id)));
 
-  for (const item of items ?? []) {
+  for (const item of items) {
     // Taken from someone else's piece in the library: it is already there, sharing it again would
     // only add a duplicate of the same photo.
     if (item.source === SHARED_LIBRARY_SOURCE) continue;
@@ -137,6 +152,8 @@ export async function syncSharedLibrary(userId: string): Promise<{ synced: numbe
         const thumbPath = await copyImageAnon(supabaseAdmin, thumbSource, "-thumb");
         if (thumbPath) fields["thumbnail_path"] = thumbPath;
       }
+      // Unchanged piece: nothing to write.
+      if (Object.keys(fields).every((k) => sameValue(fields[k], prev[k]))) continue;
       await (supabaseAdmin as any).from("shared_library_items").update(fields).eq("id", prev.id);
       synced++;
       continue;
@@ -168,6 +185,8 @@ export async function syncSharedLibrary(userId: string): Promise<{ synced: numbe
     synced++;
   }
 
+  // A partial pass only knows about the pieces it was given: stale copies are left to the full pass,
+  // except those very pieces when they are gone (archived or deleted).
   const stale = (existing ?? []).filter((r: any) => !liveIds.has(r.source_item_id));
   if (stale.length) {
     await removeAnonImages(supabaseAdmin, stale.flatMap((r: any) => [r.image_url, r.thumbnail_path]));

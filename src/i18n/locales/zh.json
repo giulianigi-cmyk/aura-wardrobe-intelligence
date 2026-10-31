@@ -1433,7 +1433,12 @@
     "fieldPrice": "价格",
     "fieldCurrency": "货币",
     "fieldSize": "尺码",
-    "fieldPurchaseDate": "购买日期"
+    "fieldPurchaseDate": "购买日期",
+    "needsCrop": "自动抠图失败：请点按“调整裁剪”框选单品，否则不会被添加。",
+    "needsCropSkipped_one": "有 {{count}} 件单品没有有效抠图，已留在此处：请用“调整裁剪”修正。",
+    "needsCropSkipped_other": "有 {{count}} 件单品没有有效抠图，已留在此处：请用“调整裁剪”修正。",
+    "missedPhotos_one": "有 {{count}} 张照片未识别出任何单品。请通过“添加单品”添加，或在纯色背景上清晰拍摄后重试。",
+    "missedPhotos_other": "有 {{count}} 张照片未识别出任何单品。请通过“添加单品”添加，或在纯色背景上清晰拍摄后重试。"
   },
   "profileScreen": {
     "couldntSaveProfile": "无法保存个人资料",
@@ -1582,7 +1587,11 @@
     "failedCount_other": "失败 {{count}} 张",
     "serviceUnavailable": "服务暂时不可用，请稍后再试。",
     "review": "核对",
-    "removeBatchAria": "移除这一批"
+    "removeBatchAria": "移除这一批",
+    "tip1": "每张照片一件完整单品，或多件分开摆放、互不重叠。",
+    "tip2": "使用与单品颜色反差明显的纯色背景（白色单品放在深色台面上）。",
+    "tip3": "光线充足、避免强烈阴影；单品完整地在画面内。",
+    "tip4": "如果某个抠图效果不好，请在审核时先点按“调整裁剪”再添加。"
   },
   "tabBar": {
     "home": "首页",

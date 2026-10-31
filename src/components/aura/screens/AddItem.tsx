@@ -980,7 +980,8 @@ export function AddItem({ onClose, initialGarment }: {
         flowRef.current.saved = true;
       }
       toast.success(t("addItem.toastAddedToCloset"));
-      void syncMySharedLibrary().catch(() => {});
+      // Only this piece: in the shared library right away (a full pass is slow on a big wardrobe).
+      void syncMySharedLibrary({ data: { itemIds: [(inserted as { id: string }).id] } }).catch(() => {});
       // Just took a piece someone shared: the moment to ask whether to share theirs too.
       askShareLibrary(fromSharedRef.current ? "found" : "added");
       askPush("piece");

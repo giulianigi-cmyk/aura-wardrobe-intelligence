@@ -1433,7 +1433,12 @@
     "fieldPrice": "Price",
     "fieldCurrency": "Currency",
     "fieldSize": "Size",
-    "fieldPurchaseDate": "Purchase date"
+    "fieldPurchaseDate": "Purchase date",
+    "needsCrop": "The automatic cut-out didn't work: tap “Adjust crop” and frame the piece, otherwise it won't be added.",
+    "needsCropSkipped_one": "{{count}} piece without a valid cut-out stayed here: fix it with “Adjust crop”.",
+    "needsCropSkipped_other": "{{count}} pieces without a valid cut-out stayed here: fix them with “Adjust crop”.",
+    "missedPhotos_one": "No piece was recognised in {{count}} photo. Add it from “Add a piece”, or retake the photo with the piece clearly visible on a plain background.",
+    "missedPhotos_other": "No piece was recognised in {{count}} photos. Add them from “Add a piece”, or retake the photos with the pieces clearly visible on a plain background."
   },
   "profileScreen": {
     "couldntSaveProfile": "Couldn't save profile",
@@ -1582,7 +1587,11 @@
     "failedCount_other": "{{count}} failed",
     "serviceUnavailable": "Service temporarily unavailable, please try again later.",
     "review": "Review",
-    "removeBatchAria": "Remove this batch"
+    "removeBatchAria": "Remove this batch",
+    "tip1": "One whole piece per photo, or several well apart without overlapping.",
+    "tip2": "A plain background that contrasts with the piece (a white piece on a dark surface).",
+    "tip3": "Good light without strong shadows; the whole piece inside the frame.",
+    "tip4": "If a cut-out didn't come out right, tap “Adjust crop” in the review before adding it."
   },
   "tabBar": {
     "home": "Home",

@@ -1433,7 +1433,12 @@
     "fieldPrice": "Prezzo",
     "fieldCurrency": "Valuta",
     "fieldSize": "Taglia",
-    "fieldPurchaseDate": "Data di acquisto"
+    "fieldPurchaseDate": "Data di acquisto",
+    "needsCrop": "Il ritaglio automatico non è riuscito: tocca «Regola ritaglio» e inquadra il capo, altrimenti non viene aggiunto.",
+    "needsCropSkipped_one": "{{count}} capo senza un ritaglio valido è rimasto qui: sistemalo con «Regola ritaglio».",
+    "needsCropSkipped_other": "{{count}} capi senza un ritaglio valido sono rimasti qui: sistemali con «Regola ritaglio».",
+    "missedPhotos_one": "In {{count}} foto non è stato riconosciuto nessun capo. Aggiungilo da «Aggiungi un capo», oppure rifai la foto con il capo ben visibile su uno sfondo uniforme.",
+    "missedPhotos_other": "In {{count}} foto non è stato riconosciuto nessun capo. Aggiungili da «Aggiungi un capo», oppure rifai le foto con i capi ben visibili su uno sfondo uniforme."
   },
   "profileScreen": {
     "couldntSaveProfile": "Impossibile salvare il profilo",
@@ -1582,7 +1587,11 @@
     "failedCount_other": "{{count}} non riuscite",
     "serviceUnavailable": "Servizio momentaneamente non disponibile, riprova più tardi.",
     "review": "Rivedi",
-    "removeBatchAria": "Rimuovi questo batch"
+    "removeBatchAria": "Rimuovi questo batch",
+    "tip1": "Un capo intero per foto o più capi ben separati, senza sovrapporli.",
+    "tip2": "Sfondo uniforme e diverso dal capo (un capo bianco su un piano scuro).",
+    "tip3": "Buona luce, senza ombre forti; il capo tutto dentro l'inquadratura.",
+    "tip4": "Se un ritaglio non è venuto bene, nella revisione tocca «Regola ritaglio» prima di aggiungerlo."
   },
   "tabBar": {
     "home": "Home",

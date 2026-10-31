@@ -5,10 +5,15 @@ export { SHARED_LIBRARY_SOURCE } from "./shared-library-source";
 /** Riallinea la libreria condivisa dell'utente (o la svuota se il consenso è spento). */
 export const syncMySharedLibrary = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  // Optional: just the pieces added or edited now (immediate); nothing = the whole wardrobe.
+  .inputValidator((input: unknown) => {
+    const ids = (input as { itemIds?: unknown } | undefined)?.itemIds;
+    return { itemIds: Array.isArray(ids) ? ids.filter((x): x is string => typeof x === "string").slice(0, 200) : undefined };
+  })
+  .handler(async ({ data, context }) => {
     const { syncSharedLibrary } = await import("./shared-library.server");
     try {
-      return await syncSharedLibrary(context.userId);
+      return await syncSharedLibrary(context.userId, data.itemIds);
     } catch (e) {
       console.error("[AURA shared-library] sync failed", e);
       return { synced: 0, removed: 0 };
