@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { LegalMarkdown } from "./LegalDocs";
 import { legalDocText, type LegalDoc } from "@/lib/legal/legal";
 import { BRAND_NAME } from "@/lib/brand";
+import { SocialLinks } from "./SocialLinks";
 
 /** Privacy policy or terms of use as a public page, readable without an account: the address given to
  *  Google and Microsoft for the calendar sign-in, and to anyone who asks. Italian by default (the
@@ -25,6 +26,8 @@ export function LegalPublicPage({ doc, lang }: { doc: LegalDoc; lang: "it" | "en
         <LegalMarkdown text={legalDocText(doc, lang)} />
         <footer className="mt-10 pt-4 border-t border-border/60 text-[12px] text-muted-foreground">
           <Link to={other} search={lang === "en" ? { lang } : {}} className="underline underline-offset-2">{otherLabel}</Link>
+          <p className="mt-5 mb-2">{lang === "it" ? `Segui ${BRAND_NAME}` : `Follow ${BRAND_NAME}`}</p>
+          <SocialLinks />
         </footer>
       </div>
     </main>

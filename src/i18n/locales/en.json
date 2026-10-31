@@ -133,7 +133,8 @@
     "usage": "Plan and usage",
     "usageSub": "Your plan and how much you have used",
     "reportProblem": "Report a problem",
-    "reportProblemSub": "Something not working? Tell us"
+    "reportProblemSub": "Something not working? Tell us",
+    "followNimbea": "Follow Nimbèa"
   },
   "community": {
     "chooseUsername": "Choose a username",

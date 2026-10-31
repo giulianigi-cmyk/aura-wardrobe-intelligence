@@ -12,6 +12,7 @@ import i18n, { LANGUAGE_LABELS, type SupportedLanguage } from "@/i18n/config";
 import { LegalDocSheet } from "@/components/aura/LegalDocs";
 import { consentTextFor, type LegalDoc } from "@/lib/legal/legal";
 import { LaundryGuideSheet } from "@/components/aura/LaundryGuide";
+import { SocialLinks } from "@/components/aura/SocialLinks";
 
 function Row({ label, sub, onClick }: { label: string; sub?: string; onClick: () => void }) {
   return (
@@ -106,6 +107,11 @@ export function Settings({ go }: { go: (s: Screen) => void }) {
         {legalDoc && <LegalDocSheet doc={legalDoc} onClose={() => setLegalDoc(null)} />}
         <Row label={t("settings.reportProblem")} sub={t("settings.reportProblemSub")} onClick={() => go("settings-report-problem")} />
         {reportAdmin && <Row label={t("adminReports.settingsRow")} sub={t("adminReports.settingsRowSub")} onClick={() => go("settings-admin-reports")} />}
+      </Group>
+
+      <GroupLabel>{t("settings.followNimbea")}</GroupLabel>
+      <Group>
+        <div className="px-4 py-3"><SocialLinks /></div>
       </Group>
 
       <Group>

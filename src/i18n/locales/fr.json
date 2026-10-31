@@ -133,7 +133,8 @@
     "usage": "Forfait et utilisation",
     "usageSub": "Votre forfait et votre utilisation",
     "reportProblem": "Signaler un problème",
-    "reportProblemSub": "Quelque chose ne marche pas ? Dites-le-nous"
+    "reportProblemSub": "Quelque chose ne marche pas ? Dites-le-nous",
+    "followNimbea": "Suivre Nimbèa"
   },
   "community": {
     "chooseUsername": "Choisissez un nom d'utilisateur",

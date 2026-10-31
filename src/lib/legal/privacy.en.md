@@ -7,7 +7,7 @@ This policy explains which personal data the Nimbèa app processes, why, who it 
 ## 1. Data controller
 
 Giulia Nigi
-Email for privacy requests: privacy@nimbea.app
+Email for privacy requests: info@nimbea.app
 
 ## 2. What data we process
 
@@ -95,7 +95,7 @@ At any time you can ask to:
 - object to processing based on legitimate interest;
 - withdraw consent, without affecting processing already carried out.
 
-You can delete your account and all your data from **Settings** in the app. For other requests write to privacy@nimbea.app: we reply within 30 days.
+You can delete your account and all your data from **Settings** in the app. For other requests write to info@nimbea.app: we reply within 30 days.
 
 If you believe the processing breaks the law you can lodge a complaint with the Italian data protection authority, the Garante per la protezione dei dati personali (www.garanteprivacy.it), or with the authority of your country.
 

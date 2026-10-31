@@ -133,7 +133,8 @@
     "usage": "Piano e utilizzo",
     "usageSub": "Il tuo piano e quanto hai usato",
     "reportProblem": "Segnala un problema",
-    "reportProblemSub": "Qualcosa non funziona? Dicci cosa"
+    "reportProblemSub": "Qualcosa non funziona? Dicci cosa",
+    "followNimbea": "Segui Nimbèa"
   },
   "community": {
     "chooseUsername": "Scegli uno username",

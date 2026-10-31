@@ -12,6 +12,7 @@ import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import appCss from "../styles.css?url";
 import { BRAND_NAME } from "@/lib/brand";
+import { SOCIAL_LINKS } from "@/lib/social";
 
 // Title and description in the visitor's market: Italian on nimbea.it, English on nimbea.app (and
 // anywhere else). What Google and link previews (WhatsApp, LinkedIn) show; the app itself then uses
@@ -129,6 +130,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           name: `${BRAND_NAME}`,
           url: m.url,
           description: m.description,
+          sameAs: SOCIAL_LINKS.map((s) => s.url),
         }),
       },
     ],
