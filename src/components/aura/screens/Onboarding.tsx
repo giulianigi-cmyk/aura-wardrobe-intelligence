@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, Bell, CalendarDays, Camera, Check, CloudSun, Footprints, Plane, Shirt, ShoppingBag, Sparkles } from "lucide-react";
+import { ArrowRight, Bell, CalendarDays, Camera, Check, CloudSun, Plane } from "lucide-react";
 import { BRAND_WORDMARK } from "@/lib/brand";
 import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, type SupportedLanguage } from "@/i18n/config";
 import { applyDeviceLanguageOnce, setDeviceLanguage } from "@/lib/device-language";
 
 /** What the app does, in three screens, before the account: like the store apps, no language
  *  question first (the phone's language is used; a small switch in the corner changes it). Each
- *  screen has a drawn example, not a real wardrobe. */
+ *  screen has an example (generated pictures of unbranded pieces), not a real wardrobe. */
 const SLIDES = ["outfits", "scan", "morning"] as const;
 type Slide = (typeof SLIDES)[number];
 
@@ -15,36 +15,36 @@ function Tile({ children, className = "" }: { children: React.ReactNode; classNa
   return <div className={`rounded-2xl bg-card border border-border/70 shadow-sm flex items-center justify-center ${className}`}>{children}</div>;
 }
 
-/** The drawn example at the top of each screen. */
+// Example pieces (generated pictures, no brand) and their outfit composed by the app's own canvas
+// (compose-outfit-canvas.ts), in public/onboarding.
+const PIECES = ["sweater", "jeans", "sneakers", "bag"] as const;
+const SCANNED = ["trench", "skirt", "sweater"] as const;
+
+/** The example at the top of each screen. */
 function Example({ slide }: { slide: Slide }) {
   const { t } = useTranslation();
   if (slide === "outfits") {
     return (
       <div className="flex items-center gap-3">
         <div className="grid grid-cols-2 gap-2">
-          <Tile className="h-16 w-16"><Shirt size={26} strokeWidth={1.4} /></Tile>
-          <Tile className="h-16 w-16"><ShoppingBag size={24} strokeWidth={1.4} /></Tile>
-          <Tile className="h-16 w-16"><Footprints size={24} strokeWidth={1.4} /></Tile>
-          <Tile className="h-16 w-16 text-[11px] text-muted-foreground">+24</Tile>
+          {PIECES.map((p) => (
+            <Tile key={p} className="h-16 w-16 overflow-hidden"><img src={`/onboarding/${p}.webp`} alt="" className="h-full w-full object-contain p-1.5" /></Tile>
+          ))}
         </div>
-        <ArrowRight size={18} className="text-muted-foreground" />
-        <Tile className="h-[136px] w-32 flex-col gap-1.5">
-          <Shirt size={30} strokeWidth={1.4} />
-          <Footprints size={22} strokeWidth={1.4} />
-          <span className="mt-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground inline-flex items-center gap-1"><Sparkles size={10} />{t("onboarding.exampleLook")}</span>
-        </Tile>
+        <ArrowRight size={18} className="text-muted-foreground shrink-0" />
+        <Tile className="w-36 aspect-[4/5] overflow-hidden"><img src="/onboarding/look.webp" alt={t("onboarding.exampleLook")} className="h-full w-full object-contain" /></Tile>
       </div>
     );
   }
   if (slide === "scan") {
     return (
       <div className="relative">
-        <Tile className="h-40 w-60 relative overflow-hidden">
+        <Tile className="h-44 w-64 relative overflow-hidden">
           <div className="absolute inset-3 rounded-xl border-2 border-dashed border-foreground/25" />
           <div className="flex gap-3">
-            {[Shirt, ShoppingBag, Footprints].map((Icon, i) => (
-              <div key={i} className="relative h-14 w-14 rounded-xl bg-secondary/70 flex items-center justify-center">
-                <Icon size={24} strokeWidth={1.4} />
+            {SCANNED.map((p) => (
+              <div key={p} className="relative h-20 w-16 rounded-xl bg-secondary/40 flex items-center justify-center">
+                <img src={`/onboarding/${p}.webp`} alt="" className="h-full w-full object-contain p-1" />
                 <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-foreground text-background flex items-center justify-center"><Check size={11} /></span>
               </div>
             ))}
