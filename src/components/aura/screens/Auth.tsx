@@ -6,6 +6,7 @@ import { LanguagePicker } from "../LanguagePicker";
 import { LegalDocSheet } from "../LegalDocs";
 import { consentTextFor, type LegalDoc } from "@/lib/legal/legal";
 import { BRAND_NAME, BRAND_WORDMARK } from "@/lib/brand";
+import { SocialLinks } from "@/components/aura/SocialLinks";
 
 type Mode = "signin" | "signup" | "forgot";
 
@@ -180,6 +181,7 @@ export function Auth({ initialMode = "signin" }: { initialMode?: "signin" | "sig
         <button type="button" onClick={() => setLegalDoc("privacy")} className="underline underline-offset-2">{consentTextFor(i18n.language).privacy}</button>
         <button type="button" onClick={() => setLegalDoc("terms")} className="underline underline-offset-2">{consentTextFor(i18n.language).terms}</button>
       </div>
+      <SocialLinks size={14} className="mt-3 justify-center" />
       {legalDoc && <LegalDocSheet doc={legalDoc} onClose={() => setLegalDoc(null)} />}
       {showLanguagePicker && (
         <div className="fixed inset-0 z-[100]">
