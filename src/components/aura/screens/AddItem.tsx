@@ -1,4 +1,5 @@
 import { X, Image as ImageIcon, Sparkles, Check, Loader2, Upload, Link as LinkIcon, Search, Clipboard, RotateCw } from "lucide-react";
+import { GridColumnsToggle, useGridColumns } from "@/components/aura/GridColumnsToggle";
 import type { DragEvent } from "react";
 import { useRef, useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -327,7 +328,7 @@ export function AddItem({ onClose, initialGarment }: {
   const [librarySearching, setLibrarySearching] = useState(false);
 
   const [libraryLoadingId, setLibraryLoadingId] = useState<string | null>(null);
-  const [libraryColumns, setLibraryColumns] = useState<2 | 3>(3);
+  const [libraryColumns, setLibraryColumns] = useGridColumns(3);
   const [filterCategory, setFilterCategory] = useState("");
   const [filterColor, setFilterColor] = useState("");
   const [filterMaterial, setFilterMaterial] = useState("");
@@ -1165,20 +1166,7 @@ export function AddItem({ onClose, initialGarment }: {
           {(sharedResults.length > 0 || libraryResults.length > 0) && (
             <div className="mt-6 shrink-0 flex items-center justify-between">
               <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">{t("addItem.refine")}</p>
-              <div className="shrink-0 flex items-center gap-1 rounded-full border border-border p-0.5">
-                <button
-                  onClick={() => setLibraryColumns(2)}
-                  className={`rounded-full px-2.5 py-1 text-[10px] ${libraryColumns === 2 ? "bg-foreground text-background" : "text-muted-foreground"}`}
-                >
-                  2
-                </button>
-                <button
-                  onClick={() => setLibraryColumns(3)}
-                  className={`rounded-full px-2.5 py-1 text-[10px] ${libraryColumns === 3 ? "bg-foreground text-background" : "text-muted-foreground"}`}
-                >
-                  3
-                </button>
-              </div>
+              <GridColumnsToggle value={libraryColumns} onChange={setLibraryColumns} className="shrink-0" />
             </div>
           )}
 

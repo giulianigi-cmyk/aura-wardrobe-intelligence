@@ -549,7 +549,15 @@
     "heelLabel": "Tacco",
     "toeShapeLabel": "Punta",
     "legShapeLabel": "Forma della gamba",
-    "legShapes": {"skinny": "Skinny", "slim": "Slim", "straight": "Dritta", "tapered": "Affusolata", "bootcut": "Bootcut", "flare": "A zampa", "wide": "Larga"},
+    "legShapes": {
+      "skinny": "Skinny",
+      "slim": "Slim",
+      "straight": "Dritta",
+      "tapered": "Affusolata",
+      "bootcut": "Bootcut",
+      "flare": "A zampa",
+      "wide": "Larga"
+    },
     "closureLabel": "Chiusura",
     "genderLabel": "Genere",
     "styleTagsLabel": "Tag di stile",
@@ -1189,7 +1197,8 @@
       "everyday": "Tutti i giorni",
       "concert": "Concerto",
       "businessDinner": "Cena di lavoro"
-    }
+    },
+    "allSeasons": "Ogni stagione"
   },
   "tripDetail": {
     "couldntLoadTrip": "Impossibile caricare questo viaggio",
@@ -2389,6 +2398,15 @@
       "Underwear": "Intimo",
       "Swimwear": "Costumi",
       "Activewear": "Sportswear"
+    },
+    "availableNow": "Disponibili ora",
+    "allPieces": "Tutti",
+    "away": {
+      "archived": "Archiviato",
+      "stored": "Cambio armadio",
+      "lent": "Prestato",
+      "basket": "Nel cesto",
+      "dryCleaner": "In tintoria"
     }
   },
   "sameDay": {
@@ -2825,7 +2843,9 @@
     "optBasketHint": "Da lavare: torna da solo nell'armadio dopo 10 giorni",
     "optDryCleaner": "In tintoria",
     "optDryCleanerHint": "Ti ricordiamo di ritirarlo dopo 7 giorni",
-    "toDryCleanerShort": "Tintoria"
+    "toDryCleanerShort": "Tintoria",
+    "sportAsk_one": "Hai usato {{count}} capo sportivo: lo metti nel cesto?",
+    "sportAsk_other": "Hai usato {{count}} capi sportivi: li metti nel cesto?"
   },
   "pushAsk": {
     "title": "Vuoi ricevere le notifiche?",
@@ -2868,5 +2888,8 @@
   "featureNews": {
     "howTo": "Come si usa",
     "tryIt": "Provala"
+  },
+  "grid": {
+    "columnsAria": "{{count}} per riga"
   }
 }

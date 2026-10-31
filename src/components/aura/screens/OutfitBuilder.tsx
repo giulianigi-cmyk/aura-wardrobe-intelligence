@@ -1389,7 +1389,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
                       key={f}
                       onClick={() => setPickerFilter(f)}
                       className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-[0.25em] ${pickerFilter === f ? "bg-foreground text-background" : "text-foreground/70"}`}
-                    >{f === "all" ? t("outfitBuilder.all") : t("outfitBuilder.forSeason", { season: optionLabel(season, i18n.language).toLocaleLowerCase(i18n.language) })}</button>
+                    >{f === "all" ? t("outfitBuilder.allSeasons") : t("outfitBuilder.forSeason", { season: optionLabel(season, i18n.language).toLocaleLowerCase(i18n.language) })}</button>
                   ))}
                 </div>
                 <button onClick={() => setPickerOpen(false)} aria-label={t("outfitBuilder.closeAria")} className="h-9 w-9 rounded-full border border-border flex items-center justify-center"><X size={15} /></button>

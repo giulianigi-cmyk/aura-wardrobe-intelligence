@@ -549,7 +549,15 @@
     "heelLabel": "鞋跟",
     "toeShapeLabel": "鞋头形状",
     "legShapeLabel": "裤腿形状",
-    "legShapes": {"skinny": "紧身", "slim": "修身", "straight": "直筒", "tapered": "锥形", "bootcut": "微喇", "flare": "喇叭", "wide": "阔腿"},
+    "legShapes": {
+      "skinny": "紧身",
+      "slim": "修身",
+      "straight": "直筒",
+      "tapered": "锥形",
+      "bootcut": "微喇",
+      "flare": "喇叭",
+      "wide": "阔腿"
+    },
     "closureLabel": "闭合方式",
     "genderLabel": "性别",
     "styleTagsLabel": "风格标签",
@@ -1189,7 +1197,8 @@
       "everyday": "日常",
       "concert": "音乐会",
       "businessDinner": "商务晚宴"
-    }
+    },
+    "allSeasons": "所有季节"
   },
   "tripDetail": {
     "couldntLoadTrip": "无法加载这次旅行",
@@ -2389,6 +2398,15 @@
       "Underwear": "内衣",
       "Swimwear": "泳装",
       "Activewear": "运动服"
+    },
+    "availableNow": "现在可穿",
+    "allPieces": "全部",
+    "away": {
+      "archived": "已归档",
+      "stored": "已收纳",
+      "lent": "已借出",
+      "basket": "在洗衣篮",
+      "dryCleaner": "在干洗"
     }
   },
   "sameDay": {
@@ -2825,7 +2843,9 @@
     "optBasketHint": "待清洗：10 天后自动回到衣橱",
     "optDryCleaner": "送去干洗店",
     "optDryCleanerHint": "7 天后提醒你取回",
-    "toDryCleanerShort": "干洗店"
+    "toDryCleanerShort": "干洗店",
+    "sportAsk_other": "你穿了 {{count}} 件运动单品：放进洗衣篮吗？",
+    "sportAsk_one": "你穿了 {{count}} 件运动单品：放进洗衣篮吗？"
   },
   "pushAsk": {
     "title": "要开启通知吗？",
@@ -2868,5 +2888,8 @@
   "featureNews": {
     "howTo": "如何使用",
     "tryIt": "试一试"
+  },
+  "grid": {
+    "columnsAria": "每行 {{count}} 个"
   }
 }

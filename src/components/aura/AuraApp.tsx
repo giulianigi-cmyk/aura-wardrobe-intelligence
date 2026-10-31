@@ -145,7 +145,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useChatNotifications } from "@/hooks/use-chat-notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import { invalidateWardrobeItems } from "@/lib/wardrobe-query";
-import { SPORT_TO_BASKET_EVENT } from "@/lib/wardrobe-events";
+import { putSportPiecesInBasket, SPORT_TO_BASKET_EVENT } from "@/lib/wardrobe-events";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import i18n from "@/i18n/config";
@@ -460,23 +460,25 @@ function Inner() {
     return () => { cancelled = true; clearTimeout(t); };
   }, [user, queryClient]);
 
-  // Sport pieces just logged as worn went to the laundry basket (wardrobe-events.ts): say so, with
-  // "Annulla" to put them back. i18n.t, not the hook: this component has no translation hook.
+  // Sport pieces just logged as worn (wardrobe-events.ts): asked whether they go to the laundry
+  // basket — the wear may be logged before the workout. i18n.t: this component has no hook.
   useEffect(() => {
     const onSport = (e: Event) => {
       const ids = (e as CustomEvent<{ ids: string[] }>).detail?.ids ?? [];
-      if (!ids.length) return;
-      toast.success(i18n.t("laundry.sportToBasket", { count: ids.length }), {
+      if (!ids.length || !user) return;
+      toast.message(i18n.t("laundry.sportAsk", { count: ids.length }), {
+        duration: 12000,
         action: {
-          label: i18n.t("laundry.undo"),
+          label: i18n.t("laundry.toBasketShort"),
           onClick: () => {
-            void (supabase.from("wardrobe_items" as never) as any)
-              .update({ laundry_since: null, laundry_kind: null }).in("id", ids)
-              .then(() => { if (user) invalidateWardrobeItems(queryClient, user.id); });
+            void putSportPiecesInBasket(user.id, ids).then((ok) => {
+              if (!ok) return;
+              invalidateWardrobeItems(queryClient, user.id);
+              toast.success(i18n.t("laundry.sportToBasket", { count: ids.length }));
+            });
           },
         },
       });
-      if (user) invalidateWardrobeItems(queryClient, user.id);
     };
     window.addEventListener(SPORT_TO_BASKET_EVENT, onSport);
     return () => window.removeEventListener(SPORT_TO_BASKET_EVENT, onSport);

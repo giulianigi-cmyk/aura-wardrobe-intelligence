@@ -21,6 +21,7 @@ import { searchWardrobe, pieceLabel } from "./wardrobe-search";
 import { ensureAnchor } from "./outfit-anchor";
 import { applyPieceChange, detectPieceChange } from "./chat-piece-change";
 import { BRAND_NAME } from "@/lib/brand";
+import { EARLY_WORKOUT_PROMPT_RULE, isSportContext, isSportWearable, sportCoreRole, SPORT_PROMPT_RULE } from "./sport-outfit-rules";
 
 /** Pieces sent to the model besides the ones the message names (which are always sent): the whole
  *  wardrobe (wardrobe-catalog.ts). */
@@ -408,6 +409,8 @@ export const stylistChat = createServerFn({ method: "POST" })
       EMBELLISHED_EVENING_PROMPT_RULE,
     OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
     TALL_BOOTS_PROMPT_RULE,
+    SPORT_PROMPT_RULE,
+    EARLY_WORKOUT_PROMPT_RULE,
     DRESSY_EVENING_BAG_PROMPT_RULE,
       ...(() => {
         const text = data.messages.map((m) => m.content ?? "").join(" ");
@@ -562,8 +565,11 @@ export const stylistChat = createServerFn({ method: "POST" })
       const IMPRACTICAL_FOR_DANCING = new Set(["Slides", "Flip Flops", "Slippers"]);
       const hasNonSlideAlternative = catalog.some((c) => c.category === "Shoes" && !IMPRACTICAL_FOR_DANCING.has(c.subcategory ?? ""));
 
+      // A workout (pilates, gym…): sport clothes only (sport-outfit-rules.ts), running shoes allowed.
+      const sportRecentText = data.messages.filter((m) => m.role === "user").slice(-3).map((m) => m.content).join(" ");
+      const sportCtx = isSportContext(sportRecentText, parsed.activityKind ?? null);
       const violatesRunningRule = (id: string): boolean =>
-        hasNonRunningShoeAlternative && catalog.find((c) => c.id === id)?.subcategory === "Running Shoes";
+        !sportCtx && hasNonRunningShoeAlternative && catalog.find((c) => c.id === id)?.subcategory === "Running Shoes";
       const violatesSlideRule = (id: string): boolean =>
         isDancingContext && hasNonSlideAlternative && IMPRACTICAL_FOR_DANCING.has(catalog.find((c) => c.id === id)?.subcategory ?? "");
 
@@ -601,11 +607,21 @@ export const stylistChat = createServerFn({ method: "POST" })
         if (isEveningContext && (isDayOnlyUsage(tags, item.dayEvening) || isDayOnlyBag(item))) return true;
         if (isWorkContext && isEveningOnlyUsage(tags, item.dayEvening)) return true;
         if (!mentionedOccasions.length) return false;
+        if (sportCtx && tags.includes("Sport")) return false;
         const hasSpecialized = tags.some((tg) => ["Travel", "Sport"].includes(tg));
         if (!hasSpecialized) return false;
         // Violates if none of the occasions mentioned in the conversation
         // are among this item's own tags.
         return !mentionedOccasions.some((occ) => tags.includes(occ));
+      };
+      // Workout: a clothing piece or shoe that isn't sport wear (a velvet tracksuit, a blazer, heels),
+      // when the wardrobe has sport pieces to use instead. Pieces the person named stay.
+      const SPORT_CHECKED = new Set(["Tops", "Bottoms", "Dresses", "Jumpsuits", "Shoes", "Activewear"]);
+      const hasSportClothes = catalog.some((c) => c.category !== "Shoes" && SPORT_CHECKED.has(c.category ?? "") && isSportWearable(c));
+      const violatesSport = (id: string): boolean => {
+        if (!sportCtx || !hasSportClothes || requestedIds.has(id)) return false;
+        const item = catalog.find((c) => c.id === id);
+        return !!item && SPORT_CHECKED.has(item.category ?? "") && !isSportWearable(item);
       };
       const hasOccasionAlternative = (category: string, subcategory: string | undefined): boolean =>
         catalog.some((c) => c.category === category && (subcategory ? c.subcategory === subcategory : true) && !violatesOccasionTag(c.id));
@@ -672,7 +688,11 @@ export const stylistChat = createServerFn({ method: "POST" })
         const cats = new Set(
           finalItemIds.map((id) => catalog.find((c) => c.id === id)?.category).filter(Boolean)
         );
-        const hasCore = (cats.has("Tops") && cats.has("Bottoms")) || cats.has("Dresses") || cats.has("Jumpsuits");
+        // Activewear covers top, bottom or both by itself (a tracksuit, leggings + a sports bra).
+        const roles = new Set(finalItemIds.map((id) => { const c = catalog.find((x) => x.id === id); return c ? sportCoreRole(c) : null; }));
+        const hasTop = cats.has("Tops") || roles.has("top");
+        const hasBottom = cats.has("Bottoms") || roles.has("bottom");
+        const hasCore = (hasTop && hasBottom) || roles.has("full") || cats.has("Dresses") || cats.has("Jumpsuits");
         const missing: string[] = [];
         if (!hasCore) missing.push("a top+bottom pairing OR a dress/jumpsuit");
         if (!cats.has("Shoes")) missing.push("shoes");
@@ -691,6 +711,10 @@ export const stylistChat = createServerFn({ method: "POST" })
         }
         if (occasionTagViolation) {
           missing.push("a different piece for whichever item's own occasion tags don't fit this occasion (tagged only 'Travel' or 'Sport'; only day/work use like 'Everyday'/'Work' for an evening; only evening/cocktail use for work) — swap it for a same-category piece suited to this occasion");
+        }
+        const sportViolation = finalItemIds.some(violatesSport);
+        if (sportViolation) {
+          missing.push("only sport pieces for this workout — replace whichever clothing piece or shoe isn't sport wear (dressy fabric like velvet, silk or wool, a blazer, heels, formality 3 or more) with Activewear, a piece tagged Sport, or a plain sporty basic from the wardrobe; when the person asked to keep some pieces, keep those");
         }
         const placeViolation = placeViolationIn(finalItemIds);
         if (placeViolation) {
@@ -733,7 +757,8 @@ export const stylistChat = createServerFn({ method: "POST" })
             const repairFixedOccasion = !occasionTagViolation || !repairedIds.some((id) => violatesOccasionTag(id) && hasOccasionAlternative(catalog.find((c) => c.id === id)?.category ?? "", undefined));
             const repairFixedWeather = !weatherViolation || !weatherViolationIn(repairedIds);
             const repairFixedPlace = !placeViolation || !placeViolationIn(repairedIds);
-            if (repairedIds.length >= finalItemIds.length && repairFixedFootwear && repairFixedOccasion && repairFixedWeather && repairFixedPlace) {
+            const repairFixedSport = !sportViolation || !repairedIds.some(violatesSport);
+            if (repairedIds.length >= finalItemIds.length && repairFixedFootwear && repairFixedOccasion && repairFixedWeather && repairFixedPlace && repairFixedSport) {
               finalItemIds = repairedIds;
               finalReply = repaired.reply;
             }
@@ -771,6 +796,20 @@ export const stylistChat = createServerFn({ method: "POST" })
         if (replacement) {
           finalItemIds = finalItemIds.filter((x) => x !== id).concat(replacement.id);
         }
+      }
+
+      // Workout: a surviving non-sport piece is swapped for a sport one of the same role (top, bottom,
+      // shoes), or dropped when there is none — never shipped.
+      for (const id of finalItemIds) {
+        if (!violatesSport(id)) continue;
+        const item = catalog.find((c) => c.id === id)!;
+        const role = item.category === "Shoes" ? "shoes" : item.category === "Bottoms" ? "bottom" : item.category === "Tops" ? "top" : sportCoreRole(item) ?? "full";
+        const replacement = catalog.find((c) => !finalItemIds.includes(c.id) && isSportWearable(c) && SPORT_CHECKED.has(c.category ?? "") && (
+          role === "shoes" ? c.category === "Shoes"
+            : role === "bottom" ? c.category === "Bottoms" || sportCoreRole(c) === "bottom"
+            : role === "top" ? c.category === "Tops" || sportCoreRole(c) === "top"
+            : c.category !== "Shoes"));
+        finalItemIds = finalItemIds.filter((x) => x !== id).concat(replacement ? [replacement.id] : []);
       }
 
       // Same last-resort swap for a surviving weather violation (e.g. ankle boots or a wool skirt on a

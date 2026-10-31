@@ -1,4 +1,5 @@
 import { outfitThumbSrc } from "@/lib/outfit-thumb";
+import { GridColumnsToggle, useGridColumns } from "@/components/aura/GridColumnsToggle";
 import { isWearableNow } from "@/lib/wardrobe-storage";
 import { Copy, Loader2, Share2, Sparkles, Search, Calendar as CalendarIcon, Trash2, Check, X, Archive, ArchiveRestore, Plus, Pencil, LayoutGrid, User, Crop } from "lucide-react";
 import { saveGeneralPlanAskingSameDay } from "@/lib/same-day-choice";
@@ -231,13 +232,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
   const [framings, setFramings] = useState<Record<string, PhotoFraming | null>>({});
   const [framingEntry, setFramingEntry] = useState<WornEntry | null>(null);
   // My Outfit grid: 2 or 3 photos per row (remembered on this device), and the photo opened as a card.
-  const [photoColumns, setPhotoColumnsState] = useState<2 | 3>(() => {
-    try { return localStorage.getItem("aura.myOutfitColumns") === "3" ? 3 : 2; } catch { return 2; }
-  });
-  const setPhotoColumns = (n: 2 | 3) => {
-    setPhotoColumnsState(n);
-    try { localStorage.setItem("aura.myOutfitColumns", String(n)); } catch { /* not persisted */ }
-  };
+  const [photoColumns, setPhotoColumns] = useGridColumns(2);
   const [openPhotoId, setOpenPhotoId] = useState<string | null>(null);
   // Saved on the account (outfit_photo_detections.photo_framing); a framing chosen before that
   // existed was kept on this device only, and is still read as a fallback.
@@ -922,18 +917,7 @@ export function AIStylist({ go, openBuilder, openAvatarTryOn, active }: { go: (s
           ) : (
             <>
               {/* Photos only, 2 (bigger) or 3 (smaller) per row; a tap opens the full card. */}
-              <div className="flex justify-end gap-1 mb-2">
-                {([2, 3] as const).map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setPhotoColumns(n)}
-                    aria-label={t("aiStylist.photoColumnsAria", { count: n })}
-                    aria-pressed={photoColumns === n}
-                    className={`h-7 px-3 rounded-full text-[10px] uppercase tracking-[0.15em] inline-flex items-center gap-1 ${photoColumns === n ? "bg-foreground text-background" : "border border-border text-muted-foreground"}`}
-                  ><LayoutGrid size={11} /> {n}</button>
-                ))}
-              </div>
+              <GridColumnsToggle value={photoColumns} onChange={setPhotoColumns} className="justify-end mb-2" />
               <div className={`grid gap-2 ${photoColumns === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
                 {myOutfitPhotoEntries.map((w) => (
                   <button

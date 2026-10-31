@@ -549,7 +549,15 @@
     "heelLabel": "Heel",
     "toeShapeLabel": "Toe shape",
     "legShapeLabel": "Leg shape",
-    "legShapes": {"skinny": "Skinny", "slim": "Slim", "straight": "Straight", "tapered": "Tapered", "bootcut": "Bootcut", "flare": "Flare", "wide": "Wide"},
+    "legShapes": {
+      "skinny": "Skinny",
+      "slim": "Slim",
+      "straight": "Straight",
+      "tapered": "Tapered",
+      "bootcut": "Bootcut",
+      "flare": "Flare",
+      "wide": "Wide"
+    },
     "closureLabel": "Closure",
     "genderLabel": "Gender",
     "styleTagsLabel": "Style tags",
@@ -1189,7 +1197,8 @@
       "everyday": "Everyday",
       "concert": "Concert",
       "businessDinner": "Business dinner"
-    }
+    },
+    "allSeasons": "All seasons"
   },
   "tripDetail": {
     "couldntLoadTrip": "Couldn't load this trip",
@@ -2389,6 +2398,15 @@
       "Underwear": "Underwear",
       "Swimwear": "Swimwear",
       "Activewear": "Activewear"
+    },
+    "availableNow": "Available now",
+    "allPieces": "All",
+    "away": {
+      "archived": "Archived",
+      "stored": "Stored away",
+      "lent": "Lent",
+      "basket": "In the basket",
+      "dryCleaner": "At the cleaner"
     }
   },
   "sameDay": {
@@ -2825,7 +2843,9 @@
     "optBasketHint": "To wash: back in the wardrobe on its own after 10 days",
     "optDryCleaner": "To the dry cleaner",
     "optDryCleanerHint": "We remind you to collect it after 7 days",
-    "toDryCleanerShort": "Dry cleaner"
+    "toDryCleanerShort": "Dry cleaner",
+    "sportAsk_one": "You wore {{count}} sport piece: into the basket?",
+    "sportAsk_other": "You wore {{count}} sport pieces: into the basket?"
   },
   "pushAsk": {
     "title": "Would you like notifications?",
@@ -2868,5 +2888,8 @@
   "featureNews": {
     "howTo": "How to use it",
     "tryIt": "Try it"
+  },
+  "grid": {
+    "columnsAria": "{{count}} per row"
   }
 }
