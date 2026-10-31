@@ -37,6 +37,11 @@ export function setUsageStep(step: string | null): void {
   if (scope) scope.step = step;
 }
 
+/** The person the current request belongs to (null outside a usage scope). */
+export function currentUsageUserId(): string | null {
+  return storage?.getStore()?.userId ?? null;
+}
+
 /** Runs fn with every paid call inside it attributed to this feature (and step of it, e.g. an
  *  Outfit Scan's "detect" vs "rerank"), user and user request. */
 export async function runInUsageScope<T>(feature: UsageFeature, userId: string | null | undefined, fn: () => Promise<T>, action: string | null = null): Promise<T> {

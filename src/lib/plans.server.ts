@@ -5,7 +5,7 @@
 // the feature that was used.
 import {
   DEFAULT_TIME_ZONE, EUR_PER_USD, INTERNAL_LIMITS, LIMIT_FOR_FEATURE, LIMIT_KEYS, effectivePlan, isOver,
-  isValidTimeZone, periodStart, shouldUpdateTimeZone, type LimitKey, type Plan, type PlanLimit, type PlanRow,
+  isValidTimeZone, periodStart, removeBgWithinPlan, shouldUpdateTimeZone, type LimitKey, type Plan, type PlanLimit, type PlanRow,
 } from "./plans";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -88,6 +88,28 @@ export async function countUsed(db: Admin, userId: string, key: LimitKey, since:
 }
 
 const OBSERVE_TIMEOUT_MS = 1_500;
+
+/** Whether remove.bg may be called for this person now (removeBgWithinPlan): counts today's
+ *  remove.bg cutouts in the ledger, in the person's time zone. Owner: always. Any failure here
+ *  allows the call (a broken check must not worsen the cutouts). */
+export async function removeBgAllowedToday(userId: string | null): Promise<boolean> {
+  if (!userId || !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return true;
+  try {
+    const db = await admin();
+    const row = await loadPlanRow(db, userId);
+    const { plan } = effectivePlan(row);
+    if (plan === "owner") return true;
+    const limit = (await loadLimits(db)).find((l) => l.plan === plan && l.limit_key === "new_items" && l.period === "day");
+    if (!limit || limit.max_value == null) return true;
+    const tz = isValidTimeZone(row?.time_zone) ? row!.time_zone! : DEFAULT_TIME_ZONE;
+    const start = periodStart("day", new Date(), tz)!;
+    const used = (await ledgerRows(db, userId, start.at, null)).filter((r) => r.provider === "removebg" && Number(r.units ?? 0) > 0).length;
+    return removeBgWithinPlan(used, limit.max_value);
+  } catch (e) {
+    console.warn("[AURA plans] remove.bg plan check unavailable", e instanceof Error ? e.message : "error");
+    return true;
+  }
+}
 
 /** After a feature ran: for its limit (and the cost ceiling), records the first time this period
  *  that the person went over. Never throws, never waits more than OBSERVE_TIMEOUT_MS. */

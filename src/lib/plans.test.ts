@@ -1,7 +1,7 @@
 // Run with: bun test src/lib/plans.test.ts
 import test from "node:test";
 import assert from "node:assert/strict";
-import { effectivePlan, isOver, isValidTimeZone, periodStart } from "./plans";
+import { effectivePlan, isOver, isValidTimeZone, periodStart, removeBgWithinPlan } from "./plans";
 
 test("no plan row is FREE; a FREE person inside the trial gets ULTRA; after it, FREE again", () => {
   const now = new Date("2026-10-06T12:00:00Z");
@@ -57,4 +57,11 @@ test("time zone: first one stored; a trip changes it; back-and-forth within 24 h
   const justChanged = { ...rome, time_zone: "America/New_York", updated_at: "2026-10-06T02:00:00Z" };
   assert.equal(shouldUpdateTimeZone(justChanged, "Asia/Tokyo", now), false);
   assert.equal(shouldUpdateTimeZone(justChanged, "Asia/Tokyo", new Date("2026-10-07T02:00:00Z")), true);
+});
+
+test("remove.bg a day: as many cutouts as the plan's new pieces a day, no limit = always", () => {
+  assert.equal(removeBgWithinPlan(9, 10), true);
+  assert.equal(removeBgWithinPlan(10, 10), false);
+  assert.equal(removeBgWithinPlan(500, null), true);
+  assert.equal(removeBgWithinPlan(0, 0), false);
 });
