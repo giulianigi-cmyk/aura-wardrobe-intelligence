@@ -43,7 +43,8 @@
     "occasionEveryday": "Día a día",
     "noImage": "Sin imagen",
     "looksGenerateFailed": "No se pudieron crear los looks de hoy.",
-    "looksLoadFailed": "No se pudieron cargar los looks de hoy."
+    "looksLoadFailed": "No se pudieron cargar los looks de hoy.",
+    "changeLook": "Otro look"
   },
   "profile": {
     "languageLabel": "Idioma"
@@ -2305,7 +2306,10 @@
     "photo": "Foto",
     "pieces": "Prendas",
     "saveCanvas": "Guardar canvas",
-    "seeCanvas": "Ver canvas"
+    "seeCanvas": "Ver canvas",
+    "setToday": "Poner como look de hoy",
+    "setTodayDone": "Ahora es el look de hoy",
+    "setTodayFailed": "No se pudo: abre primero el inicio hoy"
   },
   "colorHarmony": {
     "title": "Armonía de colores",

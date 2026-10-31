@@ -13,6 +13,7 @@ import { editorialPairingRule, naturePairingRule } from "./nature-color-pairings
 import { CATALOG_MAX_ITEMS, compactCatalogJson } from "./wardrobe-catalog";
 import { bagClashesWithDressyLook, DRESSY_EVENING_BAG_PROMPT_RULE } from "./outfit-styling-rules";
 import { TALL_BOOTS_PROMPT_RULE, violatesTallBootsRule, isTallBoot, clashesWithTallBoots } from "./tall-boots-rule";
+import { COAT_LENGTH_PROMPT_RULE, midCoatOverFloorLength, isMidLengthCoat, isFloorLength } from "./coat-length-rule";
 import { isDayOnlyBag, isEveningOnlyPiece, EVENING_ONLY_PROMPT_RULE, BELT_BODYCON_PROMPT_RULE, ACCESSORY_OCCASION_PROMPT_RULE, OPEN_LAYER_NEEDS_BASE_PROMPT_RULE, EMBELLISHED_EVENING_PROMPT_RULE, EMBELLISHED_SIGNAL, isEmbellishedPiece, allowsEmbellished, SPECIALIZED_OCCASION_TAGS, isBeachBag, isTechnicalFootwear, WORK_ACCESSORY_PROMPT_RULE, isSummerSeason } from "./outfit-styling-rules";
 import { detectActivityKind } from "./activity-kind";
 import { detectPlaceContext, isHardObligation, nonEnforceableRequirementsOf, type DressRequirementType } from "./place-dress-code";
@@ -544,6 +545,7 @@ export async function suggestOutfitCore(params: {
     ACCESSORY_OCCASION_PROMPT_RULE,
     OPEN_LAYER_NEEDS_BASE_PROMPT_RULE,
     TALL_BOOTS_PROMPT_RULE,
+    COAT_LENGTH_PROMPT_RULE,
     DRESSY_EVENING_BAG_PROMPT_RULE,
     "For a 'Work' occasion specifically, exclude anything sequinned, sparkly, feathered, fringed, or overtly evening/party-coded (check the material and styleTags fields), exclude cocktail or evening dresses, and exclude very short skirts (mini-length). Separately, exclude genuinely bare-shoulder construction — off-shoulder, bardot, halter, strapless, one-shoulder, bandeau (check subcategory and styleTags for these terms) — but a plain sleeveless top or dress (sleeveLength: Sleeveless, no other bare-shoulder signal) is completely normal workwear and must NOT be excluded just for having no sleeves; judge it on formality/coverage like any other piece. Also treat dayEvening \"evening\" or formality 4-5 as a strong signal the piece belongs in an Evening look, not Work — these read as going-out wear, not workwear, even if the color looks fine on paper. Exclude logo, slogan or graphic-print T-shirts and sweatshirts too (a \"logo\" entry in details, or a graphic/print in subcategory or styleTags) — they read as weekend, not work; a plain T-shirt is fine.",
     "Color palette by occasion, when choosing between otherwise-equal options: 'Formal'/'Business Formal' favors navy, grey, black, black-and-white; 'Work'/'Business Casual' favors khaki, light grey, navy, brown as a base with bordeaux, olive, camel, or light blue as accents; 'Smart Casual'/'Weekend' allows one clearly colorful statement piece against a simple base. This is a preference between similarly-fitting options, not a hard exclusion — don't reject an otherwise great outfit purely for using an off-palette color.",
@@ -730,6 +732,9 @@ export async function suggestOutfitCore(params: {
   // Knee / over-the-knee boots with trousers that can't go inside them (tall-boots-rule.ts).
   const violatesTallBoots = (ids: string[]): boolean =>
     violatesTallBootsRule(ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => !!c));
+  // A knee-length coat over a maxi dress or a full-length jumpsuit (coat-length-rule.ts).
+  const violatesCoatLength = (ids: string[]): boolean =>
+    midCoatOverFloorLength(ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => !!c));
   // A printed or casual bag in a sequins-and-velvet evening look (outfit-styling-rules.ts).
   const clashingBagId = (ids: string[]): string | null => {
     const pieces = ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is (typeof catalog)[number] => !!c);
@@ -853,6 +858,7 @@ export async function suggestOutfitCore(params: {
     if (missingMandatoryBag(ids)) return false;
     if (violatesFootwearRule(ids)) return false;
     if (violatesTallBoots(ids)) return false;
+    if (violatesCoatLength(ids)) return false;
     if (clashingBagId(ids)) return false;
     if (violatesOccasionTag(ids)) return false;
     if (violatesSleeve(ids)) return false;
@@ -987,6 +993,18 @@ export async function suggestOutfitCore(params: {
       });
     }
 
+    // A mid-length coat over a floor-length piece: the coat goes (the outerwear step below picks a long
+    // coat or a short jacket) — unless the coat is the person's starting piece, then the long piece goes.
+    if (violatesCoatLength(item_ids)) {
+      const coatIsMandatory = item_ids.some((id) => isMust(id) && isMidLengthCoat(catalog.find((c) => c.id === id) ?? {}));
+      item_ids = item_ids.filter((id) => {
+        if (isMust(id)) return true;
+        const c = catalog.find((x) => x.id === id);
+        if (!c) return true;
+        return coatIsMandatory ? !isFloorLength(c) : !isMidLengthCoat(c);
+      });
+    }
+
     // Last resort, after the retry/sanitize logic above has already run:
     // if the outfit is still missing its mandatory bag (the model simply
     // never included one), append the best available one directly rather
@@ -1012,7 +1030,7 @@ export async function suggestOutfitCore(params: {
     // wearing the wrong one. This mirrors the strict-then-relaxed pattern ensureBag/ensureShoes use in
     // suggest-daily-looks.functions.ts, corrected to never relax away an identity-level mismatch.
     const pickBest = (category: string, extra: (c: (typeof catalog)[number]) => boolean = () => true) => {
-      const notUsed = (c: (typeof catalog)[number]) => !item_ids.includes(c.id) && !hardExcluded.has(c.id) && extra(c) && !violatesTallBoots([...item_ids, c.id]);
+      const notUsed = (c: (typeof catalog)[number]) => !item_ids.includes(c.id) && !hardExcluded.has(c.id) && extra(c) && !violatesTallBoots([...item_ids, c.id]) && !violatesCoatLength([...item_ids, c.id]);
       const strict = catalog.filter((c) => c.category === category && notUsed(c) && usableAddition(c));
       const relaxed = catalog.filter((c) =>
         c.category === category && notUsed(c) && !violatesWeather([c.id])

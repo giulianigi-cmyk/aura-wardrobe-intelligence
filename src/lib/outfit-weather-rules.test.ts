@@ -57,3 +57,24 @@ test("id non trovato nel catalog → ignorato, non crasha", () => {
   const catalog = [{ id: "a", category: "Tops" }];
   assert.equal(anyItemViolatesWeather(["missing-id"], catalog, 30), false);
 });
+
+test("un cappotto vero solo da 10 °C in giù; trench e giacche restano anche sopra", async () => {
+  const { isHeavyCoat } = await import("./outfit-weather-rules");
+  const coat = { category: "Outerwear", subcategory: "Coat", material: ["Wool"] };
+  assert.equal(violatesWeatherRule(coat, 10), false);
+  assert.equal(violatesWeatherRule(coat, 7), false);
+  assert.equal(violatesWeatherRule(coat, 11), true);
+  assert.equal(violatesWeatherRule(coat, 17), true);
+  assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Puffer Jacket" }, 14), true);
+  assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Trench Coat" }, 14), false);
+  assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Leather Jacket" }, 14), false);
+  assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Blazer" }, 14), false);
+  assert.equal(isHeavyCoat({ category: "Outerwear", subcategory: "Rain Jacket" }), false);
+});
+
+test("anche la giacca di lana solo da 10 °C in giù; il blazer di lana resta", () => {
+  assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Shacket", material: ["Wool"] }, 14), true);
+  assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Shacket", material: ["Wool"] }, 9), false);
+  assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Blazer", material: ["Wool"] }, 14), false);
+  assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Denim Jacket", material: ["Cotton"] }, 14), false);
+});
