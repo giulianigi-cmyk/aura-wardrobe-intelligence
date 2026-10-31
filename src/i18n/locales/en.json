@@ -684,7 +684,7 @@
     "languageAria": "Language",
     "next": "Next",
     "outfitsEyebrow": "What should I wear?",
-    "outfitsTitle": "Outfits from the clothes\nyou already own.",
+    "outfitsTitle": "{{appName}} creates outfits\nfrom clothes you already own.",
     "outfitsBody": "{{appName}} pairs your pieces for you, for today's weather and the right occasion.",
     "scanEyebrow": "In a few minutes",
     "scanTitle": "Your whole wardrobe,\nin one photo.",
