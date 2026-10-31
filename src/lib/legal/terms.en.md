@@ -99,4 +99,4 @@ We may update these terms. If the changes are important we will tell you in the 
 
 For questions or reports:
 - use "Report a problem" in the app's Settings;
-- or write to support@nimbea.app.
+- or write to info@nimbea.app.

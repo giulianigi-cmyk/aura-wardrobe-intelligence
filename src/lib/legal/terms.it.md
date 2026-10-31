@@ -99,4 +99,4 @@ Possiamo aggiornare questi termini. Se le modifiche sono importanti te lo diremo
 
 Per domande o segnalazioni:
 - usa "Segnala un problema" nelle Impostazioni dell'app;
-- oppure scrivi a support@nimbea.app.
+- oppure scrivi a info@nimbea.app.
