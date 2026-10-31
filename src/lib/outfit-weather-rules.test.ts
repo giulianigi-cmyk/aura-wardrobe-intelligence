@@ -78,3 +78,18 @@ test("anche la giacca di lana solo da 10 °C in giù; il blazer di lana resta", 
   assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Blazer", material: ["Wool"] }, 14), false);
   assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Denim Jacket", material: ["Cotton"] }, 14), false);
 });
+
+test("10–17 °C: pelle, imbottiti leggeri e piumini smanicati sì; sopra 17 °C niente imbottiti", () => {
+  const puffy = { category: "Outerwear", subcategory: "Puffer Jacket", length: "Long" };
+  const lightPuffer = { category: "Outerwear", subcategory: "Puffer Jacket", length: "Short" };
+  const pufferVest = { category: "Outerwear", subcategory: "Vest", material: ["Down"] };
+  const leather = { category: "Outerwear", subcategory: "Leather Jacket", material: ["Leather"] };
+  assert.equal(violatesWeatherRule(puffy, 14), true);
+  assert.equal(violatesWeatherRule(lightPuffer, 14), false);
+  assert.equal(violatesWeatherRule(pufferVest, 14), false);
+  assert.equal(violatesWeatherRule(leather, 14), false);
+  assert.equal(violatesWeatherRule(lightPuffer, 19), true);
+  assert.equal(violatesWeatherRule(pufferVest, 19), true);
+  assert.equal(violatesWeatherRule(leather, 19), false);
+  assert.equal(violatesWeatherRule(puffy, 8), false);
+});

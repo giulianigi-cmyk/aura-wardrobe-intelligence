@@ -5,7 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
 import { z } from "zod";
 import { parseAiJson } from "./ai-json";
-import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule } from "./outfit-weather-rules";
+import { anyItemViolatesWeather, BLAZER_WARMTH_PROMPT_RULE, MID_SEASON_OUTER_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
 import { CATALOG_MAX_ITEMS, compactCatalogJson } from "./wardrobe-catalog";
 import { TALL_BOOTS_PROMPT_RULE, violatesTallBootsRule, isTallBoot } from "./tall-boots-rule";
@@ -211,6 +211,7 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
       ...(languageLine ? [languageLine] : []),
       ...styleMemorySection,
       BLAZER_WARMTH_PROMPT_RULE,
+      MID_SEASON_OUTER_PROMPT_RULE,
       COAT_SLEEVES_PROMPT_RULE,
       BELT_BODYCON_PROMPT_RULE,
       ACCESSORY_OCCASION_PROMPT_RULE,

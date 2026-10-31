@@ -31,10 +31,35 @@ const MID_SEASON_COAT = /trench|rain|impermeabile/i;
 const WOOL = /wool|lana|cashmere|cachemire|tweed|bouclé|boucle|loden/i;
 const TAILORED = /blazer|vest|gilet/i;
 
+// From COLD_THRESHOLD_C to MID_SEASON_MAX_C (10–17 °C) the right outer layer is a leather jacket, a
+// lightly padded jacket or a light / sleeveless puffer (reported: "tra 10 e 17 anche giacche di
+// pelle o leggermente imbottite, piumini leggeri smanicati"). Above 17 °C nothing padded.
+export const MID_SEASON_MAX_C = 17;
+const PADDED = /puffer|padded|quilted|imbottit|trapuntat|piumin|down\b/i;
+const LIGHT_PADDED = /light|leggero|leggera|ultra|packable|sleeveless|smanicat|gilet|vest/i;
+
+/** A padded / quilted / down piece of outerwear (any weight). */
+export function isPadded(item: { category?: string | null; subcategory?: string | null; styleTags?: string[] | null; material?: string[] | null }): boolean {
+  if (item.category !== "Outerwear") return false;
+  return PADDED.test(`${item.subcategory ?? ""} ${(item.styleTags ?? []).join(" ")} ${(item.material ?? []).join(" ")}`);
+}
+
+/** A padded piece light enough for 10–17 °C: a puffer vest, a light / packable down jacket, or a
+ *  short puffer (stored with length Short). */
+export function isLightPadded(item: { category?: string | null; subcategory?: string | null; styleTags?: string[] | null; material?: string[] | null; length?: string | null }): boolean {
+  if (!isPadded(item)) return false;
+  return item.length === "Short" || LIGHT_PADDED.test(`${item.subcategory ?? ""} ${(item.styleTags ?? []).join(" ")}`);
+}
+
+export const MID_SEASON_OUTER_PROMPT_RULE =
+  "OUTER LAYER BY TEMPERATURE: at 10\u00b0C or below a real coat (wool coat, parka, long or heavy puffer) or a wool jacket. From 10 to 17\u00b0C a leather jacket, a lightly padded jacket, a light or sleeveless puffer, a trench or a blazer: never a heavy coat or a wool jacket. " +
+  "Above 17\u00b0C nothing padded: a trench, a light jacket, a blazer, or no outer layer.";
+
 /** Outerwear for real cold: a Coat, Parka or Puffer (or a shearling, a down coat), and any wool
  *  jacket ("giacchetto di lana" — reported too), not a trench, a raincoat or a blazer. */
-export function isHeavyCoat(item: { category?: string | null; subcategory?: string | null; styleTags?: string[] | null; material?: string[] | null }): boolean {
+export function isHeavyCoat(item: { category?: string | null; subcategory?: string | null; styleTags?: string[] | null; material?: string[] | null; length?: string | null }): boolean {
   if (item.category !== "Outerwear") return false;
+  if (isLightPadded(item)) return false;
   const sub = item.subcategory ?? "";
   const text = `${sub} ${(item.styleTags ?? []).join(" ")}`;
   if (MID_SEASON_COAT.test(text)) return false;
@@ -107,6 +132,7 @@ export interface WeatherCheckableItem {
   material?: string[] | null;
   season?: string | null;
   toeShape?: string | null;
+  length?: string | null;
 }
 
 /** True if a single item is wrong for the given temperature. `temperature
@@ -118,6 +144,7 @@ export function violatesWeatherRule(item: WeatherCheckableItem, temperature: num
   const cold = temperature <= COLD_THRESHOLD_C;
   const warmHeavy = temperature >= WARM_HEAVY_THRESHOLD_C;
   if (temperature > COLD_THRESHOLD_C && isHeavyCoat(item)) return true;
+  if (temperature > MID_SEASON_MAX_C && isPadded(item)) return true;
   if (!hot && !cold && !warmHeavy) return false;
 
   const text = `${item.category ?? ""} ${item.subcategory ?? ""} ${(item.styleTags ?? []).join(" ")} ${(item.material ?? []).join(" ")}`;
