@@ -22,12 +22,16 @@ function dataUrlToBlob(dataUrl: string): Blob {
  *  batch scan worker) without going through the client-facing serverFn
  *  wrapper below — the worker already runs with service-role privileges,
  *  it doesn't need a second auth layer around the same API call. */
-export async function removeBackgroundCore(imageDataUrl: string): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string; outOfCredits?: boolean }> {
+export async function removeBackgroundCore(imageDataUrl: string): Promise<{ ok: true; imageDataUrl: string } | { ok: false; error: string; outOfCredits?: boolean; planLimit?: boolean }> {
   const key = process.env.REMOVEBG_API_KEY;
   if (!key) return { ok: false, error: "Missing REMOVEBG_API_KEY" };
   // Out of credits recently: skip the call (callers keep the free cutout, as on any failure).
   const credit = await import("./removebg-credit.server");
   if (await credit.removeBgPaused()) return { ok: false, error: "remove.bg paused: no credits", outOfCredits: true };
+  // Past the plan's pieces a day (plans.ts removeBgWithinPlan): the free cutout is kept.
+  const { currentUsageUserId } = await import("./ai-usage.server");
+  const { removeBgAllowedToday } = await import("./plans.server");
+  if (!(await removeBgAllowedToday(currentUsageUserId()))) return { ok: false, error: "remove.bg: daily plan limit", planLimit: true };
 
   try {
     const form = new FormData();

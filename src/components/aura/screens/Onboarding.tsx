@@ -25,27 +25,29 @@ function Example({ slide }: { slide: Slide }) {
   const { t } = useTranslation();
   if (slide === "outfits") {
     return (
+      // The pieces small, the outfit made from them clearly the main thing.
       <div className="flex items-center gap-3">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-1.5">
           {PIECES.map((p) => (
-            <Tile key={p} className="h-16 w-16 overflow-hidden"><img src={`/onboarding/${p}.webp`} alt="" className="h-full w-full object-contain p-1.5" /></Tile>
+            <Tile key={p} className="h-14 w-14 rounded-xl overflow-hidden"><img src={`/onboarding/${p}.webp`} alt="" className="h-full w-full object-contain p-1.5" /></Tile>
           ))}
         </div>
         <ArrowRight size={18} className="text-muted-foreground shrink-0" />
-        <Tile className="w-36 aspect-[4/5] overflow-hidden"><img src="/onboarding/look.webp" alt={t("onboarding.exampleLook")} className="h-full w-full object-contain" /></Tile>
+        <Tile className="w-44 aspect-[4/5] overflow-hidden"><img src="/onboarding/look.webp" alt={t("onboarding.exampleLook")} className="h-full w-full object-contain" /></Tile>
       </div>
     );
   }
   if (slide === "scan") {
     return (
       <div className="relative">
-        <Tile className="h-44 w-64 relative overflow-hidden">
+        {/* Every piece and its check stay inside the frame of the photo. */}
+        <Tile className="h-44 w-72 relative overflow-hidden">
           <div className="absolute inset-3 rounded-xl border-2 border-dashed border-foreground/25" />
-          <div className="flex gap-3">
+          <div className="flex gap-2.5">
             {SCANNED.map((p) => (
-              <div key={p} className="relative h-20 w-16 rounded-xl bg-secondary/40 flex items-center justify-center">
-                <img src={`/onboarding/${p}.webp`} alt="" className="h-full w-full object-contain p-1" />
-                <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-foreground text-background flex items-center justify-center"><Check size={11} /></span>
+              <div key={p} className="relative h-[88px] w-[70px] rounded-xl bg-secondary/40 overflow-hidden">
+                <img src={`/onboarding/${p}.webp`} alt="" className="h-full w-full object-contain p-2" />
+                <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-foreground text-background flex items-center justify-center"><Check size={9} /></span>
               </div>
             ))}
           </div>
@@ -55,7 +57,7 @@ function Example({ slide }: { slide: Slide }) {
     );
   }
   return (
-    <div className="w-64 space-y-2">
+    <div className="w-72 space-y-2.5">
       <Tile className="h-auto justify-start gap-3 px-4 py-3">
         <Bell size={16} className="shrink-0" />
         <div className="text-left min-w-0">
@@ -81,7 +83,9 @@ export function Onboarding({ onDone }: { onDone: (mode: "signup" | "signin") => 
 
   return (
     <div className="relative h-full w-full flex flex-col">
-      <div className="relative flex-1 overflow-hidden gradient-warm">
+      {/* The example takes about half the screen and the words follow right under it; the buttons
+          stay at the bottom (with the whole height to the example, the page looked empty). */}
+      <div className="relative h-[56%] shrink-0 overflow-hidden gradient-warm">
         <div className="absolute inset-0 grain opacity-40" />
         <div className="absolute top-12 inset-x-6 flex items-center justify-between z-10">
           <label className="text-[11px] uppercase tracking-[0.2em] text-foreground/70">
@@ -100,13 +104,13 @@ export function Onboarding({ onDone }: { onDone: (mode: "signup" | "signin") => 
           </button>
         </div>
         <p className="absolute top-24 inset-x-0 text-center font-serif text-3xl italic text-foreground/85">{BRAND_WORDMARK}</p>
-        <div key={slide} className="absolute inset-x-0 top-36 bottom-6 flex items-center justify-center animate-fade-up">
+        <div key={slide} className="absolute inset-x-0 top-36 bottom-4 flex items-center justify-center animate-fade-up">
           <Example slide={slide} />
         </div>
       </div>
 
-      <div className="px-8 pb-10 relative z-10">
-        <div className="min-h-[170px] flex flex-col justify-end">
+      <div className="flex-1 flex flex-col px-8 pt-7 pb-10 relative z-10">
+        <div>
           <div key={i}>
             <p className="text-[10px] uppercase tracking-[0.4em] text-muted-foreground animate-fade-up">{t(`onboarding.${slide}Eyebrow`)}</p>
             <h1 className="mt-3 font-serif text-[36px] leading-[1.05] text-foreground whitespace-pre-line animate-fade-up" style={{ animationDelay: "0.1s" }}>
@@ -119,7 +123,7 @@ export function Onboarding({ onDone }: { onDone: (mode: "signup" | "signin") => 
         </div>
 
         {last ? (
-          <div className="mt-7 space-y-2">
+          <div className="mt-auto pt-7 space-y-2">
             <button onClick={() => onDone("signup")}
               className="w-full h-12 rounded-full bg-foreground text-background text-[11px] uppercase tracking-[0.25em] active:scale-[0.98]">
               {t("onboarding.createAccount")}
@@ -130,7 +134,7 @@ export function Onboarding({ onDone }: { onDone: (mode: "signup" | "signin") => 
             </button>
           </div>
         ) : (
-          <div className="mt-7 flex items-center justify-between">
+          <div className="mt-auto pt-7 flex items-center justify-between">
             <div className="flex gap-1.5">
               {SLIDES.map((_, idx) => (
                 <span key={idx} className={`h-1 rounded-full transition-all ${idx === i ? "w-8 bg-foreground" : "w-1 bg-foreground/25"}`} />

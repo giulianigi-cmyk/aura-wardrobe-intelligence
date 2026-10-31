@@ -92,6 +92,13 @@ export function isOver(used: number, max: number | null): boolean {
   return max != null && used > max;
 }
 
+/** remove.bg (paid) a day: as many cutouts as the plan's new pieces a day (new_items). No limit
+ *  (NULL) = always. Applied even while the other limits are only observed: past it the person
+ *  still adds the piece, with the free cutout made on the phone. */
+export function removeBgWithinPlan(usedToday: number, maxNewItemsPerDay: number | null): boolean {
+  return maxNewItemsPerDay == null || usedToday < maxNewItemsPerDay;
+}
+
 /** Ledger feature → the limit it counts towards (cost_cap_eur is checked for every feature). */
 export const LIMIT_FOR_FEATURE: Partial<Record<string, LimitKey>> = {
   stylist: "stylist",
