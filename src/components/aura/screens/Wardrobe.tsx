@@ -1464,24 +1464,26 @@ export function Wardrobe({ go, gapFilter, onClearGapFilter, openBuilder, openSty
         >
          <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md max-h-[82vh] overflow-y-auto overscroll-contain bg-card rounded-t-3xl sm:rounded-3xl border border-border p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] relative"
+            // Full page on the phone (it was 82% high, the top of the screen showed the blurred page behind —
+            // reported); a centred card on wider screens.
+            className="w-full max-w-md h-[100dvh] sm:h-auto sm:max-h-[90vh] overflow-y-auto overscroll-contain bg-card sm:rounded-3xl sm:border border-border p-5 pt-[calc(env(safe-area-inset-top)+1.25rem)] sm:pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] relative"
           >
             <button
               onClick={() => { setDetail(null); setEditing(false); setConfirmDelete(false); }}
-              className="absolute top-4 left-4 h-9 w-9 rounded-full bg-secondary/60 flex items-center justify-center active:scale-90"
+              className="absolute top-[calc(env(safe-area-inset-top)+1rem)] sm:top-4 left-4 h-9 w-9 rounded-full bg-secondary/60 flex items-center justify-center active:scale-90"
               aria-label={t("wardrobe.closeAria")}
             ><X size={16} /></button>
             {!editing && (
               <button
                 onClick={openEdit}
-                className="absolute top-4 left-16 h-9 w-9 rounded-full bg-secondary/60 flex items-center justify-center active:scale-90"
+                className="absolute top-[calc(env(safe-area-inset-top)+1rem)] sm:top-4 left-16 h-9 w-9 rounded-full bg-secondary/60 flex items-center justify-center active:scale-90"
                 aria-label={t("wardrobe.editItemAria")}
               ><Pencil size={16} /></button>
             )}
             {!editing && (
               <button
                 onClick={() => setConfirmDelete(true)}
-                className="absolute top-4 right-4 h-9 w-9 rounded-full bg-destructive/10 text-destructive flex items-center justify-center active:scale-90"
+                className="absolute top-[calc(env(safe-area-inset-top)+1rem)] sm:top-4 right-4 h-9 w-9 rounded-full bg-destructive/10 text-destructive flex items-center justify-center active:scale-90"
                 aria-label={t("wardrobe.deleteItemAria")}
               ><Trash2 size={16} /></button>
             )}
