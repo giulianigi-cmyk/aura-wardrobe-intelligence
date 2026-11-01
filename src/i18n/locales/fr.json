@@ -2916,5 +2916,17 @@
   },
   "grid": {
     "columnsAria": "{{count}} par ligne"
+  },
+  "installHint": {
+    "title": "Ajoutez {{appName}} à l'écran d'accueil",
+    "body": "Elle s'ouvre en plein écran comme une app, sans rien télécharger sur le store.",
+    "iosStep1": "dans Safari, touchez Partager",
+    "iosStep2": "choisissez « Sur l'écran d'accueil »",
+    "androidStep1": "dans Chrome, touchez le menu ⋮ en haut à droite",
+    "androidStep2": "choisissez « Installer l'application » ou « Ajouter à l'écran d'accueil »",
+    "step3": "désormais, ouvrez {{appName}} depuis l'icône.",
+    "install": "Installer",
+    "inApp": "Vous êtes dans le navigateur d'une autre app : touchez ⋯ et choisissez « Ouvrir dans le navigateur » (Safari ou Chrome), puis ajoutez {{appName}} à l'écran d'accueil depuis là.",
+    "gotIt": "Compris"
   }
 }

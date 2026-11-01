@@ -2916,5 +2916,17 @@
   },
   "grid": {
     "columnsAria": "{{count}} per riga"
+  },
+  "installHint": {
+    "title": "Aggiungi {{appName}} alla schermata Home",
+    "body": "Si apre a schermo intero come un'app, senza scaricare nulla dallo store.",
+    "iosStep1": "in Safari tocca Condividi",
+    "iosStep2": "scegli «Aggiungi alla schermata Home»",
+    "androidStep1": "in Chrome tocca il menu ⋮ in alto a destra",
+    "androidStep2": "scegli «Installa app» o «Aggiungi a schermata Home»",
+    "step3": "da ora apri {{appName}} dall'icona.",
+    "install": "Installa",
+    "inApp": "Sei nel browser di un'altra app: tocca ⋯ e scegli «Apri nel browser» (Safari o Chrome), poi aggiungi {{appName}} alla schermata Home da lì.",
+    "gotIt": "Ho capito"
   }
 }

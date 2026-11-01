@@ -2916,5 +2916,17 @@
   },
   "grid": {
     "columnsAria": "每行 {{count}} 个"
+  },
+  "installHint": {
+    "title": "将 {{appName}} 添加到主屏幕",
+    "body": "像应用一样全屏打开，无需从应用商店下载。",
+    "iosStep1": "在 Safari 中点按“分享”",
+    "iosStep2": "选择“添加到主屏幕”",
+    "androidStep1": "在 Chrome 中点按右上角的 ⋮ 菜单",
+    "androidStep2": "选择“安装应用”或“添加到主屏幕”",
+    "step3": "以后从图标打开 {{appName}}。",
+    "install": "安装",
+    "inApp": "你正在其他应用的内置浏览器中：点按 ⋯ 并选择“在浏览器中打开”（Safari 或 Chrome），然后在那里将 {{appName}} 添加到主屏幕。",
+    "gotIt": "知道了"
   }
 }

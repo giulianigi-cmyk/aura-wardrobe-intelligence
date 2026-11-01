@@ -2916,5 +2916,17 @@
   },
   "grid": {
     "columnsAria": "{{count}} por fila"
+  },
+  "installHint": {
+    "title": "Añade {{appName}} a la pantalla de inicio",
+    "body": "Se abre a pantalla completa como una app, sin descargar nada de la tienda.",
+    "iosStep1": "en Safari, toca Compartir",
+    "iosStep2": "elige «Añadir a pantalla de inicio»",
+    "androidStep1": "en Chrome, toca el menú ⋮ arriba a la derecha",
+    "androidStep2": "elige «Instalar app» o «Añadir a pantalla de inicio»",
+    "step3": "a partir de ahora, abre {{appName}} desde el icono.",
+    "install": "Instalar",
+    "inApp": "Estás en el navegador de otra app: toca ⋯ y elige «Abrir en el navegador» (Safari o Chrome), y luego añade {{appName}} a la pantalla de inicio desde allí.",
+    "gotIt": "Entendido"
   }
 }

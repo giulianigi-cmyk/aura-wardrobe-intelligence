@@ -23,6 +23,7 @@ import { amIReportAdmin } from "@/lib/problem-reports.functions";
 import { tempBucket } from "@/lib/outfit-weather-rules";
 import { cachedLooksStillFresh, lookFingerprint } from "@/lib/daily-look-cache";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
+import { InstallHint } from "@/components/aura/InstallHint";
 import { WardrobeLocationExpiryBanner } from "@/components/aura/WardrobeLocationExpiryBanner";
 import { FirstSteps } from "@/components/aura/FirstSteps";
 import { FIRST_STEPS_TARGET } from "@/lib/first-steps";
@@ -189,7 +190,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
         // or editing pieces no longer throws today's looks away (it regenerated on every Home visit
         // while someone was uploading their wardrobe); a missing piece or a much bigger wardrobe does.
         const tempBand = String(tempBucket(weather?.current.temperature));
-        const fingerprint = lookFingerprint(activeItems.length, tempBand);
+        const fingerprint = lookFingerprint(activeItems.length, tempBand, i18n.language);
 
 
         type CachedRow = {
@@ -213,7 +214,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
           const ids = [...(row.today_item_ids ?? []), ...((row.curated ?? []).flatMap((l) => l.item_ids))];
           return cachedLooksStillFresh(
             { date: row.date, fingerprint: row.wardrobe_fingerprint, itemIds: ids },
-            { today, activeCount: activeItems.length, tempBand, availableIds },
+            { today, activeCount: activeItems.length, tempBand, availableIds, language: i18n.language },
           );
         };
         const cacheItemsStillReal = (row: CachedRow | null) => {
@@ -397,7 +398,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
         if (lookRerunRef.current) { lookRerunRef.current = false; setLookRerunKey((k) => k + 1); }
       }
     })();
-  }, [user, itemsLoaded, allItems, weather, wxLoading, latitude, longitude, refreshKey, changeLookKey, lookRerunKey]);
+  }, [user, itemsLoaded, allItems, weather, wxLoading, latitude, longitude, refreshKey, changeLookKey, lookRerunKey, i18n.language]);
 
   // Signs the composed images once their storage paths are known — kept
   // separate from looksSigned (item thumbnails) since these are a
@@ -468,6 +469,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
       </header>
 
       <WardrobeLocationExpiryBanner />
+      <InstallHint />
 
            {/* Weather / location strip */}
       <div className="mx-6 mt-2 rounded-2xl bg-secondary/60 px-4 py-3">
