@@ -1,6 +1,6 @@
-// How much of its price a piece keeps the moment it becomes second-hand, by brand tier. A new Zara top
-// resells for about half of what it cost, a Max Mara coat for about two thirds, a Chanel bag for most
-// of it: the valuation curve used to start at 100% for everything (reported: "i costi dei prodotti
+// How much of its price a piece keeps the moment it becomes second-hand, by brand tier. A Zara top
+// resells for about a third of what it cost, a Max Mara coat for about half, a Chanel bag for most of
+// it: the valuation curve used to start at 100% for everything (reported: "i costi dei prodotti
 // in rivendita sono sempre troppo alti" — a €18 Zara top valued €13–17). Brands not listed are "mid".
 
 export type BrandTier = "fast" | "mid" | "premium" | "luxury";
@@ -41,10 +41,20 @@ export function brandTier(brand: string | null | undefined): BrandTier {
   return "mid";
 }
 
-/** Share of the price kept on the day a piece becomes second-hand (before age and wear). Bags hold
- *  value better at every tier. */
+/** Share of the price kept on the day a piece becomes second-hand (before age and wear), by tier and
+ *  by kind of piece. Calibrated on what the resale sites show (November 2026):
+ *  - Vinted's own guidance: like new 60–80% of retail, very good 40–60%, good 20–40%; fast fashion
+ *    sells at about a third of its price;
+ *  - Vestiaire Collective: designer bags around 75% of retail, designer shoes around 57%; a used
+ *    Max Mara 101801 coat sells for roughly a quarter to a half of its new price;
+ *  - Buddy & Selly: designer clothing listed 30–90% below its new price.
+ *  Clothing loses the most, bags the least; luxury shoes, jewellery and watches sit in between. */
 export function secondHandShare(tier: BrandTier, category: string | null | undefined): number {
-  const bags = (category ?? "").trim().toLowerCase() === "bags";
-  const base: Record<BrandTier, number> = { fast: 0.5, mid: 0.6, premium: 0.65, luxury: 0.75 };
-  return Math.min(0.9, base[tier] + (bags ? 0.1 : 0));
+  const c = (category ?? "").trim().toLowerCase();
+  const CLOTHING: Record<BrandTier, number> = { fast: 0.4, mid: 0.45, premium: 0.5, luxury: 0.55 };
+  const BAGS: Record<BrandTier, number> = { fast: 0.45, mid: 0.55, premium: 0.65, luxury: 0.85 };
+  const SHOES_ACCESSORIES: Record<BrandTier, number> = { fast: 0.35, mid: 0.45, premium: 0.5, luxury: 0.65 };
+  if (c === "bags") return BAGS[tier];
+  if (c === "shoes" || c === "accessories") return SHOES_ACCESSORIES[tier];
+  return CLOTHING[tier];
 }

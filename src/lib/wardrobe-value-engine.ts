@@ -368,9 +368,11 @@ export function computeItemValuation(input: ValuationInput, config: ValuationCon
     const brandMult = brand.matched ? brand.modifier : 1;
     const combined = Math.min(Math.max(brandMult * material * size, 0.6), 1.4);
     // Second-hand from day one: the share a piece keeps when it changes hands, by brand tier
-    // (brand-tier.ts). A brand in the luxury table (modifier ≥ 1.15) counts as luxury.
-    const tier = brand.matched && brand.modifier >= 1.15 ? "luxury" : brandTier(input.brand);
-    const share = secondHandShare(tier, input.category);
+    // (brand-tier.ts). A brand in the high-luxury table (modifier ≥ 1.15: Hermès, Chanel, Rolex…)
+    // is already calibrated on its own resale market and keeps its full curve.
+    const curatedLuxury = brand.matched && brand.modifier >= 1.15;
+    const tier = curatedLuxury ? "luxury" : brandTier(input.brand);
+    const share = curatedLuxury ? 1 : secondHandShare(tier, input.category);
     marketValueFactor = Math.min(Math.max(marketCurveValue * combined * share, 0.03), 1.0); // hard ceiling 1.0
     breakdown.brandTier = tier;
     breakdown.secondHandShare = share;
