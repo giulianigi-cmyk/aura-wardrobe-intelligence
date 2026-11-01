@@ -20,3 +20,13 @@ test("regenerated for a new day, a new temperature band, a missing piece or a mu
   assert.equal(cachedLooksStillFresh(row, { ...now, activeCount: 130 }), false);
   assert.equal(cachedLooksStillFresh({ ...row, fingerprint: lookFingerprint(8, "mild") }, { ...now, activeCount: 10 }), false);
 });
+
+test("the looks' texts follow the language: switching language regenerates them once", () => {
+  const it = { ...row, fingerprint: lookFingerprint(100, "mild", "it") };
+  assert.equal(cachedLooksStillFresh(it, { ...now, language: "it" }), true);
+  assert.equal(cachedLooksStillFresh(it, { ...now, language: "en" }), false);
+  assert.equal(cachedLooksStillFresh({ ...row, fingerprint: lookFingerprint(100, "mild", "en-US") }, { ...now, language: "en" }), true);
+  // a row saved before the language was in the key: its language is unknown, so it is redone once
+  assert.equal(cachedLooksStillFresh(row, { ...now, language: "en" }), false);
+  assert.equal(cachedLooksStillFresh(it, { ...now, tempBand: "hot", language: "it" }), false);
+});
