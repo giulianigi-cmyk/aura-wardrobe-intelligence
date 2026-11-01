@@ -96,8 +96,8 @@ test("10–17 °C: pelle, imbottiti leggeri e piumini smanicati sì; sopra 17 °
 
 test("temperatura del capospalla: percepita, ora più fredda fuori casa, sensibilità della persona", async () => {
   const { outerLayerTemperature, forPerson, isLeatherJacket } = await import("./outfit-weather-rules");
-  // 12 °C con vento che sembrano 8: conta la percepita.
-  assert.equal(outerLayerTemperature({ temperature: 12, apparentTemperature: 8 }), 8);
+  // 12 °C che "sembrano" 8: la percepita pesa al massimo 1 °C in meno.
+  assert.equal(outerLayerTemperature({ temperature: 12, apparentTemperature: 8 }), 11);
   // Mattina fresca, pomeriggio caldo: alle 8 si esce con il fresco del mattino.
   const morning = outerLayerTemperature({ temperature: 9, apparentTemperature: 9, tempMin: 8, tempMax: 18, localHour: 8 })!;
   assert.ok(morning <= 9);
@@ -122,4 +122,12 @@ test("alle 8 con 12 °C reali la stima parte dai 12, non dalla curva (che direbb
   const { outerLayerTemperature } = await import("./outfit-weather-rules");
   const t = outerLayerTemperature({ temperature: 12, apparentTemperature: 12, tempMin: 8, tempMax: 17, localHour: 8.1 })!;
   assert.ok(t >= 11.5, `outer ${t}`);
+});
+
+test("12 °C coperto e umido: niente piumino lungo né cappotto con sensibilità normale", async () => {
+  const { outerLayerTemperature } = await import("./outfit-weather-rules");
+  const ot = outerLayerTemperature({ temperature: 12, apparentTemperature: 9.5, tempMin: 9, tempMax: 15, localHour: 8.9 })!;
+  assert.ok(ot > 10, `outer ${ot}`);
+  assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Puffer Jacket", length: "Long", material: ["Down"] }, 12, ot), true);
+  assert.equal(violatesWeatherRule({ category: "Outerwear", subcategory: "Coat", material: ["Wool"] }, 12, ot), true);
 });

@@ -81,6 +81,9 @@ export function forPerson(t: number | null | undefined, sensitivity: ColdSensiti
   return t + SENSITIVITY_OFFSET_C[sensitivity ?? "normal"];
 }
 
+/** How far below the air temperature the perceived one may take the outer-layer temperature. */
+export const MAX_FEELS_DROP_C = 1;
+
 /** Hours the day's outer layer has to cover: from now (not before 8:00) to 20:00. */
 const OUT_FROM = 8;
 const OUT_TO = 20;
@@ -101,13 +104,18 @@ export function outerLayerTemperature(w: {
   const air = w.temperature ?? null;
   const feels = w.apparentTemperature ?? air;
   if (feels == null) return null;
-  if (w.tempMin == null || w.tempMax == null || air == null) return feels;
-  const delta = feels - air;
+  if (air == null) return feels;
+  const capped = Math.max(feels, air - MAX_FEELS_DROP_C);
+  if (w.tempMin == null || w.tempMax == null) return capped;
+  // The perceived temperature counts for at most 1 °C below the air temperature: humidity on an
+  // overcast morning brought a 12 °C day under 10 and a long down coat came back (reported: "12
+  // gradi e piumino d'oca"). People read the temperature shown on Home; wind chill only nudges it.
+  const delta = Math.max(feels - air, -MAX_FEELS_DROP_C);
   const now = w.localHour ?? OUT_FROM;
   const from = Math.max(OUT_FROM, Math.ceil(now));
-  if (from > OUT_TO) return feels;
+  if (from > OUT_TO) return capped;
   const anchor = air - temperatureAt(Math.max(OUT_FROM, now), w.tempMin, w.tempMax);
-  let coldest = feels;
+  let coldest = capped;
   for (let h = from; h <= OUT_TO; h++) coldest = Math.min(coldest, temperatureAt(h, w.tempMin, w.tempMax) + anchor + delta);
   return Math.round(coldest * 10) / 10;
 }
