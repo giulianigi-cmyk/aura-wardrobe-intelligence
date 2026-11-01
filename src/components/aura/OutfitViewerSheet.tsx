@@ -20,6 +20,7 @@ import { composeOutfitImage, computeBuilderLayout, type BuilderLayoutEntry, type
 import { ShareOutfitSheet } from "./ShareOutfitSheet";
 import { optionLabel } from "@/lib/garment-names";
 import { amIReportAdmin } from "@/lib/problem-reports.functions";
+import { setHomeTodayLook } from "@/lib/home-today-look";
 
 type View = "canvas" | "pieces" | "photo";
 
@@ -101,17 +102,8 @@ export function OutfitViewerSheet({
     if (!user) return;
     setSettingToday(true);
     try {
-      const { data, error } = await (supabase.from("home_suggestions" as never) as any)
-        .update({
-          date: new Date().toISOString().slice(0, 10),
-          today_item_ids: itemIds,
-          today_occasion: occasion ?? "",
-          today_explanation: explanation ?? notes ?? "",
-          today_image_path: canvasPath ?? null,
-        })
-        .eq("user_id", user.id)
-        .select("user_id");
-      if (error || !data?.length) throw error ?? new Error("no home row");
+      const ok = await setHomeTodayLook(user.id, { itemIds, occasion, explanation: explanation ?? notes, imagePath: canvasPath });
+      if (!ok) throw new Error("no home row");
       toast.success(t("outfitViewer.setTodayDone"));
     } catch (e) {
       console.error("[AURA outfit-viewer] set as today failed", e);

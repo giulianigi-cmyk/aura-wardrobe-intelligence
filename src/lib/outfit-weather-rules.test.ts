@@ -117,3 +117,9 @@ test("temperatura del capospalla: percepita, ora più fredda fuori casa, sensibi
   assert.equal(violatesWeatherRule(leather, 22), true);
   assert.equal(violatesWeatherRule(leather, 19), false);
 });
+
+test("alle 8 con 12 °C reali la stima parte dai 12, non dalla curva (che direbbe 9)", async () => {
+  const { outerLayerTemperature } = await import("./outfit-weather-rules");
+  const t = outerLayerTemperature({ temperature: 12, apparentTemperature: 12, tempMin: 8, tempMax: 17, localHour: 8.1 })!;
+  assert.ok(t >= 11.5, `outer ${t}`);
+});

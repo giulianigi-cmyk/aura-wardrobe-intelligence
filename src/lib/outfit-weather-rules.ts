@@ -89,8 +89,10 @@ const OUT_TO = 20;
  * The temperature the outer layer is chosen for: the perceived temperature (wind and humidity:
  * 12 °C with wind feel like 8) at the coldest hour the person is out today, from now to the
  * evening — a 9 °C morning that turns into a 16 °C afternoon still needs the morning's layer.
- * Hours on the day's min/max curve (commute-weather.ts), shifted by how far the perceived
- * temperature is from the air temperature right now. Without a min/max: the perceived temperature now.
+ * Hours on the day's min/max curve (commute-weather.ts), moved so that it passes through the real
+ * reading now (the curve puts the minimum at 6:00: at 8:00 it said 9 °C on a 12 °C morning, and a
+ * coat came back — reported), then shifted by how far the perceived temperature is from the air
+ * temperature right now. Without a min/max: the perceived temperature now.
  */
 export function outerLayerTemperature(w: {
   temperature?: number | null; apparentTemperature?: number | null;
@@ -101,10 +103,12 @@ export function outerLayerTemperature(w: {
   if (feels == null) return null;
   if (w.tempMin == null || w.tempMax == null || air == null) return feels;
   const delta = feels - air;
-  const from = Math.max(OUT_FROM, Math.floor(w.localHour ?? OUT_FROM));
+  const now = w.localHour ?? OUT_FROM;
+  const from = Math.max(OUT_FROM, Math.ceil(now));
   if (from > OUT_TO) return feels;
+  const anchor = air - temperatureAt(Math.max(OUT_FROM, now), w.tempMin, w.tempMax);
   let coldest = feels;
-  for (let h = from; h <= OUT_TO; h++) coldest = Math.min(coldest, temperatureAt(h, w.tempMin, w.tempMax) + delta);
+  for (let h = from; h <= OUT_TO; h++) coldest = Math.min(coldest, temperatureAt(h, w.tempMin, w.tempMax) + anchor + delta);
   return Math.round(coldest * 10) / 10;
 }
 
