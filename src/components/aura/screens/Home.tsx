@@ -83,6 +83,12 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
     return () => { alive = false; };
   }, []);
   const forceNewLookRef = useRef(false);
+  // One look generation at a time: weather, pieces and profile arrive one after the other on opening
+  // and each re-ran the effect, so two generations ran in parallel (reported: 12 AI calls for one
+  // app open). A run that starts while another is going waits for it and runs once after.
+  const lookRunRef = useRef(false);
+  const lookRerunRef = useRef(false);
+  const [lookRerunKey, setLookRerunKey] = useState(0);
   const [changeLookKey, setChangeLookKey] = useState(0);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualCity, setManualCity] = useState("");
@@ -160,8 +166,15 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
     // all, weather will never arrive, so don't wait forever in that case.
     if (latitude != null && longitude != null && wxLoading) return;
 
+    if (lookRunRef.current) { lookRerunRef.current = true; return; }
+    lookRunRef.current = true;
     const forceNew = forceNewLookRef.current;
     forceNewLookRef.current = false;
+    // A generation that could not compose a look (a small wardrobe that can't meet every rule) is
+    // not retried on every visit: only when the day, the temperature band or the wardrobe changes.
+    const failKey = user ? `aura.lookFail.${user.id}` : "";
+    const failedBefore = (k: string): boolean => { try { return localStorage.getItem(failKey) === k; } catch { return false; } };
+    const rememberFailure = (k: string) => { try { localStorage.setItem(failKey, k); } catch { /* retried next visit */ } };
     void (async () => {
       if (!looksShownRef.current || forceNew) setLooksLoading(true);
       setLooksError(null);
@@ -291,7 +304,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
               }
             })();
           }
-        } else if (activeItems.length >= 3) {
+        } else if (activeItems.length >= 3 && (forceNew || !failedBefore(`${today}|${fingerprint}`))) {
           try {
             const dressRules = await loadDressRules(user.id);
             // One quiet retry when the phone's connection drops ("Load failed" on iPhone, reported in app_errors).
@@ -347,10 +360,10 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
               } catch (err) {
                 console.error("[AURA home] failed to save suggestion cache", err);
               }
-            } else if (cacheItemsStillReal(cachedRow)) {
-              useRow(cachedRow!);
             } else {
-              setLooksError(t("home.looksGenerateFailed"));
+              rememberFailure(`${today}|${fingerprint}`);
+              if (cacheItemsStillReal(cachedRow)) useRow(cachedRow!);
+              else setLooksError(t("home.looksGenerateFailed"));
             }
           } catch (err) {
             console.error("[AURA home] look generation failed", err);
@@ -380,9 +393,11 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
         }
         if (today_ || curated_.length) looksShownRef.current = true;
         setLooksLoading(false);
+        lookRunRef.current = false;
+        if (lookRerunRef.current) { lookRerunRef.current = false; setLookRerunKey((k) => k + 1); }
       }
     })();
-  }, [user, itemsLoaded, allItems, weather, wxLoading, latitude, longitude, refreshKey, changeLookKey]);
+  }, [user, itemsLoaded, allItems, weather, wxLoading, latitude, longitude, refreshKey, changeLookKey, lookRerunKey]);
 
   // Signs the composed images once their storage paths are known — kept
   // separate from looksSigned (item thumbnails) since these are a
