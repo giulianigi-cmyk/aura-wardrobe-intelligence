@@ -5,7 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
 import { z } from "zod";
 import { parseAiJson } from "./ai-json";
-import { anyItemViolatesWeather, forPerson, outerLayerTemperature, BLAZER_WARMTH_PROMPT_RULE, MID_SEASON_OUTER_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule } from "./outfit-weather-rules";
+import { anyItemViolatesWeather, forPerson, outerLayerTemperature, MAX_FEELS_DROP_C, BLAZER_WARMTH_PROMPT_RULE, MID_SEASON_OUTER_PROMPT_RULE, withoutSummerPieces, summerIsOver, summerOverPromptRule } from "./outfit-weather-rules";
 import { filterForRain, isWetCondition, RAIN_PROMPT_RULE } from "./rain-rules";
 import { CATALOG_MAX_ITEMS, compactCatalogJson } from "./wardrobe-catalog";
 import { TALL_BOOTS_PROMPT_RULE, violatesTallBootsRule, isTallBoot } from "./tall-boots-rule";
@@ -168,7 +168,12 @@ export const suggestDailyLooks = createServerFn({ method: "POST" })
     // The temperatures the outfit is chosen for: perceived, and as this person feels it (freddolosa /
     // calorosa); the outer layer for the coldest perceived hour they are out today.
     const sensitivity = generalPrefs?.cold_sensitivity ?? null;
-    const feltTemp = forPerson(data.apparentTemperature ?? data.temperature, sensitivity);
+    const feltTemp = forPerson(
+      data.temperature != null && data.apparentTemperature != null
+        ? Math.max(data.apparentTemperature, data.temperature - MAX_FEELS_DROP_C)
+        : (data.apparentTemperature ?? data.temperature),
+      sensitivity,
+    );
     const outerTemp = forPerson(outerLayerTemperature(data), sensitivity);
     const wx = data.temperature != null
       ? `Today's weather: ${Math.round(data.temperature)}°C, ${data.condition ?? "unknown"}.` +
