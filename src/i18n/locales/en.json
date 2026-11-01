@@ -2916,5 +2916,17 @@
   },
   "grid": {
     "columnsAria": "{{count}} per row"
+  },
+  "installHint": {
+    "title": "Add {{appName}} to your Home Screen",
+    "body": "It opens full screen like an app, with nothing to download from the store.",
+    "iosStep1": "in Safari, tap Share",
+    "iosStep2": "choose “Add to Home Screen”",
+    "androidStep1": "in Chrome, tap the ⋮ menu at the top right",
+    "androidStep2": "choose “Install app” or “Add to Home screen”",
+    "step3": "from now on, open {{appName}} from the icon.",
+    "install": "Install",
+    "inApp": "You're in another app's browser: tap ⋯ and choose “Open in browser” (Safari or Chrome), then add {{appName}} to your Home Screen from there.",
+    "gotIt": "Got it"
   }
 }

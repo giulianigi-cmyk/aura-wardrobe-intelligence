@@ -23,6 +23,7 @@ import { amIReportAdmin } from "@/lib/problem-reports.functions";
 import { tempBucket } from "@/lib/outfit-weather-rules";
 import { cachedLooksStillFresh, lookFingerprint } from "@/lib/daily-look-cache";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
+import { InstallHint } from "@/components/aura/InstallHint";
 import { WardrobeLocationExpiryBanner } from "@/components/aura/WardrobeLocationExpiryBanner";
 import { FirstSteps } from "@/components/aura/FirstSteps";
 import { FIRST_STEPS_TARGET } from "@/lib/first-steps";
@@ -468,6 +469,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
       </header>
 
       <WardrobeLocationExpiryBanner />
+      <InstallHint />
 
            {/* Weather / location strip */}
       <div className="mx-6 mt-2 rounded-2xl bg-secondary/60 px-4 py-3">
