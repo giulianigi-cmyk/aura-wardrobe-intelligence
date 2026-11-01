@@ -44,7 +44,9 @@
     "noImage": "Aucune image",
     "looksGenerateFailed": "Impossible de créer les looks du jour.",
     "looksLoadFailed": "Impossible de charger les looks du jour.",
-    "changeLook": "Autre look"
+    "changeLook": "Autre look",
+    "useMyPosition": "Utiliser ma position",
+    "locationDeniedHint": "La localisation n'est pas autorisée : activez-la dans Réglages › Confidentialité › Service de localisation, pour le navigateur ou pour Nimbèa."
   },
   "profile": {
     "languageLabel": "Langue"

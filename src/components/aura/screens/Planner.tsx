@@ -304,7 +304,7 @@ export function Planner({ go, openStylistChat, openBuilder, openAvatarTryOn, foc
           <p className="font-serif text-lg mt-1">{t("planner.enableLocationForForecast")}</p>
           <div className="mt-3 flex gap-2">
             <button
-              onClick={detect}
+              onClick={() => void detect()}
               className="h-9 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-95 flex items-center gap-1.5"
             >
               {status === "loading" ? <Loader2 size={11} className="animate-spin" /> : <Cloud size={11} />}

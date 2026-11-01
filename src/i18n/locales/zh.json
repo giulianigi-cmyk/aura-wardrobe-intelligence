@@ -44,7 +44,9 @@
     "noImage": "无图片",
     "looksGenerateFailed": "无法生成今日造型。",
     "looksLoadFailed": "无法加载今日造型。",
-    "changeLook": "换一套"
+    "changeLook": "换一套",
+    "useMyPosition": "使用我的位置",
+    "locationDeniedHint": "未允许定位：请在手机设置 › 隐私 › 定位服务中为浏览器或 Nimbèa 开启。"
   },
   "profile": {
     "languageLabel": "语言"
