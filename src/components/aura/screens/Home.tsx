@@ -48,7 +48,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
   const unreadCount = useUnreadNotifications();
   const { user } = useAuth();
   const { profile } = useProfile();
-  const { city, latitude, longitude, status, detect, setManual } = useLocation();
+  const { city, latitude, longitude, status, detect, refreshIfAllowed, setManual } = useLocation();
   const { data: weather, loading: wxLoading } = useWeather(latitude, longitude);
 
   // Home stays mounted (just hidden) whenever another tab is open — see AuraApp.tsx — so its own
@@ -435,12 +435,12 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
   };
 
   useEffect(() => {
-    if (autoTried) return;
-    if (profile && !city && status === "idle") {
-      setAutoTried(true);
-      detect();
-    }
-  }, [profile, city, status, detect, autoTried]);
+    if (autoTried || !profile) return;
+    setAutoTried(true);
+    // No city yet: ask for the position. A city already set: refresh it quietly if the phone allows.
+    if (!city && status === "idle") void detect();
+    else void refreshIfAllowed();
+  }, [profile, city, status, detect, refreshIfAllowed, autoTried]);
 
       const fullName = profile?.full_name?.trim();
   const greeting = fullName ? t("home.greetingWithName", { name: fullName }) : t("home.greetingNoName");
@@ -492,7 +492,7 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
             </div>
           </div>
           <button
-            onClick={() => { if (city) setManualOpen(v => !v); else detect(); }}
+            onClick={() => { if (city) setManualOpen(v => !v); else void detect(); }}
             className="shrink-0 ml-2 h-8 px-4 rounded-full bg-background border border-border text-[10px] uppercase tracking-widest flex items-center gap-1 active:scale-95"
           >
             {status === "loading" ? <Loader2 size={11} className="animate-spin" /> : <MapPin size={11} />}
@@ -511,6 +511,15 @@ export function Home({ go, openAvatarTryOn, openBuilder, active, onWardrobeKnown
             />
             <button type="submit" className="h-9 px-4 rounded-full bg-foreground text-background text-[10px] uppercase tracking-[0.3em] active:scale-95">{t("home.save")}</button>
           </form>
+        )}
+        {(manualOpen || status === "denied" || status === "error") && (
+          <div className="mt-2 flex flex-col gap-1.5">
+            <button type="button" onClick={() => { setManualOpen(false); void detect(); }}
+              className="self-start inline-flex items-center gap-1.5 text-[11px] text-foreground/80 underline underline-offset-2">
+              <MapPin size={11} /> {t("home.useMyPosition")}
+            </button>
+            {status === "denied" && <p className="text-[11px] text-muted-foreground leading-snug">{t("home.locationDeniedHint")}</p>}
+          </div>
         )}
       </div>
 

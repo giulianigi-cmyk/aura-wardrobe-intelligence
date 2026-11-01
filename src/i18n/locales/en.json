@@ -44,7 +44,9 @@
     "noImage": "No image",
     "looksGenerateFailed": "Couldn't generate today's looks.",
     "looksLoadFailed": "Couldn't load today's looks.",
-    "changeLook": "New look"
+    "changeLook": "New look",
+    "useMyPosition": "Use my location",
+    "locationDeniedHint": "Location is not allowed: turn it on in your phone's Settings › Privacy › Location, for the browser or for Nimbèa."
   },
   "profile": {
     "languageLabel": "Language"

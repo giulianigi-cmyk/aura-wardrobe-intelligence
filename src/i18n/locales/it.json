@@ -44,7 +44,9 @@
     "noImage": "Nessuna immagine",
     "looksGenerateFailed": "Non è stato possibile creare i look di oggi.",
     "looksLoadFailed": "Non è stato possibile caricare i look di oggi.",
-    "changeLook": "Cambia look"
+    "changeLook": "Cambia look",
+    "useMyPosition": "Usa la mia posizione",
+    "locationDeniedHint": "La posizione non è consentita: attivala in Impostazioni del telefono › Privacy › Localizzazione, per il browser o per Nimbèa."
   },
   "profile": {
     "languageLabel": "Lingua"

@@ -28,6 +28,7 @@
 // tocca Supabase, in fondo al file.
 
 import { supabase } from "@/integrations/supabase/client";
+import { brandTier, secondHandShare } from "./brand-tier";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -366,7 +367,15 @@ export function computeItemValuation(input: ValuationInput, config: ValuationCon
     const size = findSizeModifier(config, input.category, input.bagSizeClass);
     const brandMult = brand.matched ? brand.modifier : 1;
     const combined = Math.min(Math.max(brandMult * material * size, 0.6), 1.4);
-    marketValueFactor = Math.min(Math.max(marketCurveValue * combined, 0.05), 1.0); // hard ceiling 1.0
+    // Second-hand from day one: the share a piece keeps when it changes hands, by brand tier
+    // (brand-tier.ts). A brand in the high-luxury table (modifier ≥ 1.15: Hermès, Chanel, Rolex…)
+    // is already calibrated on its own resale market and keeps its full curve.
+    const curatedLuxury = brand.matched && brand.modifier >= 1.15;
+    const tier = curatedLuxury ? "luxury" : brandTier(input.brand);
+    const share = curatedLuxury ? 1 : secondHandShare(tier, input.category);
+    marketValueFactor = Math.min(Math.max(marketCurveValue * combined * share, 0.03), 1.0); // hard ceiling 1.0
+    breakdown.brandTier = tier;
+    breakdown.secondHandShare = share;
 
     const wearRatio = Math.min(wornCount / profile.wear_expected_life_wears, 1);
     wearConditionFactor = 1 - profile.wear_max_penalty * wearRatio;
@@ -379,7 +388,7 @@ export function computeItemValuation(input: ValuationInput, config: ValuationCon
   } else {
     level = "generic_fallback";
     marketCurveValue = genericFallbackRetention(calendarAgeYears);
-    marketValueFactor = marketCurveValue;
+    marketValueFactor = marketCurveValue * secondHandShare(brandTier(input.brand), input.category);
     wearConditionFactor = 1; // la regola legacy non considera l'usura
     breakdown.rule = "generic_fallback_-25pct_5yr";
   }

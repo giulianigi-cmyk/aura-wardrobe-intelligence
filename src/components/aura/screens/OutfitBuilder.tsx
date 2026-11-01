@@ -41,6 +41,8 @@ import { resolvePlanSlot } from "@/lib/outfit-plan-slot";
 import i18n from "@/i18n/config";
 import { garmentWithColor, optionLabel } from "@/lib/garment-names";
 import { BRAND_NAME, BRAND_WORDMARK } from "@/lib/brand";
+import { amIReportAdmin } from "@/lib/problem-reports.functions";
+import { setHomeTodayLook } from "@/lib/home-today-look";
 
 // Stored value (English: the outfit engine, dress preferences and feedback all read it) → label key.
 // The first eight are the ones offered when an outfit starts from a chosen piece ("Per quale
@@ -344,6 +346,16 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
   const [name, setName] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  // «Metti come look di oggi in Home» after saving: only for the app's admins (to film the app).
+  const checkAdmin = useServerFn(amIReportAdmin);
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    checkAdmin().then((r) => { if (alive) setIsAdmin(r.admin); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const [savedCanvasPath, setSavedCanvasPath] = useState<string | null>(null);
+  const [settingHome, setSettingHome] = useState(false);
   const [shareState, setShareState] = useState<
     | null
     | { blob: Blob; dataUrl: string; signedUrl: string | null }
@@ -873,6 +885,7 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
         : await supabase.from("outfits").insert({ user_id: user.id, ...payload } as never).select("id").single();
       if (error) throw error;
       setSavedOutfitId((savedRow as { id: string } | null)?.id ?? init?.outfitId ?? null);
+      setSavedCanvasPath(path);
       // AIStylist's "My Outfits" is a persistent tab now (see
       // AuraApp.tsx) — it never naturally remounts and refetches after
       // a save happens here, so this is what actually makes a newly
@@ -1091,7 +1104,9 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
-          className={`relative w-full ${aspect} rounded-2xl overflow-hidden shadow-md border border-border select-none touch-none`}
+          // isolate: the pieces' z-index (it grows with every "bring to front") stays inside the canvas;
+          // past 50 they were drawn over the "Aggiungi dal guardaroba" sheet (reported).
+          className={`relative isolate w-full ${aspect} rounded-2xl overflow-hidden shadow-md border border-border select-none touch-none`}
           style={{ background: "#FFFFFF", containerType: "size" }}
         >
           {placed
@@ -1292,6 +1307,27 @@ export function OutfitBuilder({ go, init, openAvatarTryOn }: { go: (s: Screen) =
             className="w-full h-12 rounded-full border border-border text-[10px] uppercase tracking-[0.3em] active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
           >
             <CalendarIcon size={12} /> {t("outfitBuilder.addToCalendar")}
+          </button>
+        )}
+        {savedOutfitId && isAdmin && (
+          <button
+            disabled={settingHome}
+            onClick={async () => {
+              if (!user) return;
+              setSettingHome(true);
+              try {
+                const ok = await setHomeTodayLook(user.id, { itemIds: placed.map((p) => p.itemId), occasion, explanation: notes.trim() || name.trim(), imagePath: savedCanvasPath });
+                if (ok) toast.success(t("outfitViewer.setTodayDone")); else toast.error(t("outfitViewer.setTodayFailed"));
+              } catch (e) {
+                console.error("[AURA outfit-builder] set as today failed", e);
+                toast.error(t("outfitViewer.setTodayFailed"));
+              } finally {
+                setSettingHome(false);
+              }
+            }}
+            className="w-full pt-1 text-center text-[11px] text-muted-foreground underline underline-offset-2 disabled:opacity-60"
+          >
+            {t("outfitViewer.setToday")}
           </button>
         )}
       </div>
